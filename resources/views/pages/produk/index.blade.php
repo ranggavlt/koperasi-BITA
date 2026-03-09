@@ -26,7 +26,7 @@
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
           <h6>{{ isset($data) ? 'Edit Produk' : 'Tambah Produk' }}</h6>
           <p class="text-sm text-slate-400">
-            Isi data produk untuk kebutuhan POS koperasi
+            Isi data produk untuk kebutuhan POS koperasi (termasuk konsinyasi)
           </p>
         </div>
 
@@ -38,6 +38,8 @@
             @endif
 
             <div class="flex flex-wrap -mx-3">
+
+              {{-- Nama --}}
               <div class="w-full max-w-full px-3 md:w-6/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Nama Produk
@@ -48,6 +50,7 @@
                   placeholder="Masukkan nama produk">
               </div>
 
+              {{-- Kategori --}}
               <div class="w-full max-w-full px-3 md:w-6/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Kategori
@@ -64,7 +67,8 @@
                 </select>
               </div>
 
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
+              {{-- Harga beli --}}
+              <div class="w-full max-w-full px-3 mt-4 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Harga Beli
                 </label>
@@ -74,7 +78,8 @@
                   placeholder="0">
               </div>
 
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
+              {{-- Harga jual --}}
+              <div class="w-full max-w-full px-3 mt-4 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Harga Jual
                 </label>
@@ -84,7 +89,8 @@
                   placeholder="0">
               </div>
 
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
+              {{-- Stok --}}
+              <div class="w-full max-w-full px-3 mt-4 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Stok
                 </label>
@@ -93,6 +99,52 @@
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
                   placeholder="0">
               </div>
+
+              {{-- Konsinyasi --}}
+              <div class="w-full max-w-full px-3 mt-4 md:w-3/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Konsinyasi
+                </label>
+                @php
+                  $konsinyasiVal = old('konsinyasi', isset($data) ? (int)$data->konsinyasi : 0);
+                @endphp
+                <select name="konsinyasi" id="konsinyasi"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="0" {{ (string)$konsinyasiVal === '0' ? 'selected' : '' }}>Tidak</option>
+                  <option value="1" {{ (string)$konsinyasiVal === '1' ? 'selected' : '' }}>Ya</option>
+                </select>
+              </div>
+
+              {{-- Reseller --}}
+              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Reseller (Konsinyasi)
+                </label>
+                <select name="reseller_id" id="reseller_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">-- Pilih Reseller --</option>
+                  @foreach($reseller as $r)
+                    <option value="{{ $r->id }}"
+                      {{ old('reseller_id', $data->reseller_id ?? '') == $r->id ? 'selected' : '' }}>
+                      {{ $r->nama_reseller }}
+                    </option>
+                  @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">Diisi kalau produk konsinyasi.</p>
+              </div>
+
+              {{-- Harga setor --}}
+              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Harga Setor (Konsinyasi)
+                </label>
+                <input type="number" name="harga_setor" id="harga_setor"
+                  value="{{ old('harga_setor', $data->harga_setor ?? 0) }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="0">
+                <p class="mt-1 text-xs text-slate-400">Harga yang disetor ke reseller per item.</p>
+              </div>
+
             </div>
 
             <div class="mt-6 flex gap-2">
@@ -130,7 +182,9 @@
                 <tr>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Produk</th>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Kategori</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Harga Beli</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Reseller</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Harga Setor</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Harga Jual</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Stok</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
@@ -160,8 +214,26 @@
                     </td>
 
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      @if($item->konsinyasi)
+                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-blue-600 to-cyan-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
+                          Konsinyasi
+                        </span>
+                      @else
+                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-slate-600 to-slate-300 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
+                          Koperasi
+                        </span>
+                      @endif
+                    </td>
+
+                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <p class="mb-0 text-xs font-semibold leading-tight">
+                        {{ $item->reseller->nama_reseller ?? '-' }}
+                      </p>
+                    </td>
+
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <span class="text-xs font-semibold leading-tight text-slate-400">
-                        Rp {{ number_format($item->harga_beli, 0, ',', '.') }}
+                        Rp {{ number_format($item->harga_setor ?? 0, 0, ',', '.') }}
                       </span>
                     </td>
 
@@ -207,7 +279,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="6" class="p-4 text-center text-sm text-slate-400">
+                    <td colspan="8" class="p-4 text-center text-sm text-slate-400">
                       Belum ada data produk.
                     </td>
                   </tr>
@@ -221,4 +293,32 @@
     </div>
   </div>
 </div>
+
+{{-- Script kecil biar field reseller/harga setor “ngerti tugasnya” --}}
+<script>
+  (function () {
+    const konsinyasi = document.getElementById('konsinyasi');
+    const resellerId = document.getElementById('reseller_id');
+    const hargaSetor = document.getElementById('harga_setor');
+
+    function toggle() {
+      const isKons = konsinyasi && konsinyasi.value === '1';
+      if (!resellerId || !hargaSetor) return;
+
+      resellerId.disabled = !isKons;
+      hargaSetor.disabled = !isKons;
+
+      // kalau bukan konsinyasi, bersihkan biar gak nyangkut
+      if (!isKons) {
+        resellerId.value = '';
+        hargaSetor.value = 0;
+      }
+    }
+
+    if (konsinyasi) {
+      konsinyasi.addEventListener('change', toggle);
+      toggle();
+    }
+  })();
+</script>
 @endsection

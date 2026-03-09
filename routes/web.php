@@ -17,9 +17,11 @@ use App\Http\Controllers\MutasiKasController;
 
 
 
+use App\Http\Controllers\ResellerController;
+use App\Http\Controllers\KonsinyasiReportController;
 
 Route::get('/', function () {
-    return view('dashboard');
+    return view('pages.dashboard');
 });
 
 Route::prefix('pages')->group(function () {
@@ -33,12 +35,10 @@ Route::prefix('pages')->group(function () {
     Route::view('/signup', 'pages.sign-up')->name('auth.signup');
 });
 
-Route::get('/produk', [ProdukController::class, 'index'])->name('produk.index');
-Route::post('/produk', [ProdukController::class, 'store'])->name('produk.store');
-Route::get('/produk/{id}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
-Route::put('/produk/{id}', [ProdukController::class, 'update'])->name('produk.update');
-Route::delete('/produk/{id}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+// PRODUK (pakai resource biar binding rapi)
+Route::resource('produk', ProdukController::class)->except(['create', 'show']);
 
+// KATEGORI
 Route::get('/kategori-produk', [KategoriProdukController::class, 'index'])->name('kategori.index');
 
 
@@ -91,3 +91,12 @@ Route::post('/mutasi-kas', [MutasiKasController::class,'store'])->name('mutasi-k
 Route::delete('/mutasi-kas/{id}', [MutasiKasController::class,'destroy'])->name('mutasi-kas.destroy');
 
 // Route::get('/kasir', [KasirController::class, 'index'])->name('kasir.index');
+// KASIR
+// Route::get('/kasir', [KasirController::class, 'index'])->name('kasir.index');
+
+// RESELLER (Konsinyasi)
+Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
+
+// LAPORAN KONSINYASI (opsional)
+Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
+    ->name('konsinyasi.report');
