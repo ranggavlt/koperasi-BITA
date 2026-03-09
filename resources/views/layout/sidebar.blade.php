@@ -1,19 +1,27 @@
 @php
   // helper buat class menu aktif
   $is = fn(string $name) => request()->routeIs($name);
+  $isAny = fn(array $names) => collect($names)->contains(fn($n) => request()->routeIs($n));
+
   $linkClass = fn(bool $active) =>
     $active
       ? 'py-2.7 shadow-soft-xl text-sm ease-nav-brand my-0 mx-4 flex items-center whitespace-nowrap rounded-lg bg-white px-4 font-semibold text-slate-700 transition-colors'
       : 'py-2.7 text-sm ease-nav-brand my-0 mx-4 flex items-center whitespace-nowrap px-4 transition-colors';
+
+  $iconWrap = fn(bool $active) =>
+    $active
+      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
+      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5';
+
+  $iconColor = fn(bool $active) => $active ? 'text-white' : 'text-slate-700';
 @endphp
 
 <aside
   class="max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-none transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-transparent">
 
   <div class="h-19.5">
-    <i
-      class="absolute top-0 right-0 hidden p-4 opacity-50 cursor-pointer fas fa-times text-slate-400 xl:hidden"
-      sidenav-close></i>
+    <i class="absolute top-0 right-0 hidden p-4 opacity-50 cursor-pointer fas fa-times text-slate-400 xl:hidden"
+       sidenav-close></i>
 
     <a class="block px-8 py-6 m-0 text-sm whitespace-nowrap text-slate-700"
        href="{{ route('pages.dashboard') }}">
@@ -40,12 +48,10 @@
               ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-center stroke-0 text-center xl:p-2.5'
               : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
             }}">
-            {{-- svg dashboard kamu --}}
             <svg
-              class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}"
+              class="fill-current {{ $iconColor($active) }}"
               width="12px" height="12px" viewBox="0 0 45 40" version="1.1"
-              xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-              <title>shop</title>
+              xmlns="http://www.w3.org/2000/svg">
               <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
                 <g transform="translate(-1716.000000, -439.000000)" fill="currentColor" fill-rule="nonzero">
                   <g transform="translate(1716.000000, 291.000000)">
@@ -65,24 +71,20 @@
         </a>
       </li>
 
-      {{-- ====== MENU POS (TAMBAHAN) ====== --}}
+      {{-- POS KOPERASI --}}
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           POS Koperasi
         </h6>
       </li>
 
-      {{-- KASIR / PENJUALAN --}}
+      {{-- KASIR --}}
       @php $active = $is('kasir.index'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('kasir.index') }}">
-          <div class="{{ $active
-              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-              : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-          }}">
-            {{-- icon simple: cart --}}
-            <svg width="12px" height="12px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                 class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
               <path fill="currentColor"
                 d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2Zm10 0c-1.1 0-1.99.9-1.99 2S15.9 22 17 22s2-.9 2-2-.9-2-2-2ZM7.16 14h9.45c.75 0 1.4-.41 1.74-1.03L21 7H6.21L5.27 5H2v2h2l3.6 7.59-1.35 2.44C5.52 18.37 6.48 20 8 20h12v-2H8l1.16-2Z"/>
             </svg>
@@ -95,13 +97,9 @@
       @php $active = $is('kategori.index'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('kategori.index') }}">
-          <div class="{{ $active
-              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-              : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-          }}">
-            {{-- icon simple: tag --}}
-            <svg width="12px" height="12px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                 class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
               <path fill="currentColor"
                 d="M20.59 13.41 11 3.83V2h-2v2.66l9.59 9.58a2 2 0 0 1 0 2.83l-4.34 4.34a2 2 0 0 1-2.83 0L2 12.99V3h10l9.59 9.59a2 2 0 0 1 0 2.82ZM7 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
             </svg>
@@ -110,17 +108,13 @@
         </a>
       </li>
 
-      {{-- PRODUK --}}
-      @php $active = $is('produk.index'); @endphp
+      {{-- PRODUK: aktif untuk semua produk.* (index/edit/update/destroy) --}}
+      @php $active = $is('produk.*'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('produk.index') }}">
-          <div class="{{ $active
-              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-              : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-          }}">
-            {{-- icon simple: box --}}
-            <svg width="12px" height="12px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                 class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
               <path fill="currentColor"
                 d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Zm7 6.2-7 3.5-7-3.5L12 4.8l7 3.4ZM5 10l6 3v7.1L5 17.1V10Zm14 7.1-6 3V13l6-3v7.1Z"/>
             </svg>
@@ -128,27 +122,52 @@
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Produk</span>
         </a>
       </li>
-      {{-- ====== END POS ====== --}}
 
-      {{-- MENU LAMA KAMU (tetap) --}}
-      {{-- TABLES --}}
+      {{-- RESELLER: aktif untuk reseller.* --}}
+      @php $active = $is('reseller.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('reseller.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5V21h16v-2.5C20 16 16.42 14 12 14Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Reseller</span>
+        </a>
+      </li>
+
+      {{-- LAPORAN KONSINYASI --}}
+      @php $active = $is('konsinyasi.report'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('konsinyasi.report') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M3 3h2v18H3V3Zm4 10h2v8H7v-8Zm4-6h2v14h-2V7Zm4 4h2v10h-2V11Zm4-8h2v18h-2V3Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Laporan Konsinyasi</span>
+        </a>
+      </li>
+
+      {{-- MENU TEMPLATE LAMA (kalau masih dipakai) --}}
       @php $active = $is('pages.tables'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('pages.tables') }}">
-          <div class="{{ $active ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
-                                 : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5' }}">
-            {{-- svg tables kamu, tetap --}}
-            <svg width="12px" height="12px" viewBox="0 0 42 42" version="1.1"
-                 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-              <title>office</title>
+          <div class="{{ $iconWrap($active) }}">
+            {{-- svg tables kamu --}}
+            <svg width="12px" height="12px" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
               <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
                 <g transform="translate(-1869.000000, -293.000000)" fill="#FFFFFF" fill-rule="nonzero">
                   <g transform="translate(1716.000000, 291.000000)">
                     <g transform="translate(153.000000, 2.000000)">
                       <path class="fill-slate-800 opacity-60"
-                            d="M12.25,17.5 L8.75,17.5 L8.75,1.75 C8.75,0.78225 9.53225,0 10.5,0 L31.5,0 C32.46775,0 33.25,0.78225 33.25,1.75 L33.25,12.25 L29.75,12.25 L29.75,3.5 L12.25,3.5 L12.25,17.5 Z"></path>
+                        d="M12.25,17.5 L8.75,17.5 L8.75,1.75 C8.75,0.78225 9.53225,0 10.5,0 L31.5,0 C32.46775,0 33.25,0.78225 33.25,1.75 L33.25,12.25 L29.75,12.25 L29.75,3.5 L12.25,3.5 L12.25,17.5 Z"></path>
                       <path class="fill-slate-800"
-                            d="M40.25,14 L24.5,14 C23.53225,14 22.75,14.78225 22.75,15.75 L22.75,38.5 L19.25,38.5 L19.25,22.75 C19.25,21.78225 18.46775,21 17.5,21 L1.75,21 C0.78225,21 0,21.78225 0,22.75 L0,40.25 C0,41.21775 0.78225,42 1.75,42 L40.25,42 C41.21775,42 42,41.21775 42,40.25 L42,15.75 C42,14.78225 41.21775,14 40.25,14 Z M12.25,36.75 L7,36.75 L7,33.25 L12.25,33.25 L12.25,36.75 Z M12.25,29.75 L7,29.75 L7,26.25 L12.25,26.25 L12.25,29.75 Z M35,36.75 L29.75,36.75 L29.75,33.25 L35,33.25 L35,36.75 Z M35,29.75 L29.75,29.75 L29.75,26.25 L35,26.25 L35,29.75 Z M35,22.75 L29.75,22.75 L29.75,19.25 L35,19.25 L35,22.75 Z"></path>
+                        d="M40.25,14 L24.5,14 C23.53225,14 22.75,14.78225 22.75,15.75 L22.75,38.5 L19.25,38.5 L19.25,22.75 C19.25,21.78225 18.46775,21 17.5,21 L1.75,21 C0.78225,21 0,21.78225 0,22.75 L0,40.25 C0,41.21775 0.78225,42 1.75,42 L40.25,42 C41.21775,42 42,41.21775 42,40.25 L42,15.75 C42,14.78225 41.21775,14 40.25,14 Z"></path>
                     </g>
                   </g>
                 </g>
@@ -159,9 +178,7 @@
         </a>
       </li>
 
-      {{-- ... LANJUTKAN MENU LAMA KAMU (Billing, Virtual, RTL, Profile, Sign In, Sign Up) persis seperti punyamu ... --}}
-      {{-- (Saya nggak ubah isinya, tinggal kamu paste lanjutannya) --}}
-
+      {{-- lanjutkan menu lama kamu (billing, virtual, rtl, profile, signin, signup) seperti biasa --}}
     </ul>
   </div>
 

@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Produk;
 use App\Models\KategoriProduk;
+use App\Models\Reseller;
 use App\Http\Requests\StoreProdukRequest;
 use App\Http\Requests\UpdateProdukRequest;
-
 
 class ProdukController extends Controller
 {
@@ -15,21 +15,14 @@ class ProdukController extends Controller
      */
     public function index()
     {
-        $produk = Produk::with('kategori')
+        $produk = Produk::with(['kategori', 'reseller'])
             ->latest()
             ->get();
 
         $kategori = KategoriProduk::orderBy('nama_kategori')->get();
+        $reseller = Reseller::orderBy('nama_reseller')->get();
 
-        return view('pages.produk.index', compact('produk', 'kategori'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        return view('pages.produk.index', compact('produk', 'kategori', 'reseller'));
     }
 
     /**
@@ -37,19 +30,38 @@ class ProdukController extends Controller
      */
     public function store(StoreProdukRequest $request)
     {
+        // kalau kamu sudah punya rules di StoreProdukRequest, ini validasi tambahan khusus konsinyasi
         $request->validate([
             'nama_produk' => 'required|string|max:255',
             'kategori_id' => 'required|exists:kategori_produk,id',
             'harga_beli'  => 'nullable|numeric|min:0',
             'harga_jual'  => 'required|numeric|min:0',
             'stok'        => 'required|integer|min:0',
+
+            'konsinyasi'  => 'required|in:0,1',
+            'reseller_id' => 'nullable|exists:reseller,id',
+            'harga_setor' => 'nullable|numeric|min:0',
         ], [
             'nama_produk.required' => 'Nama produk wajib diisi.',
             'kategori_id.required' => 'Kategori wajib dipilih.',
             'kategori_id.exists'   => 'Kategori tidak valid.',
             'harga_jual.required'  => 'Harga jual wajib diisi.',
             'stok.required'        => 'Stok wajib diisi.',
+            'konsinyasi.required'  => 'Status konsinyasi wajib dipilih.',
         ]);
+
+        $isKonsinyasi = (int)$request->konsinyasi === 1;
+
+        // aturan konsinyasi: kalau konsinyasi, reseller + harga_setor wajib masuk
+        if ($isKonsinyasi) {
+            $request->validate([
+                'reseller_id' => 'required|exists:reseller,id',
+                'harga_setor' => 'required|numeric|min:0',
+            ], [
+                'reseller_id.required' => 'Reseller wajib dipilih untuk produk konsinyasi.',
+                'harga_setor.required' => 'Harga setor wajib diisi untuk produk konsinyasi.',
+            ]);
+        }
 
         Produk::create([
             'nama_produk' => $request->nama_produk,
@@ -57,6 +69,10 @@ class ProdukController extends Controller
             'harga_beli'  => $request->harga_beli ?? 0,
             'harga_jual'  => $request->harga_jual,
             'stok'        => $request->stok,
+
+            'konsinyasi'  => $isKonsinyasi,
+            'reseller_id' => $isKonsinyasi ? $request->reseller_id : null,
+            'harga_setor' => $isKonsinyasi ? ($request->harga_setor ?? 0) : 0,
         ]);
 
         return redirect()->route('produk.index')
@@ -64,23 +80,20 @@ class ProdukController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Produk $produk)
-    {
-        //
-    }
-
-    /**
      * Show the form for editing the specified resource.
      */
     public function edit(Produk $produk)
     {
-        $data = Produk::findOrFail($id);
-        $produk = Produk::with('kategori')->latest()->get();
-        $kategori = KategoriProduk::orderBy('nama_kategori')->get();
+        $data = $produk->load(['kategori', 'reseller']);
 
-        return view('produk.index', compact('data', 'produk', 'kategori'));
+        $produk = Produk::with(['kategori', 'reseller'])
+            ->latest()
+            ->get();
+
+        $kategori = KategoriProduk::orderBy('nama_kategori')->get();
+        $reseller = Reseller::orderBy('nama_reseller')->get();
+
+        return view('pages.produk.index', compact('data', 'produk', 'kategori', 'reseller'));
     }
 
     /**
@@ -94,9 +107,20 @@ class ProdukController extends Controller
             'harga_beli'  => 'nullable|numeric|min:0',
             'harga_jual'  => 'required|numeric|min:0',
             'stok'        => 'required|integer|min:0',
+
+            'konsinyasi'  => 'required|in:0,1',
+            'reseller_id' => 'nullable|exists:reseller,id',
+            'harga_setor' => 'nullable|numeric|min:0',
         ]);
 
-        $produk = Produk::findOrFail($id);
+        $isKonsinyasi = (int)$request->konsinyasi === 1;
+
+        if ($isKonsinyasi) {
+            $request->validate([
+                'reseller_id' => 'required|exists:reseller,id',
+                'harga_setor' => 'required|numeric|min:0',
+            ]);
+        }
 
         $produk->update([
             'nama_produk' => $request->nama_produk,
@@ -104,6 +128,10 @@ class ProdukController extends Controller
             'harga_beli'  => $request->harga_beli ?? 0,
             'harga_jual'  => $request->harga_jual,
             'stok'        => $request->stok,
+
+            'konsinyasi'  => $isKonsinyasi,
+            'reseller_id' => $isKonsinyasi ? $request->reseller_id : null,
+            'harga_setor' => $isKonsinyasi ? ($request->harga_setor ?? 0) : 0,
         ]);
 
         return redirect()->route('produk.index')
@@ -115,7 +143,6 @@ class ProdukController extends Controller
      */
     public function destroy(Produk $produk)
     {
-        $produk = Produk::findOrFail($id);
         $produk->delete();
 
         return redirect()->route('produk.index')
