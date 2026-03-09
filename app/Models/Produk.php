@@ -24,4 +24,9 @@ class Produk extends Model
     {
         return $this->belongsTo(KategoriProduk::class, 'kategori_id');
     }
+
+    public function reseller()
+{
+    return $this->belongsTo(Reseller::class, 'reseller_id');
+}
 }
