@@ -72,7 +72,7 @@
         </h6>
       </li>
 
-      {{-- KASIR / PENJUALAN --}}
+      {{-- KASIR / PENJUALAN
       @php $active = $is('kasir.index'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('kasir.index') }}">
@@ -81,7 +81,7 @@
               : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5'
           }}">
             {{-- icon simple: cart --}}
-            <svg width="12px" height="12px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+            {{-- <svg width="12px" height="12px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
                  class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}">
               <path fill="currentColor"
                 d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2Zm10 0c-1.1 0-1.99.9-1.99 2S15.9 22 17 22s2-.9 2-2-.9-2-2-2ZM7.16 14h9.45c.75 0 1.4-.41 1.74-1.03L21 7H6.21L5.27 5H2v2h2l3.6 7.59-1.35 2.44C5.52 18.37 6.48 20 8 20h12v-2H8l1.16-2Z"/>
@@ -89,7 +89,7 @@
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Kasir</span>
         </a>
-      </li>
+      </li> --}} 
 
       {{-- KATEGORI PRODUK --}}
       @php $active = $is('kategori.index'); @endphp
@@ -130,7 +130,224 @@
       </li>
       {{-- ====== END POS ====== --}}
 
-      {{-- MENU LAMA KAMU (tetap) --}}
+      {{-- ====== MENU SIMPAN PINJAM ====== --}}
+      <li class="w-full mt-4">
+        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+          Simpan Pinjam
+        </h6>
+      </li>
+
+      {{-- JENIS SIMPANAN --}}
+      @php $active = $is('jenis-simpanan.index'); @endphp
+      <li class="mt-0.5 w-full">
+
+        <a class="{{ $linkClass($active) }}" href="{{ route('jenis-simpanan.index') }}">
+
+          <div class="{{ $active
+              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+              : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+          }}">
+
+            <i class="fas fa-piggy-bank text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
+
+          </div>
+
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Jenis Simpanan
+          </span>
+
+        </a>
+
+      </li>
+
+      {{-- KARYWAN --}}
+      @php $active = $is('karyawan.index'); @endphp
+      <li class="mt-0.5 w-full">
+      <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
+
+      <div class="{{ $active
+      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg'
+      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white'
+      }}">
+
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 {{ $active ? 'text-white':'text-slate-700' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M17 20h5V10H2v10h5m10 0v-5a5 5 0 00-10 0v5"/>
+
+      </svg>
+
+      </div>
+
+      <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+      Anggota
+      </span>
+
+      </a>
+      </li>
+
+      {{-- JENIS PINJAMAN --}}
+  @php $active = $is('jenis-pinjaman.index'); @endphp
+    <li class="mt-0.5 w-full">
+
+      <a class="{{ $linkClass($active) }}" href="{{ route('jenis-pinjaman.index') }}">
+
+        <div class="{{ $active
+            ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+            : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+        }}">
+
+          {{-- icon loan --}}
+          <svg
+            width="12px"
+            height="12px"
+            viewBox="0 0 24 24"
+            class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}"
+            xmlns="http://www.w3.org/2000/svg">
+
+            <path fill="currentColor"
+              d="M2 6h20v2H2V6Zm2 4h16v10H4V10Zm4 2v2h8v-2H8Zm0 4v2h5v-2H8Z"/>
+
+          </svg>
+
+        </div>
+
+        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+          Jenis Pinjaman
+        </span>
+
+      </a>
+
+  </li>
+
+      {{-- DOMPET KOPERASI --}}
+      @php $active = $is('dompet-koperasi.index'); @endphp
+      <li class="mt-0.5 w-full">
+
+      <a class="{{ $linkClass($active) }}" href="{{ route('dompet-koperasi.index') }}">
+
+      <div class="{{ $active
+      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+      }}">
+
+      <svg
+      width="12px"
+      height="12px"
+      viewBox="0 0 24 24"
+      class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}"
+      xmlns="http://www.w3.org/2000/svg">
+
+      <path fill="currentColor"
+      d="M3 6h18v12H3V6Zm2 2v8h14V8H5Zm2 2h6v2H7v-2Z"/>
+
+      </svg>
+
+      </div>
+
+      <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+      Dompet Koperasi
+      </span>
+
+      </a>
+
+      </li>
+
+      {{-- TRANSAKSI SIMPANAN --}}
+      @php $active = $is('simpanan.index'); @endphp
+
+      <li class="mt-0.5 w-full">
+
+      <a class="{{ $linkClass($active) }}" href="{{ route('simpanan.index') }}">
+
+      <div class="{{ $active
+      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+      }}">
+
+      <i class="fas fa-coins text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
+
+      </div>
+
+      <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+      Transaksi Simpanan
+      </span>
+
+      </a>
+
+      </li>
+
+      {{-- PINJAMAN --}}
+        @php $active = $is('pinjaman.index'); @endphp
+
+        <li class="mt-0.5 w-full">
+
+        <a class="{{ $linkClass($active) }}" href="{{ route('pinjaman.index') }}">
+
+        <div class="{{ $active
+        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+        : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+        }}">
+
+        <i class="fas fa-hand-holding-usd text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
+
+        </div>
+
+        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+        Pinjaman
+        </span>
+
+        </a>
+
+        </li>
+
+        {{-- CICILAN PINJAMAN --}}
+        @php $active = $is('cicilan-pinjaman.index'); @endphp
+
+        <li class="mt-0.5 w-full">
+
+        <a class="{{ $linkClass($active) }}" href="{{ route('cicilan-pinjaman.index') }}">
+
+        <div class="{{ $active
+        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+        : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+        }}">
+
+        <i class="fas fa-money-bill-wave text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
+
+        </div>
+
+        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+        Cicilan Pinjaman
+        </span>
+
+        </a>
+
+        </li>
+
+        {{-- MUTASI KAS --}}
+        @php $active = $is('mutasi-kas.index'); @endphp
+
+        <li class="mt-0.5 w-full">
+
+        <a class="{{ $linkClass($active) }}" href="{{ route('mutasi-kas.index') }}">
+
+        <div class="{{ $active
+        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
+        : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
+        }}">
+
+        <i class="fas fa-exchange-alt text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
+
+        </div>
+
+        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+        Mutasi Kas
+        </span>
+
+        </a>
+
+        </li>
       {{-- TABLES --}}
       @php $active = $is('pages.tables'); @endphp
       <li class="mt-0.5 w-full">
