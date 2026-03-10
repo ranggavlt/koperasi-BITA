@@ -50,9 +50,10 @@
             }}">
             <svg
               class="fill-current {{ $iconColor($active) }}"
-              width="12px" height="12px" viewBox="0 0 45 40" version="1.1"
+              width="12px" height="12px" viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg">
-              ...
+              <path fill="currentColor"
+                d="M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z"/>
             </svg>
           </div>
 
@@ -89,12 +90,17 @@
         <a class="{{ $linkClass($active) }}" href="{{ route('penjualan.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
-                class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}">
-            ...
-      </li> --}}
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M7 4V2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v3H3V6a2 2 0 0 1 2-2h2Zm14 7v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7h18Zm-5 2H8v2h8v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Penjualan / Kasir</span>
+        </a>
+      </li>
 
       {{-- KATEGORI PRODUK --}}
-      @php $active = $is('kategori-produk.*') || $is('kategori-produk.*'); @endphp
+      @php $active = $is('kategori-produk.*'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('kategori-produk.index') }}">
           <div class="{{ $iconWrap($active) }}">
@@ -160,216 +166,140 @@
       </li>
 
       {{-- JENIS SIMPANAN --}}
-      @php $active = $is('jenis-simpanan.index'); @endphp
+      @php $active = $is('jenis-simpanan.*'); @endphp
       <li class="mt-0.5 w-full">
-
         <a class="{{ $linkClass($active) }}" href="{{ route('jenis-simpanan.index') }}">
-
-          <div class="{{ $active
-              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-              : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-          }}">
-
-            <i class="fas fa-piggy-bank text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
-
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M19 8h-1.18A3 3 0 0 0 15 6h-1V4h-2v2H9.5a5.5 5.5 0 0 0-5.45 4.74L3 11v2h1v2a3 3 0 0 0 3 3h1v2h2v-2h4v2h2v-2h.5A4.5 4.5 0 0 0 21 13.5V12a4 4 0 0 0-2-4ZM7 9a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm9.5 7h-9A1.5 1.5 0 0 1 6 14.5V13h2.26a3 3 0 0 0 5.48 0H16a1 1 0 0 0 0-2h-3v1a1 1 0 1 1-2 0v-1H5.15A3.5 3.5 0 0 1 8.5 8H15a1 1 0 0 1 1 1v1h2v-.73A2 2 0 0 1 19 11v2.5a2.5 2.5 0 0 1-2.5 2.5Z"/>
+            </svg>
           </div>
-
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
             Jenis Simpanan
           </span>
-
         </a>
-
       </li>
 
       {{-- KARYWAN --}}
-      @php $active = $is('karyawan.index'); @endphp
+      @php $active = $is('karyawan.*'); @endphp
       <li class="mt-0.5 w-full">
-      <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
-
-      <div class="{{ $active
-      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg'
-      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white'
-      }}">
-
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 {{ $active ? 'text-white':'text-slate-700' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-      d="M17 20h5V10H2v10h5m10 0v-5a5 5 0 00-10 0v5"/>
-
-      </svg>
-
-      </div>
-
-      <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-      Anggota
-      </span>
-
-      </a>
+        <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Anggota
+          </span>
+        </a>
       </li>
 
       {{-- JENIS PINJAMAN --}}
-  @php $active = $is('jenis-pinjaman.index'); @endphp
-    <li class="mt-0.5 w-full">
-
-      <a class="{{ $linkClass($active) }}" href="{{ route('jenis-pinjaman.index') }}">
-
-        <div class="{{ $active
-            ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-            : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-        }}">
-
-          {{-- icon loan --}}
-          <svg
-            width="12px"
-            height="12px"
-            viewBox="0 0 24 24"
-            class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}"
-            xmlns="http://www.w3.org/2000/svg">
-
-            <path fill="currentColor"
-              d="M2 6h20v2H2V6Zm2 4h16v10H4V10Zm4 2v2h8v-2H8Zm0 4v2h5v-2H8Z"/>
-
-          </svg>
-
-        </div>
-
-        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-          Jenis Pinjaman
-        </span>
-
-      </a>
-
-  </li>
+      @php $active = $is('jenis-pinjaman.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('jenis-pinjaman.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M2 6h20v2H2V6Zm2 4h16v10H4V10Zm4 2v2h8v-2H8Zm0 4v2h5v-2H8Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Jenis Pinjaman
+          </span>
+        </a>
+      </li>
 
       {{-- DOMPET KOPERASI --}}
-      @php $active = $is('dompet-koperasi.index'); @endphp
+      @php $active = $is('dompet-koperasi.*'); @endphp
       <li class="mt-0.5 w-full">
-
-      <a class="{{ $linkClass($active) }}" href="{{ route('dompet-koperasi.index') }}">
-
-      <div class="{{ $active
-      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-      }}">
-
-      <svg
-      width="12px"
-      height="12px"
-      viewBox="0 0 24 24"
-      class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}"
-      xmlns="http://www.w3.org/2000/svg">
-
-      <path fill="currentColor"
-      d="M3 6h18v12H3V6Zm2 2v8h14V8H5Zm2 2h6v2H7v-2Z"/>
-
-      </svg>
-
-      </div>
-
-      <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-      Dompet Koperasi
-      </span>
-
-      </a>
-
+        <a class="{{ $linkClass($active) }}" href="{{ route('dompet-koperasi.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M3 6h18v12H3V6Zm2 2v8h14V8H5Zm2 2h6v2H7v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Dompet Koperasi
+          </span>
+        </a>
       </li>
 
       {{-- TRANSAKSI SIMPANAN --}}
-      @php $active = $is('simpanan.index'); @endphp
-
+      @php $active = $is('simpanan.*'); @endphp
       <li class="mt-0.5 w-full">
-
-      <a class="{{ $linkClass($active) }}" href="{{ route('simpanan.index') }}">
-
-      <div class="{{ $active
-      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-      : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-      }}">
-
-      <i class="fas fa-coins text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
-
-      </div>
-
-      <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-      Transaksi Simpanan
-      </span>
-
-      </a>
-
+        <a class="{{ $linkClass($active) }}" href="{{ route('simpanan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M12 3C8.13 3 5 5.24 5 8c0 1.54.98 2.91 2.5 3.83V15c0 2.76 3.13 5 7 5s7-2.24 7-5v-3.17C23.02 10.91 24 9.54 24 8c0-2.76-3.13-5-7-5h-5Zm0 2h5c2.76 0 5 1.34 5 3s-2.24 3-5 3h-5C9.24 11 7 9.66 7 8s2.24-3 5-3Zm-2.5 8.23c.8.18 1.64.27 2.5.27h5c.86 0 1.7-.09 2.5-.27V15c0 1.66-2.24 3-5 3h-5c-2.76 0-5-1.34-5-3v-1.77Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Transaksi Simpanan
+          </span>
+        </a>
       </li>
 
       {{-- PINJAMAN --}}
-        @php $active = $is('pinjaman.index'); @endphp
-
-        <li class="mt-0.5 w-full">
-
+      @php $active = $is('pinjaman.*'); @endphp
+      <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('pinjaman.index') }}">
-
-        <div class="{{ $active
-        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-        : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-        }}">
-
-        <i class="fas fa-hand-holding-usd text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
-
-        </div>
-
-        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-        Pinjaman
-        </span>
-
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M3 7h18v10H3V7Zm2 2v6h14V9H5Zm3 1h5a3 3 0 1 1 0 6H8v-2h5a1 1 0 1 0 0-2H8v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Pinjaman
+          </span>
         </a>
+      </li>
 
-        </li>
-
-        {{-- CICILAN PINJAMAN --}}
-        @php $active = $is('cicilan-pinjaman.index'); @endphp
-
-        <li class="mt-0.5 w-full">
-
+      {{-- CICILAN PINJAMAN --}}
+      @php $active = $is('cicilan-pinjaman.*'); @endphp
+      <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('cicilan-pinjaman.index') }}">
-
-        <div class="{{ $active
-        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-        : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-        }}">
-
-        <i class="fas fa-money-bill-wave text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
-
-        </div>
-
-        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-        Cicilan Pinjaman
-        </span>
-
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 2v10h16V7H4Zm2 2h5v2H6V9Zm0 4h8v2H6v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Cicilan Pinjaman
+          </span>
         </a>
+      </li>
 
-        </li>
-
-        {{-- MUTASI KAS --}}
-        @php $active = $is('mutasi-kas.index'); @endphp
-
-        <li class="mt-0.5 w-full">
-
+      {{-- MUTASI KAS --}}
+      @php $active = $is('mutasi-kas.*'); @endphp
+      <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('mutasi-kas.index') }}">
-
-        <div class="{{ $active
-        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg text-center xl:p-2.5'
-        : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-center xl:p-2.5'
-        }}">
-
-        <i class="fas fa-exchange-alt text-xs {{ $active ? 'text-white' : 'text-slate-700' }}"></i>
-
-        </div>
-
-        <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-        Mutasi Kas
-        </span>
-
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M7 7h11V4l5 4-5 4V9H7a3 3 0 0 0 0 6h2v2H7A5 5 0 0 1 7 7Zm10 0h-2V5h-2v4h4V7Zm0 10H6v3l-5-4 5-4v3h11a3 3 0 1 0 0-6h-2V7h2a5 5 0 1 1 0 10Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Mutasi Kas
+          </span>
         </a>
-
-        </li>
+      </li>
       {{-- TABLES --}}
      
 

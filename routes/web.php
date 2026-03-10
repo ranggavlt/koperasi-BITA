@@ -38,12 +38,7 @@ Route::resource('produk', ProdukController::class)->except(['create', 'show']);
 Route::resource('kategori-produk', KategoriProdukController::class)->except(['create', 'show']);
 
 
-Route::get('/jenis-simpanan', [JenisSimpananController::class, 'index'])->name('jenis-simpanan.index');
-Route::post('/jenis-simpanan', [JenisSimpananController::class, 'store'])->name('jenis-simpanan.store');
-Route::get('/jenis-simpanan/{id}/edit', [JenisSimpananController::class, 'edit'])->name('jenis-simpanan.edit');
-Route::put('/jenis-simpanan/{id}', [JenisSimpananController::class, 'update'])->name('jenis-simpanan.update');
-Route::delete('/jenis-simpanan/{id}', [JenisSimpananController::class, 'destroy'])->name('jenis-simpanan.destroy');
-Route::resource('jenis-simpanan', JenisSimpananController::class);
+Route::resource('jenis-simpanan', JenisSimpananController::class)->except(['create', 'show']);
 
 Route::get('/karyawan', [KaryawanController::class,'index'])->name('karyawan.index');
 Route::get('/karyawan/create', [KaryawanController::class,'create'])->name('karyawan.create');
