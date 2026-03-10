@@ -9,7 +9,8 @@ class ResellerController extends Controller
 {
     public function index()
     {
-        $reseller = Reseller::latest()->get();
+        // Cukup pakai paginate, yang ->get() dihapus saja biar rapi dan enteng
+        $reseller = Reseller::orderBy('id', 'desc')->paginate(15);
         return view('pages.reseller.index', compact('reseller'));
     }
 
@@ -29,8 +30,11 @@ class ResellerController extends Controller
     public function edit($id)
     {
         $data = Reseller::findOrFail($id);
-        $reseller = Reseller::latest()->get();
-        return view('reseller.index', compact('data', 'reseller'));
+        
+        // UBAH DISINI JUGA: Harus pakai paginate juga agar tidak error saat membuka halaman edit
+        $reseller = Reseller::orderBy('id', 'desc')->paginate(10); 
+        
+        return view('pages.reseller.index', compact('data', 'reseller'));
     }
 
     public function update(Request $request, $id)
