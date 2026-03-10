@@ -2,55 +2,82 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Karyawan;
+use Illuminate\Http\Request;
 
 class KaryawanController extends Controller
 {
+    /**
+     * Display a listing of the resource.
+     */
     public function index()
     {
-        $data = Karyawan::latest()->get();
-
-        return view('pages.karyawan.index', compact('data'));
+        $karyawan = Karyawan::orderBy('id', 'desc')->paginate(10);
+        
+        return view('pages.karyawan.index', compact('karyawan'));
     }
 
-    public function create()
-    {
-        return view('pages.karyawan.create');
-    }
-
+    /**
+     * Store a newly created resource in storage.
+     */
     public function store(Request $request)
     {
-        Karyawan::create($request->all());
+        $request->validate([
+            'nama'    => 'required|string|max:255',
+            'email'   => 'required|email|max:255|unique:karyawan,email',
+            'telepon' => 'nullable|string|max:50',
+            'jabatan' => 'required|string|max:255',
+        ]);
+
+        Karyawan::create($request->only('nama', 'email', 'telepon', 'jabatan'));
 
         return redirect()->route('karyawan.index')
-            ->with('success','Data anggota berhasil ditambahkan');
+            ->with('success', 'Data karyawan berhasil ditambahkan.');
     }
 
-    public function edit($id)
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Karyawan $karyawan)
     {
-        $data = Karyawan::findOrFail($id);
+        $data = $karyawan;
+        
+        // Load ulang tabel agar form edit muncul berdampingan dengan tabel yang tidak error
+        $karyawanList = Karyawan::orderBy('id', 'desc')->paginate(10);
 
-        return view('pages.karyawan.edit', compact('data'));
+        return view('pages.karyawan.index', [
+            'data'     => $data,
+            'karyawan' => $karyawanList
+        ]);
     }
 
-    public function update(Request $request, $id)
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Karyawan $karyawan)
     {
-        $data = Karyawan::findOrFail($id);
+        $request->validate([
+            'nama'    => 'required|string|max:255',
+            // Validasi email agar mengabaikan email milik karyawan yang sedang diedit
+            'email'   => 'required|email|max:255|unique:karyawan,email,' . $karyawan->id,
+            'telepon' => 'nullable|string|max:50',
+            'jabatan' => 'required|string|max:255',
+        ]);
 
-        $data->update($request->all());
+        $karyawan->update($request->only('nama', 'email', 'telepon', 'jabatan'));
 
         return redirect()->route('karyawan.index')
-            ->with('success','Data berhasil diupdate');
+            ->with('success', 'Data karyawan berhasil diupdate.');
     }
 
-    public function destroy($id)
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Karyawan $karyawan)
     {
-        $data = Karyawan::findOrFail($id);
-
-        $data->delete();
+        $karyawan->delete();
 
         return redirect()->route('karyawan.index')
-            ->with('success','Data berhasil dihapus');
+            ->with('success', 'Data karyawan berhasil dihapus.');
     }
 }

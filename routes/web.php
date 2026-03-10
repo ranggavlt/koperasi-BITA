@@ -12,21 +12,17 @@ use App\Http\Controllers\SimpananController;
 use App\Http\Controllers\PinjamanController;
 use App\Http\Controllers\CicilanPinjamanController;
 use App\Http\Controllers\MutasiKasController;
-
-
-
-
-
+use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\ResellerController;
 use App\Http\Controllers\KonsinyasiReportController;
+use App\Http\Controllers\DashboardController;
 
-Route::get('/', function () {
-    return view('pages.dashboard');
-});
+Route::get('/', [DashboardController::class, 'index']);
 
 Route::prefix('pages')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('pages.dashboard');
+    // yang lain boleh Route::view
     Route::view('/tables', 'pages.tables')->name('pages.tables');
-    Route::view('/dashboard', 'pages.dashboard')->name('pages.dashboard');
     Route::view('/profile', 'pages.profile')->name('pages.profile');
     Route::view('/billing', 'pages.billing')->name('pages.billing');
     Route::view('/virtual-reality', 'pages.virtual-reality')->name('pages.virtual');
@@ -38,8 +34,8 @@ Route::prefix('pages')->group(function () {
 // PRODUK (pakai resource biar binding rapi)
 Route::resource('produk', ProdukController::class)->except(['create', 'show']);
 
-// KATEGORI
-Route::get('/kategori-produk', [KategoriProdukController::class, 'index'])->name('kategori.index');
+// KATEGORI PRODUK
+Route::resource('kategori-produk', KategoriProdukController::class)->except(['create', 'show']);
 
 
 Route::get('/jenis-simpanan', [JenisSimpananController::class, 'index'])->name('jenis-simpanan.index');
@@ -93,10 +89,20 @@ Route::delete('/mutasi-kas/{id}', [MutasiKasController::class,'destroy'])->name(
 // Route::get('/kasir', [KasirController::class, 'index'])->name('kasir.index');
 // KASIR
 // Route::get('/kasir', [KasirController::class, 'index'])->name('kasir.index');
+//PENJUALAN
+Route::resource('penjualan', PenjualanController::class)->except(['create', 'show']);
 
 // RESELLER (Konsinyasi)
 Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
 
+//Karyawan
+Route::resource('karyawan', KaryawanController::class)->except(['create', 'show']);
+
+
+
 // LAPORAN KONSINYASI (opsional)
 Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
     ->name('konsinyasi.report');
+
+
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('pages.dashboard');

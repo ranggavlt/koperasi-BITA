@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kasir;
-use App\Http\Requests\StoreKasirRequest;
-use App\Http\Requests\UpdateKasirRequest;
+use App\Models\DetailPenjualan;
+use App\Http\Requests\StoreDetailPenjualanRequest;
+use App\Http\Requests\UpdateDetailPenjualanRequest;
 
-class KasirController extends Controller
+class DetailPenjualanController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -27,7 +27,7 @@ class KasirController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreKasirRequest $request)
+    public function store(StoreDetailPenjualanRequest $request)
     {
         //
     }
@@ -35,7 +35,7 @@ class KasirController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Kasir $kasir)
+    public function show(DetailPenjualan $detailPenjualan)
     {
         //
     }
@@ -43,7 +43,7 @@ class KasirController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Kasir $kasir)
+    public function edit(DetailPenjualan $detailPenjualan)
     {
         //
     }
@@ -51,7 +51,7 @@ class KasirController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateKasirRequest $request, Kasir $kasir)
+    public function update(UpdateDetailPenjualanRequest $request, DetailPenjualan $detailPenjualan)
     {
         //
     }
@@ -59,7 +59,7 @@ class KasirController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Kasir $kasir)
+    public function destroy(DetailPenjualan $detailPenjualan)
     {
         //
     }

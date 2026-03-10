@@ -1,138 +1,232 @@
 @extends('layout.main')
 
 @section('content')
-
 <div class="w-full px-6 py-6 mx-auto">
 
-    {{-- Header Page --}}
-    <div class="flex items-center justify-between mb-6">
-
-        <h2 class="text-xl font-bold text-slate-700">
-            Anggota Koperasi
-        </h2>
-
-        <x-button href="{{ route('karyawan.create') }}">
-            + Tambah Anggota
-        </x-button>
-
+  @if (session('success'))
+    <div class="mb-4 rounded-lg bg-green-100 px-4 py-3 text-sm text-green-700">
+      {{ session('success') }}
     </div>
+  @endif
 
+  @if ($errors->any())
+    <div class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
+      <ul class="mb-0 list-disc pl-5">
+        @foreach ($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
+    </div>
+  @endif
 
-    {{-- Card --}}
-    <x-card title="Daftar Anggota">
+  {{-- CARD 1: FORM --}}
+  <div class="flex flex-wrap -mx-3">
+    <div class="flex-none w-full max-w-full px-3">
+      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+        
+        {{-- HEADER FORM & TOMBOL TOGGLE --}}
+        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
+          <div>
+            <h6>{{ isset($data) ? 'Edit Karyawan' : 'Tambah Karyawan' }}</h6>
+            <p class="text-sm text-slate-400">Kelola data staf dan karyawan koperasi</p>
+          </div>
+          
+          @if(!isset($data))
+            <button type="button" onclick="toggleForm()" id="btn-toggle-form"
+              class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+              {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
+            </button>
+          @endif
+        </div>
 
-        <x-table>
+        {{-- BODY FORM --}}
+        <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">
+          <form action="{{ isset($data) ? route('karyawan.update', $data->id) : route('karyawan.store') }}" method="POST">
+            @csrf
+            @if(isset($data))
+              @method('PUT')
+            @endif
 
-            {{-- Table Head --}}
-            <x-slot:head>
+            <div class="flex flex-wrap -mx-3">
+              
+              {{-- Nama --}}
+              <div class="w-full max-w-full px-3 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Nama Lengkap</label>
+                <input type="text" name="nama"
+                  value="{{ old('nama', $data->nama ?? '') }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="Nama karyawan">
+              </div>
 
+              {{-- Jabatan --}}
+              <div class="w-full max-w-full px-3 md:w-6/12 mt-4 md:mt-0">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jabatan</label>
+                <input type="text" name="jabatan"
+                  value="{{ old('jabatan', $data->jabatan ?? '') }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="Contoh: Kasir, Admin, dll">
+              </div>
+
+              {{-- Email --}}
+              <div class="w-full max-w-full px-3 md:w-6/12 mt-4">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Email</label>
+                <input type="email" name="email"
+                  value="{{ old('email', $data->email ?? '') }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="email@example.com">
+              </div>
+
+              {{-- Telepon --}}
+              <div class="w-full max-w-full px-3 md:w-6/12 mt-4">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Telepon / WhatsApp</label>
+                <input type="text" name="telepon"
+                  value="{{ old('telepon', $data->telepon ?? '') }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="08xxxxxxxxx">
+              </div>
+
+            </div>
+
+            <div class="mt-6 flex gap-2">
+              <button type="submit"
+                class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                {{ isset($data) ? 'Update Karyawan' : 'Simpan Karyawan' }}
+              </button>
+
+              @if(isset($data))
+                <a href="{{ route('karyawan.index') }}"
+                  class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                  Batal
+                </a>
+              @endif
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{-- CARD 2: TABEL --}}
+  <div class="flex flex-wrap -mx-3">
+    <div class="flex-none w-full max-w-full px-3">
+      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
+          <h6>Daftar Karyawan</h6>
+        </div>
+
+        <div class="flex-auto px-0 pt-0 pb-2">
+          <div class="p-0 overflow-x-auto">
+            <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+              <thead class="align-bottom">
                 <tr>
-
-                    <th>Nama</th>
-
-                    <th>Email</th>
-
-                    <th class="text-center">
-                        Telepon
-                    </th>
-
-                    <th class="text-center">
-                        Jabatan
-                    </th>
-
-                    <th class="text-center">
-                        Aksi
-                    </th>
-
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">
+                    Nama Karyawan
+                  </th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">
+                    Kontak
+                  </th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">
+                    Jabatan
+                  </th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">
+                    Aksi
+                  </th>
                 </tr>
+              </thead>
 
-            </x-slot:head>
+              <tbody>
+                @forelse($karyawan as $item)
+                  <tr>
+                    {{-- NAMA & PENOMORAN --}}
+                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <div class="flex items-center px-4 py-2">
+                        
+                        {{-- KOTAK NOMOR URUT --}}
+                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
+                          {{ $karyawan->firstItem() + $loop->index }}
+                        </div>
+                        
+                        <div class="flex flex-col justify-center">
+                          <h6 class="mb-0 text-sm leading-normal text-slate-700">{{ $item->nama }}</h6>
+                        </div>
+                        
+                      </div>
+                    </td>
 
+                    {{-- KONTAK (Email & Telepon) --}}
+                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <div class="px-4">
+                        <p class="mb-0 text-sm font-semibold leading-tight text-slate-600">{{ $item->email }}</p>
+                        <p class="mb-0 text-xs leading-tight text-slate-400">{{ $item->telepon ?? '-' }}</p>
+                      </div>
+                    </td>
 
-            {{-- Table Body --}}
-            @forelse($data as $item)
+                    {{-- JABATAN --}}
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <span class="text-xs font-semibold leading-tight text-slate-500">
+                        {{ $item->jabatan }}
+                      </span>
+                    </td>
 
-            <tr class="hover:bg-gray-50 transition">
+                    {{-- AKSI --}}
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <div class="flex items-center justify-center gap-2">
+                        <a href="{{ route('karyawan.edit', $item->id) }}"
+                           class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                          Edit
+                        </a>
 
-                {{-- Nama --}}
-                <td class="font-semibold text-slate-700">
-                    {{ $item->nama }}
-                </td>
-
-
-                {{-- Email --}}
-                <td>
-                    {{ $item->email ?? '-' }}
-                </td>
-
-
-                {{-- Telepon --}}
-                <td class="text-center">
-                    {{ $item->telepon ?? '-' }}
-                </td>
-
-
-                {{-- Jabatan --}}
-                <td class="text-center">
-                    {{ $item->jabatan ?? '-' }}
-                </td>
-
-
-                {{-- Aksi --}}
-                <td>
-
-                    <div class="flex justify-center gap-2">
-
-                        {{-- Edit --}}
-                        <x-button
-                            variant="edit"
-                            size="sm"
-                            href="{{ route('karyawan.edit',$item->id) }}"
-                        >
-                            Edit
-                        </x-button>
-
-                        {{-- Delete --}}
-                        <form
-                            action="{{ route('karyawan.destroy',$item->id) }}"
-                            method="POST"
-                            onsubmit="return confirm('Yakin ingin menghapus data ini?')"
-                        >
-
-                            @csrf
-                            @method('DELETE')
-
-                            <x-button variant="delete" size="sm">
-                                Hapus
-                            </x-button>
-
+                        <form method="POST" action="{{ route('karyawan.destroy', $item->id) }}"
+                              onsubmit="return confirm('Yakin ingin menghapus data karyawan ini?')">
+                          @csrf
+                          @method('DELETE')
+                          <button type="submit"
+                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                            Hapus
+                          </button>
                         </form>
+                      </div>
+                    </td>
+                  </tr>
+                @empty
+                  <tr>
+                    <td colspan="4" class="p-6 text-center text-sm text-slate-400">
+                      Belum ada data karyawan.
+                    </td>
+                  </tr>
+                @endforelse
+              </tbody>
+            </table>
+          </div>
 
-                    </div>
+          {{-- PAGINATION LINKS --}}
+          <div class="p-4 border-t border-gray-200">
+            {{ $karyawan->links() }}
+          </div>
 
-                </td>
-
-            </tr>
-
-            @empty
-
-            <tr>
-
-                <td colspan="5" class="text-center text-slate-400 py-6">
-
-                    Data anggota belum tersedia
-
-                </td>
-
-            </tr>
-
-            @endforelse
-
-
-        </x-table>
-
-    </x-card>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
+{{-- SCRIPT UNTUK BUKA TUTUP FORM --}}
+<script>
+  function toggleForm() {
+    const formContainer = document.getElementById('form-container');
+    const btnToggle = document.getElementById('btn-toggle-form');
+
+    if (formContainer.classList.contains('hidden')) {
+      formContainer.classList.remove('hidden');
+      formContainer.classList.add('block');
+      btnToggle.innerHTML = 'Tutup Form';
+    } else {
+      formContainer.classList.add('hidden');
+      formContainer.classList.remove('block');
+      btnToggle.innerHTML = '+ Tambah Data';
+    }
+  }
+</script>
 @endsection

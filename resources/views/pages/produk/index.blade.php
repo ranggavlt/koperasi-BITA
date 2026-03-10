@@ -23,14 +23,27 @@
   <div class="flex flex-wrap -mx-3">
     <div class="flex-none w-full max-w-full px-3">
       <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-          <h6>{{ isset($data) ? 'Edit Produk' : 'Tambah Produk' }}</h6>
-          <p class="text-sm text-slate-400">
-            Isi data produk untuk kebutuhan POS koperasi (termasuk konsinyasi)
-          </p>
+        
+        {{-- HEADER FORM & TOMBOL TOGGLE --}}
+        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
+          <div>
+            <h6>{{ isset($data) ? 'Edit Produk' : 'Tambah Produk' }}</h6>
+            <p class="text-sm text-slate-400">
+              Isi data produk untuk kebutuhan POS koperasi (termasuk konsinyasi)
+            </p>
+          </div>
+          
+          {{-- Tombol Toggle hanya muncul jika BUKAN mode Edit --}}
+          @if(!isset($data))
+            <button type="button" onclick="toggleForm()" id="btn-toggle-form"
+              class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+              {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
+            </button>
+          @endif
         </div>
 
-        <div class="flex-auto p-6">
+        {{-- BODY FORM (Bisa di-hidden/ditampilkan) --}}
+        <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">
           <form action="{{ isset($data) ? route('produk.update', $data->id) : route('produk.store') }}" method="POST">
             @csrf
             @if(isset($data))
@@ -193,12 +206,16 @@
               <tbody>
                 @forelse($produk as $item)
                   <tr>
+                    {{-- NAMA & PENOMORAN --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex px-2 py-1">
-                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
-                          {{ strtoupper(substr($item->nama_produk, 0, 1)) }}
+                      <div class="flex items-center px-4 py-2">
+                        
+                        {{-- KOTAK NOMOR URUT --}}
+                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
+                          {{ $produk->firstItem() + $loop->index }}
                         </div>
-                        <div class="flex flex-col justify-center ml-3">
+                        
+                        <div class="flex flex-col justify-center">
                           <h6 class="mb-0 text-sm leading-normal">{{ $item->nama_produk }}</h6>
                           <p class="mb-0 text-xs leading-tight text-slate-400">
                             Dibuat: {{ $item->created_at ? $item->created_at->format('d/m/Y') : '-' }}
@@ -259,23 +276,28 @@
                       @endif
                     </td>
 
+                    {{-- AKSI (TOMBOL SUDAH DIPERBAIKI) --}}
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center justify-center gap-2">
+                      <div class="flex items-center justify-center gap-2 px-4">
+                        
                         <a href="{{ route('produk.edit', $item->id) }}"
-                          class="text-xs font-semibold leading-tight text-blue-500">
+                           class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
                           Edit
                         </a>
 
                         <form action="{{ route('produk.destroy', $item->id) }}" method="POST"
-                          onsubmit="return confirm('Yakin ingin menghapus produk ini?')">
+                              onsubmit="return confirm('Yakin ingin menghapus produk ini?')">
                           @csrf
                           @method('DELETE')
-                          <button type="submit" class="text-xs font-semibold leading-tight text-red-500">
+                          <button type="submit" 
+                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
                             Hapus
                           </button>
                         </form>
+                        
                       </div>
                     </td>
+
                   </tr>
                 @empty
                   <tr>
@@ -287,21 +309,43 @@
               </tbody>
             </table>
           </div>
-        </div>
 
+          {{-- PAGINATION LINKS --}}
+          <div class="p-4 border-t border-gray-200">
+            {{ $produk->links() }}
+          </div>
+
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-{{-- Script kecil biar field reseller/harga setor “ngerti tugasnya” --}}
+{{-- SCRIPT GABUNGAN (Buka/Tutup Form & Toggle Konsinyasi) --}}
 <script>
+  // Fungsi Toggle Form
+  function toggleForm() {
+    const formContainer = document.getElementById('form-container');
+    const btnToggle = document.getElementById('btn-toggle-form');
+
+    if (formContainer.classList.contains('hidden')) {
+      formContainer.classList.remove('hidden');
+      formContainer.classList.add('block');
+      btnToggle.innerHTML = 'Tutup Form';
+    } else {
+      formContainer.classList.add('hidden');
+      formContainer.classList.remove('block');
+      btnToggle.innerHTML = '+ Tambah Data';
+    }
+  }
+
+  // Fungsi Toggle Aturan Konsinyasi
   (function () {
     const konsinyasi = document.getElementById('konsinyasi');
     const resellerId = document.getElementById('reseller_id');
     const hargaSetor = document.getElementById('harga_setor');
 
-    function toggle() {
+    function toggleKonsinyasi() {
       const isKons = konsinyasi && konsinyasi.value === '1';
       if (!resellerId || !hargaSetor) return;
 
@@ -316,8 +360,8 @@
     }
 
     if (konsinyasi) {
-      konsinyasi.addEventListener('change', toggle);
-      toggle();
+      konsinyasi.addEventListener('change', toggleKonsinyasi);
+      toggleKonsinyasi();
     }
   })();
 </script>

@@ -15,9 +15,10 @@ class ProdukController extends Controller
      */
     public function index()
     {
+        // Ubah get() jadi paginate(10)
         $produk = Produk::with(['kategori', 'reseller'])
             ->latest()
-            ->get();
+            ->paginate(10);
 
         $kategori = KategoriProduk::orderBy('nama_kategori')->get();
         $reseller = Reseller::orderBy('nama_reseller')->get();
@@ -30,7 +31,6 @@ class ProdukController extends Controller
      */
     public function store(StoreProdukRequest $request)
     {
-        // kalau kamu sudah punya rules di StoreProdukRequest, ini validasi tambahan khusus konsinyasi
         $request->validate([
             'nama_produk' => 'required|string|max:255',
             'kategori_id' => 'required|exists:kategori_produk,id',
@@ -52,7 +52,6 @@ class ProdukController extends Controller
 
         $isKonsinyasi = (int)$request->konsinyasi === 1;
 
-        // aturan konsinyasi: kalau konsinyasi, reseller + harga_setor wajib masuk
         if ($isKonsinyasi) {
             $request->validate([
                 'reseller_id' => 'required|exists:reseller,id',
@@ -86,9 +85,10 @@ class ProdukController extends Controller
     {
         $data = $produk->load(['kategori', 'reseller']);
 
+        // Ubah get() jadi paginate(10) agar view tidak error
         $produk = Produk::with(['kategori', 'reseller'])
             ->latest()
-            ->get();
+            ->paginate(10);
 
         $kategori = KategoriProduk::orderBy('nama_kategori')->get();
         $reseller = Reseller::orderBy('nama_reseller')->get();
