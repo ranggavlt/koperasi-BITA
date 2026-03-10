@@ -67,7 +67,7 @@
         </h6>
       </li>
 
-      <!-- KASIR / PENJUALAN (DINONAKTIFKAN SUPAYA BLADE TIDAK ERROR)
+      {{-- KASIR / PENJUALAN (DINONAKTIFKAN SUPAYA BLADE TIDAK ERROR)
       @php $active = $is('kasir.index'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('kasir.index') }}">
@@ -79,8 +79,7 @@
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                 class="fill-current {{ $active ? 'text-white' : 'text-slate-700' }}">
             ...
-      </li>
-      -->
+      </li> --}}
 
       {{-- KATEGORI PRODUK --}}
       @php $active = $is('kategori.index'); @endphp
