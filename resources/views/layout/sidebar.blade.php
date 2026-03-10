@@ -71,6 +71,22 @@
         </a>
       </li>
 
+      {{-- KARYAWAN (Ditambahkan di sini) --}}
+      @php $active = $is('karyawan.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            {{-- Ikon Users --}}
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Karyawan</span>
+        </a>
+      </li>
+
       {{-- POS KOPERASI --}}
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
@@ -78,10 +94,10 @@
         </h6>
       </li>
 
-      {{-- KASIR --}}
-      @php $active = $is('kasir.index'); @endphp
+      {{-- PENJUALAN / KASIR --}}
+      @php $active = $is('penjualan.index'); @endphp
       <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('kasir.index') }}">
+        <a class="{{ $linkClass($active) }}" href="{{ route('penjualan.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                  class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
@@ -94,9 +110,9 @@
       </li>
 
       {{-- KATEGORI PRODUK --}}
-      @php $active = $is('kategori.index'); @endphp
+      @php $active = $is('kategori-produk.*') || $is('kategori-produk.*'); @endphp
       <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('kategori.index') }}">
+        <a class="{{ $linkClass($active) }}" href="{{ route('kategori-produk.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                  class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">

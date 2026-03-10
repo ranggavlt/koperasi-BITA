@@ -3,8 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\KategoriProduk;
-use App\Http\Requests\StoreKategoriProdukRequest;
-use App\Http\Requests\UpdateKategoriProdukRequest;
+use Illuminate\Http\Request;
 
 class KategoriProdukController extends Controller
 {
@@ -13,31 +12,26 @@ class KategoriProdukController extends Controller
      */
     public function index()
     {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        // Menampilkan data dengan pagination (10 data per halaman)
+        $kategori = KategoriProduk::orderBy('id', 'desc')->paginate(10);
+        
+        return view('pages.kategori_produk.index', compact('kategori'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreKategoriProdukRequest $request)
+    public function store(Request $request)
     {
-        //
-    }
+        $request->validate([
+            'nama_kategori' => 'required|string|max:255',
+            'deskripsi'     => 'nullable|string|max:500',
+        ]);
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(KategoriProduk $kategoriProduk)
-    {
-        //
+        KategoriProduk::create($request->only('nama_kategori', 'deskripsi'));
+
+        return redirect()->route('kategori-produk.index')
+            ->with('success', 'Kategori produk berhasil ditambahkan.');
     }
 
     /**
@@ -45,15 +39,29 @@ class KategoriProdukController extends Controller
      */
     public function edit(KategoriProduk $kategoriProduk)
     {
-        //
+        // Masukkan data yang mau diedit ke variabel $data
+        $data = $kategoriProduk;
+        
+        // Tetap load data tabel dengan pagination agar view tidak error
+        $kategori = KategoriProduk::orderBy('id', 'desc')->paginate(10);
+
+        return view('pages.kategori_produk.index', compact('data', 'kategori'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateKategoriProdukRequest $request, KategoriProduk $kategoriProduk)
+    public function update(Request $request, KategoriProduk $kategoriProduk)
     {
-        //
+        $request->validate([
+            'nama_kategori' => 'required|string|max:255',
+            'deskripsi'     => 'nullable|string|max:500',
+        ]);
+
+        $kategoriProduk->update($request->only('nama_kategori', 'deskripsi'));
+
+        return redirect()->route('kategori-produk.index')
+            ->with('success', 'Kategori produk berhasil diupdate.');
     }
 
     /**
@@ -61,6 +69,9 @@ class KategoriProdukController extends Controller
      */
     public function destroy(KategoriProduk $kategoriProduk)
     {
-        //
+        $kategoriProduk->delete();
+
+        return redirect()->route('kategori-produk.index')
+            ->with('success', 'Kategori produk berhasil dihapus.');
     }
 }
