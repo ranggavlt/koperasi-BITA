@@ -7,77 +7,63 @@ use App\Models\DompetKoperasi;
 
 class DompetKoperasiController extends Controller
 {
-
     public function index()
     {
-        $data = DompetKoperasi::latest()->get();
+        $dompetKoperasi = DompetKoperasi::latest()->paginate(10);
 
-        return view('pages.dompet-koperasi.index', compact('data'));
+        return view('pages.dompet-koperasi.index', compact('dompetKoperasi'));
     }
-
-
-
-    public function create()
-    {
-        return view('pages.dompet-koperasi.create');
-    }
-
-
 
     public function store(Request $request)
     {
-        $request->validate([
-            'nama_dompet' => 'required'
+        $validated = $request->validate([
+            'nama_dompet' => 'required|string|max:100',
+        ], [
+            'nama_dompet.required' => 'Nama dompet koperasi wajib diisi.',
         ]);
 
         DompetKoperasi::create([
-            'nama_dompet' => $request->nama_dompet,
-            'saldo' => 0
+            'nama_dompet' => $validated['nama_dompet'],
+            'saldo' => 0,
         ]);
 
         return redirect()->route('dompet-koperasi.index')
-        ->with('success','Dompet koperasi berhasil ditambahkan');
+            ->with('success', 'Dompet koperasi berhasil ditambahkan.');
     }
-
-
 
     public function edit($id)
     {
         $data = DompetKoperasi::findOrFail($id);
+        $dompetKoperasi = DompetKoperasi::latest()->paginate(10);
 
-        return view('pages.dompet-koperasi.edit', compact('data'));
+        return view('pages.dompet-koperasi.index', compact('data', 'dompetKoperasi'));
     }
-
-
 
     public function update(Request $request, $id)
     {
-
         $data = DompetKoperasi::findOrFail($id);
 
-        $request->validate([
-            'nama_dompet' => 'required'
+        $validated = $request->validate([
+            'nama_dompet' => 'required|string|max:100',
+        ], [
+            'nama_dompet.required' => 'Nama dompet koperasi wajib diisi.',
         ]);
 
         $data->update([
-            'nama_dompet' => $request->nama_dompet
+            'nama_dompet' => $validated['nama_dompet'],
         ]);
 
         return redirect()->route('dompet-koperasi.index')
-        ->with('success','Data berhasil diupdate');
+            ->with('success', 'Dompet koperasi berhasil diupdate.');
     }
-
-
 
     public function destroy($id)
     {
-
         $data = DompetKoperasi::findOrFail($id);
 
         $data->delete();
 
         return redirect()->route('dompet-koperasi.index')
-        ->with('success','Data berhasil dihapus');
+            ->with('success', 'Dompet koperasi berhasil dihapus.');
     }
-
 }

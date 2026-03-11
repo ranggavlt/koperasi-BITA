@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\MutasiKas;
 
 class Pinjaman extends Model
 {
@@ -22,5 +23,11 @@ class Pinjaman extends Model
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
+    }
+
+    public function mutasiKas()
+    {
+        return $this->hasOne(MutasiKas::class, 'referensi_id')
+            ->where('referensi_tipe', self::class);
     }
 }

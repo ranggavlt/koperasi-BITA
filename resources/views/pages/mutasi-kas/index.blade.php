@@ -4,6 +4,12 @@
 
 <div class="w-full px-6 py-6 mx-auto">
 
+    @if (isset($hasDompet) && ! $hasDompet)
+        <div class="mb-4 rounded-lg bg-yellow-100 px-4 py-3 text-sm text-yellow-800">
+            Mutasi kas belum bisa dibuat otomatis karena belum ada data dompet koperasi. Tambahkan dompet koperasi terlebih dahulu.
+        </div>
+    @endif
+
     <div class="flex items-center justify-between mb-6">
 
         <h2 class="text-xl font-bold text-slate-700">
@@ -28,6 +34,8 @@
                     <th>Dompet</th>
 
                     <th class="text-center">Tipe</th>
+
+                    <th>Sumber</th>
 
                     <th class="text-center">Jumlah</th>
 
@@ -58,6 +66,13 @@
                         <x-badge color="gray">Keluar</x-badge>
                     @endif
 
+                </td>
+
+                <td>
+                    {{ $item->sumber_label }}
+                    @if($item->referensi_id)
+                        <span class="text-xs text-slate-400">#{{ $item->referensi_id }}</span>
+                    @endif
                 </td>
 
                 <td class="text-center font-semibold text-slate-700">
@@ -97,7 +112,7 @@
 
             <tr>
 
-                <td colspan="6" class="text-center text-slate-400 py-6">
+                <td colspan="7" class="text-center text-slate-400 py-6">
                     Data mutasi kas belum tersedia
                 </td>
 

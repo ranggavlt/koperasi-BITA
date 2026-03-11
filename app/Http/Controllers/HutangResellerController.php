@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\hutang_reseller;
+use App\Models\HutangReseller;
 use App\Http\Requests\Storehutang_resellerRequest;
 use App\Http\Requests\Updatehutang_resellerRequest;
 
@@ -35,7 +35,7 @@ class HutangResellerController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(hutang_reseller $hutang_reseller)
+    public function show(HutangReseller $hutang_reseller)
     {
         //
     }
@@ -43,7 +43,7 @@ class HutangResellerController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(hutang_reseller $hutang_reseller)
+    public function edit(HutangReseller $hutang_reseller)
     {
         //
     }
@@ -51,7 +51,7 @@ class HutangResellerController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Updatehutang_resellerRequest $request, hutang_reseller $hutang_reseller)
+    public function update(Updatehutang_resellerRequest $request, HutangReseller $hutang_reseller)
     {
         //
     }
@@ -59,7 +59,7 @@ class HutangResellerController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(hutang_reseller $hutang_reseller)
+    public function destroy(HutangReseller $hutang_reseller)
     {
         //
     }

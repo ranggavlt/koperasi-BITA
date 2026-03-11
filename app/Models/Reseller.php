@@ -22,4 +22,14 @@ class Reseller extends Model
     {
         return $this->hasMany(Produk::class, 'reseller_id');
     }
+
+    public function hutangReseller()
+    {
+        return $this->hasMany(HutangReseller::class, 'reseller_id');
+    }
+
+    public function pembayaranKonsinyasi()
+    {
+        return $this->hasMany(PembayaranKonsinyasi::class, 'reseller_id');
+    }
 }

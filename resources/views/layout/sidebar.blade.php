@@ -2,6 +2,9 @@
   // helper buat class menu aktif
   $is = fn(string $name) => request()->routeIs($name);
   $isAny = fn(array $names) => collect($names)->contains(fn($n) => request()->routeIs($n));
+  $brandName = config('navigation.brand.name', 'Koperasi BITA');
+  $brandSubtitle = config('navigation.brand.subtitle', 'POS, Simpan Pinjam, dan Laporan');
+  $brandLogo = config('navigation.brand.logo', 'assets/img/logo-koperasi.png');
 
   $linkClass = fn(bool $active) =>
     $active
@@ -25,12 +28,21 @@
 
     <a class="block px-8 py-6 m-0 text-sm whitespace-nowrap text-slate-700"
        href="{{ route('pages.dashboard') }}">
-      <img
-        src="{{ asset('assets/img/logo-ct.png') }}"
-        class="inline h-full max-w-full transition-all duration-200 ease-nav-brand max-h-8"
-        alt="main_logo" />
-      <span class="ml-1 font-semibold transition-all duration-200 ease-nav-brand">
-        Soft UI Dashboard
+      <span
+        class="inline-flex items-center justify-center rounded-xl bg-white shadow-soft-xl"
+        style="width: 2.75rem; height: 2.75rem; padding: 0.35rem;">
+        <img
+          src="{{ asset($brandLogo) }}"
+          alt="{{ $brandName }}"
+          style="width: 100%; height: 100%; object-fit: contain;" />
+      </span>
+      <span class="ml-2 inline-block align-middle">
+        <span class="block font-semibold transition-all duration-200 ease-nav-brand">
+          {{ $brandName }}
+        </span>
+        <span class="block text-xs leading-normal text-slate-500">
+          {{ $brandSubtitle }}
+        </span>
       </span>
     </a>
   </div>
@@ -41,7 +53,7 @@
     <ul class="flex flex-col pl-0 mb-0">
 
       {{-- DASHBOARD --}}
-      @php $active = $is('pages.dashboard'); @endphp
+      @php $active = $is('pages.dashboard') || request()->path() === '/'; @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('pages.dashboard') }}">
           <div class="{{ $active
@@ -58,22 +70,6 @@
           </div>
 
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Dashboard</span>
-        </a>
-      </li>
-
-      {{-- KARYAWAN (Ditambahkan di sini) --}}
-      @php $active = $is('karyawan.*'); @endphp
-      <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
-          <div class="{{ $iconWrap($active) }}">
-            {{-- Ikon Users --}}
-            <svg width="12px" height="12px" viewBox="0 0 24 24"
-                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
-              <path fill="currentColor"
-                d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-            </svg>
-          </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Karyawan</span>
         </a>
       </li>
 
@@ -143,18 +139,20 @@
         </a>
       </li>
 
-      {{-- LAPORAN KONSINYASI --}}
-      @php $active = $is('konsinyasi.report'); @endphp
+      {{-- PEMBAYARAN KONSINYASI --}}
+      @php $active = $is('pembayaran-konsinyasi.*'); @endphp
       <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('konsinyasi.report') }}">
+        <a class="{{ $linkClass($active) }}" href="{{ route('pembayaran-konsinyasi.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                  class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
               <path fill="currentColor"
-                d="M3 3h2v18H3V3Zm4 10h2v8H7v-8Zm4-6h2v14h-2V7Zm4 4h2v10h-2V11Zm4-8h2v18h-2V3Z"/>
+                d="M3 6h18v12H3V6Zm2 2v8h14V8H5Zm2 1h4v2H7V9Zm8 0h2v2h-2V9Zm-8 4h6v2H7v-2Z"/>
+              <path fill="currentColor"
+                d="M13 3h8v2h-8V3Zm4 14 4 4h-3v3h-2v-3h-3l4-4Z"/>
             </svg>
           </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Laporan Konsinyasi</span>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Pembayaran Konsinyasi</span>
         </a>
       </li>
 
@@ -163,6 +161,21 @@
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           Simpan Pinjam
         </h6>
+      </li>
+
+      {{-- KARYAWAN / ANGGOTA --}}
+      @php $active = $is('karyawan.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Karyawan / Anggota</span>
+        </a>
       </li>
 
       {{-- JENIS SIMPANAN --}}
@@ -182,19 +195,19 @@
         </a>
       </li>
 
-      {{-- KARYWAN --}}
-      @php $active = $is('karyawan.*'); @endphp
+      {{-- PENGURUS KOPERASI --}}
+      @php $active = $is('pengurus-koperasi.*'); @endphp
       <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
+        <a class="{{ $linkClass($active) }}" href="{{ route('pengurus-koperasi.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                  class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
               <path fill="currentColor"
-                d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                d="M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm-7 15c0-2.76 3.13-5 7-5s7 2.24 7 5v1H5v-1Zm15-8V8h2v2h-2Zm-1 1h4v2h-4v-2Z"/>
             </svg>
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-            Anggota
+            Pengurus Koperasi
           </span>
         </a>
       </li>
@@ -300,8 +313,73 @@
           </span>
         </a>
       </li>
+
+      {{-- ====== MENU SHU ====== --}}
+      <li class="w-full mt-4">
+        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+          SHU Koperasi
+        </h6>
+      </li>
+
+      @php $active = $is('shu-koperasi.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('shu-koperasi.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 4v10h12V7H6Zm2 2h3v6H8V9Zm5 2h3v4h-3v-4Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Transaksi SHU
+          </span>
+        </a>
+      </li>
+
+      {{-- ====== MENU LAPORAN ====== --}}
+      <li class="w-full mt-4">
+        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+          Laporan
+        </h6>
+      </li>
+
+      {{-- LAPORAN POTONG GAJI --}}
+      @php $active = $is('laporan.potong-gaji'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('laporan.potong-gaji') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M4 4h16v2H4V4Zm0 4h16v12H4V8Zm3 3v2h4v-2H7Zm0 4v2h7v-2H7Zm9-4h2v6h-2v-6Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Laporan Potong Gaji
+          </span>
+        </a>
+      </li>
+
+      {{-- LAPORAN KONSINYASI --}}
+      @php $active = $is('konsinyasi.report'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('konsinyasi.report') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M3 3h2v18H3V3Zm4 10h2v8H7v-8Zm4-6h2v14h-2V7Zm4 4h2v10h-2V11Zm4-8h2v18h-2V3Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Laporan Konsinyasi
+          </span>
+        </a>
+      </li>
+
+      @if(false)
       {{-- TABLES --}}
-     
 
       {{-- MENU TEMPLATE LAMA (kalau masih dipakai) --}}
       @php $active = $is('pages.tables'); @endphp
@@ -327,6 +405,7 @@
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Tables</span>
         </a>
       </li>
+      @endif
 
       {{-- lanjutkan menu lama kamu (billing, virtual, rtl, profile, signin, signup) seperti biasa --}}
     </ul>

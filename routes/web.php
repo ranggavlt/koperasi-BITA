@@ -14,8 +14,12 @@ use App\Http\Controllers\CicilanPinjamanController;
 use App\Http\Controllers\MutasiKasController;
 use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\ResellerController;
+use App\Http\Controllers\PembayaranKonsinyasiController;
 use App\Http\Controllers\KonsinyasiReportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PengurusKoperasiController;
+use App\Http\Controllers\LaporanPotongGajiController;
+use App\Http\Controllers\ShuKoperasiController;
 
 Route::get('/', [DashboardController::class, 'index']);
 
@@ -47,34 +51,17 @@ Route::get('/karyawan/{id}/edit', [KaryawanController::class,'edit'])->name('kar
 Route::put('/karyawan/{id}', [KaryawanController::class,'update'])->name('karyawan.update');
 Route::delete('/karyawan/{id}', [KaryawanController::class,'destroy'])->name('karyawan.destroy');
 
-Route::get('/jenis-pinjaman', [JenisPinjamanController::class,'index'])->name('jenis-pinjaman.index');
-Route::get('/jenis-pinjaman/create', [JenisPinjamanController::class,'create'])->name('jenis-pinjaman.create');
-Route::post('/jenis-pinjaman', [JenisPinjamanController::class,'store'])->name('jenis-pinjaman.store');
-Route::get('/jenis-pinjaman/{id}/edit', [JenisPinjamanController::class,'edit'])->name('jenis-pinjaman.edit');
-Route::put('/jenis-pinjaman/{id}', [JenisPinjamanController::class,'update'])->name('jenis-pinjaman.update');
-Route::delete('/jenis-pinjaman/{id}', [JenisPinjamanController::class,'destroy'])->name('jenis-pinjaman.destroy');
+Route::resource('jenis-pinjaman', JenisPinjamanController::class)->except(['create', 'show']);
 
-Route::get('/dompet-koperasi', [DompetKoperasiController::class,'index'])->name('dompet-koperasi.index');
-Route::get('/dompet-koperasi/create', [DompetKoperasiController::class,'create'])->name('dompet-koperasi.create');
-Route::post('/dompet-koperasi', [DompetKoperasiController::class,'store'])->name('dompet-koperasi.store');
-Route::get('/dompet-koperasi/{id}/edit', [DompetKoperasiController::class,'edit'])->name('dompet-koperasi.edit');
-Route::put('/dompet-koperasi/{id}', [DompetKoperasiController::class,'update'])->name('dompet-koperasi.update');
-Route::delete('/dompet-koperasi/{id}', [DompetKoperasiController::class,'destroy'])->name('dompet-koperasi.destroy');
+Route::resource('dompet-koperasi', DompetKoperasiController::class)->except(['create', 'show']);
 
-Route::get('/simpanan', [SimpananController::class,'index'])->name('simpanan.index');
-Route::get('/simpanan/create', [SimpananController::class,'create'])->name('simpanan.create');
-Route::post('/simpanan', [SimpananController::class,'store'])->name('simpanan.store');
-Route::delete('/simpanan/{id}', [SimpananController::class,'destroy'])->name('simpanan.destroy');
+Route::resource('pengurus-koperasi', PengurusKoperasiController::class)->except(['create', 'show']);
 
-Route::get('/pinjaman', [PinjamanController::class,'index'])->name('pinjaman.index');
-Route::get('/pinjaman/create', [PinjamanController::class,'create'])->name('pinjaman.create');
-Route::post('/pinjaman', [PinjamanController::class,'store'])->name('pinjaman.store');
-Route::delete('/pinjaman/{id}', [PinjamanController::class,'destroy'])->name('pinjaman.destroy');
+Route::resource('simpanan', SimpananController::class)->only(['index', 'store', 'destroy']);
 
-Route::get('/cicilan-pinjaman', [CicilanPinjamanController::class,'index'])->name('cicilan-pinjaman.index');
-Route::get('/cicilan-pinjaman/create', [CicilanPinjamanController::class,'create'])->name('cicilan-pinjaman.create');
-Route::post('/cicilan-pinjaman', [CicilanPinjamanController::class,'store'])->name('cicilan-pinjaman.store');
-Route::delete('/cicilan-pinjaman/{id}', [CicilanPinjamanController::class,'destroy'])->name('cicilan-pinjaman.destroy');
+Route::resource('pinjaman', PinjamanController::class)->only(['index', 'store', 'destroy']);
+
+Route::resource('cicilan-pinjaman', CicilanPinjamanController::class)->only(['index', 'store', 'destroy']);
 
 Route::get('/mutasi-kas', [MutasiKasController::class,'index'])->name('mutasi-kas.index');
 Route::get('/mutasi-kas/create', [MutasiKasController::class,'create'])->name('mutasi-kas.create');
@@ -89,6 +76,10 @@ Route::resource('penjualan', PenjualanController::class)->except(['create', 'sho
 
 // RESELLER (Konsinyasi)
 Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
+Route::get('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'index'])
+    ->name('pembayaran-konsinyasi.index');
+Route::post('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'store'])
+    ->name('pembayaran-konsinyasi.store');
 
 //Karyawan
 Route::resource('karyawan', KaryawanController::class)->except(['create', 'show']);
@@ -99,5 +90,16 @@ Route::resource('karyawan', KaryawanController::class)->except(['create', 'show'
 Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
     ->name('konsinyasi.report');
 
+Route::get('/laporan-potong-gaji', [LaporanPotongGajiController::class, 'index'])
+    ->name('laporan.potong-gaji');
+
+Route::get('/shu-koperasi', [ShuKoperasiController::class, 'index'])->name('shu-koperasi.index');
+Route::post('/shu-koperasi', [ShuKoperasiController::class, 'store'])->name('shu-koperasi.store');
+Route::get('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'show'])->name('shu-koperasi.show');
+Route::put('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'update'])->name('shu-koperasi.update');
+Route::delete('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'destroy'])->name('shu-koperasi.destroy');
+Route::post('/shu-koperasi/{shuKoperasi}/refresh', [ShuKoperasiController::class, 'refresh'])->name('shu-koperasi.refresh');
+Route::post('/shu-koperasi/{shuKoperasi}/transaksi', [ShuKoperasiController::class, 'storeTransaksi'])->name('shu-koperasi.transaksi.store');
+Route::delete('/shu-koperasi/{shuKoperasi}/transaksi/{shuTransaksi}', [ShuKoperasiController::class, 'destroyTransaksi'])->name('shu-koperasi.transaksi.destroy');
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('pages.dashboard');

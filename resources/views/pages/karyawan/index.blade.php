@@ -27,8 +27,8 @@
         {{-- HEADER FORM & TOMBOL TOGGLE --}}
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
           <div>
-            <h6>{{ isset($data) ? 'Edit Karyawan' : 'Tambah Karyawan' }}</h6>
-            <p class="text-sm text-slate-400">Kelola data staf dan karyawan koperasi</p>
+            <h6>{{ isset($data) ? 'Edit Karyawan / Anggota' : 'Tambah Karyawan / Anggota' }}</h6>
+            <p class="text-sm text-slate-400">Kelola data karyawan perusahaan yang otomatis menjadi anggota koperasi</p>
           </div>
           
           @if(!isset($data))
@@ -55,7 +55,7 @@
                 <input type="text" name="nama"
                   value="{{ old('nama', $data->nama ?? '') }}"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="Nama karyawan">
+                  placeholder="Nama karyawan perusahaan">
               </div>
 
               {{-- Jabatan --}}
@@ -112,7 +112,7 @@
     <div class="flex-none w-full max-w-full px-3">
       <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-          <h6>Daftar Karyawan</h6>
+          <h6>Daftar Karyawan / Anggota Koperasi</h6>
         </div>
 
         <div class="flex-auto px-0 pt-0 pb-2">
@@ -178,7 +178,7 @@
                         </a>
 
                         <form method="POST" action="{{ route('karyawan.destroy', $item->id) }}"
-                              onsubmit="return confirm('Yakin ingin menghapus data karyawan ini?')">
+                      onsubmit="return confirm('Yakin ingin menghapus data karyawan ini?')">
                           @csrf
                           @method('DELETE')
                           <button type="submit"
@@ -192,7 +192,7 @@
                 @empty
                   <tr>
                     <td colspan="4" class="p-6 text-center text-sm text-slate-400">
-                      Belum ada data karyawan.
+                      Belum ada data karyawan anggota koperasi.
                     </td>
                   </tr>
                 @endforelse

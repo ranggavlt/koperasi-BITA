@@ -13,7 +13,7 @@ class MutasiKas extends Model
         'tipe',
         'jumlah',
         'keterangan',
-        'referensi_type',
+        'referensi_tipe',
         'referensi_id',
         'tanggal'
     ];
@@ -21,5 +21,17 @@ class MutasiKas extends Model
     public function dompet()
     {
         return $this->belongsTo(DompetKoperasi::class, 'dompet_id');
+    }
+
+    public function getSumberLabelAttribute(): string
+    {
+        return match ($this->referensi_tipe) {
+            \App\Models\Penjualan::class => 'Penjualan',
+            \App\Models\Simpanan::class => 'Simpanan',
+            \App\Models\Pinjaman::class => 'Pinjaman',
+            \App\Models\CicilanPinjaman::class => 'Cicilan Pinjaman',
+            \App\Models\PembayaranKonsinyasi::class => 'Pembayaran Konsinyasi',
+            default => 'Manual',
+        };
     }
 }

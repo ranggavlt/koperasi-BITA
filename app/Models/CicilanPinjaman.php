@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\MutasiKas;
 
 class CicilanPinjaman extends Model
 {
@@ -19,5 +20,11 @@ class CicilanPinjaman extends Model
     public function pinjaman()
     {
         return $this->belongsTo(Pinjaman::class);
+    }
+
+    public function mutasiKas()
+    {
+        return $this->hasOne(MutasiKas::class, 'referensi_id')
+            ->where('referensi_tipe', self::class);
     }
 }

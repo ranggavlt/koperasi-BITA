@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\MutasiKas;
 
 class Penjualan extends Model
 {
@@ -23,5 +24,11 @@ class Penjualan extends Model
     public function details()
     {
         return $this->hasMany(DetailPenjualan::class, 'penjualan_id');
+    }
+
+    public function mutasiKas()
+    {
+        return $this->hasOne(MutasiKas::class, 'referensi_id')
+            ->where('referensi_tipe', self::class);
     }
 }

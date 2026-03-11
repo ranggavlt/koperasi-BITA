@@ -6,60 +6,75 @@ use Illuminate\Http\Request;
 use App\Models\Simpanan;
 use App\Models\Karyawan;
 use App\Models\JenisSimpanan;
+use App\Services\MutasiKasService;
+use Illuminate\Support\Facades\DB;
 
 class SimpananController extends Controller
 {
-
     public function index()
     {
-        $data = Simpanan::with(['karyawan','jenisSimpanan'])
-        ->latest()
-        ->get();
+        $simpanan = Simpanan::with(['karyawan', 'jenisSimpanan'])
+            ->latest()
+            ->paginate(10);
 
-        return view('pages.simpanan.index', compact('data'));
+        $karyawan = Karyawan::orderBy('nama')->get();
+        $jenis = JenisSimpanan::orderBy('nama_jenis')->get();
+
+        return view('pages.simpanan.index', compact('simpanan', 'karyawan', 'jenis'));
     }
 
-
-
-    public function create()
+    public function store(Request $request, MutasiKasService $mutasiKasService)
     {
-        $karyawan = Karyawan::all();
-        $jenis = JenisSimpanan::all();
-
-        return view('pages.simpanan.create', compact('karyawan','jenis'));
-    }
-
-
-
-    public function store(Request $request)
-    {
-
-        $request->validate([
-            'karyawan_id' => 'required',
-            'jenis_simpanan_id' => 'required',
-            'jumlah' => 'required|numeric',
-            'tanggal' => 'required'
+        $validated = $request->validate([
+            'karyawan_id' => 'required|exists:karyawan,id',
+            'jenis_simpanan_id' => 'required|exists:jenis_simpanan,id',
+            'jumlah' => 'required|numeric|min:0',
+            'tanggal' => 'required|date',
+            'keterangan' => 'nullable|string',
+        ], [
+            'karyawan_id.required' => 'Karyawan wajib dipilih.',
+            'jenis_simpanan_id.required' => 'Jenis simpanan wajib dipilih.',
+            'jumlah.required' => 'Jumlah simpanan wajib diisi.',
+            'tanggal.required' => 'Tanggal simpanan wajib diisi.',
         ]);
 
-        Simpanan::create($request->all());
+        try {
+            DB::transaction(function () use ($validated, $mutasiKasService) {
+                $simpanan = Simpanan::create($validated);
 
-        return redirect()
-        ->route('simpanan.index')
-        ->with('success','Transaksi simpanan berhasil disimpan');
+                $mutasiKasService->record([
+                    'tipe' => 'masuk',
+                    'jumlah' => $validated['jumlah'],
+                    'keterangan' => 'Penerimaan simpanan karyawan',
+                    'referensi_tipe' => Simpanan::class,
+                    'referensi_id' => $simpanan->id,
+                    'tanggal' => $validated['tanggal'],
+                ]);
+            });
 
+            return redirect()
+                ->route('simpanan.index')
+                ->with('success', 'Transaksi simpanan berhasil disimpan.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['Error: ' . $e->getMessage()])->withInput();
+        }
     }
 
-
-
-    public function destroy($id)
+    public function destroy($id, MutasiKasService $mutasiKasService)
     {
         $data = Simpanan::findOrFail($id);
 
-        $data->delete();
+        try {
+            DB::transaction(function () use ($data, $mutasiKasService) {
+                $mutasiKasService->reverseByReference(Simpanan::class, $data->id);
+                $data->delete();
+            });
 
-        return redirect()
-        ->route('simpanan.index')
-        ->with('success','Data berhasil dihapus');
+            return redirect()
+                ->route('simpanan.index')
+                ->with('success', 'Transaksi simpanan berhasil dihapus.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['Error: ' . $e->getMessage()]);
+        }
     }
-
 }

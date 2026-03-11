@@ -7,66 +7,66 @@ use App\Models\JenisPinjaman;
 
 class JenisPinjamanController extends Controller
 {
-
     public function index()
     {
-        $data = JenisPinjaman::latest()->get();
+        $jenisPinjaman = JenisPinjaman::latest()->paginate(10);
 
-        return view('pages.jenis-pinjaman.index', compact('data'));
+        return view('pages.jenis-pinjaman.index', compact('jenisPinjaman'));
     }
-
-
-
-    public function create()
-    {
-        return view('pages.jenis-pinjaman.create');
-    }
-
-
 
     public function store(Request $request)
     {
-        $request->validate([
-            'nama_pinjaman' => 'required',
-            'bunga_persen' => 'nullable|numeric',
-            'tenor_bulan' => 'nullable|numeric'
+        $validated = $request->validate([
+            'nama_pinjaman' => 'required|string|max:255',
+            'bunga_persen' => 'nullable|numeric|min:0',
+            'tenor_bulan' => 'nullable|integer|min:1',
+            'keterangan' => 'nullable|string',
+        ], [
+            'nama_pinjaman.required' => 'Nama jenis pinjaman wajib diisi.',
         ]);
 
-        JenisPinjaman::create($request->all());
+        JenisPinjaman::create([
+            'nama_pinjaman' => $validated['nama_pinjaman'],
+            'bunga_persen' => $validated['bunga_persen'] ?? 0,
+            'tenor_bulan' => $validated['tenor_bulan'] ?? null,
+            'keterangan' => $validated['keterangan'] ?? null,
+        ]);
 
         return redirect()->route('jenis-pinjaman.index')
-            ->with('success','Jenis pinjaman berhasil ditambahkan');
+            ->with('success', 'Jenis pinjaman berhasil ditambahkan.');
     }
-
-
 
     public function edit($id)
     {
         $data = JenisPinjaman::findOrFail($id);
+        $jenisPinjaman = JenisPinjaman::latest()->paginate(10);
 
-        return view('pages.jenis-pinjaman.edit', compact('data'));
+        return view('pages.jenis-pinjaman.index', compact('data', 'jenisPinjaman'));
     }
-
-
 
     public function update(Request $request, $id)
     {
-
         $data = JenisPinjaman::findOrFail($id);
 
-        $request->validate([
-            'nama_pinjaman' => 'required',
-            'bunga_persen' => 'nullable|numeric',
-            'tenor_bulan' => 'nullable|numeric'
+        $validated = $request->validate([
+            'nama_pinjaman' => 'required|string|max:255',
+            'bunga_persen' => 'nullable|numeric|min:0',
+            'tenor_bulan' => 'nullable|integer|min:1',
+            'keterangan' => 'nullable|string',
+        ], [
+            'nama_pinjaman.required' => 'Nama jenis pinjaman wajib diisi.',
         ]);
 
-        $data->update($request->all());
+        $data->update([
+            'nama_pinjaman' => $validated['nama_pinjaman'],
+            'bunga_persen' => $validated['bunga_persen'] ?? 0,
+            'tenor_bulan' => $validated['tenor_bulan'] ?? null,
+            'keterangan' => $validated['keterangan'] ?? null,
+        ]);
 
         return redirect()->route('jenis-pinjaman.index')
-            ->with('success','Data berhasil diupdate');
+            ->with('success', 'Jenis pinjaman berhasil diupdate.');
     }
-
-
 
     public function destroy($id)
     {
@@ -75,7 +75,6 @@ class JenisPinjamanController extends Controller
         $data->delete();
 
         return redirect()->route('jenis-pinjaman.index')
-            ->with('success','Data berhasil dihapus');
+            ->with('success', 'Jenis pinjaman berhasil dihapus.');
     }
-
 }
