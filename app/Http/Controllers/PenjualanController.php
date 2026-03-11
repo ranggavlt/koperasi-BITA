@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
+use App\Models\HutangReseller;
 use App\Models\Karyawan;
 use App\Models\Produk;
+use App\Services\MutasiKasService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -34,7 +36,7 @@ class PenjualanController extends Controller
         return view('pages.penjualan.index', compact('penjualan', 'karyawan', 'produk'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, MutasiKasService $mutasiKasService)
     {
         $request->validate([
             'karyawan_id' => 'required|exists:karyawan,id',
@@ -89,7 +91,7 @@ class PenjualanController extends Controller
                 'grand_total'    => $grand_total,
             ]);
 
-            DetailPenjualan::create([
+            $detailPenjualan = DetailPenjualan::create([
                 'penjualan_id'   => $penjualan->id,
                 'produk_id'      => $produk->id,
                 'qty'            => $request->jumlah,
@@ -101,7 +103,26 @@ class PenjualanController extends Controller
                 'subtotal_setor' => $produk->harga_setor * $request->jumlah,
             ]);
 
+            if ($detailPenjualan->konsinyasi && $detailPenjualan->reseller_id) {
+                HutangReseller::create([
+                    'reseller_id' => $detailPenjualan->reseller_id,
+                    'detail_penjualan_id' => $detailPenjualan->id,
+                    'jumlah' => $detailPenjualan->subtotal_setor,
+                    'status' => 'belum_dibayar',
+                    'tanggal' => now()->toDateString(),
+                ]);
+            }
+
             $produk->decrement('stok', $request->jumlah);
+
+            $mutasiKasService->record([
+                'tipe' => 'masuk',
+                'jumlah' => $grand_total,
+                'keterangan' => 'Penerimaan dari penjualan ' . $kode_transaksi,
+                'referensi_tipe' => Penjualan::class,
+                'referensi_id' => $penjualan->id,
+                'tanggal' => now()->toDateString(),
+            ]);
 
             DB::commit();
 
@@ -113,7 +134,7 @@ class PenjualanController extends Controller
         }
     }
 
-    public function destroy(Penjualan $penjualan)
+    public function destroy(Penjualan $penjualan, MutasiKasService $mutasiKasService)
     {
         DB::beginTransaction();
         try {
@@ -121,6 +142,8 @@ class PenjualanController extends Controller
                 $produk = Produk::find($detail->produk_id);
                 if($produk) $produk->increment('stok', $detail->qty);
             }
+
+            $mutasiKasService->reverseByReference(Penjualan::class, $penjualan->id);
             $penjualan->delete();
             DB::commit();
             return redirect()->route('penjualan.index')->with('success', 'Transaksi dibatalkan. Stok dikembalikan.');

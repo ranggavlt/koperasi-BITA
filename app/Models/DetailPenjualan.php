@@ -20,4 +20,19 @@ class DetailPenjualan extends Model
     {
         return $this->belongsTo(Produk::class, 'produk_id');
     }
+
+    public function penjualan()
+    {
+        return $this->belongsTo(Penjualan::class, 'penjualan_id');
+    }
+
+    public function reseller()
+    {
+        return $this->belongsTo(Reseller::class, 'reseller_id');
+    }
+
+    public function hutangReseller()
+    {
+        return $this->hasOne(HutangReseller::class, 'detail_penjualan_id');
+    }
 }

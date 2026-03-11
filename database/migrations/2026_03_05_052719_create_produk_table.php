@@ -28,6 +28,8 @@ return new class extends Migration
         $table->foreignId('reseller_id')
             ->nullable()
             ->constrained('reseller');
+
+        $table->integer('harga_setor')->default(0);
             $table->timestamps();
         });
     }
