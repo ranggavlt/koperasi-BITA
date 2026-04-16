@@ -2,7 +2,7 @@
 
 return [
     'brand' => [
-        'name' => 'Koperasi BITA',
+        'name' => 'KBSM',
         'subtitle' => 'POS, Simpan Pinjam, dan Laporan',
         'logo' => 'assets/img/logo-koperasi.png',
     ],

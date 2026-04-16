@@ -16,9 +16,9 @@
             Mutasi Kas
         </h2>
 
-        <x-button href="{{ route('mutasi-kas.create') }}">
+        {{-- <x-button href="{{ route('mutasi-kas.create') }}">
             + Tambah Mutasi
-        </x-button>
+        </x-button> --}}
 
     </div>
 
