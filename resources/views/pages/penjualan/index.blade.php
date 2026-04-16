@@ -69,26 +69,18 @@
                 </select>
               </div>
 
-              {{-- Pilihan Produk --}}
-              <div class="w-full max-w-full px-3 md:w-5/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pilih Produk</label>
-                <select name="produk_id" id="produk_id" required onchange="kalkulasiOtomatis()"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="" data-harga="0">-- Pilih Produk --</option>
-                  @foreach($produk as $p)
-                    <option value="{{ $p->id }}" data-harga="{{ $p->harga_jual }}">
-                      {{ $p->nama_produk }} (Sisa: {{ $p->stok }} | Rp {{ number_format($p->harga_jual,0,',','.') }})
-                    </option>
-                  @endforeach
-                </select>
-              </div>
+              {{-- Multi Produk --}}
+              <div class="w-full max-w-full px-3 mt-4">
+                <div class="mb-2 flex items-center justify-between">
+                  <label class="mb-0 ml-1 block text-xs font-bold uppercase text-slate-700">Produk & Jumlah</label>
+                  <button type="button" id="btn-add-item"
+                    class="inline-flex items-center rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-3 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                    + Tambah Produk
+                  </button>
+                </div>
 
-              {{-- Jumlah --}}
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jumlah (Qty)</label>
-                <input type="number" name="jumlah" id="jumlah" required oninput="kalkulasiOtomatis()"
-                  value="{{ old('jumlah', 1) }}" min="1"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                <div id="items-container" class="space-y-3"></div>
+                <p class="mt-2 text-xs text-slate-500">Klik tombol + untuk menambah produk lain dalam transaksi yang sama.</p>
               </div>
 
               {{-- Total Harga --}}
@@ -228,6 +220,9 @@
 
 {{-- SCRIPT JAVASCRIPT --}}
 <script>
+  const produkData = @json($produkOptions);
+  const oldItems = @json(old('items', []));
+
   function toggleForm() {
     const formContainer = document.getElementById('form-container');
     const btnToggle = document.getElementById('btn-toggle-form');
@@ -243,28 +238,101 @@
     }
   }
 
-  function kalkulasiOtomatis() {
-    let selectProduk = document.getElementById('produk_id');
-    
-    // Cegah error kalau belum pilih produk
-    if(selectProduk.selectedIndex === -1 || selectProduk.value === "") {
-        document.getElementById('total_harga').value = 0;
-        document.getElementById('grand_total').value = 0;
-        return;
-    }
+  function buildProdukOptions(selectedId = '') {
+    const options = ['<option value="">-- Pilih Produk --</option>'];
+    produkData.forEach((p) => {
+      const selected = String(selectedId) === String(p.id) ? 'selected' : '';
+      options.push(
+        `<option value="${p.id}" data-harga="${p.harga_jual}" ${selected}>${p.nama_produk} (Sisa: ${p.stok} | Rp ${Number(p.harga_jual).toLocaleString('id-ID')})</option>`
+      );
+    });
+    return options.join('');
+  }
 
-    let selectedOption = selectProduk.options[selectProduk.selectedIndex];
-    let hargaSatuan = parseFloat(selectedOption.getAttribute('data-harga')) || 0;
-    let jumlahBarang = parseFloat(document.getElementById('jumlah').value) || 0;
-    let diskon = parseFloat(document.getElementById('diskon').value) || 0;
-    
-    let totalHarga = hargaSatuan * jumlahBarang;
-    document.getElementById('total_harga').value = totalHarga;
-    
+  function createItemRow(index, selectedProduk = '', jumlah = 1) {
+    const row = document.createElement('div');
+    row.className = 'item-row flex flex-wrap -mx-2 rounded-lg border border-gray-200 bg-gray-50 p-3';
+    row.innerHTML = `
+      <div class="w-full max-w-full px-2 md:w-7/12">
+        <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Produk</label>
+        <select name="items[${index}][produk_id]" required class="produk-select focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+          ${buildProdukOptions(selectedProduk)}
+        </select>
+      </div>
+      <div class="w-full max-w-full px-2 md:w-3/12 mt-3 md:mt-0">
+        <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jumlah (Qty)</label>
+        <input type="number" name="items[${index}][jumlah]" required min="1" value="${jumlah}" class="jumlah-input focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+      </div>
+      <div class="w-full max-w-full px-2 md:w-2/12 mt-3 md:mt-0 flex items-end">
+        <button type="button" class="btn-remove-item inline-block w-full rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-3 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+          Hapus
+        </button>
+      </div>
+    `;
+    return row;
+  }
+
+  function reindexRows() {
+    const rows = document.querySelectorAll('#items-container .item-row');
+    rows.forEach((row, index) => {
+      const select = row.querySelector('.produk-select');
+      const qty = row.querySelector('.jumlah-input');
+      select.name = `items[${index}][produk_id]`;
+      qty.name = `items[${index}][jumlah]`;
+    });
+  }
+
+  function addRow(selectedProduk = '', jumlah = 1) {
+    const container = document.getElementById('items-container');
+    const index = container.querySelectorAll('.item-row').length;
+    const row = createItemRow(index, selectedProduk, jumlah);
+    container.appendChild(row);
+
+    row.querySelector('.produk-select').addEventListener('change', kalkulasiOtomatis);
+    row.querySelector('.jumlah-input').addEventListener('input', kalkulasiOtomatis);
+    row.querySelector('.btn-remove-item').addEventListener('click', function () {
+      row.remove();
+      if (container.querySelectorAll('.item-row').length === 0) {
+        addRow();
+      }
+      reindexRows();
+      kalkulasiOtomatis();
+    });
+
+    kalkulasiOtomatis();
+  }
+
+  function kalkulasiOtomatis() {
+    const rows = document.querySelectorAll('#items-container .item-row');
+    let totalHarga = 0;
+
+    rows.forEach((row) => {
+      const select = row.querySelector('.produk-select');
+      const qty = parseFloat(row.querySelector('.jumlah-input').value) || 0;
+      const harga = parseFloat(select.options[select.selectedIndex]?.getAttribute('data-harga')) || 0;
+      totalHarga += harga * qty;
+    });
+
+    const diskon = parseFloat(document.getElementById('diskon').value) || 0;
     let grandTotal = totalHarga - diskon;
-    if(grandTotal < 0) grandTotal = 0; 
-    
+    if (grandTotal < 0) grandTotal = 0;
+
+    document.getElementById('total_harga').value = totalHarga;
     document.getElementById('grand_total').value = grandTotal;
+  }
+
+  document.getElementById('btn-add-item').addEventListener('click', function () {
+    addRow();
+  });
+
+  document.getElementById('diskon').addEventListener('input', kalkulasiOtomatis);
+
+  if (Array.isArray(oldItems) && oldItems.length > 0) {
+    oldItems.forEach((item) => {
+      addRow(item.produk_id ?? '', item.jumlah ?? 1);
+    });
+  } else {
+    addRow();
   }
 </script>
 @endsection

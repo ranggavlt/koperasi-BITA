@@ -29,76 +29,68 @@
     </div>
   </div>
 
-  <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="h-full rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-      <div class="flex h-full min-h-[210px] flex-col p-6">
-        <div class="flex items-center justify-end">
-          <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3Zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3Zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4Zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45v2H24v-2c0-2.66-5.33-4-8-4Z"/>
-            </svg>
-          </div>
-        </div>
-        <div class="mt-auto pt-6">
-          <p class="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Karyawan Terpakai</p>
-          <h5 class="mb-0 text-3xl font-bold text-slate-700">{{ $summary['total_karyawan'] }}</h5>
-        </div>
-      </div>
-    </div>
+  @php
+    $metricCards = [
+        [
+            'title' => 'Karyawan Terpakai',
+            'value' => $summary['total_karyawan'],
+            'suffix' => 'Karyawan',
+            'icon' => 'ni ni-single-02',
+        ],
+        [
+            'title' => 'Belanja Bulan Ini',
+            'value' => 'Rp ' . number_format($summary['total_belanja'], 0, ',', '.'),
+            'suffix' => null,
+            'icon' => 'ni ni-cart',
+        ],
+        [
+            'title' => 'Pinjaman Cair Bulan Ini',
+            'value' => 'Rp ' . number_format($summary['total_pinjaman_baru'], 0, ',', '.'),
+            'suffix' => null,
+            'icon' => 'ni ni-money-coins',
+        ],
+        [
+            'title' => 'Total Penggunaan Periode',
+            'value' => 'Rp ' . number_format($summary['total_penggunaan'], 0, ',', '.'),
+            'suffix' => null,
+            'icon' => 'ni ni-chart-bar-32',
+            'note' => 'Sisa Pinjaman Aktif: Rp ' . number_format($summary['total_sisa_pinjaman'], 0, ',', '.'),
+        ],
+    ];
+  @endphp
 
-    <div class="h-full rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-      <div class="flex h-full min-h-[210px] flex-col p-6">
-        <div class="flex items-center justify-end">
-          <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 6h18v2H3V6Zm2 4h14v10H5V10Zm3 2v2h8v-2H8Z"/>
-            </svg>
-          </div>
-        </div>
-        <div class="mt-auto pt-6">
-          <p class="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Belanja Bulan Ini</p>
-          <h5 class="mb-0 text-3xl font-bold text-slate-700">Rp {{ number_format($summary['total_belanja'], 0, ',', '.') }}</h5>
-        </div>
-      </div>
-    </div>
+  <div class="mb-6 flex flex-wrap -mx-3">
+    @foreach($metricCards as $card)
+      <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
+        <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border h-full">
+          <div class="flex-auto p-4">
+            <div class="flex flex-row -mx-3 h-full">
+              <div class="flex-none w-2/3 max-w-full px-3">
+                <div>
+                  <p class="mb-0 font-sans font-semibold leading-normal text-sm text-slate-500">{{ $card['title'] }}</p>
+                  <h5 class="mb-0 font-bold text-slate-700">
+                    {{ $card['value'] }}
+                    @if($card['suffix'])
+                      <span class="text-sm font-semibold text-slate-500">{{ $card['suffix'] }}</span>
+                    @endif
+                  </h5>
 
-    <div class="h-full rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-      <div class="flex h-full min-h-[210px] flex-col p-6">
-        <div class="flex items-center justify-end">
-          <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 6h20v2H2V6Zm2 4h16v10H4V10Zm4 2v2h8v-2H8Zm0 4v2h5v-2H8Z"/>
-            </svg>
-          </div>
-        </div>
-        <div class="mt-auto pt-6">
-          <p class="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Pinjaman Cair Bulan Ini</p>
-          <h5 class="mb-0 text-3xl font-bold text-slate-700">Rp {{ number_format($summary['total_pinjaman_baru'], 0, ',', '.') }}</h5>
-        </div>
-      </div>
-    </div>
+                  @if(isset($card['note']))
+                    <p class="mt-2 mb-0 text-xs text-slate-400">{{ $card['note'] }}</p>
+                  @endif
+                </div>
+              </div>
 
-    <div class="h-full rounded-2xl border border-green-100 bg-white shadow-soft-xl">
-      <div class="flex h-full min-h-[210px] flex-col p-6">
-        <div class="flex items-center justify-end">
-          <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-green-50 text-green-600">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2 1 7l11 5 9-4.09V17h2V7L12 2Zm-7 9.91V17l7 3 7-3v-5.09l-7 3-7-3Z"/>
-            </svg>
+              <div class="px-3 text-right basis-1/3">
+                <div class="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500">
+                  <i class="{{ $card['icon'] }} text-lg relative top-3.5 text-white"></i>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="mt-auto pt-6">
-          <p class="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Total Penggunaan Periode</p>
-          <h5 class="mb-0 text-3xl font-bold text-green-600">Rp {{ number_format($summary['total_penggunaan'], 0, ',', '.') }}</h5>
-        </div>
-        <div class="mt-5 rounded-xl bg-slate-50 px-4 py-4">
-          <p class="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Sisa Pinjaman Aktif Seluruh Karyawan</p>
-          <p class="mb-0 text-sm font-semibold text-slate-600">
-            Rp {{ number_format($summary['total_sisa_pinjaman'], 0, ',', '.') }}
-          </p>
-        </div>
       </div>
-    </div>
+    @endforeach
   </div>
 
   <div class="relative flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">

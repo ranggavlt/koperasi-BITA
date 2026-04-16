@@ -18,6 +18,14 @@ class PenjualanController extends Controller
     {
         $penjualan = Penjualan::with(['karyawan', 'details.produk'])->orderBy('id', 'desc')->paginate(10);
         $produk = Produk::where('stok', '>', 0)->orderBy('nama_produk')->get();
+        $produkOptions = $produk->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'nama_produk' => $item->nama_produk,
+                'stok' => $item->stok,
+                'harga_jual' => $item->harga_jual,
+            ];
+        })->values();
 
         $bulanIni = Carbon::now()->month;
         $tahunIni = Carbon::now()->year;
@@ -33,27 +41,48 @@ class PenjualanController extends Controller
             return $k;
         });
 
-        return view('pages.penjualan.index', compact('penjualan', 'karyawan', 'produk'));
+        return view('pages.penjualan.index', compact('penjualan', 'karyawan', 'produk', 'produkOptions'));
     }
 
     public function store(Request $request, MutasiKasService $mutasiKasService)
     {
         $request->validate([
             'karyawan_id' => 'required|exists:karyawan,id',
-            'produk_id'   => 'required|exists:produk,id',
-            'jumlah'      => 'required|integer|min:1',
+            'items'       => 'required|array|min:1',
+            'items.*.produk_id' => 'required|exists:produk,id',
+            'items.*.jumlah'    => 'required|integer|min:1',
             'diskon'      => 'nullable|numeric|min:0',
         ]);
 
-        $produk = Produk::findOrFail($request->produk_id);
-        
-        if($request->jumlah > $produk->stok) {
-            return back()->withErrors(['Stok kurang! Sisa: ' . $produk->stok])->withInput();
+        $diskon = (float) ($request->diskon ?? 0);
+        $total_harga = 0;
+        $processedItems = [];
+        $stokTerpakai = [];
+
+        foreach ($request->items as $index => $item) {
+            $produk = Produk::find($item['produk_id']);
+            if (!$produk) {
+                return back()->withErrors(["Produk pada baris ke-" . ($index + 1) . " tidak ditemukan."])->withInput();
+            }
+
+            $jumlah = (int) $item['jumlah'];
+            $stokTerpakai[$produk->id] = ($stokTerpakai[$produk->id] ?? 0) + $jumlah;
+            if ($stokTerpakai[$produk->id] > $produk->stok) {
+                return back()->withErrors([
+                    "Stok {$produk->nama_produk} kurang! Sisa: {$produk->stok}, diminta: {$stokTerpakai[$produk->id]}"
+                ])->withInput();
+            }
+
+            $subtotal = $produk->harga_jual * $jumlah;
+            $total_harga += $subtotal;
+            $processedItems[] = [
+                'produk' => $produk,
+                'jumlah' => $jumlah,
+                'subtotal' => $subtotal,
+            ];
         }
 
-        $total_harga = $produk->harga_jual * $request->jumlah;
-        $diskon = $request->diskon ?? 0;
-        $grand_total = $total_harga - $diskon;
+        $grand_total = max(0, $total_harga - $diskon);
 
         // CEK LIMIT SALDO
         $bulanIni = Carbon::now()->month;
@@ -91,29 +120,35 @@ class PenjualanController extends Controller
                 'grand_total'    => $grand_total,
             ]);
 
-            $detailPenjualan = DetailPenjualan::create([
-                'penjualan_id'   => $penjualan->id,
-                'produk_id'      => $produk->id,
-                'qty'            => $request->jumlah,
-                'harga'          => $produk->harga_jual,
-                'subtotal'       => $total_harga,
-                'konsinyasi'     => $produk->konsinyasi,
-                'reseller_id'    => $produk->reseller_id,
-                'harga_setor'    => $produk->harga_setor,
-                'subtotal_setor' => $produk->harga_setor * $request->jumlah,
-            ]);
+            foreach ($processedItems as $item) {
+                $produk = $item['produk'];
+                $jumlah = $item['jumlah'];
+                $subtotal = $item['subtotal'];
 
-            if ($detailPenjualan->konsinyasi && $detailPenjualan->reseller_id) {
-                HutangReseller::create([
-                    'reseller_id' => $detailPenjualan->reseller_id,
-                    'detail_penjualan_id' => $detailPenjualan->id,
-                    'jumlah' => $detailPenjualan->subtotal_setor,
-                    'status' => 'belum_dibayar',
-                    'tanggal' => now()->toDateString(),
+                $detailPenjualan = DetailPenjualan::create([
+                    'penjualan_id'   => $penjualan->id,
+                    'produk_id'      => $produk->id,
+                    'qty'            => $jumlah,
+                    'harga'          => $produk->harga_jual,
+                    'subtotal'       => $subtotal,
+                    'konsinyasi'     => $produk->konsinyasi,
+                    'reseller_id'    => $produk->reseller_id,
+                    'harga_setor'    => $produk->harga_setor,
+                    'subtotal_setor' => $produk->harga_setor * $jumlah,
                 ]);
-            }
 
-            $produk->decrement('stok', $request->jumlah);
+                if ($detailPenjualan->konsinyasi && $detailPenjualan->reseller_id) {
+                    HutangReseller::create([
+                        'reseller_id' => $detailPenjualan->reseller_id,
+                        'detail_penjualan_id' => $detailPenjualan->id,
+                        'jumlah' => $detailPenjualan->subtotal_setor,
+                        'status' => 'belum_dibayar',
+                        'tanggal' => now()->toDateString(),
+                    ]);
+                }
+
+                $produk->decrement('stok', $jumlah);
+            }
 
             $mutasiKasService->record([
                 'tipe' => 'masuk',
