@@ -22,25 +22,32 @@
 <aside
   class="max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-none transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-transparent">
 
-  <div class="h-19.5">
+  {{-- FIX: Mengubah tinggi menjadi auto agar menyesuaikan teks yang turun baris --}}
+  <div class="h-auto pb-4 pt-2">
     <i class="absolute top-0 right-0 hidden p-4 opacity-50 cursor-pointer fas fa-times text-slate-400 xl:hidden"
        sidenav-close></i>
 
-    <a class="block px-8 py-6 m-0 text-sm whitespace-nowrap text-slate-700"
+    {{-- FIX: Menggunakan flex layout dan membuang whitespace-nowrap dari container utama --}}
+    <a class="flex items-center px-6 py-4 m-0 text-sm text-slate-700 w-full"
        href="{{ route('pages.dashboard') }}">
+      
+      {{-- Bagian Logo --}}
       <span
-        class="inline-flex items-center justify-center rounded-xl bg-white shadow-soft-xl"
+        class="inline-flex items-center justify-center shrink-0 rounded-xl bg-white shadow-soft-xl"
         style="width: 2.75rem; height: 2.75rem; padding: 0.35rem;">
         <img
           src="{{ asset($brandLogo) }}"
           alt="{{ $brandName }}"
           style="width: 100%; height: 100%; object-fit: contain;" />
       </span>
-      <span class="ml-2 inline-block align-middle">
-        <span class="block font-semibold transition-all duration-200 ease-nav-brand">
+      
+      {{-- Bagian Teks --}}
+      <span class="flex flex-col min-w-0" style="margin-left: 1.20rem;">
+        <span class="block font-semibold transition-all duration-200 ease-nav-brand truncate">
           {{ $brandName }}
         </span>
-        <span class="block text-xs leading-normal text-slate-500">
+        {{-- FIX: Menambahkan whitespace-normal agar teks bisa turun baris (wrap) dengan rapi --}}
+        <span class="block text-xs leading-normal text-slate-500 whitespace-normal break-words mt-0.5">
           {{ $brandSubtitle }}
         </span>
       </span>

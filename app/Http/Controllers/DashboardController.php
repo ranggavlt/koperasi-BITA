@@ -5,67 +5,100 @@ namespace App\Http\Controllers;
 use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // 1. Inisialisasi Waktu
-        $hariIni = Carbon::today();
+        // =============================
+        // 1. Inisialisasi waktu
+        // =============================
+        $hariIni  = Carbon::today();
         $bulanIni = Carbon::now()->month;
         $tahunIni = Carbon::now()->year;
 
-        // 2. Data 4 Kartu Atas (Gunakan null coalescing ?? 0 agar tidak error jika data kosong)
-        $pendapatanHariIni = Penjualan::whereDate('created_at', $hariIni)->sum('grand_total') ?? 0;
-        $transaksiHariIni  = Penjualan::whereDate('created_at', $hariIni)->count() ?? 0;
-        
-        // Barang konsinyasi yang laku bulan ini
+        // =============================
+        // 2. DATA KARTU ATAS
+        // =============================
+
+        $pendapatanHariIni = Penjualan::whereDate('created_at', $hariIni)
+            ->sum('grand_total') ?? 0;
+
+        $transaksiHariIni = Penjualan::whereDate('created_at', $hariIni)
+            ->count() ?? 0;
+
         $konsinyasiBulanIni = DetailPenjualan::where('konsinyasi', 1)
-                                ->whereMonth('created_at', $bulanIni)
-                                ->whereYear('created_at', $tahunIni)
-                                ->sum('qty') ?? 0;
+            ->whereMonth('created_at', $bulanIni)
+            ->whereYear('created_at', $tahunIni)
+            ->sum('qty') ?? 0;
 
         $pendapatanBulanIni = Penjualan::whereMonth('created_at', $bulanIni)
-                                ->whereYear('created_at', $tahunIni)
-                                ->sum('grand_total') ?? 0;
+            ->whereYear('created_at', $tahunIni)
+            ->sum('grand_total') ?? 0;
 
-        // 3. Data Grafik Penjualan Bulanan (Tahun Ini)
+        // =============================
+        // 3. GRAFIK PENDAPATAN BULANAN
+        // =============================
+
+        // Grafik pendapatan per bulan dari Database
+        $dataGrafik = DB::table('penjualan')
+            ->selectRaw('MONTH(created_at) as bulan, SUM(grand_total) as total')
+            ->whereYear('created_at', date('Y'))
+            ->groupBy('bulan')
+            ->pluck('total', 'bulan')
+            ->toArray();
+
         $grafikBulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
         $grafikPendapatan = [];
+
         for ($i = 1; $i <= 12; $i++) {
-            $totalBulan = Penjualan::whereMonth('created_at', $i)
-                            ->whereYear('created_at', $tahunIni)
-                            ->sum('grand_total');
-            $grafikPendapatan[] = (int)$totalBulan;
+            $grafikPendapatan[] = (int) ($dataGrafik[$i] ?? 0);
         }
 
-        // 4. Tabel Produk Terlaris Bulan Ini (Top 5)
-        $produkTerlaris = DetailPenjualan::select('produk_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(subtotal) as total_revenue'))
-                            ->whereMonth('created_at', $bulanIni)
-                            ->whereYear('created_at', $tahunIni)
-                            ->groupBy('produk_id')
-                            ->orderByDesc('total_qty')
-                            ->limit(5)
-                            ->with('produk.kategori') 
-                            ->get();
+        // =============================
+        // 4. PRODUK TERLARIS
+        // =============================
 
-        // 5. Timeline Transaksi Terakhir (6 terbaru)
+        $produkTerlaris = DetailPenjualan::select(
+                'produk_id',
+                DB::raw('SUM(qty) as total_qty'),
+                DB::raw('SUM(subtotal) as total_revenue')
+            )
+            ->whereMonth('created_at', $bulanIni)
+            ->whereYear('created_at', $tahunIni)
+            ->groupBy('produk_id')
+            ->orderByDesc('total_qty')
+            ->with('produk.kategori')
+            ->limit(5)
+            ->get();
+
+        // =============================
+        // 5. AKTIVITAS TERAKHIR
+        // =============================
+
         $transaksiTerakhir = Penjualan::with('karyawan')
-                                ->orderBy('created_at', 'desc')
-                                ->limit(6)
-                                ->get();
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get()
+            ->map(function ($trx) {
+                $trx->grand_total = (int) ($trx->grand_total ?? 0);
+                return $trx;
+            });
 
-        // Mengirim data ke view
+        // =============================
+        // RETURN VIEW
+        // =============================
+
         return view('pages.dashboard', compact(
-            'pendapatanHariIni', 
-            'transaksiHariIni', 
-            'konsinyasiBulanIni', 
+            'pendapatanHariIni',
+            'transaksiHariIni',
+            'konsinyasiBulanIni',
             'pendapatanBulanIni',
-            'grafikBulan', 
-            'grafikPendapatan', 
-            'produkTerlaris', 
+            'grafikBulan',
+            'grafikPendapatan',
+            'produkTerlaris',
             'transaksiTerakhir'
         ));
     }
