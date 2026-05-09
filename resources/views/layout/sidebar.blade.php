@@ -17,30 +17,38 @@
       : 'shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-center stroke-0 text-center xl:p-2.5';
 
   $iconColor = fn(bool $active) => $active ? 'text-white' : 'text-slate-700';
+  $role = auth()->user()->role ?? '';
 @endphp
 
 <aside
   class="max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-none transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-transparent">
 
-  <div class="h-19.5">
+  {{-- FIX: Mengubah tinggi menjadi auto agar menyesuaikan teks yang turun baris --}}
+  <div class="h-auto pb-4 pt-2">
     <i class="absolute top-0 right-0 hidden p-4 opacity-50 cursor-pointer fas fa-times text-slate-400 xl:hidden"
        sidenav-close></i>
 
-    <a class="block px-8 py-6 m-0 text-sm whitespace-nowrap text-slate-700"
+    {{-- FIX: Menggunakan flex layout dan membuang whitespace-nowrap dari container utama --}}
+    <a class="flex items-center px-6 py-4 m-0 text-sm text-slate-700 w-full"
        href="{{ route('pages.dashboard') }}">
+      
+      {{-- Bagian Logo --}}
       <span
-        class="inline-flex items-center justify-center rounded-xl bg-white shadow-soft-xl"
+        class="inline-flex items-center justify-center shrink-0 rounded-xl bg-white shadow-soft-xl"
         style="width: 2.75rem; height: 2.75rem; padding: 0.35rem;">
         <img
           src="{{ asset($brandLogo) }}"
           alt="{{ $brandName }}"
           style="width: 100%; height: 100%; object-fit: contain;" />
       </span>
-      <span class="ml-2 inline-block align-middle">
-        <span class="block font-semibold transition-all duration-200 ease-nav-brand">
+      
+      {{-- Bagian Teks --}}
+      <span class="flex flex-col min-w-0" style="margin-left: 1.20rem;">
+        <span class="block font-semibold transition-all duration-200 ease-nav-brand truncate">
           {{ $brandName }}
         </span>
-        <span class="block text-xs leading-normal text-slate-500">
+        {{-- FIX: Menambahkan whitespace-normal agar teks bisa turun baris (wrap) dengan rapi --}}
+        <span class="block text-xs leading-normal text-slate-500 whitespace-normal break-words mt-0.5">
           {{ $brandSubtitle }}
         </span>
       </span>
@@ -73,7 +81,42 @@
         </a>
       </li>
 
+      {{-- PROFILE --}}
+      @php $active = $is('pages.profile'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('pages.profile') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5V21h16v-2.5C20 16 16.42 14 12 14Z"/>
+            </svg>
+          </div>
+
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Profile</span>
+        </a>
+      </li>
+
+      {{-- LOGOUT --}}
+      <li class="mt-0.5 w-full">
+        <form method="POST" action="{{ route('logout') }}">
+          @csrf
+          <button type="submit" class="{{ $linkClass(false) }} w-full text-left">
+            <div class="{{ $iconWrap(false) }}">
+              <svg width="12px" height="12px" viewBox="0 0 24 24"
+                   class="fill-current {{ $iconColor(false) }}" xmlns="http://www.w3.org/2000/svg">
+                <path fill="currentColor"
+                  d="M10 17v-2h4v-6h-4V7l-5 5 5 5Zm9 4H12v-2h7V5h-7V3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2Z"/>
+              </svg>
+            </div>
+
+            <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Logout</span>
+          </button>
+        </form>
+      </li>
+
       {{-- POS KOPERASI --}}
+      @if($role === 'kasir')
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           POS Koperasi
@@ -155,8 +198,10 @@
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Pembayaran Konsinyasi</span>
         </a>
       </li>
+      @endif
 
       {{-- ====== MENU SIMPAN PINJAM ====== --}}
+      @if($role === 'keuangan')
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           Simpan Pinjam
@@ -337,28 +382,13 @@
         </a>
       </li>
 
+      @endif
+
       {{-- ====== MENU LAPORAN ====== --}}
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
-          Laporan
+          Laporan Operasional
         </h6>
-      </li>
-
-      {{-- LAPORAN POTONG GAJI --}}
-      @php $active = $is('laporan.potong-gaji'); @endphp
-      <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('laporan.potong-gaji') }}">
-          <div class="{{ $iconWrap($active) }}">
-            <svg width="12px" height="12px" viewBox="0 0 24 24"
-                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
-              <path fill="currentColor"
-                d="M4 4h16v2H4V4Zm0 4h16v12H4V8Zm3 3v2h4v-2H7Zm0 4v2h7v-2H7Zm9-4h2v6h-2v-6Z"/>
-            </svg>
-          </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-            Laporan Potong Gaji
-          </span>
-        </a>
       </li>
 
       {{-- LAPORAN KONSINYASI --}}
@@ -377,6 +407,66 @@
           </span>
         </a>
       </li>
+
+      {{-- LAPORAN AKUNTANSI (Keuangan) --}}
+      @if($role === 'keuangan')
+      <li class="w-full mt-4">
+        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+          Laporan Akuntansi
+        </h6>
+      </li>
+
+      {{-- JURNAL UMUM PERIODIK --}}
+      @php $active = $is('akuntansi.jurnal-umum'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('akuntansi.jurnal-umum') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M6 2h9l3 3v17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 1.5V6h2.5L14 3.5ZM7 9h10v2H7V9Zm0 4h10v2H7v-2Zm0 4h7v2H7v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Jurnal Umum Periodik
+          </span>
+        </a>
+      </li>
+
+      {{-- BUKU BESAR --}}
+      @php $active = $is('akuntansi.buku-besar'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('akuntansi.buku-besar') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M4 4h16v2H4V4Zm0 4h16v14H4V8Zm2 2v10h12V10H6Zm2 2h8v2H8v-2Zm0 4h6v2H8v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Buku Besar
+          </span>
+        </a>
+      </li>
+
+      {{-- LAPORAN POTONG GAJI --}}
+      @php $active = $is('laporan.potong-gaji'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('laporan.potong-gaji') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M4 4h16v2H4V4Zm0 4h16v12H4V8Zm3 3v2h4v-2H7Zm0 4v2h7v-2H7Zm9-4h2v6h-2v-6Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Laporan Potong Gaji
+          </span>
+        </a>
+      </li>
+      @endif
 
       @if(false)
       {{-- TABLES --}}

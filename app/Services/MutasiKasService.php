@@ -108,6 +108,10 @@ class MutasiKasService
             ->orderBy('id')
             ->get()
             ->each(function (Penjualan $penjualan) {
+                $metode = $penjualan->pembayaran?->metode_pembayaran ?? 'tunai';
+                if ($metode !== 'tunai') {
+                    return;
+                }
                 $this->record([
                     'tipe' => 'masuk',
                     'jumlah' => $penjualan->grand_total,

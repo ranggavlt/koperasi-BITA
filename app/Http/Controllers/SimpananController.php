@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Simpanan;
 use App\Models\Karyawan;
 use App\Models\JenisSimpanan;
+use App\Services\AkuntansiService;
 use App\Services\MutasiKasService;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +24,7 @@ class SimpananController extends Controller
         return view('pages.simpanan.index', compact('simpanan', 'karyawan', 'jenis'));
     }
 
-    public function store(Request $request, MutasiKasService $mutasiKasService)
+    public function store(Request $request, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $validated = $request->validate([
             'karyawan_id' => 'required|exists:karyawan,id',
@@ -39,7 +40,7 @@ class SimpananController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $mutasiKasService) {
+            DB::transaction(function () use ($validated, $mutasiKasService, $akuntansiService) {
                 $simpanan = Simpanan::create($validated);
 
                 $mutasiKasService->record([
@@ -50,6 +51,8 @@ class SimpananController extends Controller
                     'referensi_id' => $simpanan->id,
                     'tanggal' => $validated['tanggal'],
                 ]);
+
+                $akuntansiService->recordSimpanan($simpanan);
             });
 
             return redirect()
@@ -60,13 +63,14 @@ class SimpananController extends Controller
         }
     }
 
-    public function destroy($id, MutasiKasService $mutasiKasService)
+    public function destroy($id, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $data = Simpanan::findOrFail($id);
 
         try {
-            DB::transaction(function () use ($data, $mutasiKasService) {
+            DB::transaction(function () use ($data, $mutasiKasService, $akuntansiService) {
                 $mutasiKasService->reverseByReference(Simpanan::class, $data->id);
+                $akuntansiService->reverseByReference(Simpanan::class, $data->id);
                 $data->delete();
             });
 

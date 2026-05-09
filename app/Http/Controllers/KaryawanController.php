@@ -27,9 +27,16 @@ class KaryawanController extends Controller
             'email'   => 'required|email|max:255|unique:karyawan,email',
             'telepon' => 'nullable|string|max:50',
             'jabatan' => 'required|string|max:255',
+            'is_anggota' => 'nullable|boolean',
         ]);
 
-        Karyawan::create($request->only('nama', 'email', 'telepon', 'jabatan'));
+        Karyawan::create([
+            'nama' => $request->nama,
+            'email' => $request->email,
+            'telepon' => $request->telepon,
+            'jabatan' => $request->jabatan,
+            'is_anggota' => (bool) $request->boolean('is_anggota'),
+        ]);
 
         return redirect()->route('karyawan.index')
             ->with('success', 'Data karyawan berhasil ditambahkan.');
@@ -62,9 +69,16 @@ class KaryawanController extends Controller
             'email'   => 'required|email|max:255|unique:karyawan,email,' . $karyawan->id,
             'telepon' => 'nullable|string|max:50',
             'jabatan' => 'required|string|max:255',
+            'is_anggota' => 'nullable|boolean',
         ]);
 
-        $karyawan->update($request->only('nama', 'email', 'telepon', 'jabatan'));
+        $karyawan->update([
+            'nama' => $request->nama,
+            'email' => $request->email,
+            'telepon' => $request->telepon,
+            'jabatan' => $request->jabatan,
+            'is_anggota' => (bool) $request->boolean('is_anggota'),
+        ]);
 
         return redirect()->route('karyawan.index')
             ->with('success', 'Data karyawan berhasil diupdate.');

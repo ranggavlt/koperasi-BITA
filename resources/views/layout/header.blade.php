@@ -1,5 +1,13 @@
 @php
-  $modules = collect(config('navigation.modules', []));
+  $role = auth()->user()->role ?? null;
+  $modules = collect(config('navigation.modules', []))
+    ->filter(function (array $module) use ($role) {
+      $allowed = $module['roles'] ?? null;
+      if (! is_array($allowed) || $allowed === []) {
+        return true;
+      }
+      return $role && in_array($role, $allowed, true);
+    });
   $currentRouteName = request()->route()?->getName();
   $currentPath = request()->path();
   $currentPath = $currentPath === '/' ? '/' : trim($currentPath, '/');

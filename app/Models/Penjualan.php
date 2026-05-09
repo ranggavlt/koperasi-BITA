@@ -31,4 +31,9 @@ class Penjualan extends Model
         return $this->hasOne(MutasiKas::class, 'referensi_id')
             ->where('referensi_tipe', self::class);
     }
+
+    public function pembayaran()
+    {
+        return $this->hasOne(Pembayaran::class, 'penjualan_id');
+    }
 }

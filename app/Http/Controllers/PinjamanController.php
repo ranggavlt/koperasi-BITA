@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Pinjaman;
 use App\Models\Karyawan;
+use App\Services\AkuntansiService;
 use App\Services\MutasiKasService;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +22,7 @@ class PinjamanController extends Controller
         return view('pages.pinjaman.index', compact('pinjaman', 'karyawan'));
     }
 
-    public function store(Request $request, MutasiKasService $mutasiKasService)
+    public function store(Request $request, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $validated = $request->validate([
             'karyawan_id' => 'required|exists:karyawan,id',
@@ -38,7 +39,7 @@ class PinjamanController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $mutasiKasService) {
+            DB::transaction(function () use ($validated, $mutasiKasService, $akuntansiService) {
                 $pinjaman = Pinjaman::create([
                     'karyawan_id' => $validated['karyawan_id'],
                     'jumlah_pinjaman' => $validated['jumlah_pinjaman'],
@@ -58,6 +59,8 @@ class PinjamanController extends Controller
                     'referensi_id' => $pinjaman->id,
                     'tanggal' => $validated['tanggal_pinjaman'],
                 ]);
+
+                $akuntansiService->recordPinjaman($pinjaman);
             });
 
             return redirect()
@@ -68,13 +71,14 @@ class PinjamanController extends Controller
         }
     }
 
-    public function destroy($id, MutasiKasService $mutasiKasService)
+    public function destroy($id, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $data = Pinjaman::findOrFail($id);
 
         try {
-            DB::transaction(function () use ($data, $mutasiKasService) {
+            DB::transaction(function () use ($data, $mutasiKasService, $akuntansiService) {
                 $mutasiKasService->reverseByReference(Pinjaman::class, $data->id);
+                $akuntansiService->reverseByReference(Pinjaman::class, $data->id);
                 $data->delete();
             });
 

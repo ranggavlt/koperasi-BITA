@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DompetKoperasi;
 use App\Models\PembayaranKonsinyasi;
 use App\Models\Reseller;
+use App\Services\AkuntansiService;
 use App\Services\MutasiKasService;
 use App\Services\PembayaranKonsinyasiService;
 use Illuminate\Http\Request;
@@ -65,7 +66,8 @@ class PembayaranKonsinyasiController extends Controller
     public function store(
         Request $request,
         PembayaranKonsinyasiService $pembayaranKonsinyasiService,
-        MutasiKasService $mutasiKasService
+        MutasiKasService $mutasiKasService,
+        AkuntansiService $akuntansiService
     ) {
         $validated = $request->validate([
             'reseller_id' => 'required|exists:reseller,id',
@@ -79,6 +81,7 @@ class PembayaranKonsinyasiController extends Controller
         ]);
 
         $pembayaran = $pembayaranKonsinyasiService->createPayment($validated, $mutasiKasService);
+        $akuntansiService->recordPembayaranKonsinyasi($pembayaran);
 
         return redirect()
             ->route('pembayaran-konsinyasi.index', ['reseller_id' => $validated['reseller_id']])

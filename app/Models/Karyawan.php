@@ -17,5 +17,10 @@ class Karyawan extends Model
         'email',
         'telepon',
         'jabatan',
+        'is_anggota',
+    ];
+
+    protected $casts = [
+        'is_anggota' => 'boolean',
     ];
 }

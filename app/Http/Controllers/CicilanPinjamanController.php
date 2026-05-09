@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\CicilanPinjaman;
 use App\Models\Pinjaman;
+use App\Services\AkuntansiService;
 use App\Services\MutasiKasService;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,7 @@ class CicilanPinjamanController extends Controller
         return view('pages.cicilan-pinjaman.index', compact('cicilanPinjaman', 'pinjaman'));
     }
 
-    public function store(Request $request, MutasiKasService $mutasiKasService)
+    public function store(Request $request, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $validated = $request->validate([
             'pinjaman_id' => 'required|exists:pinjaman,id',
@@ -56,7 +57,7 @@ class CicilanPinjamanController extends Controller
                 ->withInput();
         }
 
-        DB::transaction(function () use ($validated, $pinjaman, $mutasiKasService) {
+        DB::transaction(function () use ($validated, $pinjaman, $mutasiKasService, $akuntansiService) {
             $cicilanPinjaman = CicilanPinjaman::create([
                 'pinjaman_id' => $validated['pinjaman_id'],
                 'jumlah_cicilan' => $validated['jumlah_cicilan'],
@@ -80,6 +81,8 @@ class CicilanPinjamanController extends Controller
                 'referensi_id' => $cicilanPinjaman->id,
                 'tanggal' => $validated['tanggal_bayar'],
             ]);
+
+            $akuntansiService->recordCicilan($cicilanPinjaman);
         });
 
         return redirect()
@@ -87,11 +90,11 @@ class CicilanPinjamanController extends Controller
             ->with('success', 'Cicilan pinjaman berhasil disimpan.');
     }
 
-    public function destroy($id, MutasiKasService $mutasiKasService)
+    public function destroy($id, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $data = CicilanPinjaman::findOrFail($id);
 
-        DB::transaction(function () use ($data, $mutasiKasService) {
+        DB::transaction(function () use ($data, $mutasiKasService, $akuntansiService) {
             $pinjaman = Pinjaman::find($data->pinjaman_id);
 
             if ($pinjaman && $data->status === 'sudah_bayar') {
@@ -107,6 +110,7 @@ class CicilanPinjamanController extends Controller
             }
 
             $mutasiKasService->reverseByReference(CicilanPinjaman::class, $data->id);
+            $akuntansiService->reverseByReference(CicilanPinjaman::class, $data->id);
             $data->delete();
         });
 

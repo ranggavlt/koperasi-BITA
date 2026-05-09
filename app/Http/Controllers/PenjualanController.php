@@ -6,7 +6,9 @@ use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
 use App\Models\HutangReseller;
 use App\Models\Karyawan;
+use App\Models\Pembayaran;
 use App\Models\Produk;
+use App\Services\AkuntansiService;
 use App\Services\MutasiKasService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,7 @@ class PenjualanController extends Controller
 {
     public function index()
     {
-        $penjualan = Penjualan::with(['karyawan', 'details.produk'])->orderBy('id', 'desc')->paginate(10);
+        $penjualan = Penjualan::with(['karyawan', 'details.produk', 'pembayaran'])->orderBy('id', 'desc')->paginate(10);
         $produk = Produk::where('stok', '>', 0)->orderBy('nama_produk')->get();
         $produkOptions = $produk->map(function ($item) {
             return [
@@ -35,6 +37,10 @@ class PenjualanController extends Controller
             $pengeluaran = Penjualan::where('karyawan_id', $k->id)
                 ->whereMonth('created_at', $bulanIni)
                 ->whereYear('created_at', $tahunIni)
+                ->where(function ($query) {
+                    $query->whereHas('pembayaran', fn ($q) => $q->where('metode_pembayaran', 'potong_gaji'))
+                        ->orWhereDoesntHave('pembayaran');
+                })
                 ->sum('grand_total');
 
             $k->sisa_limit = 2000000 - $pengeluaran;
@@ -44,10 +50,11 @@ class PenjualanController extends Controller
         return view('pages.penjualan.index', compact('penjualan', 'karyawan', 'produk', 'produkOptions'));
     }
 
-    public function store(Request $request, MutasiKasService $mutasiKasService)
+    public function store(Request $request, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         $request->validate([
             'karyawan_id' => 'required|exists:karyawan,id',
+            'metode_pembayaran' => 'required|in:tunai,potong_gaji',
             'items'       => 'required|array|min:1',
             'items.*.produk_id' => 'required|exists:produk,id',
             'items.*.jumlah'    => 'required|integer|min:1',
@@ -84,20 +91,36 @@ class PenjualanController extends Controller
 
         $grand_total = max(0, $total_harga - $diskon);
 
-        // CEK LIMIT SALDO
+        $karyawan = Karyawan::findOrFail($request->karyawan_id);
+        $metodePembayaran = (string) $request->metode_pembayaran;
+
+        if (! $karyawan->is_anggota && $metodePembayaran !== 'tunai') {
+            return back()->withErrors([
+                'Metode pembayaran untuk karyawan non-anggota wajib Tunai (Cash).',
+            ])->withInput();
+        }
+
+        // CEK LIMIT SALDO (khusus potong gaji)
         $bulanIni = Carbon::now()->month;
         $tahunIni = Carbon::now()->year;
 
-        $pengeluaran = Penjualan::where('karyawan_id', $request->karyawan_id)
-            ->whereMonth('created_at', $bulanIni)
-            ->whereYear('created_at', $tahunIni)
-            ->sum('grand_total');
+        $pengeluaranPotongGaji = 0;
+        if ($metodePembayaran === 'potong_gaji') {
+            $pengeluaranPotongGaji = Penjualan::where('karyawan_id', $request->karyawan_id)
+                ->whereMonth('created_at', $bulanIni)
+                ->whereYear('created_at', $tahunIni)
+                ->where(function ($query) {
+                    $query->whereHas('pembayaran', fn ($q) => $q->where('metode_pembayaran', 'potong_gaji'))
+                        ->orWhereDoesntHave('pembayaran');
+                })
+                ->sum('grand_total');
 
-        if (($pengeluaran + $grand_total) > 2000000) {
-            return back()->withErrors([
-                'Ditolak! Saldo kasbon karyawan ini tidak mencukupi.',
-                'Sisa saldo: Rp ' . number_format(2000000 - $pengeluaran, 0, ',', '.')
-            ])->withInput();
+            if (($pengeluaranPotongGaji + $grand_total) > 2000000) {
+                return back()->withErrors([
+                    'Ditolak! Limit potong gaji bulan ini tidak mencukupi.',
+                    'Sisa limit: Rp ' . number_format(2000000 - $pengeluaranPotongGaji, 0, ',', '.'),
+                ])->withInput();
+            }
         }
 
         // GENERATE KODE
@@ -118,6 +141,12 @@ class PenjualanController extends Controller
                 'total_harga'    => $total_harga,
                 'diskon'         => $diskon,
                 'grand_total'    => $grand_total,
+            ]);
+
+            Pembayaran::create([
+                'penjualan_id' => $penjualan->id,
+                'metode_pembayaran' => $metodePembayaran,
+                'jumlah_bayar' => $metodePembayaran === 'tunai' ? (int) $grand_total : 0,
             ]);
 
             foreach ($processedItems as $item) {
@@ -150,26 +179,32 @@ class PenjualanController extends Controller
                 $produk->decrement('stok', $jumlah);
             }
 
-            $mutasiKasService->record([
-                'tipe' => 'masuk',
-                'jumlah' => $grand_total,
-                'keterangan' => 'Penerimaan dari penjualan ' . $kode_transaksi,
-                'referensi_tipe' => Penjualan::class,
-                'referensi_id' => $penjualan->id,
-                'tanggal' => now()->toDateString(),
-            ]);
+            if ($metodePembayaran === 'tunai') {
+                $mutasiKasService->record([
+                    'tipe' => 'masuk',
+                    'jumlah' => $grand_total,
+                    'keterangan' => 'Penerimaan dari penjualan ' . $kode_transaksi,
+                    'referensi_tipe' => Penjualan::class,
+                    'referensi_id' => $penjualan->id,
+                    'tanggal' => now()->toDateString(),
+                ]);
+            }
+
+            $akuntansiService->recordPenjualan($penjualan, $metodePembayaran);
 
             DB::commit();
 
             return redirect()->route('penjualan.index')
-                ->with('success', 'Transaksi Sukses! Sisa Saldo: Rp ' . number_format(2000000 - ($pengeluaran + $grand_total), 0, ',', '.'));
+                ->with('success', $metodePembayaran === 'potong_gaji'
+                    ? 'Transaksi Potong Gaji tersimpan. Sisa limit: Rp ' . number_format(2000000 - ($pengeluaranPotongGaji + $grand_total), 0, ',', '.')
+                    : 'Transaksi Tunai tersimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['Error: ' . $e->getMessage()])->withInput();
         }
     }
 
-    public function destroy(Penjualan $penjualan, MutasiKasService $mutasiKasService)
+    public function destroy(Penjualan $penjualan, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
     {
         DB::beginTransaction();
         try {
@@ -179,6 +214,8 @@ class PenjualanController extends Controller
             }
 
             $mutasiKasService->reverseByReference(Penjualan::class, $penjualan->id);
+            $akuntansiService->reverseByReference(Penjualan::class, $penjualan->id);
+            $penjualan->pembayaran()->delete();
             $penjualan->delete();
             DB::commit();
             return redirect()->route('penjualan.index')->with('success', 'Transaksi dibatalkan. Stok dikembalikan.');
