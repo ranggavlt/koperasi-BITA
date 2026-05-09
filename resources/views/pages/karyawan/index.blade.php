@@ -67,6 +67,23 @@
                   placeholder="Contoh: Kasir, Admin, dll">
               </div>
 
+              {{-- Status Anggota --}}
+              <div class="w-full max-w-full px-3 md:w-6/12 mt-4">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Status Keanggotaan</label>
+                <div class="flex items-center gap-2 rounded-lg border border-solid border-gray-300 bg-white px-3 py-2">
+                  <input
+                    id="is_anggota"
+                    name="is_anggota"
+                    type="checkbox"
+                    value="1"
+                    {{ old('is_anggota', (bool) ($data->is_anggota ?? false)) ? 'checked' : '' }} />
+                  <label for="is_anggota" class="text-sm text-slate-700">
+                    Anggota koperasi (boleh Potong Gaji)
+                  </label>
+                </div>
+                <p class="mt-2 text-xs text-slate-400">Jika tidak dicentang, transaksi kasir wajib Tunai (Cash).</p>
+              </div>
+
               {{-- Email --}}
               <div class="w-full max-w-full px-3 md:w-6/12 mt-4">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Email</label>
@@ -130,6 +147,9 @@
                     Jabatan
                   </th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">
+                    Status
+                  </th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">
                     Aksi
                   </th>
                 </tr>
@@ -169,6 +189,15 @@
                       </span>
                     </td>
 
+                    {{-- STATUS ANGGOTA --}}
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      @if($item->is_anggota)
+                        <span class="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">Anggota</span>
+                      @else
+                        <span class="inline-block rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-slate-600">Non-anggota</span>
+                      @endif
+                    </td>
+
                     {{-- AKSI --}}
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center justify-center gap-2">
@@ -191,7 +220,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="4" class="p-6 text-center text-sm text-slate-400">
+                    <td colspan="5" class="p-6 text-center text-sm text-slate-400">
                       Belum ada data karyawan anggota koperasi.
                     </td>
                   </tr>

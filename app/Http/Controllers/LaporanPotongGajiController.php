@@ -29,6 +29,10 @@ class LaporanPotongGajiController extends Controller
 
         $penjualanPeriode = Penjualan::with('details.produk')
             ->whereBetween('created_at', [$mulai->copy()->startOfDay(), $akhir->copy()->endOfDay()])
+            ->where(function ($query) {
+                $query->whereHas('pembayaran', fn ($q) => $q->where('metode_pembayaran', 'potong_gaji'))
+                    ->orWhereDoesntHave('pembayaran');
+            })
             ->get()
             ->groupBy('karyawan_id');
 

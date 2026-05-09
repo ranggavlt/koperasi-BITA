@@ -1,5 +1,14 @@
 @php
-    $modules = collect(config('navigation.modules', []))->map(function (array $module) {
+    $role = auth()->user()->role ?? null;
+    $modules = collect(config('navigation.modules', []))
+        ->filter(function (array $module) use ($role) {
+            $allowed = $module['roles'] ?? null;
+            if (! is_array($allowed) || $allowed === []) {
+                return true;
+            }
+            return $role && in_array($role, $allowed, true);
+        })
+        ->map(function (array $module) {
         $words = preg_split('/\s+/', $module['label']) ?: [];
 
         $module['url'] = route($module['route']);
@@ -169,6 +178,26 @@
                     <i class="ease-soft relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
                 </div>
             </a>
+
+            @auth
+              <div class="ml-auto hidden items-center xl:flex" style="gap: 0.5rem;">
+                <a
+                  href="{{ route('pages.profile') }}"
+                  class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold uppercase text-slate-600 shadow-soft-xs transition-all hover:scale-105"
+                  style="text-decoration: none;">
+                  <i class="fas fa-user mr-2"></i>Profile
+                </a>
+
+                <form method="POST" action="{{ route('logout') }}">
+                  @csrf
+                  <button
+                    type="submit"
+                    class="rounded-xl bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                  </button>
+                </form>
+              </div>
+            @endauth
         </div>
     </div>
 </nav>
