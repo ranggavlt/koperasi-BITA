@@ -416,6 +416,23 @@
         </h6>
       </li>
 
+      {{-- CHART OF ACCOUNTS --}}
+      @php $active = $is('akun.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('akun.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h4V7H6Zm6 0v2h6V7h-6Zm-6 4v2h4v-2H6Zm6 0v2h6v-2h-6Zm-6 4v2h4v-2H6Zm6 0v2h6v-2h-6Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Chart of Accounts
+          </span>
+        </a>
+      </li>
+
       {{-- JURNAL UMUM PERIODIK --}}
       @php $active = $is('akuntansi.jurnal-umum'); @endphp
       <li class="mt-0.5 w-full">

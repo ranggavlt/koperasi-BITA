@@ -72,6 +72,22 @@
 
               <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Akun COA
+                </label>
+                <select name="akun_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">Pilih akun pencatatan</option>
+                  @foreach($akunSimpanan as $akunItem)
+                    <option value="{{ $akunItem->id }}" {{ (string) old('akun_id', $data->akun_id ?? '') === (string) $akunItem->id ? 'selected' : '' }}>
+                      {{ $akunItem->kode_akun }} - {{ $akunItem->nama_akun }} ({{ $akunItem->kategori_label }})
+                    </option>
+                  @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">Simpanan pokok/wajib menggunakan ekuitas; simpanan yang dapat ditarik menggunakan kewajiban.</p>
+              </div>
+
+              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Nominal Default
                 </label>
                 <input type="number" name="nominal_default" step="0.01" min="0"
@@ -124,6 +140,7 @@
                 <tr>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis Simpanan</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Akun COA</th>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Keterangan</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Nominal Default</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
@@ -160,6 +177,15 @@
                     </td>
 
                     <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
+                      @if($item->akun)
+                        <p class="mb-0 text-xs font-bold text-slate-600">{{ $item->akun->kode_akun }} - {{ $item->akun->nama_akun }}</p>
+                        <p class="mb-0 text-xs text-slate-400">{{ $item->akun->kategori_label }}</p>
+                      @else
+                        <span class="text-xs font-bold text-red-500">Belum dipetakan</span>
+                      @endif
+                    </td>
+
+                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
                       <p class="mb-0 text-xs font-semibold leading-tight text-slate-500">
                         {{ $item->keterangan ?: '-' }}
                       </p>
@@ -192,7 +218,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="5" class="p-4 text-center text-sm text-slate-400">
+                    <td colspan="6" class="p-4 text-center text-sm text-slate-400">
                       Belum ada data jenis simpanan.
                     </td>
                   </tr>

@@ -2,21 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Akun;
 use App\Models\JenisSimpanan;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class JenisSimpananController extends Controller
 {
     public function index()
     {
-        $jenisSimpanan = JenisSimpanan::latest()->paginate(10);
+        $jenisSimpanan = JenisSimpanan::with('akun')->latest()->paginate(10);
+        $akunSimpanan = $this->akunSimpanan();
 
-        return view('pages.jenis-simpanan.index', compact('jenisSimpanan'));
+        return view('pages.jenis-simpanan.index', compact('jenisSimpanan', 'akunSimpanan'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'akun_id' => [
+                'required',
+                Rule::exists('akun', 'id')->where(fn ($query) => $query
+                    ->where('is_aktif', true)
+                    ->whereIn('kategori', ['kewajiban', 'ekuitas'])),
+            ],
             'nama_jenis' => 'required|string|max:100',
             'wajib' => 'required|in:0,1',
             'nominal_default' => 'nullable|numeric|min:0',
@@ -27,6 +36,7 @@ class JenisSimpananController extends Controller
         ]);
 
         JenisSimpanan::create([
+            'akun_id' => $validated['akun_id'],
             'nama_jenis' => $validated['nama_jenis'],
             'wajib' => (int) $validated['wajib'] === 1,
             'nominal_default' => $validated['nominal_default'] ?? null,
@@ -40,9 +50,10 @@ class JenisSimpananController extends Controller
     public function edit($id)
     {
         $data = JenisSimpanan::findOrFail($id);
-        $jenisSimpanan = JenisSimpanan::latest()->paginate(10);
+        $jenisSimpanan = JenisSimpanan::with('akun')->latest()->paginate(10);
+        $akunSimpanan = $this->akunSimpanan();
 
-        return view('pages.jenis-simpanan.index', compact('data', 'jenisSimpanan'));
+        return view('pages.jenis-simpanan.index', compact('data', 'jenisSimpanan', 'akunSimpanan'));
     }
 
     public function update(Request $request, $id)
@@ -50,6 +61,12 @@ class JenisSimpananController extends Controller
         $data = JenisSimpanan::findOrFail($id);
 
         $validated = $request->validate([
+            'akun_id' => [
+                'required',
+                Rule::exists('akun', 'id')->where(fn ($query) => $query
+                    ->where('is_aktif', true)
+                    ->whereIn('kategori', ['kewajiban', 'ekuitas'])),
+            ],
             'nama_jenis' => 'required|string|max:100',
             'wajib' => 'required|in:0,1',
             'nominal_default' => 'nullable|numeric|min:0',
@@ -60,6 +77,7 @@ class JenisSimpananController extends Controller
         ]);
 
         $data->update([
+            'akun_id' => $validated['akun_id'],
             'nama_jenis' => $validated['nama_jenis'],
             'wajib' => (int) $validated['wajib'] === 1,
             'nominal_default' => $validated['nominal_default'] ?? null,
@@ -77,5 +95,14 @@ class JenisSimpananController extends Controller
 
         return redirect()->route('jenis-simpanan.index')
             ->with('success', 'Jenis simpanan berhasil dihapus.');
+    }
+
+    private function akunSimpanan()
+    {
+        return Akun::query()
+            ->aktif()
+            ->whereIn('kategori', ['kewajiban', 'ekuitas'])
+            ->orderBy('kode_akun')
+            ->get();
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Akun;
 use App\Models\JurnalUmumDetail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -23,23 +24,48 @@ class BukuBesarController extends Controller
 
         $akhir = $mulai->copy()->endOfMonth();
 
-        $akunList = JurnalUmumDetail::query()
-            ->select('akun_kode', 'akun_nama')
-            ->distinct()
-            ->orderBy('akun_kode')
+        $akunList = Akun::query()
+            ->aktif()
+            ->orderBy('kode_akun')
             ->get();
 
         if ($akun === '' && $akunList->isNotEmpty()) {
-            $akun = (string) $akunList->first()->akun_kode;
+            $akun = (string) $akunList->first()->kode_akun;
         }
 
         $lines = collect();
+        $saldoAwal = 0.0;
         $saldoAkhir = 0.0;
         $totalDebit = 0.0;
         $totalKredit = 0.0;
 
         if ($akun !== '') {
-            $normalSide = $this->resolveNormalSide($akun);
+            $akunModel = Akun::query()
+                ->aktif()
+                ->where('kode_akun', $akun)
+                ->first();
+
+            if (! $akunModel) {
+                $akunModel = $akunList->first();
+                $akun = (string) ($akunModel?->kode_akun ?? '');
+            }
+
+            $normalSide = (string) ($akunModel?->posisi_saldo ?? 'debit');
+
+            $saldoSebelumPeriode = JurnalUmumDetail::query()
+                ->join('jurnal_umum as ju', 'ju.id', '=', 'jurnal_umum_detail.jurnal_umum_id')
+                ->where('jurnal_umum_detail.akun_kode', $akun)
+                ->where('ju.tanggal', '<', $mulai->toDateString())
+                ->selectRaw('COALESCE(SUM(jurnal_umum_detail.debit), 0) as total_debit')
+                ->selectRaw('COALESCE(SUM(jurnal_umum_detail.kredit), 0) as total_kredit')
+                ->first();
+
+            $debitSebelum = (float) ($saldoSebelumPeriode->total_debit ?? 0);
+            $kreditSebelum = (float) ($saldoSebelumPeriode->total_kredit ?? 0);
+            $saldoAwal = $normalSide === 'kredit'
+                ? $kreditSebelum - $debitSebelum
+                : $debitSebelum - $kreditSebelum;
+
             $raw = JurnalUmumDetail::query()
                 ->with('jurnal')
                 ->join('jurnal_umum as ju', 'ju.id', '=', 'jurnal_umum_detail.jurnal_umum_id')
@@ -51,11 +77,13 @@ class BukuBesarController extends Controller
                 ->select('jurnal_umum_detail.*')
                 ->get();
 
-            $lines = $this->buildRunningBalance($raw, $normalSide);
+            $lines = $this->buildRunningBalance($raw, $normalSide, $saldoAwal);
 
             $totalDebit = (float) $raw->sum(fn ($item) => (float) $item->debit);
             $totalKredit = (float) $raw->sum(fn ($item) => (float) $item->kredit);
-            $saldoAkhir = (float) ($lines->last()->saldo ?? 0);
+            $saldoAkhir = $lines->isNotEmpty()
+                ? (float) $lines->last()->saldo
+                : $saldoAwal;
         }
 
         return view('pages.akuntansi.buku-besar', [
@@ -65,6 +93,7 @@ class BukuBesarController extends Controller
             'akun' => $akun,
             'akunList' => $akunList,
             'lines' => $lines,
+            'saldoAwal' => $saldoAwal,
             'totalDebit' => $totalDebit,
             'totalKredit' => $totalKredit,
             'saldoAkhir' => $saldoAkhir,
@@ -75,9 +104,9 @@ class BukuBesarController extends Controller
      * @param  \Illuminate\Support\Collection<int, \App\Models\JurnalUmumDetail>  $raw
      * @return \Illuminate\Support\Collection<int, object>
      */
-    private function buildRunningBalance(Collection $raw, string $normalSide): Collection
+    private function buildRunningBalance(Collection $raw, string $normalSide, float $saldoAwal = 0): Collection
     {
-        $saldo = 0.0;
+        $saldo = $saldoAwal;
 
         return $raw->map(function ($detail) use (&$saldo, $normalSide) {
             $debit = (float) $detail->debit;
@@ -103,20 +132,4 @@ class BukuBesarController extends Controller
         });
     }
 
-    private function resolveNormalSide(string $akunKode): string
-    {
-        $kode = trim($akunKode);
-        $prefix = $kode !== '' ? (int) substr($kode, 0, 1) : 0;
-
-        // Konvensi umum:
-        // 1xxx Aset -> debit
-        // 2xxx Kewajiban -> kredit
-        // 3xxx Ekuitas -> kredit
-        // 4xxx Pendapatan -> kredit
-        // 5xxx Beban -> debit
-        return match ($prefix) {
-            2, 3, 4 => 'kredit',
-            default => 'debit',
-        };
-    }
 }

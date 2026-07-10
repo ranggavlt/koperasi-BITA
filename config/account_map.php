@@ -1,0 +1,215 @@
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Master akun sistem
+    |--------------------------------------------------------------------------
+    |
+    | Key di sebelah kiri adalah identifier stabil yang dipakai oleh kode.
+    | Kode akun tidak boleh ditulis langsung di controller atau service.
+    | Setiap akun di bawah ini disinkronkan ke tabel `akun` oleh migration dan
+    | AkunSeeder. Akun tambahan buatan pengguna tetap disimpan di tabel akun.
+    |
+    */
+    'accounts' => [
+        'kas' => [
+            'kode_akun' => '101',
+            'nama_akun' => 'Kas',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Uang tunai yang dikuasai koperasi.',
+        ],
+        'bank' => [
+            'kode_akun' => '102',
+            'nama_akun' => 'Bank',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Saldo rekening bank atas nama koperasi.',
+        ],
+        'piutang_anggota' => [
+            'kode_akun' => '103',
+            'nama_akun' => 'Piutang Anggota (Potong Gaji)',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Tagihan penjualan kepada anggota yang dibayar melalui potong gaji.',
+        ],
+        'piutang_pinjaman' => [
+            'kode_akun' => '105',
+            'nama_akun' => 'Piutang Pinjaman Anggota',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Pokok pinjaman anggota yang belum diterima kembali.',
+        ],
+        'persediaan_barang' => [
+            'kode_akun' => '106',
+            'nama_akun' => 'Persediaan Barang Dagang',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Nilai perolehan persediaan milik koperasi.',
+        ],
+        'utang_reseller_konsinyasi' => [
+            'kode_akun' => '201',
+            'nama_akun' => 'Utang Reseller Konsinyasi',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Hak reseller atas barang konsinyasi yang telah terjual dan belum dibayar.',
+        ],
+        'simpanan_sukarela' => [
+            'kode_akun' => '202',
+            'nama_akun' => 'Simpanan Sukarela Anggota',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Simpanan anggota yang dapat ditarik sesuai ketentuan koperasi.',
+        ],
+        'simpanan_khusus' => [
+            'kode_akun' => '203',
+            'nama_akun' => 'Simpanan Khusus Anggota',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Simpanan berjangka atau simpanan bertujuan khusus milik anggota.',
+        ],
+        'utang_usaha' => [
+            'kode_akun' => '204',
+            'nama_akun' => 'Utang Usaha',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Kewajiban kepada pemasok selain reseller konsinyasi.',
+        ],
+        'simpanan_belum_terklasifikasi' => [
+            'kode_akun' => '299',
+            'nama_akun' => 'Simpanan Anggota Belum Terklasifikasi',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Akun penampung migrasi untuk jenis simpanan lama yang wajib ditinjau dan dipetakan.',
+        ],
+        'simpanan_pokok' => [
+            'kode_akun' => '301',
+            'nama_akun' => 'Simpanan Pokok Anggota',
+            'kategori' => 'ekuitas',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Modal tetap yang disetor anggota saat menjadi anggota koperasi.',
+        ],
+        'simpanan_wajib' => [
+            'kode_akun' => '302',
+            'nama_akun' => 'Simpanan Wajib Anggota',
+            'kategori' => 'ekuitas',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Modal tambahan yang disetor anggota secara berkala.',
+        ],
+        'dana_cadangan' => [
+            'kode_akun' => '303',
+            'nama_akun' => 'Dana Cadangan Koperasi',
+            'kategori' => 'ekuitas',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Bagian SHU yang ditetapkan sebagai cadangan koperasi.',
+        ],
+        'shu_belum_dibagi' => [
+            'kode_akun' => '304',
+            'nama_akun' => 'SHU Belum Dibagi',
+            'kategori' => 'ekuitas',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Sisa hasil usaha yang belum ditetapkan pembagiannya.',
+        ],
+        'pendapatan_penjualan' => [
+            'kode_akun' => '401',
+            'nama_akun' => 'Pendapatan Penjualan',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan dari penjualan barang milik koperasi dan margin konsinyasi.',
+        ],
+        'pendapatan_jasa_pinjaman' => [
+            'kode_akun' => '402',
+            'nama_akun' => 'Pendapatan Jasa Pinjaman',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan bunga atau jasa atas pinjaman anggota.',
+        ],
+        'pendapatan_administrasi' => [
+            'kode_akun' => '403',
+            'nama_akun' => 'Pendapatan Administrasi',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan biaya administrasi koperasi.',
+        ],
+        'harga_pokok_penjualan' => [
+            'kode_akun' => '501',
+            'nama_akun' => 'Harga Pokok Penjualan',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Nilai perolehan barang milik koperasi yang telah terjual.',
+        ],
+        'beban_operasional' => [
+            'kode_akun' => '502',
+            'nama_akun' => 'Beban Operasional',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Beban umum untuk menjalankan kegiatan koperasi.',
+        ],
+        'beban_penyisihan_piutang' => [
+            'kode_akun' => '503',
+            'nama_akun' => 'Beban Penyisihan Piutang',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Beban penyisihan atas risiko piutang yang tidak tertagih.',
+        ],
+        'beban_sosial' => [
+            'kode_akun' => '504',
+            'nama_akun' => 'Beban Sosial',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Beban kegiatan sosial koperasi.',
+        ],
+        'beban_pendidikan' => [
+            'kode_akun' => '505',
+            'nama_akun' => 'Beban Pendidikan',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Beban pendidikan dan pengembangan anggota atau pengurus.',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pemetaan transaksi ke identifier akun
+    |--------------------------------------------------------------------------
+    |
+    | Bagian ini menjelaskan akun yang dipakai oleh setiap alur transaksi.
+    | Nama jenis simpanan dinormalisasi menjadi slug sebelum dicocokkan.
+    |
+    */
+    'postings' => [
+        'penjualan' => [
+            'kas' => 'kas',
+            'piutang_potong_gaji' => 'piutang_anggota',
+            'utang_konsinyasi' => 'utang_reseller_konsinyasi',
+            'pendapatan' => 'pendapatan_penjualan',
+            'hpp' => 'harga_pokok_penjualan',
+            'persediaan' => 'persediaan_barang',
+        ],
+        'simpanan' => [
+            'kas' => 'kas',
+            'jenis' => [
+                'pokok' => 'simpanan_pokok',
+                'simpanan-pokok' => 'simpanan_pokok',
+                'wajib' => 'simpanan_wajib',
+                'simpanan-wajib' => 'simpanan_wajib',
+                'simpanan-wajib-bulanan' => 'simpanan_wajib',
+                'sukarela' => 'simpanan_sukarela',
+                'simpanan-sukarela' => 'simpanan_sukarela',
+                'hari-raya' => 'simpanan_khusus',
+                'simpanan-hari-raya' => 'simpanan_khusus',
+                'simpanan-khusus' => 'simpanan_khusus',
+            ],
+        ],
+        'pinjaman' => [
+            'piutang' => 'piutang_pinjaman',
+            'kas' => 'kas',
+            'pendapatan_jasa' => 'pendapatan_jasa_pinjaman',
+        ],
+        'konsinyasi' => [
+            'utang_reseller' => 'utang_reseller_konsinyasi',
+            'kas' => 'kas',
+        ],
+    ],
+];

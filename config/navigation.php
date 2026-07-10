@@ -164,6 +164,15 @@ return [
         ],
         [
             'section' => 'Laporan Akuntansi',
+            'label' => 'Chart of Accounts',
+            'route' => 'akun.index',
+            'roles' => ['keuangan'],
+            'patterns' => ['akun.*'],
+            'description' => 'Kelola daftar akun sebagai sumber pencatatan jurnal koperasi.',
+            'keywords' => ['coa', 'chart of accounts', 'kode akun', 'master akun'],
+        ],
+        [
+            'section' => 'Laporan Akuntansi',
             'label' => 'Laporan Potong Gaji',
             'route' => 'laporan.potong-gaji',
             'roles' => ['keuangan'],

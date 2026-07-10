@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Akun;
 use App\Models\CicilanPinjaman;
 use App\Models\JurnalUmum;
 use App\Models\PembayaranKonsinyasi;
@@ -13,28 +14,36 @@ use RuntimeException;
 
 class AkuntansiService
 {
-    public const AKUN_KAS = ['kode' => '101', 'nama' => 'Kas'];
-    public const AKUN_PIUTANG_ANGGOTA = ['kode' => '103', 'nama' => 'Piutang Anggota (Potong Gaji)'];
-    public const AKUN_PIUTANG_PINJAMAN = ['kode' => '105', 'nama' => 'Piutang Pinjaman'];
-    public const AKUN_HUTANG_RESELLER = ['kode' => '201', 'nama' => 'Hutang Reseller Konsinyasi'];
-    public const AKUN_PENDAPATAN = ['kode' => '401', 'nama' => 'Pendapatan Penjualan'];
-    public const AKUN_SIMPANAN = ['kode' => '301', 'nama' => 'Simpanan Anggota'];
+    public function __construct(private readonly AkunResolver $akunResolver)
+    {
+    }
 
     /**
-     * @param  array<int, array{akun_kode:string, akun_nama:string, debit:float|int, kredit:float|int}>  $lines
+     * @param  array<int, array{akun_id:int, akun_kode:string, akun_nama:string, debit:float|int, kredit:float|int}>  $lines
      */
     public function record(array $header, array $lines): JurnalUmum
     {
-        $totalDebit = round(collect($lines)->sum(fn ($l) => (float) ($l['debit'] ?? 0)), 2);
-        $totalKredit = round(collect($lines)->sum(fn ($l) => (float) ($l['kredit'] ?? 0)), 2);
+        if (count($lines) < 2) {
+            throw new RuntimeException('Jurnal harus memiliki minimal dua baris akun.');
+        }
+
+        $normalizedLines = collect($lines)
+            ->map(fn (array $line) => $this->normalizeLine($line))
+            ->values()
+            ->all();
+
+        $totalDebit = round(collect($normalizedLines)->sum(fn ($line) => $line['debit']), 2);
+        $totalKredit = round(collect($normalizedLines)->sum(fn ($line) => $line['kredit']), 2);
 
         if ($totalDebit <= 0 || $totalKredit <= 0 || abs($totalDebit - $totalKredit) > 0.01) {
             throw new RuntimeException('Jurnal tidak balance (debit != kredit).');
         }
 
-        return DB::transaction(function () use ($header, $lines): JurnalUmum {
+        return DB::transaction(function () use ($header, $normalizedLines): JurnalUmum {
             $jurnal = JurnalUmum::create($header);
-            $jurnal->details()->createMany($lines);
+
+            $jurnal->details()->createMany($normalizedLines);
+
             return $jurnal;
         });
     }
@@ -67,33 +76,28 @@ class AkuntansiService
         $pendapatan = max(0, $grandTotal - $totalSetorKonsinyasi);
 
         $akunDebit = $metodePembayaran === 'potong_gaji'
-            ? self::AKUN_PIUTANG_ANGGOTA
-            : self::AKUN_KAS;
+            ? $this->akunResolver->posting('penjualan.piutang_potong_gaji')
+            : $this->akunResolver->posting('penjualan.kas');
 
         $lines = [
-            [
-                'akun_kode' => $akunDebit['kode'],
-                'akun_nama' => $akunDebit['nama'],
-                'debit' => $grandTotal,
-                'kredit' => 0,
-            ],
+            $this->akunResolver->line($akunDebit, 'debit', $grandTotal),
         ];
 
         if ($totalSetorKonsinyasi > 0) {
-            $lines[] = [
-                'akun_kode' => self::AKUN_HUTANG_RESELLER['kode'],
-                'akun_nama' => self::AKUN_HUTANG_RESELLER['nama'],
-                'debit' => 0,
-                'kredit' => $totalSetorKonsinyasi,
-            ];
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.utang_konsinyasi'),
+                'kredit',
+                $totalSetorKonsinyasi
+            );
         }
 
-        $lines[] = [
-            'akun_kode' => self::AKUN_PENDAPATAN['kode'],
-            'akun_nama' => self::AKUN_PENDAPATAN['nama'],
-            'debit' => 0,
-            'kredit' => $pendapatan,
-        ];
+        if ($pendapatan > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.pendapatan'),
+                'kredit',
+                $pendapatan
+            );
+        }
 
         $this->record([
             'tanggal' => $tanggal,
@@ -116,6 +120,18 @@ class AkuntansiService
 
         $jumlah = (float) ($simpanan->jumlah ?? 0);
         $tanggal = (string) ($simpanan->tanggal ?? now()->toDateString());
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan) {
+            throw new RuntimeException(
+                'Jenis simpanan belum memiliki pemetaan ke master COA.'
+            );
+        }
+
+        if (! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true)) {
+            throw new RuntimeException('Akun jenis simpanan harus aktif dan berkategori kewajiban atau ekuitas.');
+        }
 
         $this->record([
             'tanggal' => $tanggal,
@@ -125,18 +141,16 @@ class AkuntansiService
             'referensi_id' => $simpanan->id,
             'created_by' => auth()->id(),
         ], [
-            [
-                'akun_kode' => self::AKUN_KAS['kode'],
-                'akun_nama' => self::AKUN_KAS['nama'],
-                'debit' => $jumlah,
-                'kredit' => 0,
-            ],
-            [
-                'akun_kode' => self::AKUN_SIMPANAN['kode'],
-                'akun_nama' => self::AKUN_SIMPANAN['nama'],
-                'debit' => 0,
-                'kredit' => $jumlah,
-            ],
+            $this->akunResolver->line(
+                $this->akunResolver->posting('simpanan.kas'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $akunSimpanan,
+                'kredit',
+                $jumlah
+            ),
         ]);
     }
 
@@ -160,18 +174,16 @@ class AkuntansiService
             'referensi_id' => $pinjaman->id,
             'created_by' => auth()->id(),
         ], [
-            [
-                'akun_kode' => self::AKUN_PIUTANG_PINJAMAN['kode'],
-                'akun_nama' => self::AKUN_PIUTANG_PINJAMAN['nama'],
-                'debit' => $jumlah,
-                'kredit' => 0,
-            ],
-            [
-                'akun_kode' => self::AKUN_KAS['kode'],
-                'akun_nama' => self::AKUN_KAS['nama'],
-                'debit' => 0,
-                'kredit' => $jumlah,
-            ],
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.piutang'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.kas'),
+                'kredit',
+                $jumlah
+            ),
         ]);
     }
 
@@ -195,18 +207,16 @@ class AkuntansiService
             'referensi_id' => $cicilan->id,
             'created_by' => auth()->id(),
         ], [
-            [
-                'akun_kode' => self::AKUN_KAS['kode'],
-                'akun_nama' => self::AKUN_KAS['nama'],
-                'debit' => $jumlah,
-                'kredit' => 0,
-            ],
-            [
-                'akun_kode' => self::AKUN_PIUTANG_PINJAMAN['kode'],
-                'akun_nama' => self::AKUN_PIUTANG_PINJAMAN['nama'],
-                'debit' => 0,
-                'kredit' => $jumlah,
-            ],
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.kas'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.piutang'),
+                'kredit',
+                $jumlah
+            ),
         ]);
     }
 
@@ -230,19 +240,48 @@ class AkuntansiService
             'referensi_id' => $payment->id,
             'created_by' => auth()->id(),
         ], [
-            [
-                'akun_kode' => self::AKUN_HUTANG_RESELLER['kode'],
-                'akun_nama' => self::AKUN_HUTANG_RESELLER['nama'],
-                'debit' => $jumlah,
-                'kredit' => 0,
-            ],
-            [
-                'akun_kode' => self::AKUN_KAS['kode'],
-                'akun_nama' => self::AKUN_KAS['nama'],
-                'debit' => 0,
-                'kredit' => $jumlah,
-            ],
+            $this->akunResolver->line(
+                $this->akunResolver->posting('konsinyasi.utang_reseller'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('konsinyasi.kas'),
+                'kredit',
+                $jumlah
+            ),
         ]);
     }
-}
 
+    /**
+     * @param  array<string, mixed>  $line
+     * @return array{akun_id:int, akun_kode:string, akun_nama:string, debit:float, kredit:float}
+     */
+    private function normalizeLine(array $line): array
+    {
+        $akun = Akun::query()->aktif()->find($line['akun_id'] ?? null);
+
+        if (! $akun) {
+            throw new RuntimeException('Setiap baris jurnal wajib menggunakan akun aktif dari master COA.');
+        }
+
+        $debit = round((float) ($line['debit'] ?? 0), 2);
+        $kredit = round((float) ($line['kredit'] ?? 0), 2);
+
+        if (! is_finite($debit) || ! is_finite($kredit) || $debit < 0 || $kredit < 0) {
+            throw new RuntimeException('Nilai debit dan kredit harus berupa nominal positif yang valid.');
+        }
+
+        if (($debit > 0) === ($kredit > 0)) {
+            throw new RuntimeException('Satu baris jurnal harus memiliki tepat satu sisi: debit atau kredit.');
+        }
+
+        return [
+            'akun_id' => $akun->id,
+            'akun_kode' => $akun->kode_akun,
+            'akun_nama' => $akun->nama_akun,
+            'debit' => $debit,
+            'kredit' => $kredit,
+        ];
+    }
+}

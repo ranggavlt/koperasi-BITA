@@ -23,6 +23,7 @@ use App\Http\Controllers\ShuKoperasiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\JurnalUmumPeriodikController;
 use App\Http\Controllers\BukuBesarController;
+use App\Http\Controllers\AkunController;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
 
@@ -99,6 +100,8 @@ Route::middleware(['auth', 'role:keuangan'])->group(function () {
         ->name('laporan.potong-gaji');
 
     // Akuntansi (Keuangan)
+    Route::get('/akun', [AkunController::class, 'index'])->name('akun.index');
+    Route::post('/akun', [AkunController::class, 'store'])->name('akun.store');
     Route::get('/akuntansi/jurnal-umum', [JurnalUmumPeriodikController::class, 'index'])->name('akuntansi.jurnal-umum');
     Route::get('/akuntansi/buku-besar', [BukuBesarController::class, 'index'])->name('akuntansi.buku-besar');
 });
