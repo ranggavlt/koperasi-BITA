@@ -28,10 +28,12 @@ class JenisSimpanan extends Model
             }
 
             $slug = Str::slug((string) $jenis->nama_jenis);
-            $accountKey = config(
-                "account_map.postings.simpanan.jenis.{$slug}",
-                'simpanan_belum_terklasifikasi'
-            );
+            $accountKey = config("account_map.postings.simpanan.jenis.{$slug}");
+
+            if (! is_string($accountKey) || $accountKey === '') {
+                return;
+            }
+
             $accountCode = config("account_map.accounts.{$accountKey}.kode_akun");
 
             $jenis->akun_id = Akun::query()
