@@ -1,114 +1,151 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="apple-touch-icon" sizes="76x76" href="{{ asset('assets/img/apple-icon.png') }}" />
+    <link
+      rel="apple-touch-icon"
+      sizes="76x76"
+      href="{{ asset('assets/img/apple-icon.png') }}" />
     <link rel="icon" type="image/png" href="{{ asset('assets/img/favicon.png') }}" />
-    <title>Register</title>
-
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet" />
-    <script src="https://kit.fontawesome.com/42d5adcbca.js" crossorigin="anonymous"></script>
-    <link href="{{ asset('assets/css/nucleo-icons.css') }}" rel="stylesheet" />
-    <link href="{{ asset('assets/css/nucleo-svg.css') }}" rel="stylesheet" />
-    <link href="{{ asset('assets/css/soft-ui-dashboard-tailwind.css') }}?v=1.0.5" rel="stylesheet" />
+    <title>Registrasi KBSM</title>
+    <link href="{{ asset('assets/auth.css') }}" rel="stylesheet" />
   </head>
 
-  <body class="m-0 font-sans antialiased font-normal bg-gray-50 text-start text-base leading-default text-slate-500">
-    <main class="min-h-screen flex items-center justify-center px-4 py-10">
-      <div class="w-full max-w-md">
-        <div class="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-          <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl text-center">
-            <h5 class="mb-1">Buat Akun</h5>
-            <p class="text-sm text-slate-400 mb-0">Registrasi akun koperasi.</p>
-          </div>
+  <body class="auth-page">
+    <main class="auth-layout">
+      <section class="auth-hero" aria-label="Koperasi KBSM">
+        <img
+          class="auth-hero__image"
+          src="{{ asset('assets/img/registrasi_page.png') }}"
+          alt="KBSM — ATK, Konsinyasi, dan Simpan Pinjam" />
+      </section>
 
-          <div class="flex-auto p-6">
-            @if (session('success'))
-              <div class="mb-4 rounded-lg bg-green-100 px-4 py-3 text-sm text-green-700">
-                {{ session('success') }}
-              </div>
-            @endif
+      <section class="auth-panel auth-panel--register">
+        <div class="login-card register-card">
+          <header class="login-card__header">
+            <div class="brand-lockup">
+              <span class="brand-lockup__mark">
+                <img
+                  class="brand-lockup__logo"
+                  src="{{ asset('assets/img/logo-koperasi.png') }}"
+                  alt="Logo KBSM" />
+              </span>
+              <span class="brand-lockup__name">KBSM</span>
+            </div>
+            <h1>Buat Akun KBSM</h1>
+            <p>Lengkapi data berikut untuk membuat akun koperasi.</p>
+          </header>
 
-            @if ($errors->any())
-              <div class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
-                <ul class="mb-0 list-disc pl-5">
-                  @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                  @endforeach
-                </ul>
-              </div>
-            @endif
+          @if (session('success'))
+            <div class="form-alert form-alert--success" role="status">
+              {{ session('success') }}
+            </div>
+          @endif
 
-            <form role="form" method="POST" action="{{ route('register.submit') }}">
-              @csrf
+          @if ($errors->any())
+            <div class="form-alert form-alert--error" role="alert">
+              <strong>Registrasi belum berhasil.</strong>
+              <ul>
+                @foreach ($errors->all() as $error)
+                  <li>{{ $error }}</li>
+                @endforeach
+              </ul>
+            </div>
+          @endif
 
-              <label class="mb-2 ml-1 font-bold text-xs text-slate-700">Nama</label>
-              <div class="mb-4">
-                <input
-                  type="text"
-                  name="name"
-                  value="{{ old('name') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-                  placeholder="Nama lengkap" />
-              </div>
+          <form
+            class="login-form register-form"
+            role="form"
+            method="POST"
+            action="{{ route('register.submit') }}">
+            @csrf
 
-              <label class="mb-2 ml-1 font-bold text-xs text-slate-700">Email</label>
-              <div class="mb-4">
-                <input
-                  type="email"
-                  name="email"
-                  value="{{ old('email') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-                  placeholder="email@example.com" />
-              </div>
+            <div class="form-group">
+              <label class="form-label" for="name">Nama</label>
+              <input
+                id="name"
+                type="text"
+                name="name"
+                value="{{ old('name') }}"
+                class="form-input @error('name') form-input--invalid @enderror"
+                placeholder="Nama lengkap"
+                autocomplete="name"
+                @error('name') aria-describedby="name-error" aria-invalid="true" @enderror />
+              @error('name')
+                <p class="form-error" id="name-error">{{ $message }}</p>
+              @enderror
+            </div>
 
-              <label class="mb-2 ml-1 font-bold text-xs text-slate-700">Password</label>
-              <div class="mb-4">
-                <input
-                  type="password"
-                  name="password"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-                  placeholder="Password" />
-              </div>
+            <div class="form-group">
+              <label class="form-label" for="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                value="{{ old('email') }}"
+                class="form-input @error('email') form-input--invalid @enderror"
+                placeholder="nama@email.com"
+                autocomplete="email"
+                @error('email') aria-describedby="email-error" aria-invalid="true" @enderror />
+              @error('email')
+                <p class="form-error" id="email-error">{{ $message }}</p>
+              @enderror
+            </div>
 
-              <label class="mb-2 ml-1 font-bold text-xs text-slate-700">Konfirmasi Password</label>
-              <div class="mb-4">
-                <input
-                  type="password"
-                  name="password_confirmation"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-                  placeholder="Ulangi password" />
-              </div>
+            <div class="form-group">
+              <label class="form-label" for="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                class="form-input @error('password') form-input--invalid @enderror"
+                placeholder="Minimal 8 karakter"
+                autocomplete="new-password"
+                @error('password') aria-describedby="password-error" aria-invalid="true" @enderror />
+              @error('password')
+                <p class="form-error" id="password-error">{{ $message }}</p>
+              @enderror
+            </div>
 
-              <label class="mb-2 ml-1 font-bold text-xs text-slate-700">Kode Keuangan (opsional)</label>
-              <div class="mb-4">
-                <input
-                  type="text"
-                  name="kode_keuangan"
-                  value="{{ old('kode_keuangan') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-                  placeholder="Isi jika daftar sebagai Keuangan" />
-              </div>
+            <div class="form-group">
+              <label class="form-label" for="password_confirmation">Konfirmasi Password</label>
+              <input
+                id="password_confirmation"
+                type="password"
+                name="password_confirmation"
+                class="form-input"
+                placeholder="Ulangi password"
+                autocomplete="new-password" />
+            </div>
 
-              <div class="text-center">
-                <button
-                  type="submit"
-                  class="inline-block w-full px-6 py-3 mt-2 mb-0 font-bold text-center text-white uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer shadow-soft-md bg-x-25 bg-150 leading-pro text-xs ease-soft-in tracking-tight-soft bg-gradient-to-tl from-gray-900 to-slate-800 hover:scale-102 hover:shadow-soft-xs active:opacity-85">
-                  Daftar
-                </button>
-              </div>
-            </form>
+            <div class="form-group">
+              <label class="form-label" for="kode_keuangan">
+                Kode Keuangan <span class="form-label__optional">(opsional)</span>
+              </label>
+              <input
+                id="kode_keuangan"
+                type="text"
+                name="kode_keuangan"
+                value="{{ old('kode_keuangan') }}"
+                class="form-input @error('kode_keuangan') form-input--invalid @enderror"
+                placeholder="Isi jika mendaftar sebagai Keuangan"
+                @error('kode_keuangan') aria-describedby="kode-keuangan-error" aria-invalid="true" @enderror />
+              @error('kode_keuangan')
+                <p class="form-error" id="kode-keuangan-error">{{ $message }}</p>
+              @enderror
+            </div>
 
-            <p class="mt-4 mb-0 leading-normal text-sm text-center">
-              Sudah punya akun?
-              <a href="{{ route('login') }}" class="font-bold text-slate-700">Login</a>
-            </p>
-          </div>
+            <button type="submit" class="btn-login">Daftar</button>
+          </form>
+
+          <footer class="login-card__footer">
+            Sudah punya akun?
+            <a href="{{ route('login') }}">Masuk</a>
+          </footer>
         </div>
-      </div>
+      </section>
     </main>
   </body>
 </html>
-
