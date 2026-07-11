@@ -11,7 +11,7 @@ $base = "inline-flex items-center justify-center font-semibold rounded-lg transi
 
 $variants = [
 
-    'primary' => 'bg-blue-500 hover:bg-blue-600 !text-white shadow-soft-md',
+    'primary' => 'kbsm-button-primary !text-white shadow-soft-md',
 
     'secondary' => 'bg-gray-200 hover:bg-gray-300 !text-gray-700',
 

@@ -18,8 +18,8 @@ var sidenav_icons = sidenav.querySelectorAll("li a div");
 var transparentBtn = document.querySelector("[transparent-style-btn]");
 var whiteBtn = document.querySelector("[white-style-btn]");
 
-var non_active_style = ["bg-none", "bg-transparent", "text-fuchsia-500", "border-fuchsia-500"];
-var active_style = ["bg-gradient-to-tl", "from-purple-700", "to-pink-500", "bg-fuchsia-500", "text-white", "border-transparent"];
+var non_active_style = ["bg-none", "bg-transparent", "text-green-600", "border-green-600"];
+var active_style = ["bg-gradient-to-tl", "from-green-600", "to-lime-400", "bg-green-600", "text-white", "border-transparent"];
 
 var transparent_sidenav_classes = ["xl:bg-transparent", "shadow-none"];
 var transparent_sidenav_highlighted = ["shadow-soft-xl"];
@@ -99,11 +99,11 @@ function sidebarColor(a) {
   var checkedSidenavIconColorFrom = "from-" + color_from;
   var checkedSidenavIconColorTo = "to-" + color_to;
   
-  var checkedSidenavCardColorFrom = "after:from-" + (color_from == "purple-700" ? "slate-600" : color_from);
-  var checkedSidenavCardColorTo = "after:to-" + (color_to == "pink-500" ? "slate-300" : color_to);
+  var checkedSidenavCardColorFrom = "after:from-" + (color_from == "green-600" ? "slate-600" : color_from);
+  var checkedSidenavCardColorTo = "after:to-" + (color_to == "lime-400" ? "slate-300" : color_to);
   
-  var checkedSidenavCardIconColorClassFrom = "from-" + (color_from == "purple-700" ? "slate-600" : color_from);
-  var checkedSidenavCardIconColorClassTo = "to-" + (color_to == "pink-500" ? "slate-300" : color_to);
+  var checkedSidenavCardIconColorClassFrom = "from-" + (color_from == "green-600" ? "slate-600" : color_from);
+  var checkedSidenavCardIconColorClassTo = "to-" + (color_to == "lime-400" ? "slate-300" : color_to);
 
   var sidenavCard = document.querySelector("[sidenav-card]");
   var sidenavCardIcon = document.querySelector("[sidenav-card-icon]");
@@ -123,8 +123,8 @@ function sidebarColor(a) {
       activeSidenavIconColorClassFrom = "from-" + activeColorFrom;
       activeSidenavIconColorClassTo = "to-" + activeColorTo;
 
-      activeSidenavCardIconColorClassFrom = "from-" + (activeColorFrom == "purple-700" ? "slate-600" : activeColorFrom);
-      activeSidenavCardIconColorClassTo = "to-" + (activeColorTo == "pink-500" ? "slate-300" : activeColorTo);
+      activeSidenavCardIconColorClassFrom = "from-" + (activeColorFrom == "green-600" ? "slate-600" : activeColorFrom);
+      activeSidenavCardIconColorClassTo = "to-" + (activeColorTo == "lime-400" ? "slate-300" : activeColorTo);
     }
     parent[i].removeAttribute("active-color");
   }

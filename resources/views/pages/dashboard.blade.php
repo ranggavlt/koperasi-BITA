@@ -17,7 +17,7 @@
                             </h5>
                         </div>
                         <div class="flex-shrink-0">
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
+                            <div class="kbsm-stat-icon flex items-center justify-center w-12 h-12 rounded-lg">
                                 <i class="ni ni-money-coins text-lg text-white"></i>
                             </div>
                         </div>
@@ -38,7 +38,7 @@
                             </h5>
                         </div>
                         <div class="flex-shrink-0">
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
+                            <div class="kbsm-stat-icon flex items-center justify-center w-12 h-12 rounded-lg">
                                 <i class="ni ni-world text-lg text-white"></i>
                             </div>
                         </div>
@@ -59,7 +59,7 @@
                             </h5>
                         </div>
                         <div class="flex-shrink-0">
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
+                            <div class="kbsm-stat-icon flex items-center justify-center w-12 h-12 rounded-lg">
                                 <i class="ni ni-paper-diploma text-lg text-white"></i>
                             </div>
                         </div>
@@ -80,7 +80,7 @@
                             </h5>
                         </div>
                         <div class="flex-shrink-0">
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
+                            <div class="kbsm-stat-icon flex items-center justify-center w-12 h-12 rounded-lg">
                                 <i class="ni ni-cart text-lg text-white"></i>
                             </div>
                         </div>
@@ -95,7 +95,7 @@
         <div class="w-full px-3 mb-6 lg:mb-0 lg:w-5/12 lg:flex-none">
             <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border p-4 h-full">
                 <div class="relative h-full overflow-hidden bg-cover rounded-xl" style="background-image: url('../assets/img/ivancik.jpg')">
-                    <span class="absolute top-0 left-0 w-full h-full bg-center bg-cover bg-gradient-to-tl from-gray-900 to-slate-800 opacity-80"></span>
+                    <span class="kbsm-gradient-brand absolute top-0 left-0 w-full h-full bg-center bg-cover opacity-90"></span>
                     <div class="relative z-10 flex flex-col flex-auto h-full p-4">
                         <h5 class="pt-2 mb-6 font-bold text-white">Sistem POS Koperasi</h5>
                         <p class="text-white">Kelola transaksi kasbon karyawan dan produk konsinyasi secara efisien.</p>
@@ -214,8 +214,8 @@
     const ctx = document.getElementById('revenueChart').getContext('2d');
 
     const gradient = ctx.createLinearGradient(0,0,0,300);
-    gradient.addColorStop(0,"rgba(139,92,246,0.4)");
-    gradient.addColorStop(1,"rgba(139,92,246,0)");
+    gradient.addColorStop(0,"rgba(47,143,58,0.34)");
+    gradient.addColorStop(1,"rgba(47,143,58,0)");
 
     new Chart(ctx,{
         type:'line',
@@ -224,11 +224,13 @@
             datasets:[{
                 label:'Pendapatan',
                 data:dataPendapatan,
-                borderColor:'#8b5cf6',
+                borderColor:'#2f8f3a',
                 backgroundColor:gradient,
                 borderWidth:3,
                 pointRadius:4,
-                pointBackgroundColor:'#8b5cf6',
+                pointBackgroundColor:'#2f8f3a',
+                pointBorderColor:'#ffffff',
+                pointBorderWidth:2,
                 fill:true,
                 tension:0.4
             }]
