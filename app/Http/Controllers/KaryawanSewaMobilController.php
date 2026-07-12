@@ -55,6 +55,8 @@ class KaryawanSewaMobilController extends Controller
 
     public function update(UpdateSewaMobilRequest $request, SewaMobil $sewaMobil)
     {
+        $this->abortUnlessOwner($sewaMobil);
+
         $this->service->updateDraft($sewaMobil, $request->validated(), $request->user());
 
         return redirect()
@@ -64,6 +66,8 @@ class KaryawanSewaMobilController extends Controller
 
     public function submit(SewaMobil $sewaMobil)
     {
+        $this->abortUnlessOwner($sewaMobil);
+
         $this->service->submit($sewaMobil, auth()->user());
 
         return redirect()
@@ -73,6 +77,8 @@ class KaryawanSewaMobilController extends Controller
 
     public function cancel(RejectSewaMobilRequest $request, SewaMobil $sewaMobil)
     {
+        $this->abortUnlessOwner($sewaMobil);
+
         $this->service->cancelByEmployee($sewaMobil, $request->user(), $request->validated('alasan'));
 
         return redirect()

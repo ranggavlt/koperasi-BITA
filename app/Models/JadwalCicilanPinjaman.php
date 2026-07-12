@@ -22,6 +22,8 @@ class JadwalCicilanPinjaman extends Model
 
     public const METODE_TUNAI = 'tunai';
 
+    public const METODE_OFFSET_SIMPANAN_POKOK = 'offset_simpanan_pokok';
+
     protected $table = 'jadwal_cicilan_pinjaman';
 
     protected $fillable = [
@@ -29,6 +31,8 @@ class JadwalCicilanPinjaman extends Model
         'angsuran_ke',
         'periode',
         'nominal_pokok',
+        'nominal_offset',
+        'nominal_sisa',
         'status',
         'metode_penyelesaian',
         'paid_at',
@@ -37,6 +41,8 @@ class JadwalCicilanPinjaman extends Model
     protected $casts = [
         'periode' => 'date',
         'nominal_pokok' => 'decimal:2',
+        'nominal_offset' => 'decimal:2',
+        'nominal_sisa' => 'decimal:2',
         'paid_at' => 'datetime',
     ];
 

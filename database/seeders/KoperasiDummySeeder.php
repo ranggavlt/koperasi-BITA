@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Anggota;
 use App\Models\Akun;
 use App\Models\AsetKoperasi;
+use App\Models\BebanOperasional;
 use App\Models\CicilanPinjaman;
 use App\Models\DetailPenjualan;
 use App\Models\DompetKoperasi;
@@ -27,7 +28,9 @@ use App\Models\Simpanan;
 use App\Models\User;
 use App\Services\MutasiKasService;
 use App\Services\AsetKoperasiService;
+use App\Services\BebanOperasionalService;
 use App\Services\KaryawanAccountService;
+use App\Services\KeanggotaanLifecycleService;
 use App\Services\MasterDataKoperasiService;
 use App\Services\PinjamanKoperasiService;
 use App\Services\PosCheckoutService;
@@ -55,6 +58,8 @@ class KoperasiDummySeeder extends Seeder
             $karyawanAccountService = app(KaryawanAccountService::class);
             $sewaMobilService = app(SewaMobilService::class);
             $sewaPrinterService = app(SewaPrinterService::class);
+            $bebanOperasionalService = app(BebanOperasionalService::class);
+            $keanggotaanLifecycleService = app(KeanggotaanLifecycleService::class);
             $posCheckoutService = app(PosCheckoutService::class);
             $potongGajiService = app(PotongGajiBulananService::class);
             $reversalService = app(TransaksiReversalService::class);
@@ -292,6 +297,8 @@ class KoperasiDummySeeder extends Seeder
 
             $this->seedSewaMobil($sewaMobilService, $karyawan, $karyawanUsers, $dompet, $keuangan, $awalBulanIni);
             $this->seedSewaPrinter($sewaPrinterService, $asetKoperasiService, $karyawan, $dompet, $keuangan, $awalBulanIni);
+            $this->seedBebanOperasional($bebanOperasionalService, $dompet, $keuangan, $awalBulanIni);
+            $this->seedStage3FExamples($keanggotaanLifecycleService, $karyawan, $keuangan);
         });
     }
 
@@ -1192,6 +1199,154 @@ class KoperasiDummySeeder extends Seeder
         ], $overrides);
     }
 
+    private function seedBebanOperasional(
+        BebanOperasionalService $service,
+        array $dompet,
+        User $keuangan,
+        Carbon $awalBulanIni
+    ): void {
+        if (! Schema::hasTable('beban_operasional') || BebanOperasional::query()->exists()) {
+            return;
+        }
+
+        $akun = [
+            'umum' => $this->akunId('beban_operasional'),
+            'perawatan' => $this->akunId('beban_perawatan_aset'),
+            'atk' => $this->akunId('beban_atk_kantor'),
+            'transport' => $this->akunId('beban_transportasi_operasional'),
+        ];
+
+        $mobil = AsetKoperasi::query()->where('kode_aset', 'MBL-0001')->first();
+        $printer = AsetKoperasi::query()->where('kode_aset', 'PRT-0001')->first();
+
+        $draftDate = $awalBulanIni->copy()->addDays(13);
+        $draft = $service->createDraft([
+            'tanggal_beban' => $draftDate->toDateString(),
+            'keterangan' => 'Draft beban multi-detail belum diposting [dummy-koperasi-bita]',
+            'idempotency_key' => 'dummy-beban-draft-multi',
+            'details' => [
+                [
+                    'akun_id' => $akun['atk'],
+                    'keterangan' => 'Pembelian map, kertas, dan alat tulis kantor [dummy]',
+                    'nominal' => 125000,
+                ],
+                [
+                    'akun_id' => $akun['transport'],
+                    'aset_koperasi_id' => $mobil?->id,
+                    'keterangan' => 'BBM operasional mobil koperasi [dummy]',
+                    'nominal' => 175000,
+                ],
+            ],
+        ], $keuangan->id);
+        $this->touchBebanArtifacts($draft, $draftDate);
+
+        $kasDate = $awalBulanIni->copy()->addDays(14);
+        $postedKas = $service->createDraft([
+            'tanggal_beban' => $kasDate->toDateString(),
+            'keterangan' => 'Beban operasional dibayar tunai dari Kas [dummy-koperasi-bita]',
+            'idempotency_key' => 'dummy-beban-posted-kas',
+            'details' => [
+                [
+                    'akun_id' => $akun['perawatan'],
+                    'aset_koperasi_id' => $mobil?->id,
+                    'keterangan' => 'Cuci dan pengecekan ringan mobil koperasi [dummy]',
+                    'nominal' => 250000,
+                ],
+                [
+                    'akun_id' => $akun['atk'],
+                    'keterangan' => 'Pembelian tinta stempel dan label arsip [dummy]',
+                    'nominal' => 85000,
+                ],
+            ],
+        ], $keuangan->id);
+        $postedKas = $service->post($postedKas, $dompet['kas_operasional']->id, $keuangan->id);
+        $this->touchBebanArtifacts($postedKas, $kasDate);
+
+        $bankDate = $awalBulanIni->copy()->addDays(15);
+        $postedBank = $service->createDraft([
+            'tanggal_beban' => $bankDate->toDateString(),
+            'keterangan' => 'Beban operasional dibayar transfer Bank [dummy-koperasi-bita]',
+            'idempotency_key' => 'dummy-beban-posted-bank',
+            'details' => [
+                [
+                    'akun_id' => $akun['perawatan'],
+                    'aset_koperasi_id' => $printer?->id,
+                    'keterangan' => 'Servis ringan printer koperasi [dummy]',
+                    'nominal' => 300000,
+                ],
+                [
+                    'akun_id' => $akun['umum'],
+                    'keterangan' => 'Langganan administrasi operasional koperasi [dummy]',
+                    'nominal' => 125000,
+                ],
+            ],
+        ], $keuangan->id);
+        $postedBank = $service->post($postedBank, $dompet['bank_bca']->id, $keuangan->id);
+        $this->touchBebanArtifacts($postedBank, $bankDate);
+
+        $reversalDate = $awalBulanIni->copy()->addDays(16);
+        $reversed = $service->createDraft([
+            'tanggal_beban' => $reversalDate->toDateString(),
+            'keterangan' => 'Contoh Beban Operasional yang direversal penuh [dummy-koperasi-bita]',
+            'idempotency_key' => 'dummy-beban-reversed',
+            'details' => [
+                [
+                    'akun_id' => $akun['umum'],
+                    'keterangan' => 'Input beban duplikat yang dibatalkan dengan reversal [dummy]',
+                    'nominal' => 150000,
+                ],
+            ],
+        ], $keuangan->id);
+        $reversed = $service->post($reversed, $dompet['kas_operasional']->id, $keuangan->id);
+        $reversed = $service->reverse($reversed, 'Reversal penuh contoh dummy karena input duplikat.', $keuangan->id);
+        $this->touchBebanArtifacts($reversed, $reversalDate);
+    }
+
+    private function touchBebanArtifacts(BebanOperasional $beban, Carbon $tanggal): void
+    {
+        $fresh = $beban->fresh(['details', 'mutasiKas', 'jurnal.details', 'reversal']);
+
+        if (! $fresh) {
+            return;
+        }
+
+        $this->setTimestamp('beban_operasional', $fresh->id, $tanggal);
+        $fresh->details->each(fn ($detail) => $this->setTimestamp('beban_operasional_detail', $detail->id, $tanggal));
+        $fresh->mutasiKas->each(fn (MutasiKas $mutasi) => $this->setTimestamp('mutasi_kas', $mutasi->id, $tanggal));
+        $fresh->jurnal->each(function ($jurnal) use ($tanggal): void {
+            $this->setTimestamp('jurnal_umum', $jurnal->id, $tanggal);
+            $jurnal->details->each(fn ($detail) => $this->setTimestamp('jurnal_umum_detail', $detail->id, $tanggal));
+        });
+
+        if ($fresh->reversal) {
+            DB::table('reversal_transaksi')
+                ->where('id', $fresh->reversal->id)
+                ->update([
+                    'processed_at' => $tanggal->toDateTimeString(),
+                    'created_at' => $tanggal->toDateTimeString(),
+                    'updated_at' => $tanggal->toDateTimeString(),
+                ]);
+
+            MutasiKas::query()
+                ->where('referensi_tipe', \App\Models\ReversalTransaksi::class)
+                ->where('referensi_id', $fresh->reversal->id)
+                ->get()
+                ->each(fn (MutasiKas $mutasi) => $this->setTimestamp('mutasi_kas', $mutasi->id, $tanggal));
+
+            DB::table('jurnal_umum')
+                ->where('referensi_tipe', \App\Models\ReversalTransaksi::class)
+                ->where('referensi_id', $fresh->reversal->id)
+                ->get()
+                ->each(function ($jurnal) use ($tanggal): void {
+                    $this->setTimestamp('jurnal_umum', $jurnal->id, $tanggal);
+                    DB::table('jurnal_umum_detail')
+                        ->where('jurnal_umum_id', $jurnal->id)
+                        ->pluck('id')
+                        ->each(fn ($id) => $this->setTimestamp('jurnal_umum_detail', (int) $id, $tanggal));
+                });
+        }
+    }
+
     private function seedMutasiManual(MutasiKasService $mutasiKasService, array $rows): void
     {
         foreach ($rows as $row) {
@@ -1229,7 +1384,9 @@ class KoperasiDummySeeder extends Seeder
         array $rows
     ): void {
         foreach ($rows as $row) {
-            $anggotaId = $karyawan[$row['anggota']]->anggota()->value('id');
+            $anggotaModel = $karyawan[$row['anggota']]->anggota()->first();
+            $anggotaId = $anggotaModel?->id;
+            $siklusId = $anggotaModel?->siklusAktif()->value('id');
             $jenis = $jenisSimpanan[$row['jenis']];
             $simpanan = Simpanan::firstOrCreate(
                 [
@@ -1242,6 +1399,7 @@ class KoperasiDummySeeder extends Seeder
                 [
                     'idempotency_key' => 'dummy-simpanan:' . $row['anggota'] . ':' . $row['jenis'] . ':' . $row['tanggal']->format('Ymd'),
                     'anggota_id' => $anggotaId,
+                    'siklus_keanggotaan_id' => $siklusId,
                     'kode_jenis_snapshot' => $jenis->kode,
                     'nama_jenis_snapshot' => $jenis->nama_jenis,
                     'nominal_snapshot' => $row['jumlah'],
@@ -1254,6 +1412,9 @@ class KoperasiDummySeeder extends Seeder
             $updates = [];
             if ((int) $simpanan->anggota_id !== (int) $anggotaId) {
                 $updates['anggota_id'] = $anggotaId;
+            }
+            if ($simpanan->siklus_keanggotaan_id === null && $siklusId !== null) {
+                $updates['siklus_keanggotaan_id'] = $siklusId;
             }
             if ($simpanan->kode_jenis_snapshot !== $jenis->kode) {
                 $updates['kode_jenis_snapshot'] = $jenis->kode;
@@ -1611,6 +1772,33 @@ class KoperasiDummySeeder extends Seeder
             ->first();
         if ($agusOutstanding) {
             $reversalService->payOutstandingSource(Simpanan::class, $agusOutstanding->id, $dompet['kas_operasional'], $keuangan->id);
+        }
+    }
+
+    private function seedStage3FExamples(
+        KeanggotaanLifecycleService $service,
+        array $karyawan,
+        User $keuangan
+    ): void {
+        $agus = $karyawan['agus']->anggota()->with('siklusKeanggotaan.penyelesaian')->first();
+
+        if (! $agus) {
+            return;
+        }
+
+        $penyelesaian = $agus->penyelesaianKeanggotaan()
+            ->where('status', '!=', \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED)
+            ->latest('id')
+            ->first();
+
+        if (! $penyelesaian) {
+            return;
+        }
+
+        $penyelesaian = $service->refreshSnapshot($penyelesaian);
+
+        if ((float) $penyelesaian->total_offset <= 0 && (float) $penyelesaian->total_hak_anggota > 0) {
+            $service->processOffset($penyelesaian, $keuangan->id);
         }
     }
 

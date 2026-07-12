@@ -7,12 +7,14 @@ use App\Models\CicilanPinjaman;
 use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\Penjualan;
+use App\Models\PenyelesaianKeanggotaan;
 use App\Models\Pinjaman;
 use App\Models\PengurusKoperasi;
 use App\Models\ShuAnggota;
 use App\Models\ShuKoperasi;
 use App\Models\Simpanan;
 use App\Models\User;
+use App\Services\KeanggotaanLifecycleService;
 use App\Services\MasterDataKoperasiService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,6 +169,21 @@ class MasterDataKoperasiTest extends TestCase
             Karyawan::STATUS_BERHENTI,
             '2026-07-01'
         ));
+        try {
+            $service->updateKaryawan($karyawan, $this->karyawanLifecycleData(
+                $karyawan,
+                Karyawan::STATUS_AKTIF
+            ));
+            $this->fail('Karyawan tidak boleh direaktivasi sebelum penyelesaian keanggotaan completed.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status_kerja', $exception->errors());
+        }
+
+        $penyelesaian = PenyelesaianKeanggotaan::query()->where('anggota_id', $anggota->id)->firstOrFail();
+        $lifecycle = app(KeanggotaanLifecycleService::class);
+        $lifecycle->processOffset($penyelesaian, null);
+        $lifecycle->complete($penyelesaian->fresh(), null);
+
         $service->updateKaryawan($karyawan, $this->karyawanLifecycleData(
             $karyawan,
             Karyawan::STATUS_AKTIF

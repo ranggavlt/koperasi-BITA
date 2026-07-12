@@ -377,6 +377,20 @@
         </a>
       </li>
 
+      {{-- BEBAN OPERASIONAL --}}
+      @php $active = $is('beban-operasional.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('beban-operasional.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h12V7H6Zm0 4v2h8v-2H6Zm0 4v2h10v-2H6Zm12-4h-2v2h2v-2Zm0 4h-2v2h2v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Beban Operasional</span>
+        </a>
+      </li>
+
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           Simpan Pinjam
@@ -485,28 +499,30 @@
         </a>
       </li>
 
-      {{-- ====== MENU SHU ====== --}}
-      <li class="w-full mt-4">
-        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
-          SHU Koperasi
-        </h6>
-      </li>
+      @if(config('features.shu_enabled', false))
+        {{-- ====== MENU SHU ====== --}}
+        <li class="w-full mt-4">
+          <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+            SHU Koperasi
+          </h6>
+        </li>
 
-      @php $active = $is('shu-koperasi.*'); @endphp
-      <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('shu-koperasi.index') }}">
-          <div class="{{ $iconWrap($active) }}">
-            <svg width="12px" height="12px" viewBox="0 0 24 24"
-                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
-              <path fill="currentColor"
-                d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 4v10h12V7H6Zm2 2h3v6H8V9Zm5 2h3v4h-3v-4Z"/>
-            </svg>
-          </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-            Transaksi SHU
-          </span>
-        </a>
-      </li>
+        @php $active = $is('shu-koperasi.*'); @endphp
+        <li class="mt-0.5 w-full">
+          <a class="{{ $linkClass($active) }}" href="{{ route('shu-koperasi.index') }}">
+            <div class="{{ $iconWrap($active) }}">
+              <svg width="12px" height="12px" viewBox="0 0 24 24"
+                   class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+                <path fill="currentColor"
+                  d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 4v10h12V7H6Zm2 2h3v6H8V9Zm5 2h3v4h-3v-4Z"/>
+              </svg>
+            </div>
+            <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+              Transaksi SHU
+            </span>
+          </a>
+        </li>
+      @endif
 
       @endif
 
@@ -619,6 +635,21 @@
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
             Outstanding Cash
+          </span>
+        </a>
+      </li>
+
+      @php $active = $is('penyelesaian-keanggotaan.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('penyelesaian-keanggotaan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M12 2a5 5 0 0 1 5 5v1h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm-3 6h6V7a3 3 0 0 0-6 0v1Zm-1 5h8v2H8v-2Zm0 4h5v2H8v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Penyelesaian Keanggotaan
           </span>
         </a>
       </li>

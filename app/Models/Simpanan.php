@@ -24,6 +24,10 @@ class Simpanan extends Model
 
     public const STATUS_REVERSED = 'reversed';
 
+    public const STATUS_REVERSED_DUE_TO_EXIT = 'reversed_due_to_exit';
+
+    public const STATUS_SETTLED_OFFSET = 'settled_offset';
+
     protected $table = 'simpanan';
 
     protected $fillable = [
@@ -34,6 +38,9 @@ class Simpanan extends Model
         'reversal_transaksi_id',
         'replacement_simpanan_id',
         'simpanan_pokok_anggota_id',
+        'simpanan_pokok_siklus_id',
+        'siklus_keanggotaan_id',
+        'penyelesaian_keanggotaan_id',
         'jenis_simpanan_id',
         'kode_jenis_snapshot',
         'nama_jenis_snapshot',
@@ -58,9 +65,16 @@ class Simpanan extends Model
     {
         static::saving(function (Simpanan $simpanan): void {
             if (DB::connection()->getDriverName() !== 'mysql') {
+                $activeSimpananPokok = $simpanan->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_POKOK
+                    && ! in_array($simpanan->status, [self::STATUS_REVERSED, self::STATUS_REVERSED_DUE_TO_EXIT], true);
+
                 $simpanan->simpanan_pokok_anggota_id = $simpanan->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_POKOK
-                    && $simpanan->status !== self::STATUS_REVERSED
+                    && ! in_array($simpanan->status, [self::STATUS_REVERSED, self::STATUS_REVERSED_DUE_TO_EXIT], true)
                     ? $simpanan->anggota_id
+                    : null;
+
+                $simpanan->simpanan_pokok_siklus_id = $activeSimpananPokok
+                    ? $simpanan->siklus_keanggotaan_id
                     : null;
             }
         });
@@ -110,6 +124,16 @@ class Simpanan extends Model
     public function replacement()
     {
         return $this->belongsTo(self::class, 'replacement_simpanan_id');
+    }
+
+    public function siklusKeanggotaan()
+    {
+        return $this->belongsTo(SiklusKeanggotaan::class, 'siklus_keanggotaan_id');
+    }
+
+    public function penyelesaianKeanggotaan()
+    {
+        return $this->belongsTo(PenyelesaianKeanggotaan::class, 'penyelesaian_keanggotaan_id');
     }
 
     public function isSimpananPokok(): bool

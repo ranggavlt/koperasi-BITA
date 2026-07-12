@@ -539,6 +539,10 @@ class PreflightPotongGajiCommand extends Command
         return DB::table('jadwal_cicilan_pinjaman as j')
             ->leftJoin('cicilan_pinjaman as c', 'c.jadwal_cicilan_pinjaman_id', '=', 'j.id')
             ->where('j.status', 'paid')
+            ->where(function ($query): void {
+                $query->whereNull('j.metode_penyelesaian')
+                    ->orWhere('j.metode_penyelesaian', '!=', 'offset_simpanan_pokok');
+            })
             ->whereNull('c.id')
             ->count('j.id');
     }
@@ -554,7 +558,7 @@ class PreflightPotongGajiCommand extends Command
                 $join->on('j.pinjaman_id', '=', 'p.id')
                     ->where('j.status', '!=', 'paid');
             })
-            ->select('p.id', 'p.sisa_pinjaman', DB::raw('COALESCE(SUM(j.nominal_pokok), 0) as total_unpaid'))
+            ->select('p.id', 'p.sisa_pinjaman', DB::raw('COALESCE(SUM(COALESCE(j.nominal_sisa, j.nominal_pokok)), 0) as total_unpaid'))
             ->groupBy('p.id', 'p.sisa_pinjaman')
             ->get()
             ->filter(fn ($row) => number_format((float) $row->sisa_pinjaman, 2, '.', '') !== number_format((float) $row->total_unpaid, 2, '.', ''))
@@ -754,11 +758,16 @@ class PreflightPotongGajiCommand extends Command
             return 0;
         }
 
+        $groupColumn = Schema::hasColumn('simpanan', 'siklus_keanggotaan_id')
+            ? 'siklus_keanggotaan_id'
+            : 'anggota_id';
+
         return DB::table('simpanan')
-            ->select('anggota_id', DB::raw('COUNT(*) as total'))
+            ->select($groupColumn, DB::raw('COUNT(*) as total'))
             ->where('kode_jenis_snapshot', 'SIMPANAN_POKOK')
-            ->whereNotNull('anggota_id')
-            ->groupBy('anggota_id')
+            ->whereNotIn('status', ['reversed', 'reversed_due_to_exit'])
+            ->whereNotNull($groupColumn)
+            ->groupBy($groupColumn)
             ->having('total', '>', 1)
             ->get()
             ->count();
@@ -779,7 +788,14 @@ class PreflightPotongGajiCommand extends Command
                 }
 
                 if (Schema::hasColumn('simpanan', 'idempotency_key')) {
-                    $query->orWhere('idempotency_key', 'not like', 'simpanan-pokok:anggota:%');
+                    $query->orWhere(function ($subQuery): void {
+                        $subQuery->where('idempotency_key', 'not like', 'simpanan-pokok:anggota:%')
+                            ->where('idempotency_key', 'not like', 'simpanan-pokok:siklus:%');
+                    });
+                }
+
+                if (Schema::hasColumn('simpanan', 'siklus_keanggotaan_id')) {
+                    $query->orWhereNull('siklus_keanggotaan_id');
                 }
             })
             ->count();

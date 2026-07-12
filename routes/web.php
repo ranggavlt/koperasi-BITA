@@ -13,6 +13,7 @@ use App\Http\Controllers\PinjamanController;
 use App\Http\Controllers\CicilanPinjamanController;
 use App\Http\Controllers\FinanceSewaMobilController;
 use App\Http\Controllers\FinanceSewaPrinterController;
+use App\Http\Controllers\FinanceBebanOperasionalController;
 use App\Http\Controllers\MutasiKasController;
 use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\ResellerController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\PeriodePotongGajiController;
 use App\Http\Controllers\OutstandingCashController;
 use App\Http\Controllers\RekonsiliasiPotongGajiController;
 use App\Http\Controllers\ReversalTransaksiController;
+use App\Http\Controllers\PenyelesaianKeanggotaanController;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
 
@@ -155,14 +157,18 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:keuangan'])-
     Route::patch('/anggota/{anggota}/aktifkan', [AnggotaController::class, 'activate'])
         ->name('anggota.activate');
 
-    Route::get('/shu-koperasi', [ShuKoperasiController::class, 'index'])->name('shu-koperasi.index');
-    Route::post('/shu-koperasi', [ShuKoperasiController::class, 'store'])->name('shu-koperasi.store');
-    Route::get('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'show'])->name('shu-koperasi.show');
-    Route::put('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'update'])->name('shu-koperasi.update');
-    Route::delete('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'destroy'])->name('shu-koperasi.destroy');
-    Route::post('/shu-koperasi/{shuKoperasi}/refresh', [ShuKoperasiController::class, 'refresh'])->name('shu-koperasi.refresh');
-    Route::post('/shu-koperasi/{shuKoperasi}/transaksi', [ShuKoperasiController::class, 'storeTransaksi'])->name('shu-koperasi.transaksi.store');
-    Route::delete('/shu-koperasi/{shuKoperasi}/transaksi/{shuTransaksi}', [ShuKoperasiController::class, 'destroyTransaksi'])->name('shu-koperasi.transaksi.destroy');
+    // SHU sementara ditunda menunggu keputusan RAT/client. Route tetap ada,
+    // tetapi middleware feature mengembalikan 404 saat flag nonaktif.
+    Route::middleware('feature:shu_enabled')->group(function (): void {
+        Route::get('/shu-koperasi', [ShuKoperasiController::class, 'index'])->name('shu-koperasi.index');
+        Route::post('/shu-koperasi', [ShuKoperasiController::class, 'store'])->name('shu-koperasi.store');
+        Route::get('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'show'])->name('shu-koperasi.show');
+        Route::put('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'update'])->name('shu-koperasi.update');
+        Route::delete('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'destroy'])->name('shu-koperasi.destroy');
+        Route::post('/shu-koperasi/{shuKoperasi}/refresh', [ShuKoperasiController::class, 'refresh'])->name('shu-koperasi.refresh');
+        Route::post('/shu-koperasi/{shuKoperasi}/transaksi', [ShuKoperasiController::class, 'storeTransaksi'])->name('shu-koperasi.transaksi.store');
+        Route::delete('/shu-koperasi/{shuKoperasi}/transaksi/{shuTransaksi}', [ShuKoperasiController::class, 'destroyTransaksi'])->name('shu-koperasi.transaksi.destroy');
+    });
 
     Route::get('/laporan-potong-gaji', [LaporanPotongGajiController::class, 'index'])
         ->name('laporan.potong-gaji');
@@ -182,6 +188,17 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:keuangan'])-
         ->name('simpanan.koreksi');
     Route::post('/cicilan-pinjaman/{cicilan}/reversal', [ReversalTransaksiController::class, 'reverseCicilan'])
         ->name('cicilan-pinjaman.reversal');
+
+    Route::get('/penyelesaian-keanggotaan', [PenyelesaianKeanggotaanController::class, 'index'])
+        ->name('penyelesaian-keanggotaan.index');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/refresh', [PenyelesaianKeanggotaanController::class, 'refresh'])
+        ->name('penyelesaian-keanggotaan.refresh');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/process-offset', [PenyelesaianKeanggotaanController::class, 'processOffset'])
+        ->name('penyelesaian-keanggotaan.process-offset');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/refund', [PenyelesaianKeanggotaanController::class, 'refund'])
+        ->name('penyelesaian-keanggotaan.refund');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/complete', [PenyelesaianKeanggotaanController::class, 'complete'])
+        ->name('penyelesaian-keanggotaan.complete');
 
     Route::get('/sewa-mobil', [FinanceSewaMobilController::class, 'index'])
         ->name('sewa-mobil.finance.index');
@@ -217,9 +234,26 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:keuangan'])-
     Route::post('/sewa-printer/{sewaPrinter}/cancel', [FinanceSewaPrinterController::class, 'cancel'])
         ->name('sewa-printer.cancel');
 
+    Route::get('/beban-operasional', [FinanceBebanOperasionalController::class, 'index'])
+        ->name('beban-operasional.index');
+    Route::post('/beban-operasional', [FinanceBebanOperasionalController::class, 'store'])
+        ->name('beban-operasional.store');
+    Route::get('/beban-operasional/{bebanOperasional}/edit', [FinanceBebanOperasionalController::class, 'edit'])
+        ->name('beban-operasional.edit');
+    Route::put('/beban-operasional/{bebanOperasional}', [FinanceBebanOperasionalController::class, 'update'])
+        ->name('beban-operasional.update');
+    Route::post('/beban-operasional/{bebanOperasional}/post', [FinanceBebanOperasionalController::class, 'post'])
+        ->name('beban-operasional.post');
+    Route::post('/beban-operasional/{bebanOperasional}/cancel-draft', [FinanceBebanOperasionalController::class, 'cancelDraft'])
+        ->name('beban-operasional.cancel-draft');
+    Route::post('/beban-operasional/{bebanOperasional}/reverse', [FinanceBebanOperasionalController::class, 'reverse'])
+        ->name('beban-operasional.reverse');
+
     // Akuntansi (Keuangan)
     Route::get('/akun', [AkunController::class, 'index'])->name('akun.index');
     Route::post('/akun', [AkunController::class, 'store'])->name('akun.store');
+    Route::patch('/akun/{akun}/beban-operasional-eligibility', [AkunController::class, 'updateBebanOperasionalEligibility'])
+        ->name('akun.beban-operasional-eligibility');
     Route::get('/akuntansi/jurnal-umum', [JurnalUmumPeriodikController::class, 'index'])->name('akuntansi.jurnal-umum');
     Route::get('/akuntansi/buku-besar', [BukuBesarController::class, 'index'])->name('akuntansi.buku-besar');
 });

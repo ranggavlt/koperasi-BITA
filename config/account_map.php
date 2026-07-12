@@ -179,6 +179,7 @@ return [
             'nama_akun' => 'Harga Pokok Penjualan',
             'kategori' => 'beban',
             'posisi_saldo' => 'debit',
+            'is_beban_operasional' => false,
             'keterangan' => 'Nilai perolehan barang milik koperasi yang telah terjual.',
         ],
         'beban_operasional' => [
@@ -186,6 +187,7 @@ return [
             'nama_akun' => 'Beban Operasional',
             'kategori' => 'beban',
             'posisi_saldo' => 'debit',
+            'is_beban_operasional' => true,
             'keterangan' => 'Beban umum untuk menjalankan kegiatan koperasi.',
         ],
         'beban_penyisihan_piutang' => [
@@ -193,6 +195,7 @@ return [
             'nama_akun' => 'Beban Penyisihan Piutang',
             'kategori' => 'beban',
             'posisi_saldo' => 'debit',
+            'is_beban_operasional' => false,
             'keterangan' => 'Beban penyisihan atas risiko piutang yang tidak tertagih.',
         ],
         'beban_sosial' => [
@@ -200,6 +203,7 @@ return [
             'nama_akun' => 'Beban Sosial',
             'kategori' => 'beban',
             'posisi_saldo' => 'debit',
+            'is_beban_operasional' => false,
             'keterangan' => 'Beban kegiatan sosial koperasi.',
         ],
         'beban_pendidikan' => [
@@ -207,7 +211,32 @@ return [
             'nama_akun' => 'Beban Pendidikan',
             'kategori' => 'beban',
             'posisi_saldo' => 'debit',
+            'is_beban_operasional' => false,
             'keterangan' => 'Beban pendidikan dan pengembangan anggota atau pengurus.',
+        ],
+        'beban_perawatan_aset' => [
+            'kode_akun' => '506',
+            'nama_akun' => 'Beban Perawatan Aset',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'is_beban_operasional' => true,
+            'keterangan' => 'Beban servis/perawatan Mobil dan Printer koperasi.',
+        ],
+        'beban_atk_kantor' => [
+            'kode_akun' => '507',
+            'nama_akun' => 'Beban ATK dan Kantor',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'is_beban_operasional' => true,
+            'keterangan' => 'Beban alat tulis kantor dan kebutuhan administrasi koperasi.',
+        ],
+        'beban_transportasi_operasional' => [
+            'kode_akun' => '508',
+            'nama_akun' => 'Beban Transportasi Operasional',
+            'kategori' => 'beban',
+            'posisi_saldo' => 'debit',
+            'is_beban_operasional' => true,
+            'keterangan' => 'Beban BBM, parkir, tol, dan transportasi kegiatan koperasi.',
         ],
     ],
 
@@ -268,6 +297,12 @@ return [
             'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_printer',
             'pendapatan_dasar' => 'pendapatan_sewa_printer_dasar',
             'pendapatan_margin' => 'pendapatan_margin_sewa_printer',
+        ],
+        'keanggotaan' => [
+            'simpanan_pokok' => 'simpanan_pokok',
+            'utang_refund_anggota' => 'utang_refund_anggota',
+            'piutang_pinjaman' => 'piutang_pinjaman',
+            'piutang_anggota' => 'piutang_anggota',
         ],
     ],
 ];

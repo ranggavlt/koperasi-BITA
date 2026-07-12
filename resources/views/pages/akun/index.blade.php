@@ -96,6 +96,19 @@
           </select>
         </div>
 
+        <div class="coa-field">
+          <label class="coa-label" for="is_beban_operasional">Eligibility Beban Operasional</label>
+          <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+            <input
+              id="is_beban_operasional"
+              type="checkbox"
+              name="is_beban_operasional"
+              value="1"
+              {{ old('is_beban_operasional') ? 'checked' : '' }}>
+            Boleh dipakai transaksi Beban Operasional
+          </label>
+        </div>
+
         <div class="coa-field coa-field--submit">
           <button type="submit" class="coa-btn coa-btn--primary">
             <i class="fas fa-save" aria-hidden="true"></i>
@@ -219,6 +232,7 @@
               <th scope="col" class="coa-cell--center">Kategori</th>
               <th scope="col" class="coa-cell--center">Saldo Normal</th>
               <th scope="col" class="coa-cell--center">Sumber</th>
+              <th scope="col" class="coa-cell--center">Beban Operasional</th>
               <th scope="col">Keterangan</th>
             </tr>
           </thead>
@@ -238,6 +252,27 @@
                     <span class="coa-badge coa-badge--sistem">Sistem</span>
                   @else
                     <span class="coa-badge coa-badge--tambahan">Tambahan</span>
+                  @endif
+                </td>
+                <td class="coa-cell--center">
+                  @if($item->kategori === 'beban' && $item->posisi_saldo === 'debit' && $item->is_aktif)
+                    <form method="POST" action="{{ route('akun.beban-operasional-eligibility', $item) }}" class="grid gap-2">
+                      @csrf
+                      @method('PATCH')
+                      <input type="hidden" name="is_beban_operasional" value="{{ $item->is_beban_operasional ? 0 : 1 }}">
+                      <input
+                        name="alasan"
+                        required
+                        placeholder="Alasan perubahan"
+                        class="rounded-lg border border-slate-200 px-2 py-1 text-xs">
+                      <button class="rounded-lg {{ $item->is_beban_operasional ? 'border border-amber-300 text-amber-700' : 'bg-[#2f8f3a] text-white' }} px-2 py-1 text-xs font-bold">
+                        {{ $item->is_beban_operasional ? 'Nonaktifkan' : 'Aktifkan' }}
+                      </button>
+                    </form>
+                  @elseif($item->is_beban_operasional)
+                    <span class="coa-badge coa-badge--sistem">Eligible</span>
+                  @else
+                    <span class="text-xs text-slate-400">Tidak eligible</span>
                   @endif
                 </td>
                 <td><span class="coa-description">{{ $item->keterangan ?: '-' }}</span></td>

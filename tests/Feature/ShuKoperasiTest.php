@@ -20,6 +20,8 @@ class ShuKoperasiTest extends TestCase
 
     public function test_shu_pages_can_be_rendered(): void
     {
+        config(['features.shu_enabled' => true]);
+
         $this->actingAs(User::factory()->create(['role' => 'keuangan']));
 
         $shuKoperasi = ShuKoperasi::create([

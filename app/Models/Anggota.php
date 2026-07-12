@@ -62,6 +62,23 @@ class Anggota extends Model
         return $this->hasMany(Simpanan::class);
     }
 
+    public function siklusKeanggotaan()
+    {
+        return $this->hasMany(SiklusKeanggotaan::class, 'anggota_id')
+            ->orderBy('siklus_ke');
+    }
+
+    public function siklusAktif()
+    {
+        return $this->hasOne(SiklusKeanggotaan::class, 'anggota_id')
+            ->where('status', SiklusKeanggotaan::STATUS_ACTIVE);
+    }
+
+    public function penyelesaianKeanggotaan()
+    {
+        return $this->hasMany(PenyelesaianKeanggotaan::class, 'anggota_id');
+    }
+
     public function pinjaman()
     {
         return $this->hasMany(Pinjaman::class);

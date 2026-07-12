@@ -44,6 +44,8 @@ class JurnalUmum extends Model
                 SewaMobil::class,
                 PembayaranSewaPrinter::class,
                 SewaPrinter::class,
+                BebanOperasional::class,
+                PenyelesaianKeanggotaan::class,
             ], true)) {
                 throw new RuntimeException('Jurnal transaksi koperasi tidak boleh dihapus permanen. Gunakan reversal/adjustment.');
             }

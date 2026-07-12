@@ -120,6 +120,8 @@ class PinjamanKoperasiService
         $rows = collect($this->buildJadwalPreview($jumlahRupiah, $tenor, $tanggalPinjaman))
             ->map(fn (array $row) => $row + [
                 'pinjaman_id' => $pinjaman->id,
+                'nominal_offset' => '0.00',
+                'nominal_sisa' => $row['nominal_pokok'],
                 'status' => JadwalCicilanPinjaman::STATUS_SCHEDULED,
                 'metode_penyelesaian' => null,
                 'paid_at' => null,

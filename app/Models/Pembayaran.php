@@ -27,6 +27,8 @@ class Pembayaran extends Model
 
     public const STATUS_SETTLED_CASH = 'settled_cash';
 
+    public const STATUS_SETTLED_OFFSET = 'settled_offset';
+
     protected $table = 'pembayaran';
 
     protected $fillable = [

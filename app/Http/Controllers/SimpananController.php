@@ -76,10 +76,13 @@ class SimpananController extends Controller
 
         try {
             DB::transaction(function () use ($validated, $anggota, $jenis, $mutasiKasService, $akuntansiService): void {
+                $siklusId = $anggota->siklusAktif()->value('id');
+
                 $simpanan = Simpanan::query()->create([
                     'idempotency_key' => 'simpanan:manual:' . uniqid('', true),
                     'anggota_id' => $anggota->id,
                     'karyawan_id' => $anggota->karyawan_id,
+                    'siklus_keanggotaan_id' => $siklusId,
                     'jenis_simpanan_id' => $jenis->id,
                     'kode_jenis_snapshot' => $jenis->kode,
                     'nama_jenis_snapshot' => $jenis->nama_jenis,

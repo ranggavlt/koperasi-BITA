@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Karyawan;
 use App\Services\KaryawanAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,7 +32,7 @@ class AuthController extends Controller
             ]);
         }
 
-        if (! (Auth::user()->is_active ?? true)) {
+        if (! (Auth::user()->is_active ?? true) || $this->isInactiveEmployeeAccount(Auth::user())) {
             Auth::logout();
 
             throw ValidationException::withMessages([
@@ -90,6 +91,21 @@ class AuthController extends Controller
         return redirect()
             ->route('login')
             ->with('success', 'Registrasi berhasil. Silakan login.');
+    }
+
+    private function isInactiveEmployeeAccount(User $user): bool
+    {
+        if ($user->role !== 'karyawan') {
+            return false;
+        }
+
+        if (! $user->karyawan_id) {
+            return true;
+        }
+
+        $karyawan = $user->karyawan()->first();
+
+        return ! $karyawan || $karyawan->status_kerja !== Karyawan::STATUS_AKTIF;
     }
 
     public function logout(Request $request)

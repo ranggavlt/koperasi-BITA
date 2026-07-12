@@ -42,8 +42,12 @@ class DashboardController extends Controller
         // =============================
 
         // Grafik pendapatan per bulan dari Database
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', created_at) AS INTEGER)"
+            : 'MONTH(created_at)';
+
         $dataGrafik = DB::table('penjualan')
-            ->selectRaw('MONTH(created_at) as bulan, SUM(grand_total) as total')
+            ->selectRaw("{$monthExpression} as bulan, SUM(grand_total) as total")
             ->whereYear('created_at', date('Y'))
             ->groupBy('bulan')
             ->pluck('total', 'bulan')

@@ -2,6 +2,11 @@
     $role = auth()->user()->role ?? null;
     $modules = collect(config('navigation.modules', []))
         ->filter(function (array $module) use ($role) {
+            $feature = $module['feature'] ?? null;
+            if ($feature && ! config("features.{$feature}", false)) {
+                return false;
+            }
+
             $allowed = $module['roles'] ?? null;
             if (! is_array($allowed) || $allowed === []) {
                 return true;
@@ -391,7 +396,7 @@
                     if (!matches.length) {
                         results.innerHTML = `
                             <div class="px-4 py-4 text-sm text-slate-500">
-                                Modul "<strong>${escapeHtml(query)}</strong>" tidak ditemukan. Coba kata lain seperti produk, kasir, simpanan, atau SHU.
+                                Modul "<strong>${escapeHtml(query)}</strong>" tidak ditemukan. Coba kata lain seperti produk, kasir, simpanan, atau payroll.
                             </div>
                         `;
                         openResults();

@@ -8,6 +8,7 @@ use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\PengurusKoperasi;
 use App\Models\SewaMobil;
+use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,10 @@ class MasterDataKoperasiService
             $locked = Karyawan::query()->lockForUpdate()->findOrFail($karyawan->id);
 
             if ($data['status_kerja'] === Karyawan::STATUS_AKTIF) {
+                if ($locked->status_kerja === Karyawan::STATUS_BERHENTI) {
+                    $this->assertSettlementCompletedBeforeReactivation($locked);
+                }
+
                 $data['tanggal_berhenti'] = null;
             }
 
@@ -90,6 +95,22 @@ class MasterDataKoperasiService
 
                     app(PotongGajiBulananService::class)
                         ->releaseReservationsForStoppedAnggota($anggota->fresh(), auth()->id());
+
+                    $tanggalKeluar = $locked->tanggal_berhenti ?? today();
+                    $lifecycle = app(KeanggotaanLifecycleService::class);
+                    $cycle = $lifecycle->closeActiveCycleForExit(
+                        $anggota->fresh(),
+                        $tanggalKeluar,
+                        auth()->id(),
+                        'Karyawan berhenti.'
+                    );
+                    $lifecycle->createPenyelesaianForExit(
+                        $anggota->fresh(),
+                        $cycle,
+                        $tanggalKeluar,
+                        'Penyelesaian otomatis karena Karyawan berhenti.',
+                        auth()->id()
+                    );
                 }
             }
 
@@ -131,7 +152,9 @@ class MasterDataKoperasiService
             ])->save();
 
             $this->syncLegacyIsAnggota($karyawan);
-            $this->createSimpananPokokForAnggota($anggota);
+            $cycle = app(KeanggotaanLifecycleService::class)
+                ->ensureActiveCycle($anggota, auth()->id(), $data['tanggal_bergabung']);
+            $this->createSimpananPokokForAnggota($anggota, $cycle);
 
             return $anggota->fresh(['karyawan', 'simpanan']);
         });
@@ -190,6 +213,13 @@ class MasterDataKoperasiService
             app(PotongGajiBulananService::class)
                 ->releaseReservationsForStoppedAnggota($locked->fresh(), auth()->id());
 
+            app(KeanggotaanLifecycleService::class)->closeActiveCycleForExit(
+                $locked->fresh(),
+                $locked->tanggal_nonaktif,
+                auth()->id(),
+                'Anggota dinonaktifkan.'
+            );
+
             $this->syncLegacyIsAnggota($locked->karyawan);
 
             return $locked->fresh('karyawan');
@@ -207,10 +237,9 @@ class MasterDataKoperasiService
                 ]);
             }
 
-            $locked->update([
-                'status' => Anggota::STATUS_AKTIF,
-                'tanggal_nonaktif' => null,
-            ]);
+            app(KeanggotaanLifecycleService::class)
+                ->reactivateAnggota($locked, today(), auth()->id());
+
             $this->syncLegacyIsAnggota($locked->karyawan);
 
             return $locked->fresh('karyawan');
@@ -372,13 +401,44 @@ class MasterDataKoperasiService
         $karyawan->forceFill(['is_anggota' => $aktif])->saveQuietly();
     }
 
-    private function createSimpananPokokForAnggota(Anggota $anggota): void
+    private function assertSettlementCompletedBeforeReactivation(Karyawan $karyawan): void
     {
+        $anggota = $karyawan->anggota()
+            ->with(['siklusKeanggotaan.penyelesaian'])
+            ->first();
+
+        if (! $anggota) {
+            return;
+        }
+
+        $latestClosed = $anggota->siklusKeanggotaan
+            ->where('status', SiklusKeanggotaan::STATUS_CLOSED)
+            ->sortByDesc('siklus_ke')
+            ->first();
+
+        if (! $latestClosed) {
+            return;
+        }
+
+        if (! $latestClosed->penyelesaian || $latestClosed->penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED) {
+            throw ValidationException::withMessages([
+                'status_kerja' => 'Karyawan tidak dapat diaktifkan kembali sebelum penyelesaian keanggotaan sebelumnya completed.',
+            ]);
+        }
+    }
+
+    private function createSimpananPokokForAnggota(Anggota $anggota, ?SiklusKeanggotaan $cycle = null): void
+    {
+        $cycle ??= app(KeanggotaanLifecycleService::class)
+            ->ensureActiveCycle($anggota, auth()->id(), $anggota->tanggal_bergabung);
+
         $jenis = $this->resolveSimpananPokokMaster();
 
         $existing = Simpanan::query()
             ->where('anggota_id', $anggota->id)
+            ->where('siklus_keanggotaan_id', $cycle->id)
             ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
             ->lockForUpdate()
             ->first();
 
@@ -394,9 +454,10 @@ class MasterDataKoperasiService
         }
 
         $simpanan = Simpanan::query()->create([
-            'idempotency_key' => 'simpanan-pokok:anggota:' . $anggota->id,
+            'idempotency_key' => 'simpanan-pokok:siklus:' . $cycle->id,
             'anggota_id' => $anggota->id,
             'karyawan_id' => $anggota->karyawan_id,
+            'siklus_keanggotaan_id' => $cycle->id,
             'jenis_simpanan_id' => $jenis->id,
             'kode_jenis_snapshot' => JenisSimpanan::KODE_SIMPANAN_POKOK,
             'nama_jenis_snapshot' => $jenis->nama_jenis,
@@ -404,7 +465,7 @@ class MasterDataKoperasiService
             'jumlah' => $nominal,
             'metode_pembayaran' => Simpanan::METODE_POTONG_GAJI,
             'status' => Simpanan::STATUS_PENDING_PAYROLL,
-            'tanggal' => $anggota->tanggal_bergabung,
+            'tanggal' => $cycle->tanggal_mulai ?? $anggota->tanggal_bergabung,
             'keterangan' => 'Simpanan Pokok otomatis saat Anggota dibuat.',
             'created_by' => auth()->id(),
         ]);

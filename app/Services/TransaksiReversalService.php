@@ -202,6 +202,7 @@ class TransaksiReversalService
                     'idempotency_key' => 'simpanan-pokok:replacement:' . $locked->id,
                     'karyawan_id' => $locked->karyawan_id,
                     'anggota_id' => $locked->anggota_id,
+                    'siklus_keanggotaan_id' => $locked->siklus_keanggotaan_id,
                     'jenis_simpanan_id' => $locked->jenis_simpanan_id,
                     'kode_jenis_snapshot' => $locked->kode_jenis_snapshot,
                     'nama_jenis_snapshot' => $locked->nama_jenis_snapshot,

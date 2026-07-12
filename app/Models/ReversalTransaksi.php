@@ -25,6 +25,10 @@ class ReversalTransaksi extends Model
 
     public const JENIS_CICILAN_CASH_REVERSAL = 'cicilan_cash_reversal';
 
+    public const JENIS_BEBAN_OPERASIONAL_REVERSAL = 'beban_operasional_reversal';
+
+    public const JENIS_SIMPANAN_POKOK_EXIT_CANCEL = 'simpanan_pokok_exit_cancel';
+
     protected $table = 'reversal_transaksi';
 
     protected $fillable = [

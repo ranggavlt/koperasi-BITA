@@ -14,7 +14,6 @@ return [
         'simpanan.index',
         'pinjaman.index',
         'periode-potong-gaji.index',
-        'shu-koperasi.index',
     ],
 
     'modules' => [
@@ -186,6 +185,7 @@ return [
             'label' => 'Transaksi SHU',
             'route' => 'shu-koperasi.index',
             'roles' => ['keuangan'],
+            'feature' => 'shu_enabled',
             'patterns' => ['shu-koperasi.*'],
             'description' => 'Kelola perhitungan dan transaksi Sisa Hasil Usaha.',
             'keywords' => ['shu', 'sisa hasil usaha', 'bagi hasil'],

@@ -24,6 +24,8 @@ class Akun extends Model
         'posisi_saldo',
         'is_aktif',
         'is_sistem',
+        'is_beban_operasional',
+        'beban_operasional_updated_by',
         'keterangan',
     ];
 
@@ -32,6 +34,7 @@ class Akun extends Model
         return [
             'is_aktif' => 'boolean',
             'is_sistem' => 'boolean',
+            'is_beban_operasional' => 'boolean',
         ];
     }
 
@@ -43,6 +46,16 @@ class Akun extends Model
     public function jurnalDetails()
     {
         return $this->hasMany(JurnalUmumDetail::class, 'akun_id');
+    }
+
+    public function riwayatBebanOperasional()
+    {
+        return $this->hasMany(RiwayatAkunBebanOperasional::class, 'akun_id');
+    }
+
+    public function bebanOperasionalUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'beban_operasional_updated_by');
     }
 
     public static function posisiSaldoUntuk(string $kategori): string
