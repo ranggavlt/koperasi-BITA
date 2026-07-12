@@ -2,91 +2,91 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\StorepinjamanRequest;
+use App\Models\Anggota;
+use App\Models\DompetKoperasi;
 use App\Models\Pinjaman;
-use App\Models\Karyawan;
-use App\Services\AkuntansiService;
-use App\Services\MutasiKasService;
-use Illuminate\Support\Facades\DB;
+use App\Services\PinjamanKoperasiService;
+use App\Services\PotongGajiBulananService;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PinjamanController extends Controller
 {
     public function index()
     {
-        $pinjaman = Pinjaman::with('karyawan')
+        $pinjaman = Pinjaman::with(['anggota.karyawan', 'karyawan', 'dompet', 'jadwalCicilan'])
             ->latest()
             ->paginate(10);
 
-        $karyawan = Karyawan::orderBy('nama')->get();
+        $anggota = Anggota::query()
+            ->with('karyawan')
+            ->aktif()
+            ->whereHas('karyawan', fn ($query) => $query->aktif())
+            ->whereDoesntHave('pinjaman', fn ($query) => $query->where('status', Pinjaman::STATUS_AKTIF))
+            ->orderBy('nomor_anggota')
+            ->get();
 
-        return view('pages.pinjaman.index', compact('pinjaman', 'karyawan'));
+        $dompet = DompetKoperasi::query()
+            ->with('akun')
+            ->orderBy('nama_dompet')
+            ->get();
+
+        return view('pages.pinjaman.index', compact('pinjaman', 'anggota', 'dompet'));
     }
 
-    public function store(Request $request, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
+    public function store(StorepinjamanRequest $request, PinjamanKoperasiService $service)
+    {
+        try {
+            $pinjaman = $service->create($request->validated(), $request->user()->id);
+
+            return redirect()
+                ->route('pinjaman.show', $pinjaman)
+                ->with('success', 'Pinjaman berhasil dicairkan dan jadwal cicilan otomatis dibuat.');
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            return back()
+                ->withErrors(['pinjaman' => 'Pinjaman gagal dicairkan: ' . $exception->getMessage()])
+                ->withInput();
+        }
+    }
+
+    public function show(Pinjaman $pinjaman)
+    {
+        $pinjaman->load(['anggota.karyawan', 'dompet.akun', 'jadwalCicilan.cicilanPembayaran', 'mutasiKas', 'jurnal.details']);
+        $dompetKas = DompetKoperasi::query()
+            ->with('akun')
+            ->kas()
+            ->orderBy('nama_dompet')
+            ->get();
+
+        return view('pages.pinjaman.show', compact('pinjaman', 'dompetKas'));
+    }
+
+    public function payCashSchedule(Request $request, Pinjaman $pinjaman, PotongGajiBulananService $service)
     {
         $validated = $request->validate([
-            'karyawan_id' => 'required|exists:karyawan,id',
-            'jumlah_pinjaman' => 'required|numeric|min:0',
-            'bunga_persen' => 'nullable|numeric|min:0',
-            'tenor_bulan' => 'required|integer|min:1',
-            'tanggal_pinjaman' => 'required|date',
-            'keterangan' => 'nullable|string',
-        ], [
-            'karyawan_id.required' => 'Karyawan wajib dipilih.',
-            'jumlah_pinjaman.required' => 'Jumlah pinjaman wajib diisi.',
-            'tenor_bulan.required' => 'Tenor pinjaman wajib diisi.',
-            'tanggal_pinjaman.required' => 'Tanggal pinjaman wajib diisi.',
+            'dompet_id' => ['required', 'exists:dompet_koperasi,id'],
         ]);
 
-        try {
-            DB::transaction(function () use ($validated, $mutasiKasService, $akuntansiService) {
-                $pinjaman = Pinjaman::create([
-                    'karyawan_id' => $validated['karyawan_id'],
-                    'jumlah_pinjaman' => $validated['jumlah_pinjaman'],
-                    'bunga_persen' => $validated['bunga_persen'] ?? 0,
-                    'tenor_bulan' => $validated['tenor_bulan'],
-                    'sisa_pinjaman' => $validated['jumlah_pinjaman'],
-                    'status' => 'aktif',
-                    'tanggal_pinjaman' => $validated['tanggal_pinjaman'],
-                    'keterangan' => $validated['keterangan'] ?? null,
-                ]);
+        $service->payScheduledCash($pinjaman, DompetKoperasi::findOrFail($validated['dompet_id']), $request->user()->id);
 
-                $mutasiKasService->record([
-                    'tipe' => 'keluar',
-                    'jumlah' => $validated['jumlah_pinjaman'],
-                    'keterangan' => 'Pencairan pinjaman karyawan',
-                    'referensi_tipe' => Pinjaman::class,
-                    'referensi_id' => $pinjaman->id,
-                    'tanggal' => $validated['tanggal_pinjaman'],
-                ]);
-
-                $akuntansiService->recordPinjaman($pinjaman);
-            });
-
-            return redirect()
-                ->route('pinjaman.index')
-                ->with('success', 'Pinjaman berhasil dibuat.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['Error: ' . $e->getMessage()])->withInput();
-        }
+        return redirect()
+            ->route('pinjaman.show', $pinjaman)
+            ->with('success', 'Cicilan terjadwal tunai berhasil dibayar.');
     }
 
-    public function destroy($id, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
+    public function payCashFull(Request $request, Pinjaman $pinjaman, PotongGajiBulananService $service)
     {
-        $data = Pinjaman::findOrFail($id);
+        $validated = $request->validate([
+            'dompet_id' => ['required', 'exists:dompet_koperasi,id'],
+        ]);
 
-        try {
-            DB::transaction(function () use ($data, $mutasiKasService, $akuntansiService) {
-                $mutasiKasService->reverseByReference(Pinjaman::class, $data->id);
-                $akuntansiService->reverseByReference(Pinjaman::class, $data->id);
-                $data->delete();
-            });
+        $service->payFullCash($pinjaman, DompetKoperasi::findOrFail($validated['dompet_id']), $request->user()->id);
 
-            return redirect()
-                ->route('pinjaman.index')
-                ->with('success', 'Transaksi pinjaman berhasil dihapus.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['Error: ' . $e->getMessage()]);
-        }
+        return redirect()
+            ->route('pinjaman.show', $pinjaman)
+            ->with('success', 'Seluruh sisa Pinjaman berhasil dilunasi tunai.');
     }
 }

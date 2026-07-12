@@ -2,226 +2,111 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Penjualan;
-use App\Models\DetailPenjualan;
-use App\Models\HutangReseller;
+use App\Models\Anggota;
+use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\Pembayaran;
+use App\Models\Penjualan;
 use App\Models\Produk;
-use App\Services\AkuntansiService;
-use App\Services\MutasiKasService;
+use App\Services\PosCheckoutService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class PenjualanController extends Controller
 {
-    public function index()
+    public function index(): View
     {
-        $penjualan = Penjualan::with(['karyawan', 'details.produk', 'pembayaran'])->orderBy('id', 'desc')->paginate(10);
-        $produk = Produk::where('stok', '>', 0)->orderBy('nama_produk')->get();
-        $produkOptions = $produk->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'nama_produk' => $item->nama_produk,
-                'stok' => $item->stok,
-                'harga_jual' => $item->harga_jual,
-            ];
-        })->values();
+        $penjualan = Penjualan::query()
+            ->with(['anggota.karyawan', 'karyawan', 'details.produk', 'pembayaran.dompet', 'pembayaran.ledger.limit.periodePotongGaji'])
+            ->orderByDesc('id')
+            ->paginate(10);
 
-        $bulanIni = Carbon::now()->month;
-        $tahunIni = Carbon::now()->year;
+        $produk = Produk::query()
+            ->where('stok', '>', 0)
+            ->orderBy('nama_produk')
+            ->get();
 
-        // Hitung SISA SALDO masing-masing karyawan untuk bulan ini
-        $karyawan = Karyawan::orderBy('nama')->get()->map(function ($k) use ($bulanIni, $tahunIni) {
-            $pengeluaran = Penjualan::where('karyawan_id', $k->id)
-                ->whereMonth('created_at', $bulanIni)
-                ->whereYear('created_at', $tahunIni)
-                ->where(function ($query) {
-                    $query->whereHas('pembayaran', fn ($q) => $q->where('metode_pembayaran', 'potong_gaji'))
-                        ->orWhereDoesntHave('pembayaran');
-                })
-                ->sum('grand_total');
+        $produkOptions = $produk->map(fn (Produk $item): array => [
+            'id' => $item->id,
+            'nama_produk' => $item->nama_produk,
+            'stok' => $item->stok,
+            'harga_jual' => $item->harga_jual,
+        ])->values();
 
-            $k->sisa_limit = 2000000 - $pengeluaran;
-            return $k;
-        });
+        $anggota = Anggota::query()
+            ->with(['karyawan', 'limitsPotongGaji.periodePotongGaji', 'limitsPotongGaji.pemakaian'])
+            ->aktif()
+            ->whereHas('karyawan', fn ($query) => $query->where('status_kerja', Karyawan::STATUS_AKTIF))
+            ->orderBy('nomor_anggota')
+            ->get();
 
-        return view('pages.penjualan.index', compact('penjualan', 'karyawan', 'produk', 'produkOptions'));
+        $karyawanNonAnggota = Karyawan::query()
+            ->where('status_kerja', Karyawan::STATUS_AKTIF)
+            ->whereDoesntHave('anggota', fn ($query) => $query->where('status', Anggota::STATUS_AKTIF))
+            ->orderBy('nama')
+            ->get();
+
+        $dompetKas = DompetKoperasi::query()->with('akun')->kas()->orderBy('nama_dompet')->get();
+        $dompetBank = DompetKoperasi::query()->with('akun')->bank()->orderBy('nama_dompet')->get();
+
+        return view('pages.penjualan.index', compact(
+            'penjualan',
+            'produk',
+            'produkOptions',
+            'anggota',
+            'karyawanNonAnggota',
+            'dompetKas',
+            'dompetBank'
+        ));
     }
 
-    public function store(Request $request, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
+    public function store(Request $request, PosCheckoutService $checkoutService): RedirectResponse
     {
-        $request->validate([
-            'karyawan_id' => 'required|exists:karyawan,id',
-            'metode_pembayaran' => 'required|in:tunai,potong_gaji',
-            'items'       => 'required|array|min:1',
+        $validated = $request->validate([
+            'tipe_pelanggan' => 'required|in:' . implode(',', [
+                Penjualan::TIPE_ANGGOTA,
+                Penjualan::TIPE_KARYAWAN,
+                Penjualan::TIPE_UMUM,
+            ]),
+            'anggota_id' => 'nullable|required_if:tipe_pelanggan,' . Penjualan::TIPE_ANGGOTA . '|exists:anggota,id',
+            'karyawan_id' => 'nullable|required_if:tipe_pelanggan,' . Penjualan::TIPE_KARYAWAN . '|exists:karyawan,id',
+            'metode_pembayaran' => 'required|in:' . implode(',', [
+                Pembayaran::METODE_TUNAI,
+                Pembayaran::METODE_TRANSFER_BANK,
+                Pembayaran::METODE_QRIS,
+                Pembayaran::METODE_POTONG_GAJI,
+            ]),
+            'dompet_id' => 'nullable|required_unless:metode_pembayaran,' . Pembayaran::METODE_POTONG_GAJI . '|exists:dompet_koperasi,id',
+            'tanggal_transaksi' => 'nullable|date',
+            'items' => 'required|array|min:1',
             'items.*.produk_id' => 'required|exists:produk,id',
-            'items.*.jumlah'    => 'required|integer|min:1',
-            'diskon'      => 'nullable|numeric|min:0',
+            'items.*.jumlah' => 'required|integer|min:1',
+            'diskon' => 'nullable|numeric|min:0',
+        ], [
+            'tipe_pelanggan.required' => 'Tipe pelanggan wajib dipilih.',
+            'anggota_id.required_if' => 'Anggota wajib dipilih untuk transaksi Anggota.',
+            'karyawan_id.required_if' => 'Karyawan wajib dipilih untuk transaksi Karyawan nonanggota.',
+            'dompet_id.required_unless' => 'Dompet penerimaan wajib dipilih untuk pembayaran non-payroll.',
         ]);
 
-        $diskon = (float) ($request->diskon ?? 0);
-        $total_harga = 0;
-        $processedItems = [];
-        $stokTerpakai = [];
-
-        foreach ($request->items as $index => $item) {
-            $produk = Produk::find($item['produk_id']);
-            if (!$produk) {
-                return back()->withErrors(["Produk pada baris ke-" . ($index + 1) . " tidak ditemukan."])->withInput();
-            }
-
-            $jumlah = (int) $item['jumlah'];
-            $stokTerpakai[$produk->id] = ($stokTerpakai[$produk->id] ?? 0) + $jumlah;
-            if ($stokTerpakai[$produk->id] > $produk->stok) {
-                return back()->withErrors([
-                    "Stok {$produk->nama_produk} kurang! Sisa: {$produk->stok}, diminta: {$stokTerpakai[$produk->id]}"
-                ])->withInput();
-            }
-
-            $subtotal = $produk->harga_jual * $jumlah;
-            $total_harga += $subtotal;
-            $processedItems[] = [
-                'produk' => $produk,
-                'jumlah' => $jumlah,
-                'subtotal' => $subtotal,
-            ];
-        }
-
-        $grand_total = max(0, $total_harga - $diskon);
-
-        $karyawan = Karyawan::findOrFail($request->karyawan_id);
-        $metodePembayaran = (string) $request->metode_pembayaran;
-
-        if (! $karyawan->is_anggota && $metodePembayaran !== 'tunai') {
-            return back()->withErrors([
-                'Metode pembayaran untuk karyawan non-anggota wajib Tunai (Cash).',
-            ])->withInput();
-        }
-
-        // CEK LIMIT SALDO (khusus potong gaji)
-        $bulanIni = Carbon::now()->month;
-        $tahunIni = Carbon::now()->year;
-
-        $pengeluaranPotongGaji = 0;
-        if ($metodePembayaran === 'potong_gaji') {
-            $pengeluaranPotongGaji = Penjualan::where('karyawan_id', $request->karyawan_id)
-                ->whereMonth('created_at', $bulanIni)
-                ->whereYear('created_at', $tahunIni)
-                ->where(function ($query) {
-                    $query->whereHas('pembayaran', fn ($q) => $q->where('metode_pembayaran', 'potong_gaji'))
-                        ->orWhereDoesntHave('pembayaran');
-                })
-                ->sum('grand_total');
-
-            if (($pengeluaranPotongGaji + $grand_total) > 2000000) {
-                return back()->withErrors([
-                    'Ditolak! Limit potong gaji bulan ini tidak mencukupi.',
-                    'Sisa limit: Rp ' . number_format(2000000 - $pengeluaranPotongGaji, 0, ',', '.'),
-                ])->withInput();
-            }
-        }
-
-        // GENERATE KODE
-        $latest = Penjualan::orderBy('id', 'desc')->first();
-        if (!$latest) {
-            $kode_transaksi = 'PJL-001';
-        } else {
-            $parts = explode('-', $latest->kode_transaksi);
-            $kode_transaksi = 'PJL-' . str_pad((int)end($parts) + 1, 3, '0', STR_PAD_LEFT);
-        }
-
-        // SIMPAN KE 2 TABEL
-        DB::beginTransaction();
         try {
-            $penjualan = Penjualan::create([
-                'kode_transaksi' => $kode_transaksi,
-                'karyawan_id'    => $request->karyawan_id,
-                'total_harga'    => $total_harga,
-                'diskon'         => $diskon,
-                'grand_total'    => $grand_total,
-            ]);
+            $penjualan = $checkoutService->checkout($validated, auth()->id());
 
-            Pembayaran::create([
-                'penjualan_id' => $penjualan->id,
-                'metode_pembayaran' => $metodePembayaran,
-                'jumlah_bayar' => $metodePembayaran === 'tunai' ? (int) $grand_total : 0,
-            ]);
-
-            foreach ($processedItems as $item) {
-                $produk = $item['produk'];
-                $jumlah = $item['jumlah'];
-                $subtotal = $item['subtotal'];
-
-                $detailPenjualan = DetailPenjualan::create([
-                    'penjualan_id'   => $penjualan->id,
-                    'produk_id'      => $produk->id,
-                    'qty'            => $jumlah,
-                    'harga'          => $produk->harga_jual,
-                    'subtotal'       => $subtotal,
-                    'konsinyasi'     => $produk->konsinyasi,
-                    'reseller_id'    => $produk->reseller_id,
-                    'harga_setor'    => $produk->harga_setor,
-                    'subtotal_setor' => $produk->harga_setor * $jumlah,
-                ]);
-
-                if ($detailPenjualan->konsinyasi && $detailPenjualan->reseller_id) {
-                    HutangReseller::create([
-                        'reseller_id' => $detailPenjualan->reseller_id,
-                        'detail_penjualan_id' => $detailPenjualan->id,
-                        'jumlah' => $detailPenjualan->subtotal_setor,
-                        'status' => 'belum_dibayar',
-                        'tanggal' => now()->toDateString(),
-                    ]);
-                }
-
-                $produk->decrement('stok', $jumlah);
-            }
-
-            if ($metodePembayaran === 'tunai') {
-                $mutasiKasService->record([
-                    'tipe' => 'masuk',
-                    'jumlah' => $grand_total,
-                    'keterangan' => 'Penerimaan dari penjualan ' . $kode_transaksi,
-                    'referensi_tipe' => Penjualan::class,
-                    'referensi_id' => $penjualan->id,
-                    'tanggal' => now()->toDateString(),
-                ]);
-            }
-
-            $akuntansiService->recordPenjualan($penjualan, $metodePembayaran);
-
-            DB::commit();
-
-            return redirect()->route('penjualan.index')
-                ->with('success', $metodePembayaran === 'potong_gaji'
-                    ? 'Transaksi Potong Gaji tersimpan. Sisa limit: Rp ' . number_format(2000000 - ($pengeluaranPotongGaji + $grand_total), 0, ',', '.')
-                    : 'Transaksi Tunai tersimpan.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['Error: ' . $e->getMessage()])->withInput();
-        }
-    }
-
-    public function destroy(Penjualan $penjualan, MutasiKasService $mutasiKasService, AkuntansiService $akuntansiService)
-    {
-        DB::beginTransaction();
-        try {
-            foreach($penjualan->details as $detail) {
-                $produk = Produk::find($detail->produk_id);
-                if($produk) $produk->increment('stok', $detail->qty);
-            }
-
-            $mutasiKasService->reverseByReference(Penjualan::class, $penjualan->id);
-            $akuntansiService->reverseByReference(Penjualan::class, $penjualan->id);
-            $penjualan->pembayaran()->delete();
-            $penjualan->delete();
-            DB::commit();
-            return redirect()->route('penjualan.index')->with('success', 'Transaksi dibatalkan. Stok dikembalikan.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['Gagal hapus: ' . $e->getMessage()]);
+            return redirect()
+                ->route('penjualan.index')
+                ->with('success', $penjualan->pembayaran?->metode_pembayaran === Pembayaran::METODE_POTONG_GAJI
+                    ? 'Transaksi POS Potong Gaji tersimpan sebagai pending payroll.'
+                    : 'Transaksi POS non-payroll tersimpan dan kas/bank tercatat.');
+        } catch (ValidationException $exception) {
+            return back()
+                ->withErrors($exception->errors())
+                ->withInput();
+        } catch (\Throwable $exception) {
+            return back()
+                ->withErrors(['checkout' => $exception->getMessage()])
+                ->withInput();
         }
     }
 }

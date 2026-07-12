@@ -19,17 +19,17 @@
     </div>
   @endif
 
-  {{-- CARD 1: FORM --}}
   <div class="flex flex-wrap -mx-3">
     <div class="flex-none w-full max-w-full px-3">
       <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
           <div>
-            <h6>Tambah Transaksi Penjualan</h6>
-            <p class="text-sm text-slate-400">Non-anggota wajib Tunai. Anggota bisa Tunai atau Potong Gaji (limit Rp 2.000.000/bulan).</p>
+            <h6>Tambah Transaksi POS</h6>
+            <p class="text-sm text-slate-400">
+              Anggota aktif menggunakan Potong Gaji engine bulanan. Karyawan nonanggota dan pelanggan umum memakai Tunai, Transfer Bank, atau QRIS.
+            </p>
           </div>
-          
+
           <button type="button" onclick="toggleForm()" id="btn-toggle-form"
             class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
             {{ $errors->any() ? 'Tutup Form' : '+ Tambah Transaksi' }}
@@ -41,47 +41,95 @@
             @csrf
 
             <div class="flex flex-wrap -mx-3">
-              
-              {{-- Kode Transaksi --}}
               <div class="w-full max-w-full px-3 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Kode Transaksi</label>
                 <input type="text" readonly value="Otomatis"
-                  class="text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-gray-100 px-3 py-2 font-bold text-gray-600 cursor-not-allowed">
+                  class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-gray-100 px-3 py-2 font-bold text-gray-600 cursor-not-allowed">
               </div>
 
-              {{-- Karyawan & Sisa Saldo --}}
-              <div class="w-full max-w-full px-3 md:w-4/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pilih Karyawan</label>
-                <select name="karyawan_id" required
-                  id="karyawan_id"
+              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tanggal</label>
+                <input type="datetime-local" name="tanggal_transaksi" value="{{ old('tanggal_transaksi') }}"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Karyawan --</option>
-                  @foreach($karyawan as $item)
-                    <option
-                      value="{{ $item->id }}"
-                      data-is-anggota="{{ $item->is_anggota ? 1 : 0 }}"
-                      data-sisa-limit="{{ (int) $item->sisa_limit }}"
-                      {{ old('karyawan_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama }}
-                      {{ $item->is_anggota ? '(Anggota)' : '(Non-anggota)' }}
-                      - Sisa limit: Rp {{ number_format(max(0, $item->sisa_limit), 0, ',', '.') }}
+              </div>
+
+              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tipe Pelanggan</label>
+                <select name="tipe_pelanggan" id="tipe_pelanggan" required
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="anggota" {{ old('tipe_pelanggan', 'anggota') === 'anggota' ? 'selected' : '' }}>Anggota</option>
+                  <option value="karyawan" {{ old('tipe_pelanggan') === 'karyawan' ? 'selected' : '' }}>Karyawan Nonanggota</option>
+                  <option value="umum" {{ old('tipe_pelanggan') === 'umum' ? 'selected' : '' }}>Umum</option>
+                </select>
+              </div>
+
+              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Metode Pembayaran</label>
+                <select name="metode_pembayaran" id="metode_pembayaran" required
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="potong_gaji" {{ old('metode_pembayaran', 'potong_gaji') === 'potong_gaji' ? 'selected' : '' }}>Potong Gaji</option>
+                  <option value="tunai" {{ old('metode_pembayaran') === 'tunai' ? 'selected' : '' }}>Tunai</option>
+                  <option value="transfer_bank" {{ old('metode_pembayaran') === 'transfer_bank' ? 'selected' : '' }}>Transfer Bank</option>
+                  <option value="qris" {{ old('metode_pembayaran') === 'qris' ? 'selected' : '' }}>QRIS</option>
+                </select>
+                <p id="metode_hint" class="mt-2 text-xs text-slate-400"></p>
+              </div>
+
+              <div id="anggota-wrapper" class="w-full max-w-full px-3 md:w-6/12 mt-4">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Anggota Aktif</label>
+                <select name="anggota_id" id="anggota_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">-- Pilih Anggota --</option>
+                  @foreach($anggota as $item)
+                    @php
+                      $limitAktif = $item->limitsPotongGaji
+                        ->where('status', \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE)
+                        ->sortByDesc(fn ($limit) => $limit->periodePotongGaji?->periode)
+                        ->first();
+                    @endphp
+                    <option value="{{ $item->id }}" {{ old('anggota_id') == $item->id ? 'selected' : '' }}>
+                      {{ $item->nomor_anggota }} - {{ $item->karyawan->nama ?? '-' }}
+                      @if($limitAktif)
+                        (limit aktif {{ $limitAktif->periodePotongGaji?->periode?->format('m/Y') }}, sisa Rp {{ number_format(max(0, $limitAktif->sisaLimitCents()) / 100, 0, ',', '.') }})
+                      @else
+                        (belum ada limit aktif)
+                      @endif
                     </option>
                   @endforeach
                 </select>
               </div>
 
-              {{-- Metode Pembayaran --}}
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Metode Pembayaran</label>
-                <select name="metode_pembayaran" id="metode_pembayaran" required
+              <div id="karyawan-wrapper" class="w-full max-w-full px-3 md:w-6/12 mt-4 hidden">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Karyawan Nonanggota</label>
+                <select name="karyawan_id" id="karyawan_id"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="tunai" {{ old('metode_pembayaran', 'tunai') === 'tunai' ? 'selected' : '' }}>Tunai (Cash)</option>
-                  <option value="potong_gaji" {{ old('metode_pembayaran') === 'potong_gaji' ? 'selected' : '' }}>Potong Gaji (Piutang)</option>
+                  <option value="">-- Pilih Karyawan --</option>
+                  @foreach($karyawanNonAnggota as $item)
+                    <option value="{{ $item->id }}" {{ old('karyawan_id') == $item->id ? 'selected' : '' }}>
+                      {{ $item->nama }}
+                    </option>
+                  @endforeach
                 </select>
-                <p id="metode_hint" class="mt-2 text-xs text-slate-400"></p>
               </div>
 
-              {{-- Multi Produk --}}
+              <div id="dompet-wrapper" class="w-full max-w-full px-3 md:w-6/12 mt-4 hidden">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dompet Penerimaan</label>
+                <select name="dompet_id" id="dompet_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">-- Pilih Dompet --</option>
+                  @foreach($dompetKas as $item)
+                    <option value="{{ $item->id }}" data-jenis="kas" {{ old('dompet_id') == $item->id ? 'selected' : '' }}>
+                      {{ $item->nama_dompet }} (Kas)
+                    </option>
+                  @endforeach
+                  @foreach($dompetBank as $item)
+                    <option value="{{ $item->id }}" data-jenis="bank" {{ old('dompet_id') == $item->id ? 'selected' : '' }}>
+                      {{ $item->nama_dompet }} (Bank/QRIS)
+                    </option>
+                  @endforeach
+                </select>
+              </div>
+
               <div class="w-full max-w-full px-3 mt-4">
                 <div class="mb-2 flex items-center justify-between">
                   <label class="mb-0 ml-1 block text-xs font-bold uppercase text-slate-700">Produk & Jumlah</label>
@@ -92,31 +140,27 @@
                 </div>
 
                 <div id="items-container" class="space-y-3"></div>
-                <p class="mt-2 text-xs text-slate-500">Klik tombol + untuk menambah produk lain dalam transaksi yang sama.</p>
+                <p class="mt-2 text-xs text-slate-500">Semua item dalam satu checkout akan diproses atomik bersama stok, pembayaran, ledger, Mutasi Kas, dan Jurnal.</p>
               </div>
 
-              {{-- Total Harga --}}
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4">
+              <div class="w-full max-w-full px-3 md:w-4/12 mt-4">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Total Harga</label>
                 <input type="number" name="total_harga" id="total_harga" readonly value="0"
                   class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-gray-100 px-3 py-2 font-bold text-gray-700 cursor-not-allowed">
               </div>
 
-              {{-- Diskon --}}
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4">
+              <div class="w-full max-w-full px-3 md:w-4/12 mt-4">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Diskon (Rp)</label>
                 <input type="number" name="diskon" id="diskon" oninput="kalkulasiOtomatis()"
                   value="{{ old('diskon', 0) }}" min="0"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
-              {{-- Grand Total --}}
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4">
+              <div class="w-full max-w-full px-3 md:w-4/12 mt-4">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700 text-green-600">Grand Total</label>
                 <input type="number" name="grand_total" id="grand_total" readonly value="0"
                   class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-green-500 bg-green-50 px-3 py-2 font-bold text-green-700 cursor-not-allowed">
               </div>
-
             </div>
 
             <div class="mt-6 flex gap-2">
@@ -125,19 +169,18 @@
                 Simpan Transaksi
               </button>
             </div>
-
           </form>
         </div>
       </div>
     </div>
   </div>
 
-  {{-- CARD 2: TABEL --}}
   <div class="flex flex-wrap -mx-3">
     <div class="flex-none w-full max-w-full px-3">
       <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-          <h6>Riwayat Transaksi Penjualan</h6>
+          <h6>Riwayat Transaksi POS</h6>
+          <p class="text-sm text-slate-400">Hard delete dinonaktifkan; koreksi transaksi keuangan dilakukan melalui alur reversal/adjustment tahap berikutnya.</p>
         </div>
 
         <div class="flex-auto px-0 pt-0 pb-2">
@@ -146,18 +189,28 @@
               <thead class="align-bottom">
                 <tr>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Kode & Tgl</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Karyawan</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Pelanggan</th>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Barang & Qty</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Metode</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Rincian Harga</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Aksi</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Metode/Status</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Total</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Koreksi</th>
                 </tr>
               </thead>
 
               <tbody>
                 @forelse($penjualan as $item)
+                  @php
+                    $pembayaran = $item->pembayaran;
+                    $metode = $pembayaran->metode_pembayaran ?? '-';
+                    $status = $pembayaran->status ?? '-';
+                    $pelanggan = match ($item->tipe_pelanggan) {
+                      'anggota' => ($item->anggota?->nomor_anggota ?? '-') . ' - ' . ($item->anggota?->karyawan?->nama ?? '-'),
+                      'karyawan' => $item->karyawan->nama ?? '-',
+                      'umum' => 'Pelanggan Umum',
+                      default => $item->karyawan->nama ?? 'Tidak Diketahui',
+                    };
+                  @endphp
                   <tr>
-                    {{-- KODE TRANSAKSI --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center px-4 py-2">
                         <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
@@ -166,57 +219,63 @@
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-0 text-sm font-bold text-slate-700">{{ $item->kode_transaksi }}</h6>
                           <p class="mb-0 text-xs leading-tight text-slate-400">
-                            {{ $item->created_at ? $item->created_at->format('d/m/Y H:i') : '-' }}
+                            {{ ($item->tanggal_transaksi ?? $item->created_at)?->format('d/m/Y H:i') ?? '-' }}
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    {{-- KARYAWAN --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <p class="mb-0 px-4 text-sm font-semibold leading-tight text-slate-600">
-                        {{ $item->karyawan->nama ?? 'Tidak Diketahui' }}
-                      </p>
+                      <p class="mb-0 px-4 text-sm font-semibold leading-tight text-slate-600">{{ $pelanggan }}</p>
+                      <p class="mb-0 px-4 text-xs leading-tight text-slate-400">{{ ucfirst($item->tipe_pelanggan ?? 'legacy') }}</p>
                     </td>
 
-                    {{-- PRODUK & JUMLAH --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="px-4">
                         @foreach($item->details as $detail)
                           <p class="mb-0 text-sm font-semibold text-blue-600">
-                            {{ $detail->produk->nama_produk ?? 'Produk Dihapus' }} 
+                            {{ $detail->produk->nama_produk ?? 'Produk Dihapus' }}
                             <span class="text-slate-500">x {{ $detail->qty }}</span>
                           </p>
                         @endforeach
                       </div>
                     </td>
 
-                    {{-- METODE --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent text-center">
-                      @php $metode = $item->pembayaran->metode_pembayaran ?? 'tunai'; @endphp
                       <span class="inline-block rounded-full {{ $metode === 'potong_gaji' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700' }} px-3 py-1 text-xs font-bold">
-                        {{ $metode === 'potong_gaji' ? 'Potong Gaji' : 'Tunai' }}
+                        {{ str_replace('_', ' ', strtoupper($metode)) }}
                       </span>
+                      <p class="mt-1 mb-0 text-xs text-slate-400">{{ str_replace('_', ' ', $status) }}</p>
                     </td>
 
-                    {{-- RINCIAN HARGA --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent text-center">
                       <p class="mb-0 text-xs text-slate-500">Harga: Rp {{ number_format($item->total_harga, 0, ',', '.') }}</p>
                       <p class="mb-0 text-xs text-red-500">Diskon: Rp {{ number_format($item->diskon, 0, ',', '.') }}</p>
                       <p class="mb-0 text-sm font-bold text-green-600 mt-1">Total: Rp {{ number_format($item->grand_total, 0, ',', '.') }}</p>
                     </td>
 
-                    {{-- AKSI --}}
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <form method="POST" action="{{ route('penjualan.destroy', $item->id) }}"
-                            onsubmit="return confirm('Hapus transaksi ini? Stok akan dikembalikan.')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit"
-                          class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                          Batalkan
-                        </button>
-                      </form>
+                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
+                      @if(! in_array($item->status ?? 'completed', ['cancelled','reversed','refunded'], true) && in_array($status, ['pending_payroll','paid'], true))
+                        <form method="POST" action="{{ route('penjualan.reversal', $item) }}" class="space-y-2">
+                          @csrf
+                          <textarea name="alasan" rows="2" required minlength="5" placeholder="Alasan reversal/refund penuh"
+                            class="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs"></textarea>
+
+                          @if($metode !== 'potong_gaji' || ($metode === 'potong_gaji' && $status === 'paid' && !($item->anggota?->status === 'aktif' && $item->anggota?->karyawan?->status_kerja === 'aktif')))
+                            <select name="dompet_refund_id" class="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                              @foreach(($metode === 'tunai' ? $dompetKas : $dompetBank) as $dompet)
+                                <option value="{{ $dompet->id }}" @selected($pembayaran?->dompet_id === $dompet->id)>{{ $dompet->nama_dompet }}</option>
+                              @endforeach
+                            </select>
+                          @endif
+
+                          <button class="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold uppercase text-white">
+                            Reversal Penuh
+                          </button>
+                        </form>
+                      @else
+                        <span class="text-xs text-slate-400">Tidak eligible</span>
+                      @endif
                     </td>
                   </tr>
                 @empty
@@ -239,50 +298,9 @@
 
 </div>
 
-{{-- SCRIPT JAVASCRIPT --}}
 <script>
   const produkData = @json($produkOptions);
   const oldItems = @json(old('items', []));
-
-  function syncPaymentOptions() {
-    const karyawanSelect = document.getElementById('karyawan_id');
-    const metodeSelect = document.getElementById('metode_pembayaran');
-    const hint = document.getElementById('metode_hint');
-
-    if (!karyawanSelect || !metodeSelect || !hint) return;
-
-    const opt = karyawanSelect.options[karyawanSelect.selectedIndex];
-    const isAnggota = opt ? opt.getAttribute('data-is-anggota') === '1' : false;
-    const sisaLimit = opt ? Number(opt.getAttribute('data-sisa-limit') || 0) : 0;
-
-    const potongOpt = [...metodeSelect.options].find(o => o.value === 'potong_gaji');
-    if (potongOpt) {
-      potongOpt.disabled = !isAnggota;
-    }
-
-    if (!isAnggota && metodeSelect.value === 'potong_gaji') {
-      metodeSelect.value = 'tunai';
-    }
-
-    if (!opt || !karyawanSelect.value) {
-      hint.textContent = '';
-      return;
-    }
-
-    if (!isAnggota) {
-      hint.textContent = 'Non-anggota: pembayaran wajib Tunai (Cash).';
-      return;
-    }
-
-    if (metodeSelect.value === 'potong_gaji') {
-      hint.textContent = sisaLimit > 0
-        ? `Anggota: Potong Gaji dipilih. Sisa limit bulan ini: Rp ${sisaLimit.toLocaleString('id-ID')}.`
-        : 'Anggota: Sisa limit Potong Gaji bulan ini 0. Gunakan Tunai.';
-      return;
-    }
-
-    hint.textContent = 'Anggota: Tunai dipilih (tidak memotong limit).';
-  }
 
   function toggleForm() {
     const formContainer = document.getElementById('form-container');
@@ -299,13 +317,53 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const karyawanSelect = document.getElementById('karyawan_id');
-    const metodeSelect = document.getElementById('metode_pembayaran');
-    if (karyawanSelect) karyawanSelect.addEventListener('change', syncPaymentOptions);
-    if (metodeSelect) metodeSelect.addEventListener('change', syncPaymentOptions);
-    syncPaymentOptions();
-  });
+  function syncCustomerPayment() {
+    const tipe = document.getElementById('tipe_pelanggan').value;
+    const metode = document.getElementById('metode_pembayaran');
+    const anggotaWrapper = document.getElementById('anggota-wrapper');
+    const karyawanWrapper = document.getElementById('karyawan-wrapper');
+    const dompetWrapper = document.getElementById('dompet-wrapper');
+    const hint = document.getElementById('metode_hint');
+
+    anggotaWrapper.classList.toggle('hidden', tipe !== 'anggota');
+    karyawanWrapper.classList.toggle('hidden', tipe !== 'karyawan');
+
+    const potongOption = [...metode.options].find((option) => option.value === 'potong_gaji');
+    const nonPayrollOptions = [...metode.options].filter((option) => option.value !== 'potong_gaji');
+
+    if (tipe === 'anggota') {
+      metode.value = 'potong_gaji';
+      potongOption.disabled = false;
+      nonPayrollOptions.forEach((option) => option.disabled = true);
+      hint.textContent = 'Anggota aktif memakai limit Potong Gaji bulanan. Jika limit belum dibuat atau tidak cukup, transaksi ditolak seluruhnya.';
+    } else {
+      if (metode.value === 'potong_gaji') metode.value = 'tunai';
+      potongOption.disabled = true;
+      nonPayrollOptions.forEach((option) => option.disabled = false);
+      hint.textContent = tipe === 'karyawan'
+        ? 'Karyawan nonanggota tidak memakai limit Potong Gaji.'
+        : 'Pelanggan umum tidak terhubung ke Karyawan/Anggota.';
+    }
+
+    dompetWrapper.classList.toggle('hidden', metode.value === 'potong_gaji');
+    syncDompetOptions();
+  }
+
+  function syncDompetOptions() {
+    const metode = document.getElementById('metode_pembayaran').value;
+    const dompet = document.getElementById('dompet_id');
+    const expected = metode === 'tunai' ? 'kas' : 'bank';
+
+    [...dompet.options].forEach((option) => {
+      if (!option.value) return;
+      option.disabled = option.getAttribute('data-jenis') !== expected;
+    });
+
+    const selected = dompet.options[dompet.selectedIndex];
+    if (selected && selected.value && selected.disabled) {
+      dompet.value = '';
+    }
+  }
 
   function buildProdukOptions(selectedId = '') {
     const options = ['<option value="">-- Pilih Produk --</option>'];
@@ -344,10 +402,8 @@
   function reindexRows() {
     const rows = document.querySelectorAll('#items-container .item-row');
     rows.forEach((row, index) => {
-      const select = row.querySelector('.produk-select');
-      const qty = row.querySelector('.jumlah-input');
-      select.name = `items[${index}][produk_id]`;
-      qty.name = `items[${index}][jumlah]`;
+      row.querySelector('.produk-select').name = `items[${index}][produk_id]`;
+      row.querySelector('.jumlah-input').name = `items[${index}][jumlah]`;
     });
   }
 
@@ -361,9 +417,7 @@
     row.querySelector('.jumlah-input').addEventListener('input', kalkulasiOtomatis);
     row.querySelector('.btn-remove-item').addEventListener('click', function () {
       row.remove();
-      if (container.querySelectorAll('.item-row').length === 0) {
-        addRow();
-      }
+      if (container.querySelectorAll('.item-row').length === 0) addRow();
       reindexRows();
       kalkulasiOtomatis();
     });
@@ -383,25 +437,25 @@
     });
 
     const diskon = parseFloat(document.getElementById('diskon').value) || 0;
-    let grandTotal = totalHarga - diskon;
-    if (grandTotal < 0) grandTotal = 0;
+    const grandTotal = Math.max(0, totalHarga - diskon);
 
     document.getElementById('total_harga').value = totalHarga;
     document.getElementById('grand_total').value = grandTotal;
   }
 
-  document.getElementById('btn-add-item').addEventListener('click', function () {
-    addRow();
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('tipe_pelanggan').addEventListener('change', syncCustomerPayment);
+    document.getElementById('metode_pembayaran').addEventListener('change', syncCustomerPayment);
+    document.getElementById('btn-add-item').addEventListener('click', () => addRow());
+    document.getElementById('diskon').addEventListener('input', kalkulasiOtomatis);
+
+    if (Array.isArray(oldItems) && oldItems.length > 0) {
+      oldItems.forEach((item) => addRow(item.produk_id ?? '', item.jumlah ?? 1));
+    } else {
+      addRow();
+    }
+
+    syncCustomerPayment();
   });
-
-  document.getElementById('diskon').addEventListener('input', kalkulasiOtomatis);
-
-  if (Array.isArray(oldItems) && oldItems.length > 0) {
-    oldItems.forEach((item) => {
-      addRow(item.produk_id ?? '', item.jumlah ?? 1);
-    });
-  } else {
-    addRow();
-  }
 </script>
 @endsection

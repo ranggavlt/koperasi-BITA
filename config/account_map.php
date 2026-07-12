@@ -76,6 +76,13 @@ return [
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Kewajiban kepada pemasok selain reseller konsinyasi.',
         ],
+        'utang_refund_anggota' => [
+            'kode_akun' => '205',
+            'nama_akun' => 'Utang Refund/Kredit Anggota',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Kewajiban koperasi kepada anggota akibat refund atau koreksi yang dikompensasikan ke payroll berikutnya.',
+        ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
             'nama_akun' => 'Simpanan Anggota Belum Terklasifikasi',
@@ -210,6 +217,13 @@ return [
         'konsinyasi' => [
             'utang_reseller' => 'utang_reseller_konsinyasi',
             'kas' => 'kas',
+        ],
+        'refund' => [
+            'utang_anggota' => 'utang_refund_anggota',
+            'piutang_potong_gaji' => 'piutang_anggota',
+            'piutang_pinjaman' => 'piutang_pinjaman',
+            'pendapatan_penjualan' => 'pendapatan_penjualan',
+            'utang_konsinyasi' => 'utang_reseller_konsinyasi',
         ],
     ],
 ];

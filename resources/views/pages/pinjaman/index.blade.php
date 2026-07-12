@@ -24,9 +24,9 @@
       <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
           <div>
-            <h6>Tambah Transaksi Pinjaman Karyawan</h6>
+            <h6>Tambah Pinjaman Anggota</h6>
             <p class="text-sm text-slate-400">
-              Catat pinjaman karyawan anggota koperasi pada halaman yang sama
+              Catat pinjaman yang sudah disetujui dan langsung dicairkan dari Dompet Koperasi
             </p>
           </div>
 
@@ -43,66 +43,75 @@
             <div class="flex flex-wrap -mx-3">
               <div class="w-full max-w-full px-3 md:w-6/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Karyawan
+                  Anggota Aktif
                 </label>
-                <select name="karyawan_id"
+                <select name="anggota_id" id="anggota_id"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Karyawan --</option>
-                  @foreach($karyawan as $item)
-                    <option value="{{ $item->id }}" {{ old('karyawan_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama }}
+                  <option value="">-- Pilih Anggota --</option>
+                  @foreach($anggota as $item)
+                    <option value="{{ $item->id }}"
+                      data-plafon="{{ (int) $item->plafon_pinjaman }}"
+                      {{ old('anggota_id') == $item->id ? 'selected' : '' }}>
+                      {{ $item->nomor_anggota }} - {{ $item->karyawan->nama ?? '-' }} | Plafon Rp {{ number_format($item->plafon_pinjaman, 0, ',', '.') }}
                     </option>
                   @endforeach
                 </select>
+                <p class="mt-1 text-xs text-slate-400">Yang tampil hanya Anggota aktif, Karyawan aktif, dan belum punya Pinjaman aktif.</p>
               </div>
 
               <div class="w-full max-w-full px-3 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Tanggal Pinjaman
+                  Tanggal Pencairan
                 </label>
                 <input type="date" name="tanggal_pinjaman"
-                  value="{{ old('tanggal_pinjaman', now()->format('Y-m-d')) }}"
+                  value="{{ old('tanggal_pinjaman', now(config('app.timezone'))->format('Y-m-d')) }}"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
               <div class="w-full max-w-full px-3 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Status
+                  Bunga
                 </label>
-                <input type="text"
-                  value="Aktif"
+                <input type="text" value="0%"
                   class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-200 bg-gray-100 px-3 py-2 text-gray-500"
                   readonly>
+                <input type="hidden" name="bunga_persen" value="0">
+              </div>
+
+              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Dompet Sumber Dana
+                </label>
+                <select name="dompet_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">-- Pilih Dompet --</option>
+                  @foreach($dompet as $item)
+                    <option value="{{ $item->id }}" {{ old('dompet_id') == $item->id ? 'selected' : '' }}>
+                      {{ $item->nama_dompet }} | Saldo Rp {{ number_format($item->saldo, 0, ',', '.') }} | {{ $item->akun ? $item->akun->kode_akun : 'COA belum dipetakan' }}
+                    </option>
+                  @endforeach
+                </select>
               </div>
 
               <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Jumlah Pinjaman
                 </label>
-                <input type="number" name="jumlah_pinjaman" min="0" step="0.01"
+                <input type="number" name="jumlah_pinjaman" min="1" max="5000000" step="1"
                   value="{{ old('jumlah_pinjaman') }}"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="0">
+                  placeholder="Maksimal 5000000">
+                <p class="mt-1 text-xs text-slate-400">Maksimal sistem Rp5.000.000 dan tetap dibatasi plafon Anggota.</p>
               </div>
 
               <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Bunga (%)
+                  Tenor
                 </label>
-                <input type="number" name="bunga_persen" min="0" step="0.01"
-                  value="{{ old('bunga_persen', 0) }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="0">
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Tenor (Bulan)
-                </label>
-                <input type="number" name="tenor_bulan" min="1"
+                <input type="number" name="tenor_bulan" min="1" max="12" step="1"
                   value="{{ old('tenor_bulan') }}"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="12">
+                  placeholder="1-12 bulan">
               </div>
 
               <div class="w-full max-w-full px-3 mt-4">
@@ -111,14 +120,14 @@
                 </label>
                 <textarea name="keterangan" rows="3"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="Tambahkan keterangan bila diperlukan">{{ old('keterangan') }}</textarea>
+                  placeholder="Tambahkan catatan persetujuan di luar aplikasi bila diperlukan">{{ old('keterangan') }}</textarea>
               </div>
             </div>
 
             <div class="mt-6 flex gap-2">
               <button type="submit"
-                class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
-                Simpan Pinjaman
+                class="inline-block rounded-lg bg-gradient-to-tl from-emerald-700 to-teal-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                Cairkan Pinjaman
               </button>
             </div>
           </form>
@@ -132,7 +141,7 @@
       <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
         <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
           <h6>Data Pinjaman</h6>
-          <p class="text-sm text-slate-400">Daftar transaksi pinjaman karyawan anggota koperasi</p>
+          <p class="text-sm text-slate-400">Pinjaman aktif langsung memiliki jadwal cicilan otomatis</p>
         </div>
 
         <div class="flex-auto px-0 pt-0 pb-2">
@@ -140,15 +149,15 @@
             <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
               <thead class="align-bottom">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Karyawan</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Kode & Anggota</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Tanggal</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jumlah</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Bunga</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Dompet</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Pokok</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Plafon Snapshot</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Tenor</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Sisa Pinjaman</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Sisa</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Keterangan</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Detail</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,14 +165,14 @@
                   <tr>
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center px-4 py-2">
-                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
+                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-emerald-700 to-teal-500 text-xs font-bold text-white">
                           {{ $pinjaman->firstItem() + $loop->index }}
                         </div>
 
                         <div class="flex flex-col justify-center">
-                          <h6 class="mb-0 text-sm leading-normal">{{ $item->karyawan->nama ?? '-' }}</h6>
+                          <h6 class="mb-0 text-sm leading-normal">{{ $item->kode_pinjaman ?? 'PJM-' . $item->id }}</h6>
                           <p class="mb-0 text-xs leading-tight text-slate-400">
-                            Dibuat: {{ $item->created_at ? $item->created_at->format('d/m/Y') : '-' }}
+                            {{ $item->anggota->nomor_anggota ?? '-' }} - {{ $item->anggota->karyawan->nama ?? $item->karyawan->nama ?? '-' }}
                           </p>
                         </div>
                       </div>
@@ -171,64 +180,31 @@
 
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <span class="text-xs font-semibold leading-tight text-slate-400">
-                        {{ \Carbon\Carbon::parse($item->tanggal_pinjaman)->format('d/m/Y') }}
+                        {{ $item->tanggal_pinjaman ? $item->tanggal_pinjaman->format('d/m/Y') : '-' }}
                       </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">
-                        Rp {{ number_format($item->jumlah_pinjaman, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 bg-gradient-to-tl from-blue-600 to-cyan-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        {{ number_format($item->bunga_persen ?? 0, 2, ',', '.') }}%
-                      </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 bg-gradient-to-tl from-green-600 to-lime-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        {{ $item->tenor_bulan }} Bulan
-                      </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">
-                        Rp {{ number_format($item->sisa_pinjaman, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      @if($item->status === 'aktif')
-                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-yellow-500 to-orange-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                          Aktif
-                        </span>
-                      @else
-                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-slate-600 to-slate-300 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                          Lunas
-                        </span>
-                      @endif
                     </td>
 
                     <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
-                      <p class="mb-0 text-xs font-semibold leading-tight text-slate-500">
-                        {{ $item->keterangan ?: '-' }}
-                      </p>
+                      <p class="mb-0 text-xs font-bold text-slate-600">{{ $item->dompet->nama_dompet ?? '-' }}</p>
+                      <p class="mb-0 text-xs text-slate-400">{{ $item->dompet?->akun?->kode_akun ?? '-' }}</p>
+                    </td>
+
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">Rp {{ number_format($item->jumlah_pinjaman, 0, ',', '.') }}</td>
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">Rp {{ number_format($item->plafon_pinjaman_snapshot ?? 0, 0, ',', '.') }}</td>
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">{{ $item->tenor_bulan }} bulan</td>
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">Rp {{ number_format($item->sisa_pinjaman, 0, ',', '.') }}</td>
+
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <span class="inline-block rounded-1.8 {{ $item->status === 'aktif' ? 'bg-gradient-to-tl from-yellow-500 to-orange-400' : 'bg-gradient-to-tl from-slate-600 to-slate-300' }} px-2.5 py-1.4 text-xs font-bold uppercase text-white">
+                        {{ $item->status === 'aktif' ? 'Aktif' : 'Lunas' }}
+                      </span>
                     </td>
 
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center justify-center gap-2 px-4">
-                        <form action="{{ route('pinjaman.destroy', $item->id) }}" method="POST"
-                              onsubmit="return confirm('Yakin ingin menghapus data ini?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                            Hapus
-                          </button>
-                        </form>
-                      </div>
+                      <a href="{{ route('pinjaman.show', $item) }}"
+                        class="inline-block rounded-lg bg-gradient-to-tl from-slate-700 to-slate-500 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                        Jadwal
+                      </a>
                     </td>
                   </tr>
                 @empty
@@ -249,7 +225,6 @@
       </div>
     </div>
   </div>
-
 </div>
 
 <script>

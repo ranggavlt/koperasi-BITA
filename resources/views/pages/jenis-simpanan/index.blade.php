@@ -46,7 +46,7 @@
             @endif
 
             <div class="flex flex-wrap -mx-3">
-              <div class="w-full max-w-full px-3 md:w-6/12">
+              <div class="w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Nama Jenis Simpanan
                 </label>
@@ -56,7 +56,18 @@
                   placeholder="Masukkan nama jenis simpanan">
               </div>
 
-              <div class="w-full max-w-full px-3 md:w-6/12">
+              <div class="w-full max-w-full px-3 md:w-4/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Kode Stabil
+                </label>
+                <input type="text" name="kode"
+                  value="{{ old('kode', $data->kode ?? '') }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="Contoh: SIMPANAN_POKOK">
+                <p class="mt-1 text-xs text-slate-400">Kosongkan untuk dibuat dari nama. Jangan ubah kode yang sudah dipakai transaksi.</p>
+              </div>
+
+              <div class="w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Status Simpanan
                 </label>
@@ -67,6 +78,20 @@
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
                   <option value="0" {{ (string) $wajibVal === '0' ? 'selected' : '' }}>Sukarela</option>
                   <option value="1" {{ (string) $wajibVal === '1' ? 'selected' : '' }}>Wajib</option>
+                </select>
+              </div>
+
+              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Status Aktif
+                </label>
+                @php
+                  $aktifVal = old('aktif', isset($data) ? (int) $data->aktif : 1);
+                @endphp
+                <select name="aktif"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="1" {{ (string) $aktifVal === '1' ? 'selected' : '' }}>Aktif</option>
+                  <option value="0" {{ (string) $aktifVal === '0' ? 'selected' : '' }}>Nonaktif</option>
                 </select>
               </div>
 
@@ -157,8 +182,9 @@
 
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-0 text-sm leading-normal">{{ $item->nama_jenis }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">
-                            Dibuat: {{ $item->created_at ? $item->created_at->format('d/m/Y') : '-' }}
+                          <p class="mb-0 text-xs leading-tight text-slate-400">{{ $item->kode ?: '-' }}</p>
+                          <p class="mb-0 text-xs leading-tight {{ $item->aktif ? 'text-green-500' : 'text-red-500' }}">
+                            {{ $item->aktif ? 'Aktif' : 'Nonaktif' }}
                           </p>
                         </div>
                       </div>

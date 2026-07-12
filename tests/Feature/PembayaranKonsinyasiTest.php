@@ -10,6 +10,7 @@ use App\Models\PembayaranKonsinyasi;
 use App\Models\Penjualan;
 use App\Models\Produk;
 use App\Models\Reseller;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,7 @@ class PembayaranKonsinyasiTest extends TestCase
 
     public function test_pembayaran_konsinyasi_page_can_be_rendered(): void
     {
+        $this->actingAs(User::factory()->create(['role' => 'kasir']));
         $this->seedMinimalKonsinyasiData();
 
         $this->get(route('pembayaran-konsinyasi.index'))
@@ -28,6 +30,7 @@ class PembayaranKonsinyasiTest extends TestCase
 
     public function test_pembayaran_konsinyasi_creates_cash_outflow_and_marks_debt_as_paid(): void
     {
+        $this->actingAs(User::factory()->create(['role' => 'kasir']));
         $data = $this->seedMinimalKonsinyasiData();
 
         $response = $this->post(route('pembayaran-konsinyasi.store'), [

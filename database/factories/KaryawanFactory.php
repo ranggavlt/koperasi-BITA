@@ -17,7 +17,12 @@ class KaryawanFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'nama' => fake()->name(),
+            'email' => fake()->unique()->safeEmail(),
+            'telepon' => fake()->numerify('08##########'),
+            'jabatan' => fake()->randomElement(['Staf Administrasi', 'Staf Gudang', 'Kasir Toko']),
+            'status_kerja' => 'aktif',
+            'tanggal_berhenti' => null,
         ];
     }
 }

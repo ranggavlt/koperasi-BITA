@@ -6,8 +6,11 @@ use App\Models\Akun;
 use App\Models\CicilanPinjaman;
 use App\Models\JurnalUmum;
 use App\Models\PembayaranKonsinyasi;
+use App\Models\PembayaranOutstandingCash;
+use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
+use App\Models\ReversalTransaksi;
 use App\Models\Simpanan;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -109,6 +112,141 @@ class AkuntansiService
         ], $lines);
     }
 
+    public function recordPenjualanPos(Penjualan $penjualan, Pembayaran $pembayaran, ?Akun $akunDompet = null, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'pos:penjualan:jurnal:' . $penjualan->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $tanggal = optional($penjualan->tanggal_transaksi)->toDateString()
+            ?? optional($penjualan->created_at)->toDateString()
+            ?? now()->toDateString();
+
+        $totalSetorKonsinyasi = (float) $penjualan->details()
+            ->where('konsinyasi', true)
+            ->sum('subtotal_setor');
+
+        $grandTotal = (float) ($penjualan->grand_total ?? 0);
+        $pendapatan = max(0, $grandTotal - $totalSetorKonsinyasi);
+
+        if ($pembayaran->metode_pembayaran === Pembayaran::METODE_POTONG_GAJI) {
+            $akunDebit = $this->akunResolver->posting('penjualan.piutang_potong_gaji');
+        } else {
+            if (! $akunDompet || ! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+                throw new RuntimeException('Akun Dompet pembayaran POS harus aktif, kategori Aset, dan saldo normal Debit.');
+            }
+
+            $akunDebit = $akunDompet;
+        }
+
+        $lines = [
+            $this->akunResolver->line($akunDebit, 'debit', $grandTotal),
+        ];
+
+        if ($totalSetorKonsinyasi > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.utang_konsinyasi'),
+                'kredit',
+                $totalSetorKonsinyasi
+            );
+        }
+
+        if ($pendapatan > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.pendapatan'),
+                'kredit',
+                $pendapatan
+            );
+        }
+
+        return $this->record([
+            'idempotency_key' => 'pos:penjualan:jurnal:' . $penjualan->id,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => $penjualan->kode_transaksi,
+            'keterangan' => 'Penjualan ' . $penjualan->kode_transaksi . ' (' . $pembayaran->metode_pembayaran . ')',
+            'referensi_tipe' => Penjualan::class,
+            'referensi_id' => $penjualan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordSimpananPokokPayroll(Simpanan $simpanan, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'simpanan-pokok:pengakuan:jurnal:' . $simpanan->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Pokok harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'simpanan-pokok:pengakuan:jurnal:' . $simpanan->id,
+            'tanggal' => (string) ($simpanan->tanggal ?? now()->toDateString()),
+            'nomor_bukti' => 'SMP-' . $simpanan->id,
+            'keterangan' => 'Pengakuan piutang Simpanan Pokok Anggota',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.piutang_potong_gaji'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $akunSimpanan,
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordPenerimaanPayrollPotongGaji(string $idempotencyKey, string $nomorBukti, string $tanggal, float|int $jumlah, Akun $akunBank, string $referensiTipe, int $referensiId, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunBank->is_aktif || $akunBank->kategori !== 'aset' || $akunBank->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Bank payroll harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => $nomorBukti,
+            'keterangan' => 'Penerimaan payroll potong gaji ' . $nomorBukti,
+            'referensi_tipe' => $referensiTipe,
+            'referensi_id' => $referensiId,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunBank, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.piutang_potong_gaji'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
     public function recordSimpanan(Simpanan $simpanan): void
     {
         if (JurnalUmum::query()
@@ -187,6 +325,37 @@ class AkuntansiService
         ]);
     }
 
+    public function recordPencairanPinjaman(Pinjaman $pinjaman, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        $jumlah = (float) ($pinjaman->jumlah_pinjaman ?? 0);
+        $tanggal = (string) ($pinjaman->tanggal_pinjaman ?? now()->toDateString());
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pencairan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        return $this->record([
+            'idempotency_key' => 'pinjaman:pencairan:jurnal:' . $pinjaman->id,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => $pinjaman->kode_pinjaman,
+            'keterangan' => 'Pencairan pinjaman ' . $pinjaman->kode_pinjaman,
+            'referensi_tipe' => Pinjaman::class,
+            'referensi_id' => $pinjaman->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.piutang'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $akunDompet,
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
     public function recordCicilan(CicilanPinjaman $cicilan): void
     {
         if (JurnalUmum::query()
@@ -214,6 +383,292 @@ class AkuntansiService
             ),
             $this->akunResolver->line(
                 $this->akunResolver->posting('pinjaman.piutang'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordPembayaranCicilan(CicilanPinjaman $cicilan, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        $jumlah = (float) ($cicilan->jumlah_cicilan ?? 0);
+        $tanggal = (string) ($cicilan->tanggal_bayar ?? now()->toDateString());
+        $cicilan->loadMissing('pinjaman', 'jadwal');
+        $pinjaman = $cicilan->pinjaman;
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet penerimaan cicilan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'cicilan:pembayaran:jurnal:' . $cicilan->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return $this->record([
+            'idempotency_key' => 'cicilan:pembayaran:jurnal:' . $cicilan->id,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => 'CIC-' . $cicilan->id,
+            'keterangan' => 'Pembayaran cicilan ' . ($pinjaman?->kode_pinjaman ?? ('Pinjaman #' . $cicilan->pinjaman_id)) . ' periode ' . $cicilan->periode,
+            'referensi_tipe' => CicilanPinjaman::class,
+            'referensi_id' => $cicilan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $akunDompet,
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.piutang'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordPenerimaanPayrollPotongGajiNet(
+        string $idempotencyKey,
+        string $nomorBukti,
+        string $tanggal,
+        float|int $gross,
+        float|int $creditApplied,
+        Akun $akunBank,
+        string $referensiTipe,
+        int $referensiId,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunBank->is_aktif || $akunBank->kategori !== 'aset' || $akunBank->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Bank payroll harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $gross = round((float) $gross, 2);
+        $creditApplied = round((float) $creditApplied, 2);
+        $net = round($gross - $creditApplied, 2);
+
+        if ($gross <= 0 || $creditApplied < 0 || $net < 0) {
+            throw new RuntimeException('Nominal payroll net tidak valid.');
+        }
+
+        $lines = [];
+
+        if ($net > 0) {
+            $lines[] = $this->akunResolver->line($akunBank, 'debit', $net);
+        }
+
+        if ($creditApplied > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('refund.utang_anggota'),
+                'debit',
+                $creditApplied
+            );
+        }
+
+        $lines[] = $this->akunResolver->line(
+            $this->akunResolver->posting('refund.piutang_potong_gaji'),
+            'kredit',
+            $gross
+        );
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => $nomorBukti,
+            'keterangan' => 'Penerimaan payroll potong gaji net ' . $nomorBukti,
+            'referensi_tipe' => $referensiTipe,
+            'referensi_id' => $referensiId,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordPembayaranCicilanPayrollNet(CicilanPinjaman $cicilan, Akun $akunBank, float|int $creditApplied, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'cicilan:pembayaran:jurnal:' . $cicilan->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunBank->is_aktif || $akunBank->kategori !== 'aset' || $akunBank->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Bank payroll harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $gross = round((float) ($cicilan->jumlah_cicilan ?? 0), 2);
+        $creditApplied = round((float) $creditApplied, 2);
+        $net = round($gross - $creditApplied, 2);
+
+        if ($gross <= 0 || $creditApplied < 0 || $net < 0) {
+            throw new RuntimeException('Nominal pembayaran cicilan payroll net tidak valid.');
+        }
+
+        $lines = [];
+
+        if ($net > 0) {
+            $lines[] = $this->akunResolver->line($akunBank, 'debit', $net);
+        }
+
+        if ($creditApplied > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('refund.utang_anggota'),
+                'debit',
+                $creditApplied
+            );
+        }
+
+        $lines[] = $this->akunResolver->line(
+            $this->akunResolver->posting('refund.piutang_pinjaman'),
+            'kredit',
+            $gross
+        );
+
+        $tanggal = (string) ($cicilan->tanggal_bayar ?? now()->toDateString());
+        $cicilan->loadMissing('pinjaman');
+
+        return $this->record([
+            'idempotency_key' => 'cicilan:pembayaran:jurnal:' . $cicilan->id,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => 'CIC-' . $cicilan->id,
+            'keterangan' => 'Pembayaran cicilan payroll net ' . ($cicilan->pinjaman?->kode_pinjaman ?? ('Pinjaman #' . $cicilan->pinjaman_id)) . ' periode ' . $cicilan->periode,
+            'referensi_tipe' => CicilanPinjaman::class,
+            'referensi_id' => $cicilan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordPosReversal(ReversalTransaksi $reversal, Penjualan $penjualan, string $creditTarget, ?Akun $akunDompet = null, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $grandTotal = round((float) ($penjualan->grand_total ?? 0), 2);
+        if ($grandTotal <= 0) {
+            throw new RuntimeException('Nominal reversal POS harus lebih besar dari nol.');
+        }
+
+        $creditAkun = match ($creditTarget) {
+            'piutang_potong_gaji' => $this->akunResolver->posting('refund.piutang_potong_gaji'),
+            'utang_refund_anggota' => $this->akunResolver->posting('refund.utang_anggota'),
+            'dompet' => $akunDompet,
+            default => throw new RuntimeException('Target kredit reversal POS tidak valid.'),
+        };
+
+        if (! $creditAkun || ! $creditAkun->is_aktif || $creditAkun->posisi_saldo !== 'debit' && $creditTarget === 'dompet') {
+            throw new RuntimeException('Akun Dompet refund POS harus aktif.');
+        }
+
+        if ($creditTarget === 'dompet' && ($creditAkun->kategori !== 'aset' || $creditAkun->posisi_saldo !== 'debit')) {
+            throw new RuntimeException('Akun Dompet refund POS harus kategori Aset dan saldo normal Debit.');
+        }
+
+        $lines = $this->posReversalDebitLines($penjualan);
+        $lines[] = $this->akunResolver->line($creditAkun, 'kredit', $grandTotal);
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Reversal POS ' . $penjualan->kode_transaksi . ': ' . $reversal->alasan,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordSimpananPokokReversal(Simpanan $simpanan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true)) {
+            throw new RuntimeException('Akun Simpanan Pokok tidak valid untuk reversal.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Reversal Simpanan Pokok #' . $simpanan->id,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('refund.piutang_potong_gaji'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordCicilanReversalToCredit(CicilanPinjaman $cicilan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
+    {
+        return $this->recordCicilanReversal($cicilan, $reversal, $this->akunResolver->posting('refund.utang_anggota'), $userId);
+    }
+
+    public function recordCicilanReversalCash(CicilanPinjaman $cicilan, ReversalTransaksi $reversal, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet reversal cicilan tunai harus kategori Aset aktif.');
+        }
+
+        return $this->recordCicilanReversal($cicilan, $reversal, $akunDompet, $userId);
+    }
+
+    public function recordOutstandingCashReceipt(PembayaranOutstandingCash $payment, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'outstanding-cash:jurnal:' . $payment->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pembayaran outstanding harus kategori Aset aktif.');
+        }
+
+        $jumlah = (float) $payment->nominal;
+
+        return $this->record([
+            'idempotency_key' => 'outstanding-cash:jurnal:' . $payment->id,
+            'tanggal' => $payment->paid_at?->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $payment->kode_pembayaran,
+            'keterangan' => 'Penerimaan outstanding cash ' . $payment->kode_pembayaran,
+            'referensi_tipe' => PembayaranOutstandingCash::class,
+            'referensi_id' => $payment->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('refund.piutang_potong_gaji'),
                 'kredit',
                 $jumlah
             ),
@@ -251,6 +706,68 @@ class AkuntansiService
                 $jumlah
             ),
         ]);
+    }
+
+    private function recordCicilanReversal(CicilanPinjaman $cicilan, ReversalTransaksi $reversal, Akun $creditAkun, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $jumlah = (float) ($cicilan->jumlah_cicilan ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Reversal pembayaran cicilan #' . $cicilan->id,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('refund.piutang_pinjaman'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line($creditAkun, 'kredit', $jumlah),
+        ]);
+    }
+
+    /**
+     * @return array<int, array{akun_id:int, akun_kode:string, akun_nama:string, debit:float, kredit:float}>
+     */
+    private function posReversalDebitLines(Penjualan $penjualan): array
+    {
+        $totalSetorKonsinyasi = (float) $penjualan->details()
+            ->where('konsinyasi', true)
+            ->sum('subtotal_setor');
+
+        $grandTotal = (float) ($penjualan->grand_total ?? 0);
+        $pendapatan = max(0, $grandTotal - $totalSetorKonsinyasi);
+        $lines = [];
+
+        if ($totalSetorKonsinyasi > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('refund.utang_konsinyasi'),
+                'debit',
+                $totalSetorKonsinyasi
+            );
+        }
+
+        if ($pendapatan > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('refund.pendapatan_penjualan'),
+                'debit',
+                $pendapatan
+            );
+        }
+
+        return $lines;
     }
 
     /**

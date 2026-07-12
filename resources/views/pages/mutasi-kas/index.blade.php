@@ -88,22 +88,7 @@
                 </td>
 
                 <td>
-
-                    <form
-                        action="{{ route('mutasi-kas.destroy',$item->id) }}"
-                        method="POST"
-                        onsubmit="return confirm('Yakin ingin menghapus data ini?')"
-                    >
-
-                        @csrf
-                        @method('DELETE')
-
-                        <x-button variant="delete" size="sm">
-                            Hapus
-                        </x-button>
-
-                    </form>
-
+                    <span class="text-xs text-slate-400">Immutable</span>
                 </td>
 
             </tr>

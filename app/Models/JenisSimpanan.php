@@ -10,14 +10,24 @@ class JenisSimpanan extends Model
 {
     use HasFactory;
 
+    public const KODE_SIMPANAN_POKOK = 'SIMPANAN_POKOK';
+
     protected $table = 'jenis_simpanan';
 
     protected $fillable = [
         'akun_id',
+        'kode',
         'nama_jenis',
         'wajib',
+        'aktif',
         'nominal_default',
         'keterangan'
+    ];
+
+    protected $casts = [
+        'wajib' => 'boolean',
+        'aktif' => 'boolean',
+        'nominal_default' => 'decimal:2',
     ];
 
     protected static function booted(): void
@@ -45,5 +55,15 @@ class JenisSimpanan extends Model
     public function akun()
     {
         return $this->belongsTo(Akun::class, 'akun_id');
+    }
+
+    public function scopeAktif($query)
+    {
+        return $query->where('aktif', true);
+    }
+
+    public function scopeSimpananPokok($query)
+    {
+        return $query->where('kode', self::KODE_SIMPANAN_POKOK);
     }
 }

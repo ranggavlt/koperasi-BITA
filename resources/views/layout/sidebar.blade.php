@@ -197,15 +197,15 @@
       </li>
       @endif
 
-      {{-- ====== MENU SIMPAN PINJAM ====== --}}
+      {{-- ====== MASTER DATA ====== --}}
       @if($role === 'keuangan')
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
-          Simpan Pinjam
+          Master Data
         </h6>
       </li>
 
-      {{-- KARYAWAN / ANGGOTA --}}
+      {{-- KARYAWAN --}}
       @php $active = $is('karyawan.*'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('karyawan.index') }}">
@@ -216,7 +216,21 @@
                 d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
             </svg>
           </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Karyawan / Anggota</span>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Karyawan</span>
+        </a>
+      </li>
+
+      {{-- ANGGOTA --}}
+      @php $active = $is('anggota.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('anggota.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 3v10h12V7H6Zm2 2h4v2H8V9Zm0 4h8v2H8v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Anggota</span>
         </a>
       </li>
 
@@ -269,6 +283,26 @@
             Jenis Pinjaman
           </span>
         </a>
+      </li>
+
+      {{-- CHART OF ACCOUNTS --}}
+      @php $active = $is('akun.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('akun.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h4V7H6Zm6 0v2h6V7h-6Zm-6 4v2h4v-2H6Zm6 0v2h6v-2h-6Zm-6 4v2h4v-2H6Zm6 0v2h6v-2h-6Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Chart of Accounts</span>
+        </a>
+      </li>
+
+      <li class="w-full mt-4">
+        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+          Simpan Pinjam
+        </h6>
       </li>
 
       {{-- DOMPET KOPERASI --}}
@@ -335,6 +369,23 @@
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
             Cicilan Pinjaman
+          </span>
+        </a>
+      </li>
+
+      {{-- PERIODE POTONG GAJI --}}
+      @php $active = $is('periode-potong-gaji.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('periode-potong-gaji.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M7 2h2v2h6V2h2v2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3V2Zm13 8H4v10h16V10ZM6 12h4v4H6v-4Zm6 0h6v2h-6v-2Zm0 3h5v2h-5v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Periode Potong Gaji
           </span>
         </a>
       </li>
@@ -413,23 +464,6 @@
         </h6>
       </li>
 
-      {{-- CHART OF ACCOUNTS --}}
-      @php $active = $is('akun.*'); @endphp
-      <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('akun.index') }}">
-          <div class="{{ $iconWrap($active) }}">
-            <svg width="12px" height="12px" viewBox="0 0 24 24"
-                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
-              <path fill="currentColor"
-                d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h4V7H6Zm6 0v2h6V7h-6Zm-6 4v2h4v-2H6Zm6 0v2h6v-2h-6Zm-6 4v2h4v-2H6Zm6 0v2h6v-2h-6Z"/>
-            </svg>
-          </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-            Chart of Accounts
-          </span>
-        </a>
-      </li>
-
       {{-- JURNAL UMUM PERIODIK --}}
       @php $active = $is('akuntansi.jurnal-umum'); @endphp
       <li class="mt-0.5 w-full">
@@ -477,6 +511,51 @@
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
             Laporan Potong Gaji
+          </span>
+        </a>
+      </li>
+
+      @php $active = $is('rekonsiliasi-potong-gaji.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('rekonsiliasi-potong-gaji.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M4 5h10v2H4V5Zm0 4h16v2H4V9Zm0 4h10v2H4v-2Zm0 4h16v2H4v-2Zm14-13 4 4-1.4 1.4L18 6.8l-4.6 4.6L12 10l6-6Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Rekonsiliasi Payroll
+          </span>
+        </a>
+      </li>
+
+      @php $active = $is('outstanding-cash.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('outstanding-cash.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm1 5h-2v6h6v-2h-4V7Zm-7 9h12v2H6v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Outstanding Cash
+          </span>
+        </a>
+      </li>
+
+      @php $active = $is('reversal-transaksi.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('reversal-transaksi.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M12 4V1L7 6l5 5V8a6 6 0 1 1-5.2 3H4.6A8 8 0 1 0 12 4Zm-1 6h2v5h-2v-5Zm0 6h2v2h-2v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Audit Reversal
           </span>
         </a>
       </li>

@@ -8,6 +8,7 @@ use App\Models\JurnalUmum;
 use App\Models\Karyawan;
 use App\Models\Simpanan;
 use App\Services\AkuntansiService;
+use App\Services\MasterDataKoperasiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
 use Tests\TestCase;
@@ -20,34 +21,21 @@ class AkuntansiServiceTest extends TestCase
     {
         $karyawan = Karyawan::query()->create([
             'nama' => 'Anggota Uji',
-            'is_anggota' => true,
         ]);
+        $this->daftarkanAnggota($karyawan);
 
-        $jenis = JenisSimpanan::query()->create([
-            'akun_id' => Akun::query()->where('kode_akun', '301')->value('id'),
-            'nama_jenis' => 'Simpanan Pokok',
-            'wajib' => true,
-            'nominal_default' => 100000,
-        ]);
-
-        $simpanan = Simpanan::query()->create([
-            'karyawan_id' => $karyawan->id,
-            'jenis_simpanan_id' => $jenis->id,
-            'jumlah' => 100000,
-            'tanggal' => '2026-07-10',
-        ]);
-
-        app(AkuntansiService::class)->recordSimpanan($simpanan);
-
-        $jurnal = JurnalUmum::query()->with('details.akun')->firstOrFail();
-        $kas = $jurnal->details->firstWhere('akun_kode', '101');
+        $jurnal = JurnalUmum::query()
+            ->where('idempotency_key', 'like', 'simpanan-pokok:pengakuan:jurnal:%')
+            ->with('details.akun')
+            ->firstOrFail();
+        $piutangPotongGaji = $jurnal->details->firstWhere('akun_kode', '103');
         $simpananPokok = $jurnal->details->firstWhere('akun_kode', '301');
 
-        $this->assertNotNull($kas);
+        $this->assertNotNull($piutangPotongGaji);
         $this->assertNotNull($simpananPokok);
-        $this->assertSame('100000.00', $kas->debit);
+        $this->assertSame('100000.00', $piutangPotongGaji->debit);
         $this->assertSame('100000.00', $simpananPokok->kredit);
-        $this->assertSame($kas->akun_id, $kas->akun->id);
+        $this->assertSame($piutangPotongGaji->akun_id, $piutangPotongGaji->akun->id);
         $this->assertSame($simpananPokok->akun_id, $simpananPokok->akun->id);
         $this->assertEquals(
             (float) $jurnal->details->sum('debit'),
@@ -59,8 +47,8 @@ class AkuntansiServiceTest extends TestCase
     {
         $karyawan = Karyawan::query()->create([
             'nama' => 'Anggota Uji',
-            'is_anggota' => true,
         ]);
+        $this->daftarkanAnggota($karyawan);
 
         $jenis = JenisSimpanan::query()->create([
             'akun_id' => null,
@@ -87,8 +75,8 @@ class AkuntansiServiceTest extends TestCase
 
         $karyawan = Karyawan::query()->create([
             'nama' => 'Anggota Uji',
-            'is_anggota' => true,
         ]);
+        $this->daftarkanAnggota($karyawan);
 
         $jenis = JenisSimpanan::query()->create([
             'akun_id' => Akun::query()->where('kode_akun', '302')->value('id'),
@@ -107,5 +95,15 @@ class AkuntansiServiceTest extends TestCase
         $this->expectExceptionMessage('sedang tidak aktif');
 
         app(AkuntansiService::class)->recordSimpanan($simpanan);
+    }
+
+    private function daftarkanAnggota(Karyawan $karyawan): void
+    {
+        app(MasterDataKoperasiService::class)->createAnggota([
+            'karyawan_id' => $karyawan->id,
+            'tanggal_bergabung' => '2026-01-01',
+            'alamat' => 'Jl. Dummy Akuntansi',
+            'plafon_pinjaman' => 1000000,
+        ]);
     }
 }
