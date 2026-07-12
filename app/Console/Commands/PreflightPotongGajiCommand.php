@@ -2,6 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\PembayaranSewaMobil;
+use App\Models\PembayaranSewaPrinter;
+use App\Models\SewaMobil;
+use App\Models\SewaPrinter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
@@ -1249,6 +1253,7 @@ class PreflightPotongGajiCommand extends Command
             ->select('referensi_tipe', 'referensi_id', DB::raw('COUNT(*) as total'))
             ->whereNotNull('referensi_tipe')
             ->whereNotNull('referensi_id')
+            ->whereNotIn('referensi_tipe', $this->referenceTypesWithMultipleValidPostings())
             ->groupBy('referensi_tipe', 'referensi_id')
             ->having('total', '>', 1)
             ->get()
@@ -1262,6 +1267,23 @@ class PreflightPotongGajiCommand extends Command
             ->count();
 
         return $nullMismatch + $duplicates + $orphans;
+    }
+
+    /**
+     * Sebagian sumber non-payroll memiliki beberapa posting sah untuk lifecycle berbeda.
+     * Orphan tetap dicek lewat referenceExists(), tetapi duplikasi referensi tidak otomatis
+     * berarti double-posting untuk sumber-sumber ini.
+     *
+     * @return array<int, class-string<Model>>
+     */
+    private function referenceTypesWithMultipleValidPostings(): array
+    {
+        return [
+            PembayaranSewaMobil::class,
+            SewaMobil::class,
+            PembayaranSewaPrinter::class,
+            SewaPrinter::class,
+        ];
     }
 
     private function referenceExists(string $type, int $id): bool

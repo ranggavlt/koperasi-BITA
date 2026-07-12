@@ -35,6 +35,11 @@ class Karyawan extends Model
         return $this->hasOne(Anggota::class);
     }
 
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
+
     public function penjualan()
     {
         return $this->hasMany(Penjualan::class);
@@ -53,6 +58,16 @@ class Karyawan extends Model
     public function pembagianShu()
     {
         return $this->hasMany(ShuAnggota::class);
+    }
+
+    public function sewaMobil()
+    {
+        return $this->hasMany(SewaMobil::class);
+    }
+
+    public function sewaPrinter()
+    {
+        return $this->hasMany(SewaPrinter::class, 'karyawan_pic_id');
     }
 
     public function scopeAktif($query)
@@ -75,6 +90,8 @@ class Karyawan extends Model
         return $this->penjualan()->exists()
             || $this->simpanan()->exists()
             || $this->pinjaman()->exists()
-            || $this->pembagianShu()->exists();
+            || $this->pembagianShu()->exists()
+            || $this->sewaMobil()->exists()
+            || $this->sewaPrinter()->exists();
     }
 }

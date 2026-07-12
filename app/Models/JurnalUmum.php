@@ -40,6 +40,10 @@ class JurnalUmum extends Model
                 PemakaianPotongGaji::class,
                 ReversalTransaksi::class,
                 PembayaranOutstandingCash::class,
+                PembayaranSewaMobil::class,
+                SewaMobil::class,
+                PembayaranSewaPrinter::class,
+                SewaPrinter::class,
             ], true)) {
                 throw new RuntimeException('Jurnal transaksi koperasi tidak boleh dihapus permanen. Gunakan reversal/adjustment.');
             }

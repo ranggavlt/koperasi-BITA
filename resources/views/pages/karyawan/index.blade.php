@@ -89,9 +89,9 @@
       <p class="text-sm text-slate-400">Status Anggota berasal dari relasi master Anggota.</p>
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[900px] text-left text-sm">
+      <table class="w-full min-w-[1150px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white">
-          <tr><th class="px-6 py-4">Karyawan</th><th class="px-6 py-4">Kontak</th><th class="px-6 py-4">Jabatan</th><th class="px-6 py-4">Status kerja</th><th class="px-6 py-4">Keanggotaan</th><th class="px-6 py-4 text-center">Aksi</th></tr>
+          <tr><th class="px-6 py-4">Karyawan</th><th class="px-6 py-4">Kontak</th><th class="px-6 py-4">Jabatan</th><th class="px-6 py-4">Status kerja</th><th class="px-6 py-4">Keanggotaan</th><th class="px-6 py-4">Akun</th><th class="px-6 py-4 text-center">Aksi</th></tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           @forelse($karyawan as $item)
@@ -112,6 +112,35 @@
                 @endif
               </td>
               <td class="px-6 py-4">
+                @if($item->user)
+                  <div class="font-semibold text-slate-700">{{ $item->user->email }}</div>
+                  <div class="text-xs {{ $item->user->is_active ? 'text-green-600' : 'text-slate-400' }}">
+                    {{ $item->user->is_active ? 'Aktif' : 'Nonaktif' }}
+                    @if($item->user->must_change_password) · wajib ganti password @endif
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    @if($item->user->is_active)
+                      <form method="POST" action="{{ route('karyawan.akun.deactivate', $item) }}">@csrf @method('PATCH')<button class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700">Nonaktifkan Akun</button></form>
+                    @elseif($item->status_kerja === 'aktif')
+                      <form method="POST" action="{{ route('karyawan.akun.activate', $item) }}">@csrf @method('PATCH')<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Aktifkan Akun</button></form>
+                    @endif
+                    <form method="POST" action="{{ route('karyawan.akun.password', $item) }}" class="flex gap-1">
+                      @csrf @method('PATCH')
+                      <input name="temporary_password" type="password" minlength="8" required placeholder="Password sementara" class="w-40 rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                      <button class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Reset</button>
+                    </form>
+                  </div>
+                @elseif($item->status_kerja === 'aktif')
+                  <form method="POST" action="{{ route('karyawan.akun.store', $item) }}" class="flex flex-wrap gap-2">
+                    @csrf
+                    <input name="temporary_password" type="password" minlength="8" required placeholder="Password sementara" class="w-44 rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                    <button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Buat Akun</button>
+                  </form>
+                @else
+                  <span class="text-xs text-slate-400">Akun tidak dapat dibuat untuk Karyawan berhenti.</span>
+                @endif
+              </td>
+              <td class="px-6 py-4">
                 <div class="flex flex-wrap justify-center gap-2">
                   <a href="{{ route('karyawan.edit', $item) }}" class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Edit</a>
                   @if($item->status_kerja === 'aktif' && !$item->anggota)
@@ -121,7 +150,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">Belum ada data Karyawan.</td></tr>
+            <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">Belum ada data Karyawan.</td></tr>
           @endforelse
         </tbody>
       </table>

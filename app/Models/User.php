@@ -22,6 +22,14 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'karyawan_id',
+        'is_active',
+        'must_change_password',
+        'password_changed_at',
+        'account_created_by',
+        'account_updated_by',
+        'account_deactivated_by',
+        'account_deactivated_at',
     ];
 
     /**
@@ -44,6 +52,20 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
+            'account_deactivated_at' => 'datetime',
         ];
+    }
+
+    public function karyawan()
+    {
+        return $this->belongsTo(Karyawan::class);
+    }
+
+    public function createdEmployeeAccounts()
+    {
+        return $this->hasMany(User::class, 'account_created_by');
     }
 }

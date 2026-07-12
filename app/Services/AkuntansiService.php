@@ -7,10 +7,14 @@ use App\Models\CicilanPinjaman;
 use App\Models\JurnalUmum;
 use App\Models\PembayaranKonsinyasi;
 use App\Models\PembayaranOutstandingCash;
+use App\Models\PembayaranSewaMobil;
+use App\Models\PembayaranSewaPrinter;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
+use App\Models\SewaMobil;
+use App\Models\SewaPrinter;
 use App\Models\Simpanan;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -353,6 +357,233 @@ class AkuntansiService
                 'kredit',
                 $jumlah
             ),
+        ]);
+    }
+
+    public function recordPembayaranDimukaSewaMobil(
+        SewaMobil $sewaMobil,
+        PembayaranSewaMobil $pembayaran,
+        Akun $akunDompet,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-mobil:pembayaran-dimuka:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pembayaran sewa harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = (float) $pembayaran->jumlah_bayar;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-mobil:pembayaran-dimuka:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaMobil->kode_sewa,
+            'keterangan' => 'Pembayaran dimuka sewa mobil ' . $sewaMobil->kode_sewa,
+            'referensi_tipe' => PembayaranSewaMobil::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordPengakuanPendapatanSewaMobil(SewaMobil $sewaMobil, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $sewaMobil->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $jumlah = (float) $sewaMobil->tarif_total;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $sewaMobil->id,
+            'tanggal' => optional($sewaMobil->completed_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaMobil->kode_sewa,
+            'keterangan' => 'Pengakuan pendapatan sewa mobil ' . $sewaMobil->kode_sewa,
+            'referensi_tipe' => SewaMobil::class,
+            'referensi_id' => $sewaMobil->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.pendapatan'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordRefundSewaMobil(
+        SewaMobil $sewaMobil,
+        PembayaranSewaMobil $pembayaran,
+        Akun $akunDompet,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-mobil:refund:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund sewa harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = (float) $pembayaran->jumlah_bayar;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-mobil:refund:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->refunded_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaMobil->kode_sewa,
+            'keterangan' => 'Refund penuh pembayaran sewa mobil ' . $sewaMobil->kode_sewa,
+            'referensi_tipe' => PembayaranSewaMobil::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+        ]);
+    }
+
+    public function recordPembayaranDimukaSewaPrinter(
+        SewaPrinter $sewaPrinter,
+        PembayaranSewaPrinter $pembayaran,
+        Akun $akunDompet,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-printer:pembayaran-dimuka:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pembayaran sewa printer harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = (float) $pembayaran->jumlah_bayar;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-printer:pembayaran-dimuka:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaPrinter->kode_sewa,
+            'keterangan' => 'Pembayaran dimuka sewa printer ' . $sewaPrinter->kode_sewa,
+            'referensi_tipe' => PembayaranSewaPrinter::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
+    public function recordPengakuanPendapatanSewaPrinter(SewaPrinter $sewaPrinter, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-printer:pengakuan-pendapatan:jurnal:' . $sewaPrinter->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $grandTotal = (float) $sewaPrinter->grand_total;
+        $dasar = (float) $sewaPrinter->total_harga_dasar;
+        $margin = (float) $sewaPrinter->total_margin;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-printer:pengakuan-pendapatan:jurnal:' . $sewaPrinter->id,
+            'tanggal' => optional($sewaPrinter->completed_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaPrinter->kode_sewa,
+            'keterangan' => 'Pengakuan pendapatan sewa printer ' . $sewaPrinter->kode_sewa,
+            'referensi_tipe' => SewaPrinter::class,
+            'referensi_id' => $sewaPrinter->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                'debit',
+                $grandTotal
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_dasar'),
+                'kredit',
+                $dasar
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_margin'),
+                'kredit',
+                $margin
+            ),
+        ]);
+    }
+
+    public function recordRefundSewaPrinter(
+        SewaPrinter $sewaPrinter,
+        PembayaranSewaPrinter $pembayaran,
+        Akun $akunDompet,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-printer:refund:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund sewa printer harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = (float) $pembayaran->jumlah_bayar;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-printer:refund:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->refunded_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaPrinter->kode_sewa,
+            'keterangan' => 'Refund penuh pembayaran sewa printer ' . $sewaPrinter->kode_sewa,
+            'referensi_tipe' => PembayaranSewaPrinter::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
         ]);
     }
 

@@ -83,6 +83,20 @@ return [
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Kewajiban koperasi kepada anggota akibat refund atau koreksi yang dikompensasikan ke payroll berikutnya.',
         ],
+        'pendapatan_diterima_dimuka_sewa_mobil' => [
+            'kode_akun' => '206',
+            'nama_akun' => 'Pendapatan Diterima Dimuka Sewa Mobil',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Penerimaan sewa mobil sebelum kegiatan selesai.',
+        ],
+        'pendapatan_diterima_dimuka_sewa_printer' => [
+            'kode_akun' => '207',
+            'nama_akun' => 'Pendapatan Diterima Dimuka Sewa Printer',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Penerimaan sewa printer sebelum kontrak selesai.',
+        ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
             'nama_akun' => 'Simpanan Anggota Belum Terklasifikasi',
@@ -138,6 +152,27 @@ return [
             'kategori' => 'pendapatan',
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Pendapatan biaya administrasi koperasi.',
+        ],
+        'pendapatan_sewa_mobil' => [
+            'kode_akun' => '404',
+            'nama_akun' => 'Pendapatan Sewa Mobil',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan koperasi dari kegiatan sewa mobil setelah kegiatan selesai.',
+        ],
+        'pendapatan_sewa_printer_dasar' => [
+            'kode_akun' => '405',
+            'nama_akun' => 'Pendapatan Sewa Printer - Komponen Dasar',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan komponen dasar dari kontrak sewa printer.',
+        ],
+        'pendapatan_margin_sewa_printer' => [
+            'kode_akun' => '406',
+            'nama_akun' => 'Pendapatan Margin Sewa Printer 15%',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan margin 15% dari kontrak sewa printer.',
         ],
         'harga_pokok_penjualan' => [
             'kode_akun' => '501',
@@ -224,6 +259,15 @@ return [
             'piutang_pinjaman' => 'piutang_pinjaman',
             'pendapatan_penjualan' => 'pendapatan_penjualan',
             'utang_konsinyasi' => 'utang_reseller_konsinyasi',
+        ],
+        'sewa_mobil' => [
+            'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_mobil',
+            'pendapatan' => 'pendapatan_sewa_mobil',
+        ],
+        'sewa_printer' => [
+            'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_printer',
+            'pendapatan_dasar' => 'pendapatan_sewa_printer_dasar',
+            'pendapatan_margin' => 'pendapatan_margin_sewa_printer',
         ],
     ],
 ];

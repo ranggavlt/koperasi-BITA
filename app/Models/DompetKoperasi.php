@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class DompetKoperasi extends Model
 {
+    use HasFactory;
+
     public const JENIS_KAS = 'kas';
 
     public const JENIS_BANK = 'bank';

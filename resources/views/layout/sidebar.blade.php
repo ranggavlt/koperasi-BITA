@@ -197,6 +197,28 @@
       </li>
       @endif
 
+      {{-- ====== LAYANAN KARYAWAN ====== --}}
+      @if($role === 'karyawan')
+      <li class="w-full mt-4">
+        <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
+          Layanan Karyawan
+        </h6>
+      </li>
+
+      @php $active = $is('sewa-mobil.karyawan.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('sewa-mobil.karyawan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M5 11 6.5 6.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11h1a1 1 0 0 1 1 1v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3v-5a1 1 0 0 1 1-1h1Zm2.6-4-1.1 4h11L16.4 7H7.6ZM7 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Pengajuan Sewa Mobil</span>
+        </a>
+      </li>
+      @endif
+
       {{-- ====== MASTER DATA ====== --}}
       @if($role === 'keuangan')
       <li class="w-full mt-4">
@@ -296,6 +318,62 @@
             </svg>
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Chart of Accounts</span>
+        </a>
+      </li>
+
+      {{-- MOBIL KOPERASI --}}
+      @php $active = $is('aset-mobil.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('aset-mobil.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M5 11 6.5 6.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11h1a1 1 0 0 1 1 1v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3v-5a1 1 0 0 1 1-1h1Zm2.6-4-1.1 4h11L16.4 7H7.6ZM7 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Mobil Koperasi</span>
+        </a>
+      </li>
+
+      {{-- PRINTER KOPERASI --}}
+      @php $active = $is('aset-printer.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('aset-printer.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M6 3h12v5H6V3Zm-2 7h16a2 2 0 0 1 2 2v5h-4v4H6v-4H2v-5a2 2 0 0 1 2-2Zm4 6v3h8v-5H8v2Zm10-3h2v-2h-2v2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Printer Koperasi</span>
+        </a>
+      </li>
+
+      {{-- SEWA MOBIL --}}
+      @php $active = $is('sewa-mobil.finance.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('sewa-mobil.finance.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M5 11 6.5 6.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11h1a1 1 0 0 1 1 1v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3v-5a1 1 0 0 1 1-1h1Zm2.6-4-1.1 4h11L16.4 7H7.6ZM7 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM10 13h4v2h-4v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Sewa Mobil</span>
+        </a>
+      </li>
+
+      {{-- SEWA PRINTER --}}
+      @php $active = $is('sewa-printer.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('sewa-printer.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M6 3h12v5H6V3Zm-2 7h16a2 2 0 0 1 2 2v5h-4v4H6v-4H2v-5a2 2 0 0 1 2-2Zm4 6v3h8v-5H8v2Zm10-3h2v-2h-2v2Zm-8 2h4v1h-4v-1Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Sewa Printer</span>
         </a>
       </li>
 

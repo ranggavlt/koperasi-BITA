@@ -7,6 +7,7 @@ use App\Models\Akun;
 use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\PengurusKoperasi;
+use App\Models\SewaMobil;
 use App\Models\Simpanan;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,26 @@ class MasterDataKoperasiService
             $locked->update($data);
 
             if ($locked->status_kerja === Karyawan::STATUS_BERHENTI) {
+                $locked->user()->update([
+                    'is_active' => false,
+                    'account_updated_by' => auth()->id(),
+                    'account_deactivated_by' => auth()->id(),
+                    'account_deactivated_at' => now(),
+                ]);
+
+                if (class_exists(SewaMobil::class)) {
+                    $locked->sewaMobil()
+                        ->whereIn('status', [
+                            SewaMobil::STATUS_DRAFT,
+                            SewaMobil::STATUS_DIAJUKAN,
+                            SewaMobil::STATUS_DISETUJUI,
+                        ])
+                        ->update([
+                            'needs_finance_review' => true,
+                            'updated_by' => auth()->id(),
+                        ]);
+                }
+
                 $anggota = $locked->anggota()->lockForUpdate()->first();
 
                 if ($anggota) {

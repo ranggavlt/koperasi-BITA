@@ -36,6 +36,8 @@ class MutasiKas extends Model
                 PemakaianPotongGaji::class,
                 ReversalTransaksi::class,
                 PembayaranOutstandingCash::class,
+                PembayaranSewaMobil::class,
+                PembayaranSewaPrinter::class,
             ], true)) {
                 throw new RuntimeException('Mutasi transaksi koperasi tidak boleh dihapus permanen. Gunakan reversal/adjustment.');
             }
@@ -57,6 +59,8 @@ class MutasiKas extends Model
             \App\Models\PembayaranKonsinyasi::class => 'Pembayaran Konsinyasi',
             \App\Models\ReversalTransaksi::class => 'Reversal Transaksi',
             \App\Models\PembayaranOutstandingCash::class => 'Pembayaran Outstanding Cash',
+            \App\Models\PembayaranSewaMobil::class => 'Pembayaran Sewa Mobil',
+            \App\Models\PembayaranSewaPrinter::class => 'Pembayaran Sewa Printer',
             default => 'Manual',
         };
     }
