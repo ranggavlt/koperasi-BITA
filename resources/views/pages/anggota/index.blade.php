@@ -14,7 +14,7 @@
       <p class="mt-1 text-sm text-slate-400">Keanggotaan Koperasi yang terhubung satu-ke-satu dengan Karyawan.</p>
     </div>
     @if (!isset($data))
-      <button type="button" onclick="toggleAnggotaForm()" id="btn-toggle-anggota" class="rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg hover:bg-[#052c46]">
+      <button type="button" onclick="toggleAnggotaForm()" id="btn-toggle-anggota" class="kbsm-btn kbsm-btn--navy">
         {{ $errors->any() || request('karyawan_id') ? 'Tutup Form' : '+ Daftarkan Anggota' }}
       </button>
     @endif

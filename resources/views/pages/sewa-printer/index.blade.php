@@ -3,12 +3,12 @@
 @section('content')
 @php
   $badge = fn(string $status) => match ($status) {
-    'draft' => 'bg-slate-100 text-slate-600',
-    'dikonfirmasi' => 'bg-green-100 text-green-700',
-    'berjalan' => 'bg-amber-100 text-amber-700',
-    'selesai' => 'bg-emerald-100 text-emerald-700',
-    'dibatalkan' => 'bg-slate-200 text-slate-600',
-    default => 'bg-slate-100 text-slate-600',
+    'draft'        => 'kbsm-status kbsm-status--slate',
+    'dikonfirmasi' => 'kbsm-status kbsm-status--green',
+    'berjalan'     => 'kbsm-status kbsm-status--amber',
+    'selesai'      => 'kbsm-status kbsm-status--emerald',
+    'dibatalkan'   => 'kbsm-status kbsm-status--slate',
+    default        => 'kbsm-status kbsm-status--slate',
   };
   $formAction = $editData ? route('sewa-printer.update', $editData) : route('sewa-printer.store');
   $detailRows = collect(old('details', $editData?->details?->map(fn($d) => [
@@ -34,10 +34,12 @@
       <h2 class="font-bold text-slate-700">{{ $editData ? 'Edit Draft Sewa Printer' : 'Buat Draft Sewa Printer' }}</h2>
       <p class="text-sm text-slate-400">Penyewa dan pembayar otomatis: {{ config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering') }}. Total dihitung ulang oleh server.</p>
     </div>
-    <form method="POST" action="{{ $formAction }}" class="grid gap-4">
+    <form method="POST" action="{{ $formAction }}" class="grid gap-6">
       @csrf
       @if($editData) @method('PUT') @endif
-      <div class="grid gap-4 md:grid-cols-4">
+
+      {{-- Section 1: Info Utama (2 kolom) --}}
+      <div class="grid gap-4 md:grid-cols-2">
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">PIC Karyawan</label>
           <select name="karyawan_pic_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
@@ -48,6 +50,10 @@
           </select>
         </div>
         <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Keterangan</label>
+          <input name="keterangan" value="{{ old('keterangan', $editData?->keterangan) }}" placeholder="Opsional" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+        </div>
+        <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Mulai</label>
           <input type="date" name="mulai_tanggal" required value="{{ old('mulai_tanggal', $editData?->mulai_tanggal?->toDateString()) }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
@@ -55,12 +61,9 @@
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Selesai</label>
           <input type="date" name="selesai_tanggal" required value="{{ old('selesai_tanggal', $editData?->selesai_tanggal?->toDateString()) }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
-        <div>
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Keterangan</label>
-          <input name="keterangan" value="{{ old('keterangan', $editData?->keterangan) }}" placeholder="Opsional" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
-        </div>
       </div>
 
+      {{-- Section 2: Detail Printer --}}
       <div class="rounded-2xl border border-slate-100">
         <div class="border-b border-slate-100 px-4 py-3">
           <h3 class="text-sm font-bold text-slate-700">Detail Printer</h3>
@@ -85,7 +88,7 @@
                   </td>
                   <td class="px-4 py-3"><input type="number" min="1" name="details[{{ $i }}][harga_dasar]" value="{{ $row['harga_dasar'] ?? '' }}" class="sewa-printer-harga kbsm-focus w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="1000000"></td>
                   <td class="px-4 py-3 text-slate-600"><span class="sewa-printer-margin">Rp 0</span></td>
-                  <td class="px-4 py-3 font-bold text-[#073b5c]"><span class="sewa-printer-total">Rp 0</span></td>
+                  <td class="px-4 py-3 font-bold kbsm-text-navy"><span class="sewa-printer-total">Rp 0</span></td>
                 </tr>
               @endfor
             </tbody>
@@ -94,13 +97,13 @@
         <div class="grid gap-3 border-t border-slate-100 bg-slate-50 px-4 py-4 text-sm md:grid-cols-3">
           <div>Total Dasar: <span id="sp-total-dasar" class="font-bold text-slate-700">Rp 0</span></div>
           <div>Total Margin: <span id="sp-total-margin" class="font-bold text-slate-700">Rp 0</span></div>
-          <div>Grand Total: <span id="sp-grand-total" class="font-bold text-[#073b5c]">Rp 0</span></div>
+          <div>Grand Total: <span id="sp-grand-total" class="font-bold kbsm-text-navy">Rp 0</span></div>
         </div>
       </div>
 
       <div class="flex flex-wrap gap-3">
-        <button class="rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
-        @if($editData)<a href="{{ route('sewa-printer.index') }}" class="rounded-xl border border-slate-200 px-5 py-3 text-xs font-bold uppercase text-slate-600">Batal Edit</a>@endif
+        <button class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
+        @if($editData)<a href="{{ route('sewa-printer.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal Edit</a>@endif
       </div>
     </form>
   </section>
@@ -130,7 +133,7 @@
         <input type="month" name="periode" value="{{ request('periode') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
       </div>
       <div class="flex items-end">
-        <button class="w-full rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg">Filter</button>
+        <button class="kbsm-btn kbsm-btn--navy kbsm-btn--full">Filter</button>
       </div>
     </form>
   </section>
@@ -139,7 +142,7 @@
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Sewa Printer</h2><p class="text-sm text-slate-400">Kontrak confirmed tidak dapat diedit/hapus. Gunakan batal/refund penuh sebelum berjalan jika eligible.</p></div>
     <div class="overflow-x-auto">
       <table class="w-full min-w-[1700px] text-left text-sm">
-        <thead class="bg-[#073b5c] text-xs uppercase text-white">
+        <thead class="kbsm-thead">
           <tr>
             <th class="px-6 py-4">Kode</th><th class="px-6 py-4">Perusahaan/PIC</th><th class="px-6 py-4">Periode</th><th class="px-6 py-4">Printer</th><th class="px-6 py-4">Nominal</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Pembayaran</th><th class="px-6 py-4">Posting</th><th class="px-6 py-4 text-center">Aksi</th>
           </tr>
@@ -147,7 +150,7 @@
         <tbody class="divide-y divide-slate-100">
           @forelse($sewaPrinter as $item)
             <tr class="align-top hover:bg-slate-50">
-              <td class="px-6 py-4 font-bold text-[#073b5c]">{{ $item->kode_sewa }}</td>
+              <td class="px-6 py-4 font-bold kbsm-text-navy">{{ $item->kode_sewa }}</td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->nama_perusahaan_snapshot }}</div><div class="text-xs text-slate-400">PIC: {{ $item->karyawanPic->nama }} / {{ $item->karyawanPic->status_kerja }}</div></td>
               <td class="px-6 py-4 text-slate-600">{{ $item->mulai_tanggal->format('d/m/Y') }}<br>{{ $item->selesai_tanggal->format('d/m/Y') }}</td>
               <td class="px-6 py-4">
@@ -161,9 +164,9 @@
               <td class="px-6 py-4 text-slate-600">
                 <div>Dasar: Rp {{ number_format((float) $item->total_harga_dasar, 0, ',', '.') }}</div>
                 <div>Margin: Rp {{ number_format((float) $item->total_margin, 0, ',', '.') }}</div>
-                <div class="font-bold text-[#073b5c]">Grand: Rp {{ number_format((float) $item->grand_total, 0, ',', '.') }}</div>
+                <div class="font-bold kbsm-text-navy">Grand: Rp {{ number_format((float) $item->grand_total, 0, ',', '.') }}</div>
               </td>
-              <td class="px-6 py-4"><span class="rounded-full px-3 py-1 text-xs font-bold {{ $badge($item->status) }}">{{ $item->status_label }}</span><div class="mt-2 text-xs text-slate-400">Payment: {{ $item->status_pembayaran }}</div></td>
+              <td class="px-6 py-4"><span class="{{ $badge($item->status) }}">{{ $item->status_label }}</span><div class="mt-2 text-xs text-slate-400">Payment: {{ $item->status_pembayaran }}</div></td>
               <td class="px-6 py-4 text-xs text-slate-500">
                 @if($item->pembayaran)
                   {{ $item->pembayaran->metode_pembayaran }} / {{ $item->pembayaran->dompet->nama_dompet ?? '-' }}<br>{{ $item->pembayaran->paid_at->format('d/m/Y H:i') }}
@@ -180,13 +183,13 @@
                 <div class="flex max-w-[520px] flex-col gap-2">
                   @if($item->status === 'draft')
                     <div class="flex flex-wrap gap-2">
-                      <a href="{{ route('sewa-printer.edit', $item) }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">Edit Draft</a>
-                      <form method="POST" action="{{ route('sewa-printer.confirm', $item) }}">@csrf<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Konfirmasi</button></form>
+                      <a href="{{ route('sewa-printer.edit', $item) }}" class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Edit Draft</a>
+                      <form method="POST" action="{{ route('sewa-printer.confirm', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Konfirmasi</button></form>
                     </div>
                     <form method="POST" action="{{ route('sewa-printer.cancel', $item) }}" class="flex gap-2" onsubmit="return confirm('Batalkan draft kontrak ini?')">
                       @csrf
                       <input name="alasan" required placeholder="Alasan pembatalan" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-700">Batalkan</button>
+                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batalkan</button>
                     </form>
                   @endif
 
@@ -204,23 +207,23 @@
                         @endforeach
                       </select>
                       <input type="number" name="jumlah_bayar" min="1" required value="{{ (int) $item->grand_total }}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Catat Bayar</button>
+                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Bayar</button>
                     </form>
                   @endif
 
                   @if($item->status === 'dikonfirmasi' && $item->status_pembayaran === 'paid')
-                    <form method="POST" action="{{ route('sewa-printer.start', $item) }}">@csrf<button class="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-white">Mulai</button></form>
+                    <form method="POST" action="{{ route('sewa-printer.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
                   @endif
 
                   @if($item->status === 'berjalan')
-                    <form method="POST" action="{{ route('sewa-printer.complete', $item) }}">@csrf<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Selesai</button></form>
+                    <form method="POST" action="{{ route('sewa-printer.complete', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Selesai</button></form>
                   @endif
 
                   @if($item->status === 'dikonfirmasi')
                     <form method="POST" action="{{ route('sewa-printer.cancel', $item) }}" class="flex gap-2" onsubmit="return confirm('Batalkan/refund penuh kontrak ini jika eligible?')">
                       @csrf
                       <input name="alasan" required placeholder="Alasan pembatalan/refund" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-700">Batal/Refund</button>
+                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batal/Refund</button>
                     </form>
                   @endif
                 </div>

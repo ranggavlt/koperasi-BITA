@@ -7,7 +7,7 @@
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div><p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Data</p><h1 class="text-2xl font-bold text-slate-700">Pengurus Koperasi</h1><p class="mt-1 text-sm text-slate-400">Jabatan organisasi hanya dapat diisi oleh Anggota dan Karyawan aktif.</p></div>
-    @if(!isset($data))<button type="button" onclick="togglePengurusForm()" id="btn-toggle-pengurus" class="rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg hover:bg-[#052c46]">{{ $errors->any() ? 'Tutup Form' : '+ Tambah Pengurus' }}</button>@endif
+    @if(!isset($data))<button type="button" onclick="togglePengurusForm()" id="btn-toggle-pengurus" class="kbsm-btn kbsm-btn--navy">{{ $errors->any() ? 'Tutup Form' : '+ Tambah Pengurus' }}</button>@endif
   </div>
 
   <section id="pengurus-form" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">

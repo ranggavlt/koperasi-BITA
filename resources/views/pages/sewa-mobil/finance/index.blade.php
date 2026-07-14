@@ -3,14 +3,14 @@
 @section('content')
 @php
   $badge = fn(string $status) => match ($status) {
-    'draft' => 'bg-slate-100 text-slate-600',
-    'diajukan' => 'bg-blue-100 text-blue-700',
-    'disetujui' => 'bg-green-100 text-green-700',
-    'ditolak' => 'bg-red-100 text-red-700',
-    'berjalan' => 'bg-amber-100 text-amber-700',
-    'selesai' => 'bg-emerald-100 text-emerald-700',
-    'dibatalkan' => 'bg-slate-200 text-slate-600',
-    default => 'bg-slate-100 text-slate-600',
+    'draft'      => 'kbsm-status kbsm-status--slate',
+    'diajukan'   => 'kbsm-status kbsm-status--blue',
+    'disetujui'  => 'kbsm-status kbsm-status--green',
+    'ditolak'    => 'kbsm-status kbsm-status--red',
+    'berjalan'   => 'kbsm-status kbsm-status--amber',
+    'selesai'    => 'kbsm-status kbsm-status--emerald',
+    'dibatalkan' => 'kbsm-status kbsm-status--slate',
+    default      => 'kbsm-status kbsm-status--slate',
   };
 @endphp
 
@@ -60,7 +60,7 @@
         <input type="month" name="periode" value="{{ request('periode') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
       </div>
       <div class="flex items-end">
-        <button class="w-full rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg">Filter</button>
+        <button class="kbsm-btn kbsm-btn--navy kbsm-btn--full">Filter</button>
       </div>
     </form>
   </section>
@@ -69,7 +69,7 @@
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Sewa Mobil</h2><p class="text-sm text-slate-400">Transaksi tidak dapat dihapus permanen. Gunakan pembatalan/refund sebelum berjalan jika eligible.</p></div>
     <div class="overflow-x-auto">
       <table class="w-full min-w-[1600px] text-left text-sm">
-        <thead class="bg-[#073b5c] text-xs uppercase text-white">
+        <thead class="kbsm-thead">
           <tr>
             <th class="px-6 py-4">Kode</th><th class="px-6 py-4">Pemohon</th><th class="px-6 py-4">Mobil</th><th class="px-6 py-4">Kegiatan</th><th class="px-6 py-4">Jadwal</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Tarif/Bayar</th><th class="px-6 py-4">Approval</th><th class="px-6 py-4">Posting</th><th class="px-6 py-4 text-center">Aksi</th>
           </tr>
@@ -77,12 +77,12 @@
         <tbody class="divide-y divide-slate-100">
           @forelse($sewaMobil as $item)
             <tr class="align-top hover:bg-slate-50">
-              <td class="px-6 py-4 font-bold text-[#073b5c]">{{ $item->kode_sewa ?: 'Draft' }}</td>
+              <td class="px-6 py-4 font-bold kbsm-text-navy">{{ $item->kode_sewa ?: 'Draft' }}</td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->karyawan->nama }}</div><div class="text-xs text-slate-400">{{ $item->karyawan->jabatan }} / {{ $item->karyawan->status_kerja }}</div>@if($item->needs_finance_review)<div class="mt-1 text-xs font-bold text-amber-600">Review Finance</div>@endif</td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->aset->kode_aset }} - {{ $item->aset->merek }} {{ $item->aset->model }}</div><div class="text-xs text-slate-400">{{ $item->aset->mobil->plat_nomor ?? '-' }} / {{ $item->aset->status_label }}</div></td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->nama_kegiatan }}</div><div class="text-xs text-slate-400">{{ $item->lokasi_kegiatan }}</div><div class="text-xs text-slate-400">Penyewa: {{ $item->nama_perusahaan_snapshot }}</div></td>
               <td class="px-6 py-4 text-slate-600">{{ $item->mulai_at->format('d/m/Y H:i') }}<br>{{ $item->selesai_at->format('d/m/Y H:i') }}</td>
-              <td class="px-6 py-4"><span class="rounded-full px-3 py-1 text-xs font-bold {{ $badge($item->status) }}">{{ $item->status_label }}</span><div class="mt-2 text-xs text-slate-400">Payment: {{ $item->status_pembayaran }}</div></td>
+              <td class="px-6 py-4"><span class="{{ $badge($item->status) }}">{{ $item->status_label }}</span><div class="mt-2 text-xs text-slate-400">Payment: {{ $item->status_pembayaran }}</div></td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">Rp {{ number_format((float) $item->tarif_total, 0, ',', '.') }}</div>@if($item->pembayaran)<div class="text-xs text-slate-400">{{ $item->pembayaran->metode_pembayaran }} / {{ $item->pembayaran->dompet->nama_dompet ?? '-' }}</div>@endif</td>
               <td class="px-6 py-4 text-xs text-slate-500">{{ $item->nama_pengurus_snapshot ?: '-' }}<br>{{ $item->jabatan_pengurus_snapshot ?: '' }}<br>@if($item->approved_at){{ $item->approved_at->format('d/m/Y H:i') }}@endif</td>
               <td class="px-6 py-4 text-xs text-slate-500">
@@ -101,12 +101,12 @@
                           <option value="{{ $pengurus->id }}">{{ $pengurus->jabatan }} - {{ $pengurus->anggota->karyawan->nama }}</option>
                         @endforeach
                       </select>
-                      <button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Setujui</button>
+                      <button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Setujui</button>
                     </form>
                     <form method="POST" action="{{ route('sewa-mobil.finance.reject', $item) }}" class="flex gap-2">
                       @csrf
                       <input name="alasan" required placeholder="Alasan penolakan" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-700">Tolak</button>
+                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Tolak</button>
                     </form>
                   @endif
 
@@ -124,23 +124,23 @@
                         @endforeach
                       </select>
                       <input type="number" name="jumlah_bayar" min="1" required value="{{ (int) $item->tarif_total }}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Catat Bayar</button>
+                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Bayar</button>
                     </form>
                   @endif
 
                   @if($item->status === 'disetujui' && $item->status_pembayaran === 'paid')
-                    <form method="POST" action="{{ route('sewa-mobil.finance.start', $item) }}">@csrf<button class="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-white">Mulai</button></form>
+                    <form method="POST" action="{{ route('sewa-mobil.finance.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
                   @endif
 
                   @if($item->status === 'berjalan')
-                    <form method="POST" action="{{ route('sewa-mobil.finance.complete', $item) }}">@csrf<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Selesai</button></form>
+                    <form method="POST" action="{{ route('sewa-mobil.finance.complete', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Selesai</button></form>
                   @endif
 
                   @if(in_array($item->status, ['disetujui'], true))
                     <form method="POST" action="{{ route('sewa-mobil.finance.cancel', $item) }}" class="flex gap-2" onsubmit="return confirm('Batalkan/refund sewa ini jika eligible?')">
                       @csrf
                       <input name="alasan" required placeholder="Alasan pembatalan" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-700">Batalkan/Refund</button>
+                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batalkan/Refund</button>
                     </form>
                   @endif
                 </div>

@@ -55,9 +55,11 @@ class MutasiKas extends Model
     {
         return match ($this->referensi_tipe) {
             \App\Models\Penjualan::class => 'Penjualan',
+            \App\Models\Pembayaran::class => 'Pembayaran POS/Payroll',
             \App\Models\Simpanan::class => 'Simpanan',
             \App\Models\Pinjaman::class => 'Pinjaman',
             \App\Models\CicilanPinjaman::class => 'Cicilan Pinjaman',
+            \App\Models\PemakaianPotongGaji::class => 'Ledger Potong Gaji',
             \App\Models\PembayaranKonsinyasi::class => 'Pembayaran Konsinyasi',
             \App\Models\ReversalTransaksi::class => 'Reversal Transaksi',
             \App\Models\PembayaranOutstandingCash::class => 'Pembayaran Outstanding Cash',

@@ -20,7 +20,7 @@
     </div>
     @if (!isset($data))
       <button type="button" onclick="toggleMasterForm()" id="btn-toggle-form"
-        class="rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg transition hover:bg-[#052c46]">
+        class="kbsm-btn kbsm-btn--navy">
         {{ $errors->any() ? 'Tutup Form' : '+ Tambah Karyawan' }}
       </button>
     @endif

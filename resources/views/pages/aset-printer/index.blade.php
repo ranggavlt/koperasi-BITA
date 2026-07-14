@@ -4,11 +4,11 @@
 @php
   $editing = isset($data);
   $statusBadge = fn(string $status) => match ($status) {
-    'tersedia' => 'bg-green-100 text-green-700',
-    'digunakan_disewa' => 'bg-blue-100 text-blue-700',
-    'perawatan' => 'bg-amber-100 text-amber-700',
-    'nonaktif' => 'bg-slate-100 text-slate-600',
-    default => 'bg-slate-100 text-slate-600',
+    'tersedia'        => 'kbsm-status kbsm-status--green',
+    'digunakan_disewa'=> 'kbsm-status kbsm-status--blue',
+    'perawatan'       => 'kbsm-status kbsm-status--amber',
+    'nonaktif'        => 'kbsm-status kbsm-status--slate',
+    default           => 'kbsm-status kbsm-status--slate',
   };
 @endphp
 
@@ -29,7 +29,8 @@
       <p class="mt-1 text-sm text-slate-400">Pencatatan identitas printer saja. Belum ada jasa print, sewa, depresiasi, COA, jurnal, atau mutasi kas.</p>
     </div>
     @if (! $editing)
-      <button type="button" onclick="toggleAsetPrinterForm()" id="btn-toggle-aset-printer" class="rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white shadow-lg hover:bg-[#052c46]">
+      <button type="button" onclick="toggleAsetPrinterForm()" id="btn-toggle-aset-printer"
+        class="kbsm-btn kbsm-btn--navy">
         {{ $errors->any() ? 'Tutup Form' : '+ Tambah Printer' }}
       </button>
     @endif
@@ -68,9 +69,9 @@
         </div>
       </div>
       <div class="mt-6 flex gap-3">
-        <button type="submit" class="rounded-xl bg-[#2f8f3a] px-6 py-3 text-xs font-bold uppercase text-white shadow-lg hover:bg-[#267832]">{{ $editing ? 'Simpan Perubahan' : 'Simpan Printer' }}</button>
+        <button type="submit" class="kbsm-btn kbsm-btn--green">{{ $editing ? 'Simpan Perubahan' : 'Simpan Printer' }}</button>
         @if($editing)
-          <a href="{{ route('aset-printer.index') }}" class="rounded-xl border border-slate-200 px-6 py-3 text-xs font-bold uppercase text-slate-500">Batal</a>
+          <a href="{{ route('aset-printer.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal</a>
         @endif
       </div>
     </form>
@@ -97,14 +98,14 @@
               @endforeach
             </select>
           </div>
-          <button class="rounded-xl bg-[#073b5c] px-4 py-2 text-xs font-bold uppercase text-white">Terapkan</button>
+          <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Terapkan</button>
         </form>
       </div>
     </div>
 
     <div class="overflow-x-auto">
       <table class="w-full min-w-[1120px] text-left text-sm">
-        <thead class="bg-[#073b5c] text-xs uppercase text-white">
+        <thead class="kbsm-thead">
           <tr>
             <th class="px-6 py-4">Kode</th>
             <th class="px-6 py-4">Printer</th>
@@ -119,7 +120,7 @@
           @forelse($asetPrinter as $item)
             @php $guard = $deleteGuards[$item->id] ?? ['allowed' => false, 'reason' => 'Guard belum tersedia.']; @endphp
             <tr class="hover:bg-slate-50">
-              <td class="px-6 py-4 font-bold text-[#073b5c]">{{ $item->kode_aset }}</td>
+              <td class="px-6 py-4 font-bold kbsm-text-navy">{{ $item->kode_aset }}</td>
               <td class="px-6 py-4">
                 <div class="font-semibold text-slate-700">{{ $item->merek }} {{ $item->model }}</div>
                 <div class="max-w-xs text-xs text-slate-400">{{ $item->keterangan ?: '-' }}</div>
@@ -127,7 +128,7 @@
               <td class="px-6 py-4 font-semibold text-slate-700">{{ $item->printer->nomor_seri ?? '-' }}</td>
               <td class="px-6 py-4 text-slate-600">{{ $item->printer->lokasi ?? '-' }}</td>
               <td class="px-6 py-4">
-                <span class="rounded-full px-3 py-1 text-xs font-bold {{ $statusBadge($item->status) }}">{{ $item->status_label }}</span>
+                <span class="{{ $statusBadge($item->status) }}">{{ $item->status_label }}</span>
                 @if($item->nonaktif_at)<div class="mt-1 text-xs text-slate-400">Nonaktif: {{ $item->nonaktif_at->format('d/m/Y H:i') }}</div>@endif
               </td>
               <td class="px-6 py-4 text-xs text-slate-500">
@@ -137,7 +138,7 @@
               </td>
               <td class="px-6 py-4">
                 <div class="flex flex-wrap justify-center gap-2">
-                  <a href="{{ route('aset-printer.edit', $item) }}" class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Edit</a>
+                  <a href="{{ route('aset-printer.edit', $item) }}" class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Edit</a>
                   <form method="POST" action="{{ route('aset-printer.status', $item) }}" class="flex gap-1">
                     @csrf @method('PATCH')
                     <select name="status" class="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs">
@@ -145,18 +146,18 @@
                         <option value="{{ $value }}" {{ $item->status === $value ? 'selected' : '' }}>{{ $label }}</option>
                       @endforeach
                     </select>
-                    <button class="rounded-lg border border-green-300 px-3 py-2 text-xs font-bold text-green-700">Status</button>
+                    <button class="kbsm-btn kbsm-btn--outline-green kbsm-btn--sm">Status</button>
                   </form>
                   @if($item->status !== 'nonaktif')
-                    <form method="POST" action="{{ route('aset-printer.nonaktifkan', $item) }}" onsubmit="return confirm('Nonaktifkan printer koperasi ini?')">@csrf @method('PATCH')<button class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700">Nonaktifkan</button></form>
+                    <form method="POST" action="{{ route('aset-printer.nonaktifkan', $item) }}" onsubmit="return confirm('Nonaktifkan printer koperasi ini?')">@csrf @method('PATCH')<button class="kbsm-btn kbsm-btn--outline-amber kbsm-btn--sm">Nonaktifkan</button></form>
                   @else
-                    <form method="POST" action="{{ route('aset-printer.aktifkan', $item) }}">@csrf @method('PATCH')<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Aktifkan</button></form>
+                    <form method="POST" action="{{ route('aset-printer.aktifkan', $item) }}">@csrf @method('PATCH')<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Aktifkan</button></form>
                   @endif
                   @if($guard['allowed'])
                     <form method="POST" action="{{ route('aset-printer.destroy', $item) }}" onsubmit="return confirm('Hapus permanen printer ini? Kode aset tidak akan digunakan ulang.')">
                       @csrf @method('DELETE')
                       <input type="hidden" name="confirm_delete" value="1">
-                      <button class="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">Hapus</button>
+                      <button class="kbsm-btn kbsm-btn--red kbsm-btn--sm">Hapus</button>
                     </form>
                   @else
                     <span class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500" title="{{ $guard['reason'] ?? 'Tidak eligible hapus' }}">Hapus terkunci</span>

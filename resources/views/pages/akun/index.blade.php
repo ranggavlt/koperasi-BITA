@@ -3,11 +3,11 @@
 @section('content')
 @php
   $categoryMeta = [
-    'aset' => ['icon' => 'fas fa-wallet'],
-    'kewajiban' => ['icon' => 'fas fa-file-invoice-dollar'],
-    'ekuitas' => ['icon' => 'fas fa-landmark'],
-    'pendapatan' => ['icon' => 'fas fa-chart-line'],
-    'beban' => ['icon' => 'fas fa-receipt'],
+    'aset'      => ['svgPath' => 'M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1H2V7Zm0 3h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9Zm14 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0Z'],
+    'kewajiban' => ['svgPath' => 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 2 4 4h-4V4ZM8 14h8v2H8v-2Zm0-4h8v2H8v-2Z'],
+    'ekuitas'   => ['svgPath' => 'M12 3 2 9h2v1h2v7H4v2h16v-2h-2V10h2V9L12 3Zm0 2.5 7 4V9H5v-.5L12 5.5ZM8 10h2v7H8v-7Zm3 0h2v7h-2v-7Zm3 0h2v7h-2v-7ZM2 20h20v2H2v-2Z'],
+    'pendapatan'=> ['svgPath' => 'M3 3v16a2 2 0 0 0 2 2h16v-2H5V3H3Zm4 14 5-8 3 4 3-2 4 6H7Z'],
+    'beban'     => ['svgPath' => 'M4 3h16v18l-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1V3Zm4 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z'],
   ];
 @endphp
 
@@ -52,7 +52,7 @@
   <section id="akun-form" class="coa-form-panel {{ $errors->any() ? 'block' : 'hidden' }}" aria-labelledby="coa-form-title">
     <div class="coa-section-heading">
       <span class="coa-section-heading__icon" aria-hidden="true">
-        <i class="fas fa-folder-plus"></i>
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:1.1rem;height:1.1rem"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2Zm1 6h2v3h3v2h-3v3h-2v-3H8v-2h3v-3Z"/></svg>
       </span>
       <div>
         <h2 class="coa-section-title" id="coa-form-title">Tambah Akun Baru</h2>
@@ -131,7 +131,7 @@
 
   <aside class="coa-protection" aria-label="Perlindungan Chart of Accounts">
     <span class="coa-protection__icon" aria-hidden="true">
-      <i class="fas fa-shield-alt"></i>
+      <svg viewBox="0 0 24 24" fill="currentColor" style="width:1rem;height:1rem"><path d="M12 2 4 6v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V6l-8-4Zm-1 12-3-3 1.4-1.4L11 11.2l4.6-4.6L17 8l-6 6Z"/></svg>
     </span>
     <div>
       <strong>COA dilindungi sebagai sumber pencatatan keuangan</strong>
@@ -149,7 +149,7 @@
       @foreach($categories as $key => $label)
         <article class="coa-summary-card coa-summary-card--{{ $key }}">
           <span class="coa-summary-icon" aria-hidden="true">
-            <i class="{{ $categoryMeta[$key]['icon'] ?? 'fas fa-layer-group' }}"></i>
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:1em;height:1em"><path d="{{ $categoryMeta[$key]['svgPath'] ?? 'M4 6h16v2H4Zm0 5h16v2H4Zm0 5h16v2H4Z'}}"/></svg>
           </span>
           <div class="coa-summary-content">
             <p class="coa-summary-label">{{ $label }}</p>
@@ -165,7 +165,7 @@
     <div class="coa-data-header">
       <div class="coa-section-heading">
         <span class="coa-section-heading__icon" aria-hidden="true">
-          <i class="fas fa-book"></i>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:1.1rem;height:1.1rem"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm14 0V7H6v12h12Zm-10-9h8v2H8v-2Zm0 4h5v2H8v-2Z"/></svg>
         </span>
         <div>
           <h2 class="coa-section-title" id="coa-list-title">Daftar Akun</h2>
@@ -214,7 +214,7 @@
     @if($akun->isEmpty())
       <div class="coa-empty-state">
         <span class="coa-empty-state__icon" aria-hidden="true">
-          <i class="fas fa-search"></i>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:1.15rem;height:1.15rem"><path d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 2a6 6 0 1 1 0 12A6 6 0 0 1 10 4Zm7.29 12.71 3 3-1.42 1.42-3-3 1.42-1.42Z"/></svg>
         </span>
         <h3>Belum ada akun yang sesuai</h3>
         <p>Coba ubah kata pencarian atau kategori untuk menampilkan akun yang tersedia.</p>
@@ -265,7 +265,7 @@
                         required
                         placeholder="Alasan perubahan"
                         class="rounded-lg border border-slate-200 px-2 py-1 text-xs">
-                      <button class="rounded-lg {{ $item->is_beban_operasional ? 'border border-amber-300 text-amber-700' : 'bg-[#2f8f3a] text-white' }} px-2 py-1 text-xs font-bold">
+                      <button class="kbsm-btn kbsm-btn--sm {{ $item->is_beban_operasional ? 'kbsm-btn--outline-amber' : 'kbsm-btn--green' }}">
                         {{ $item->is_beban_operasional ? 'Nonaktifkan' : 'Aktifkan' }}
                       </button>
                     </form>
@@ -297,11 +297,11 @@
           <nav class="coa-pagination__nav" aria-label="Pagination Chart of Accounts">
             @if($akun->onFirstPage())
               <span class="coa-page-link is-disabled" aria-disabled="true" aria-label="Halaman sebelumnya">
-                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:12px;height:12px" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
               </span>
             @else
               <a class="coa-page-link" href="{{ $akun->previousPageUrl() }}" rel="prev" aria-label="Halaman sebelumnya">
-                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:12px;height:12px" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
               </a>
             @endif
 
@@ -317,11 +317,11 @@
 
             @if($akun->hasMorePages())
               <a class="coa-page-link" href="{{ $akun->nextPageUrl() }}" rel="next" aria-label="Halaman berikutnya">
-                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:12px;height:12px" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
               </a>
             @else
               <span class="coa-page-link is-disabled" aria-disabled="true" aria-label="Halaman berikutnya">
-                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:12px;height:12px" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
               </span>
             @endif
           </nav>

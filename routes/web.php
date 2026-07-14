@@ -140,8 +140,6 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:keuangan'])-
         ->name('periode-potong-gaji.limit.payoff-payroll');
 
     Route::get('/mutasi-kas', [MutasiKasController::class,'index'])->name('mutasi-kas.index');
-    Route::get('/mutasi-kas/create', [MutasiKasController::class,'create'])->name('mutasi-kas.create');
-    Route::post('/mutasi-kas', [MutasiKasController::class,'store'])->name('mutasi-kas.store');
 
     // Master data Karyawan dan Anggota
     Route::resource('karyawan', KaryawanController::class)->except(['create', 'show']);

@@ -78,44 +78,6 @@ class KoperasiDummySeeder extends Seeder
             $this->seedAsetKoperasi($asetKoperasiService, $keuangan);
             $karyawanUsers = $this->seedKaryawanAccounts($karyawanAccountService, $karyawan, $keuangan);
 
-            $this->seedMutasiManual($mutasiKasService, [
-                [
-                    'dompet_id' => $dompet['kas_operasional']->id,
-                    'tipe' => 'masuk',
-                    'jumlah' => 12500000,
-                    'tanggal' => $awalBulanLalu->copy()->addDay(),
-                    'keterangan' => 'Saldo awal kas operasional koperasi [dummy-koperasi-bita]',
-                ],
-                [
-                    'dompet_id' => $dompet['bank_bca']->id,
-                    'tipe' => 'masuk',
-                    'jumlah' => 25000000,
-                    'tanggal' => $awalBulanLalu->copy()->addDays(2),
-                    'keterangan' => 'Saldo awal rekening koperasi [dummy-koperasi-bita]',
-                ],
-                [
-                    'dompet_id' => $dompet['qris']->id,
-                    'tipe' => 'masuk',
-                    'jumlah' => 2500000,
-                    'tanggal' => $awalBulanLalu->copy()->addDays(3),
-                    'keterangan' => 'Saldo awal dompet QRIS koperasi [dummy-koperasi-bita]',
-                ],
-                [
-                    'dompet_id' => $dompet['kas_operasional']->id,
-                    'tipe' => 'keluar',
-                    'jumlah' => 275000,
-                    'tanggal' => $awalBulanIni->copy()->addDays(1),
-                    'keterangan' => 'Belanja ATK, struk, dan plastik kasir [dummy-koperasi-bita]',
-                ],
-                [
-                    'dompet_id' => $dompet['bank_bca']->id,
-                    'tipe' => 'masuk',
-                    'jumlah' => 1250000,
-                    'tanggal' => $awalBulanIni->copy()->addDays(2),
-                    'keterangan' => 'Top up modal kerja dari pengurus [dummy-koperasi-bita]',
-                ],
-            ]);
-
             $this->seedSimpanan($mutasiKasService, $karyawan, $jenisSimpanan, $dompet, [
                 [
                     'anggota' => 'fitri',
@@ -647,9 +609,27 @@ class KoperasiDummySeeder extends Seeder
         $bankAkunId = \App\Models\Akun::query()->where('kode_akun', '102')->value('id');
 
         $rows = [
-            'kas_operasional' => ['nama_dompet' => 'Kas Operasional', 'akun_id' => $kasAkunId, 'jenis_dompet' => 'kas', 'is_default_penerimaan_payroll' => false],
-            'bank_bca' => ['nama_dompet' => 'Bank BCA Koperasi', 'akun_id' => $bankAkunId, 'jenis_dompet' => 'bank', 'is_default_penerimaan_payroll' => true],
-            'qris' => ['nama_dompet' => 'QRIS Koperasi', 'akun_id' => $bankAkunId, 'jenis_dompet' => 'bank', 'is_default_penerimaan_payroll' => false],
+            'kas_operasional' => [
+                'nama_dompet' => 'Kas Operasional',
+                'akun_id' => $kasAkunId,
+                'jenis_dompet' => 'kas',
+                'is_default_penerimaan_payroll' => false,
+                'saldo_awal' => 12500000,
+            ],
+            'bank_bca' => [
+                'nama_dompet' => 'Bank BCA Koperasi',
+                'akun_id' => $bankAkunId,
+                'jenis_dompet' => 'bank',
+                'is_default_penerimaan_payroll' => true,
+                'saldo_awal' => 25000000,
+            ],
+            'qris' => [
+                'nama_dompet' => 'QRIS Koperasi',
+                'akun_id' => $bankAkunId,
+                'jenis_dompet' => 'bank',
+                'is_default_penerimaan_payroll' => false,
+                'saldo_awal' => 2500000,
+            ],
         ];
 
         $result = [];
@@ -663,7 +643,12 @@ class KoperasiDummySeeder extends Seeder
 
             $dompet = DompetKoperasi::firstOrCreate(
                 ['nama_dompet' => $row['nama_dompet']],
-                ['saldo' => 0, 'akun_id' => $row['akun_id'], 'jenis_dompet' => $row['jenis_dompet'], 'is_default_penerimaan_payroll' => $row['is_default_penerimaan_payroll']]
+                [
+                    'saldo' => $row['saldo_awal'],
+                    'akun_id' => $row['akun_id'],
+                    'jenis_dompet' => $row['jenis_dompet'],
+                    'is_default_penerimaan_payroll' => $row['is_default_penerimaan_payroll'],
+                ]
             );
 
             if (

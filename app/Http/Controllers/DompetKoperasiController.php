@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Akun;
 use App\Models\DompetKoperasi;
+use App\Models\MutasiKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -128,6 +129,12 @@ class DompetKoperasiController extends Controller
     public function destroy($id)
     {
         $data = DompetKoperasi::findOrFail($id);
+
+        if (MutasiKas::query()->where('dompet_id', $data->id)->exists()) {
+            return back()->withErrors([
+                'dompet_koperasi' => 'Dompet tidak dapat dihapus karena sudah memiliki Mutasi Kas & Bank. Nonaktifkan atau gunakan penyesuaian, jangan hapus histori.',
+            ]);
+        }
 
         $data->delete();
 
