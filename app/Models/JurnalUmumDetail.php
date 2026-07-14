@@ -10,6 +10,7 @@ class JurnalUmumDetail extends Model
 
     protected $fillable = [
         'jurnal_umum_id',
+        'akun_id',
         'akun_kode',
         'akun_nama',
         'debit',
@@ -25,5 +26,9 @@ class JurnalUmumDetail extends Model
     {
         return $this->belongsTo(JurnalUmum::class, 'jurnal_umum_id');
     }
-}
 
+    public function akun()
+    {
+        return $this->belongsTo(Akun::class, 'akun_id');
+    }
+}

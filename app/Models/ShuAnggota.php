@@ -14,6 +14,7 @@ class ShuAnggota extends Model
     protected $fillable = [
         'shu_koperasi_id',
         'karyawan_id',
+        'anggota_id',
         'total_simpanan',
         'total_transaksi_usaha',
         'nominal_jasa_modal',
@@ -37,5 +38,10 @@ class ShuAnggota extends Model
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
+    }
+
+    public function anggota()
+    {
+        return $this->belongsTo(Anggota::class);
     }
 }

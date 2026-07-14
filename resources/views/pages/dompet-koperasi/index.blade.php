@@ -46,7 +46,7 @@
             @endif
 
             <div class="flex flex-wrap -mx-3">
-              <div class="w-full max-w-full px-3 md:w-6/12">
+              <div class="w-full max-w-full px-3 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Nama Dompet
                 </label>
@@ -56,7 +56,39 @@
                   placeholder="Masukkan nama dompet koperasi">
               </div>
 
-              <div class="w-full max-w-full px-3 md:w-6/12">
+              <div class="w-full max-w-full px-3 md:w-3/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Jenis Dompet
+                </label>
+                <select name="jenis_dompet"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="kas" {{ old('jenis_dompet', $data->jenis_dompet ?? 'kas') === 'kas' ? 'selected' : '' }}>Kas</option>
+                  <option value="bank" {{ old('jenis_dompet', $data->jenis_dompet ?? '') === 'bank' ? 'selected' : '' }}>Bank</option>
+                </select>
+                <label class="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <input type="checkbox" name="is_default_penerimaan_payroll" value="1"
+                    {{ old('is_default_penerimaan_payroll', $data->is_default_penerimaan_payroll ?? false) ? 'checked' : '' }}>
+                  Default penerimaan payroll
+                </label>
+              </div>
+
+              <div class="w-full max-w-full px-3 md:w-3/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Akun COA Dompet
+                </label>
+                <select name="akun_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">Pilih akun aset</option>
+                  @foreach($akunAset as $akun)
+                    <option value="{{ $akun->id }}" {{ (string) old('akun_id', $data->akun_id ?? '') === (string) $akun->id ? 'selected' : '' }}>
+                      {{ $akun->kode_akun }} - {{ $akun->nama_akun }}
+                    </option>
+                  @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">Dipakai sebagai akun kredit saat dana keluar dari Dompet.</p>
+              </div>
+
+              <div class="w-full max-w-full px-3 md:w-3/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Saldo Saat Ini
                 </label>
@@ -101,6 +133,8 @@
               <thead class="align-bottom">
                 <tr>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Dompet</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Akun COA</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Saldo</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
@@ -122,6 +156,24 @@
                           </p>
                         </div>
                       </div>
+                    </td>
+
+                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
+                      <span class="inline-block rounded-lg bg-gradient-to-tl {{ $item->jenis_dompet === 'bank' ? 'from-blue-700 to-emerald-400' : 'from-slate-700 to-slate-400' }} px-2.5 py-1 text-xs font-bold uppercase text-white">
+                        {{ strtoupper($item->jenis_dompet ?? 'kas') }}
+                      </span>
+                      @if($item->is_default_penerimaan_payroll)
+                        <p class="mt-1 mb-0 text-xs font-bold text-emerald-600">Default payroll</p>
+                      @endif
+                    </td>
+
+                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
+                      @if($item->akun)
+                        <p class="mb-0 text-xs font-bold text-slate-600">{{ $item->akun->kode_akun }} - {{ $item->akun->nama_akun }}</p>
+                        <p class="mb-0 text-xs text-slate-400">{{ $item->akun->kategori_label }} / {{ ucfirst($item->akun->posisi_saldo) }}</p>
+                      @else
+                        <span class="text-xs font-bold text-red-500">Belum dipetakan</span>
+                      @endif
                     </td>
 
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
@@ -163,7 +215,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="4" class="p-4 text-center text-sm text-slate-400">
+                    <td colspan="6" class="p-4 text-center text-sm text-slate-400">
                       Belum ada data dompet koperasi.
                     </td>
                   </tr>

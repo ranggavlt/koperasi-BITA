@@ -42,7 +42,7 @@ class ShuKoperasiController extends Controller
                 ->orderBy('karyawan_id'),
         ]);
 
-        $jumlahPengurus = PengurusKoperasi::query()->count();
+        $jumlahPengurus = PengurusKoperasi::query()->aktif()->count();
         $estimasiPengurus = $jumlahPengurus > 0
             ? round((float) $shuKoperasi->nominal_pengurus / $jumlahPengurus, 2)
             : 0;

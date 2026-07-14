@@ -2,6 +2,11 @@
   $role = auth()->user()->role ?? null;
   $modules = collect(config('navigation.modules', []))
     ->filter(function (array $module) use ($role) {
+      $feature = $module['feature'] ?? null;
+      if ($feature && ! config("features.{$feature}", false)) {
+        return false;
+      }
+
       $allowed = $module['roles'] ?? null;
       if (! is_array($allowed) || $allowed === []) {
         return true;
@@ -51,4 +56,5 @@
 
   <!-- Main Styling -->
   <link href="{{ asset('assets/css/soft-ui-dashboard-tailwind.css') }}?v=1.0.5" rel="stylesheet" />
+  <link href="{{ asset('assets/css/kbsm-theme.css') }}?v=1.0.0" rel="stylesheet" />
 </head>

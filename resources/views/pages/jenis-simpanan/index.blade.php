@@ -46,7 +46,7 @@
             @endif
 
             <div class="flex flex-wrap -mx-3">
-              <div class="w-full max-w-full px-3 md:w-6/12">
+              <div class="w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Nama Jenis Simpanan
                 </label>
@@ -56,7 +56,18 @@
                   placeholder="Masukkan nama jenis simpanan">
               </div>
 
-              <div class="w-full max-w-full px-3 md:w-6/12">
+              <div class="w-full max-w-full px-3 md:w-4/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Kode Stabil
+                </label>
+                <input type="text" name="kode"
+                  value="{{ old('kode', $data->kode ?? '') }}"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
+                  placeholder="Contoh: SIMPANAN_POKOK">
+                <p class="mt-1 text-xs text-slate-400">Kosongkan untuk dibuat dari nama. Jangan ubah kode yang sudah dipakai transaksi.</p>
+              </div>
+
+              <div class="w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
                   Status Simpanan
                 </label>
@@ -68,6 +79,36 @@
                   <option value="0" {{ (string) $wajibVal === '0' ? 'selected' : '' }}>Sukarela</option>
                   <option value="1" {{ (string) $wajibVal === '1' ? 'selected' : '' }}>Wajib</option>
                 </select>
+              </div>
+
+              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Status Aktif
+                </label>
+                @php
+                  $aktifVal = old('aktif', isset($data) ? (int) $data->aktif : 1);
+                @endphp
+                <select name="aktif"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="1" {{ (string) $aktifVal === '1' ? 'selected' : '' }}>Aktif</option>
+                  <option value="0" {{ (string) $aktifVal === '0' ? 'selected' : '' }}>Nonaktif</option>
+                </select>
+              </div>
+
+              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Akun COA
+                </label>
+                <select name="akun_id"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                  <option value="">Pilih akun pencatatan</option>
+                  @foreach($akunSimpanan as $akunItem)
+                    <option value="{{ $akunItem->id }}" {{ (string) old('akun_id', $data->akun_id ?? '') === (string) $akunItem->id ? 'selected' : '' }}>
+                      {{ $akunItem->kode_akun }} - {{ $akunItem->nama_akun }} ({{ $akunItem->kategori_label }})
+                    </option>
+                  @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">Simpanan pokok/wajib menggunakan ekuitas; simpanan yang dapat ditarik menggunakan kewajiban.</p>
               </div>
 
               <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
@@ -124,6 +165,7 @@
                 <tr>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis Simpanan</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Akun COA</th>
                   <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Keterangan</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Nominal Default</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
@@ -140,8 +182,9 @@
 
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-0 text-sm leading-normal">{{ $item->nama_jenis }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">
-                            Dibuat: {{ $item->created_at ? $item->created_at->format('d/m/Y') : '-' }}
+                          <p class="mb-0 text-xs leading-tight text-slate-400">{{ $item->kode ?: '-' }}</p>
+                          <p class="mb-0 text-xs leading-tight {{ $item->aktif ? 'text-green-500' : 'text-red-500' }}">
+                            {{ $item->aktif ? 'Aktif' : 'Nonaktif' }}
                           </p>
                         </div>
                       </div>
@@ -156,6 +199,15 @@
                         <span class="inline-block rounded-1.8 bg-gradient-to-tl from-slate-600 to-slate-300 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
                           Sukarela
                         </span>
+                      @endif
+                    </td>
+
+                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
+                      @if($item->akun)
+                        <p class="mb-0 text-xs font-bold text-slate-600">{{ $item->akun->kode_akun }} - {{ $item->akun->nama_akun }}</p>
+                        <p class="mb-0 text-xs text-slate-400">{{ $item->akun->kategori_label }}</p>
+                      @else
+                        <span class="text-xs font-bold text-red-500">Belum dipetakan</span>
                       @endif
                     </td>
 
@@ -192,7 +244,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="5" class="p-4 text-center text-sm text-slate-400">
+                    <td colspan="6" class="p-4 text-center text-sm text-slate-400">
                       Belum ada data jenis simpanan.
                     </td>
                   </tr>

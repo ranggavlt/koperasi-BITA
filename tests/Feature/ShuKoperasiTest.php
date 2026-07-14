@@ -7,6 +7,8 @@ use App\Models\Karyawan;
 use App\Models\Penjualan;
 use App\Models\ShuKoperasi;
 use App\Models\Simpanan;
+use App\Models\User;
+use App\Services\MasterDataKoperasiService;
 use App\Services\ShuKoperasiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +20,10 @@ class ShuKoperasiTest extends TestCase
 
     public function test_shu_pages_can_be_rendered(): void
     {
+        config(['features.shu_enabled' => true]);
+
+        $this->actingAs(User::factory()->create(['role' => 'keuangan']));
+
         $shuKoperasi = ShuKoperasi::create([
             'judul' => 'SHU Tahun 2026',
             'tanggal_mulai' => '2026-01-01',
@@ -50,6 +56,9 @@ class ShuKoperasiTest extends TestCase
             'telepon' => '08222',
             'jabatan' => 'Anggota',
         ]);
+
+        $this->daftarkanAnggota($anggotaA);
+        $this->daftarkanAnggota($anggotaB);
 
         $jenisSimpanan = JenisSimpanan::create([
             'nama_jenis' => 'Simpanan Wajib',
@@ -143,12 +152,22 @@ class ShuKoperasiTest extends TestCase
 
         $pembagian = $shuKoperasi->anggotaPembagian->keyBy('karyawan_id');
 
-        $this->assertSame('1200000.00', $pembagian[$anggotaA->id]->nominal_jasa_modal);
+        $this->assertSame('1600000.00', $pembagian[$anggotaA->id]->nominal_jasa_modal);
         $this->assertSame('1920000.00', $pembagian[$anggotaA->id]->nominal_jasa_usaha);
-        $this->assertSame('3120000.00', $pembagian[$anggotaA->id]->nominal_shu);
+        $this->assertSame('3520000.00', $pembagian[$anggotaA->id]->nominal_shu);
 
-        $this->assertSame('3600000.00', $pembagian[$anggotaB->id]->nominal_jasa_modal);
+        $this->assertSame('3200000.00', $pembagian[$anggotaB->id]->nominal_jasa_modal);
         $this->assertSame('2880000.00', $pembagian[$anggotaB->id]->nominal_jasa_usaha);
-        $this->assertSame('6480000.00', $pembagian[$anggotaB->id]->nominal_shu);
+        $this->assertSame('6080000.00', $pembagian[$anggotaB->id]->nominal_shu);
+    }
+
+    private function daftarkanAnggota(Karyawan $karyawan): void
+    {
+        app(MasterDataKoperasiService::class)->createAnggota([
+            'karyawan_id' => $karyawan->id,
+            'tanggal_bergabung' => '2026-01-01',
+            'alamat' => 'Jl. Dummy SHU',
+            'plafon_pinjaman' => 1000000,
+        ]);
     }
 }

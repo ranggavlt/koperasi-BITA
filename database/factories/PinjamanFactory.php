@@ -17,7 +17,13 @@ class PinjamanFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'jumlah_pinjaman' => 1000000,
+            'plafon_pinjaman_snapshot' => 1000000,
+            'bunga_persen' => 0,
+            'tenor_bulan' => 10,
+            'sisa_pinjaman' => 1000000,
+            'status' => 'aktif',
+            'tanggal_pinjaman' => now()->toDateString(),
         ];
     }
 }

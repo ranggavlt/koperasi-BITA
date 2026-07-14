@@ -2,176 +2,147 @@
 
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
+  <div class="mb-6 rounded-2xl bg-white p-6 shadow-soft-xl">
+    <h6 class="text-slate-700">Laporan Potong Gaji Bulanan</h6>
+    <p class="text-sm text-slate-400">Read model dari periode, limit, ledger pemakaian, kredit refund, pembayaran, reversal, Mutasi Kas, dan Jurnal.</p>
 
-  <div class="relative mb-6 flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">
-    <div class="mb-0 rounded-t-2xl bg-white p-6 pb-0">
-      <h6>Laporan Potong Gaji Karyawan</h6>
-      <p class="text-sm text-slate-400">
-        Rekap penggunaan koperasi per karyawan untuk acuan finance pada periode gaji berikutnya
-      </p>
-    </div>
-
-    <div class="p-6">
-      <form class="flex flex-wrap items-end gap-3" method="GET" action="{{ route('laporan.potong-gaji') }}">
-        <div>
-          <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Periode</label>
-          <input type="month" name="periode" value="{{ $periode }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
-        </div>
-
-        <button class="rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white">
-          Tampilkan
-        </button>
-
-        <p class="text-sm text-slate-400">
-          Periode: {{ $mulai->translatedFormat('d M Y') }} s/d {{ $akhir->translatedFormat('d M Y') }}
-        </p>
-      </form>
-    </div>
+    <form class="mt-4 flex flex-wrap items-end gap-3" method="GET" action="{{ route('laporan.potong-gaji') }}">
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Periode</label>
+        <input type="month" name="periode" value="{{ $periode }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Anggota</label>
+        <select name="anggota_id" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Semua</option>
+          @foreach($anggotaOptions as $anggota)
+            <option value="{{ $anggota->id }}" @selected(request('anggota_id') == $anggota->id)>
+              {{ $anggota->nomor_anggota }} - {{ $anggota->karyawan?->nama }}
+            </option>
+          @endforeach
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Status</label>
+        <select name="status" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Semua</option>
+          @foreach(['draft','active','closed_pending_confirmation','confirmed','cancelled'] as $status)
+            <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
+          @endforeach
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Kategori</label>
+        <select name="kategori" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Semua</option>
+          @foreach($kategoriOptions as $key => $label)
+            <option value="{{ $key }}" @selected(request('kategori') === $key)>{{ $label }}</option>
+          @endforeach
+        </select>
+      </div>
+      <button class="rounded-lg bg-gradient-to-tl from-emerald-600 to-slate-800 px-6 py-3 text-xs font-bold uppercase text-white">Tampilkan</button>
+      <a href="{{ route('rekonsiliasi-potong-gaji.index', ['periode' => $periode]) }}" class="rounded-lg border border-emerald-600 px-6 py-3 text-xs font-bold uppercase text-emerald-700">Rekonsiliasi</a>
+    </form>
   </div>
 
   @php
-    $metricCards = [
-        [
-            'title' => 'Karyawan Terpakai',
-            'value' => $summary['total_karyawan'],
-            'suffix' => 'Karyawan',
-            'icon' => 'ni ni-single-02',
-        ],
-        [
-            'title' => 'Belanja Bulan Ini',
-            'value' => 'Rp ' . number_format($summary['total_belanja'], 0, ',', '.'),
-            'suffix' => null,
-            'icon' => 'ni ni-cart',
-        ],
-        [
-            'title' => 'Pinjaman Cair Bulan Ini',
-            'value' => 'Rp ' . number_format($summary['total_pinjaman_baru'], 0, ',', '.'),
-            'suffix' => null,
-            'icon' => 'ni ni-money-coins',
-        ],
-        [
-            'title' => 'Total Penggunaan Periode',
-            'value' => 'Rp ' . number_format($summary['total_penggunaan'], 0, ',', '.'),
-            'suffix' => null,
-            'icon' => 'ni ni-chart-bar-32',
-            'note' => 'Sisa Pinjaman Aktif: Rp ' . number_format($summary['total_sisa_pinjaman'], 0, ',', '.'),
-        ],
+    $cards = [
+      ['label' => 'Gross Payroll', 'value' => $summary['gross_payroll']],
+      ['label' => 'Kredit Refund', 'value' => $summary['kredit_refund']],
+      ['label' => 'Net Payroll', 'value' => $summary['net_payroll']],
+      ['label' => 'Diterima Bank', 'value' => $summary['total_diterima_bank']],
+      ['label' => 'Outstanding', 'value' => $summary['total_outstanding']],
+      ['label' => 'Released/Reversed', 'value' => $summary['total_released_reversed']],
     ];
   @endphp
 
-  <div class="mb-6 flex flex-wrap -mx-3">
-    @foreach($metricCards as $card)
-      <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
-        <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border h-full">
-          <div class="flex-auto p-4">
-            <div class="flex flex-row -mx-3 h-full">
-              <div class="flex-none w-2/3 max-w-full px-3">
-                <div>
-                  <p class="mb-0 font-sans font-semibold leading-normal text-sm text-slate-500">{{ $card['title'] }}</p>
-                  <h5 class="mb-0 font-bold text-slate-700">
-                    {{ $card['value'] }}
-                    @if($card['suffix'])
-                      <span class="text-sm font-semibold text-slate-500">{{ $card['suffix'] }}</span>
-                    @endif
-                  </h5>
-
-                  @if(isset($card['note']))
-                    <p class="mt-2 mb-0 text-xs text-slate-400">{{ $card['note'] }}</p>
-                  @endif
-                </div>
-              </div>
-
-              <div class="px-3 text-right basis-1/3">
-                <div class="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500">
-                  <i class="{{ $card['icon'] }} text-lg relative top-3.5 text-white"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  <div class="mb-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+    @foreach($cards as $card)
+      <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
+        <p class="mb-1 text-xs font-bold uppercase text-slate-400">{{ $card['label'] }}</p>
+        <h5 class="mb-0 text-slate-700">Rp {{ number_format($card['value'], 0, ',', '.') }}</h5>
       </div>
     @endforeach
   </div>
 
-  <div class="relative flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">
-    <div class="mb-0 rounded-t-2xl bg-white p-6 pb-0">
-      <h6>Rekap Finance</h6>
-      <p class="text-sm text-slate-400">
-        Total penggunaan periode = belanja kasbon + pinjaman cair pada bulan terpilih
-      </p>
+  <div class="mb-6 rounded-2xl bg-white shadow-soft-xl">
+    <div class="p-6 pb-0">
+      <h6 class="text-slate-700">Ringkasan per Anggota</h6>
+      <p class="text-sm text-slate-400">Pinjaman baru tidak dihitung sebagai penggunaan limit; hanya Cicilan yang masuk payroll.</p>
     </div>
-
-    <div class="flex-auto px-0 pt-0 pb-2">
-      <div class="overflow-x-auto p-0">
-        <table class="mb-0 w-full items-center align-top border-gray-200 text-slate-500">
-          <thead>
+    <div class="overflow-x-auto p-0">
+      <table class="mb-0 w-full text-sm text-slate-600">
+        <thead>
+          <tr class="text-left text-xxs uppercase text-slate-400">
+            <th class="px-6 py-3">Anggota</th>
+            <th class="px-6 py-3">Limit</th>
+            <th class="px-6 py-3">Cicilan</th>
+            <th class="px-6 py-3">Simpanan Pokok</th>
+            <th class="px-6 py-3">POS</th>
+            <th class="px-6 py-3">Kredit</th>
+            <th class="px-6 py-3">Net</th>
+            <th class="px-6 py-3">Sisa Kapasitas</th>
+            <th class="px-6 py-3">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($laporan as $row)
             <tr>
-              <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Karyawan</th>
-              <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Rincian Belanja</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Belanja</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Pinjaman Cair</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Cicilan Tercatat</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Sisa Pinjaman</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Sisa Limit</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Total Penggunaan</th>
+              <td class="border-b px-6 py-3">
+                <div class="font-semibold text-slate-700">{{ $row->nomor_anggota }}</div>
+                <div class="text-xs text-slate-400">{{ $row->nama }}</div>
+              </td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->limit_nominal, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->cicilan, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->simpanan_pokok, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->pos, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->kredit_refund, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3 font-bold text-emerald-700">Rp {{ number_format($row->net_payroll, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->sisa_kapasitas, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">{{ $row->status_limit }}</td>
             </tr>
-          </thead>
-          <tbody>
-            @forelse($laporan as $row)
-              <tr>
-                <td class="border-b p-2 align-middle whitespace-nowrap">
-                  <div class="px-4 py-2">
-                    <h6 class="mb-0 text-sm leading-normal text-slate-700">{{ $row->karyawan->nama }}</h6>
-                    <p class="mb-0 text-xs text-slate-400">{{ $row->karyawan->jabatan ?: 'Tanpa jabatan' }}</p>
-                  </div>
-                </td>
-                <td class="border-b p-2 align-middle">
-                  <div class="px-4 py-2">
-                    @forelse($row->rincian_belanja as $rincian)
-                      <span class="mb-1 mr-1 inline-block rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {{ $rincian }}
-                      </span>
-                    @empty
-                      <span class="text-xs text-slate-400">Tidak ada belanja pada periode ini</span>
-                    @endforelse
-                    <p class="mt-2 mb-0 text-xs text-slate-400">
-                      {{ $row->jumlah_transaksi }} transaksi belanja
-                    </p>
-                  </div>
-                </td>
-                <td class="border-b p-2 text-center align-middle">
-                  Rp {{ number_format($row->total_belanja, 0, ',', '.') }}
-                </td>
-                <td class="border-b p-2 text-center align-middle">
-                  Rp {{ number_format($row->total_pinjaman_baru, 0, ',', '.') }}
-                </td>
-                <td class="border-b p-2 text-center align-middle">
-                  Rp {{ number_format($row->total_cicilan, 0, ',', '.') }}
-                </td>
-                <td class="border-b p-2 text-center align-middle">
-                  Rp {{ number_format($row->sisa_pinjaman_aktif, 0, ',', '.') }}
-                </td>
-                <td class="border-b p-2 text-center align-middle">
-                  Rp {{ number_format($row->sisa_limit_bulan, 0, ',', '.') }}
-                </td>
-                <td class="border-b p-2 text-center align-middle">
-                  <span class="rounded-lg bg-green-100 px-3 py-2 text-xs font-bold text-green-700">
-                    Rp {{ number_format($row->total_penggunaan, 0, ',', '.') }}
-                  </span>
-                </td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="8" class="p-6 text-center text-sm text-slate-400">
-                  Belum ada transaksi karyawan pada periode ini.
-                </td>
-              </tr>
-            @endforelse
-          </tbody>
-        </table>
-      </div>
+          @empty
+            <tr><td colspan="9" class="p-6 text-center text-slate-400">Belum ada limit/ledger untuk periode ini.</td></tr>
+          @endforelse
+        </tbody>
+      </table>
     </div>
   </div>
 
+  <div class="rounded-2xl bg-white shadow-soft-xl">
+    <div class="p-6 pb-0">
+      <h6 class="text-slate-700">Detail Ledger</h6>
+    </div>
+    <div class="overflow-x-auto p-0">
+      <table class="mb-0 w-full text-sm text-slate-600">
+        <thead>
+          <tr class="text-left text-xxs uppercase text-slate-400">
+            <th class="px-6 py-3">Anggota</th>
+            <th class="px-6 py-3">Kategori</th>
+            <th class="px-6 py-3">Sumber</th>
+            <th class="px-6 py-3">Tanggal</th>
+            <th class="px-6 py-3">Nominal</th>
+            <th class="px-6 py-3">Status</th>
+            <th class="px-6 py-3">Reversal</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($details as $detail)
+            <tr>
+              <td class="border-b px-6 py-3">{{ $detail->anggota?->nomor_anggota }} - {{ $detail->anggota?->karyawan?->nama }}</td>
+              <td class="border-b px-6 py-3">{{ $detail->kategori }}</td>
+              <td class="border-b px-6 py-3">{{ $detail->kode_sumber }}</td>
+              <td class="border-b px-6 py-3">{{ optional($detail->tanggal)->format('d/m/Y H:i') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($detail->nominal, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">{{ $detail->status }}</td>
+              <td class="border-b px-6 py-3">{{ $detail->reversal?->kode_reversal ?? '-' }}</td>
+            </tr>
+          @empty
+            <tr><td colspan="7" class="p-6 text-center text-slate-400">Tidak ada ledger sesuai filter.</td></tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 @endsection

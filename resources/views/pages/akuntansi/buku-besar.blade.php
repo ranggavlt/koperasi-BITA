@@ -24,8 +24,8 @@
                 <select name="akun"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
                   @foreach($akunList as $item)
-                    <option value="{{ $item->akun_kode }}" {{ $akun === $item->akun_kode ? 'selected' : '' }}>
-                      {{ $item->akun_kode }} - {{ $item->akun_nama }}
+                    <option value="{{ $item->kode_akun }}" {{ $akun === $item->kode_akun ? 'selected' : '' }}>
+                      {{ $item->kode_akun }} - {{ $item->nama_akun }}
                     </option>
                   @endforeach
                 </select>
@@ -41,9 +41,10 @@
 
           <div class="mb-4 rounded-lg bg-gray-50 px-4 py-3 text-sm text-slate-600">
             <div class="flex flex-wrap -mx-2">
-              <div class="w-full max-w-full px-2 md:w-4/12">Total Debit: <strong>{{ number_format($totalDebit, 0, ',', '.') }}</strong></div>
-              <div class="w-full max-w-full px-2 md:w-4/12 mt-2 md:mt-0">Total Kredit: <strong>{{ number_format($totalKredit, 0, ',', '.') }}</strong></div>
-              <div class="w-full max-w-full px-2 md:w-4/12 mt-2 md:mt-0">Saldo Akhir: <strong>{{ number_format($saldoAkhir, 0, ',', '.') }}</strong></div>
+              <div class="w-full max-w-full px-2 md:w-3/12">Saldo Awal: <strong>{{ number_format($saldoAwal, 0, ',', '.') }}</strong></div>
+              <div class="w-full max-w-full px-2 md:w-3/12 mt-2 md:mt-0">Total Debit: <strong>{{ number_format($totalDebit, 0, ',', '.') }}</strong></div>
+              <div class="w-full max-w-full px-2 md:w-3/12 mt-2 md:mt-0">Total Kredit: <strong>{{ number_format($totalKredit, 0, ',', '.') }}</strong></div>
+              <div class="w-full max-w-full px-2 md:w-3/12 mt-2 md:mt-0">Saldo Akhir: <strong>{{ number_format($saldoAkhir, 0, ',', '.') }}</strong></div>
             </div>
           </div>
 
@@ -95,4 +96,3 @@
   </div>
 </div>
 @endsection
-

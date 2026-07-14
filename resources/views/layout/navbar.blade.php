@@ -2,6 +2,11 @@
     $role = auth()->user()->role ?? null;
     $modules = collect(config('navigation.modules', []))
         ->filter(function (array $module) use ($role) {
+            $feature = $module['feature'] ?? null;
+            if ($feature && ! config("features.{$feature}", false)) {
+                return false;
+            }
+
             $allowed = $module['roles'] ?? null;
             if (! is_array($allowed) || $allowed === []) {
                 return true;
@@ -107,7 +112,7 @@
 
                     <input
                         type="text"
-                        class="w-full rounded-xl border border-solid border-gray-300 bg-white text-sm text-slate-700 transition-all placeholder:text-slate-400 focus:border-fuchsia-300 focus:outline-none"
+                        class="kbsm-focus w-full rounded-xl border border-solid border-gray-300 bg-white text-sm text-slate-700 transition-all placeholder:text-slate-400 focus:outline-none"
                         style="height: 2.65rem; padding-left: 2.45rem; padding-right: 0.95rem;"
                         placeholder="Cari modul..."
                         autocomplete="off"
@@ -206,6 +211,7 @@
     <style>
         [data-navbar-shell] {
             border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 12px 30px rgba(5, 44, 70, 0.07);
         }
 
         [data-navbar-current] {
@@ -224,8 +230,8 @@
         [data-navbar-meta-pill],
         [data-navbar-pill],
         [data-module-badge] {
-            background-color: #f8fafc;
-            border: 1px solid rgba(226, 232, 240, 0.95);
+            background-color: var(--kbsm-green-soft);
+            border: 1px solid rgba(47, 143, 58, 0.12);
         }
 
         [data-navbar-meta-pill] {
@@ -246,25 +252,25 @@
         }
 
         [data-navbar-pill]:hover {
-            background-color: #eef2f7;
-            color: #0f172a;
+            background-color: var(--kbsm-green-soft);
+            color: var(--kbsm-navy-dark);
         }
 
         [data-navbar-pill][data-active='true'] {
-            background-color: #0f172a;
-            border-color: #0f172a;
-            color: #ffffff;
+            background-color: var(--kbsm-navy);
+            border-color: var(--kbsm-navy);
+            color: var(--kbsm-white);
         }
 
         [data-module-search-button] {
-            background-color: #0f172a;
-            color: #ffffff;
-            border: 1px solid #0f172a;
+            background-color: var(--kbsm-navy);
+            color: var(--kbsm-white);
+            border: 1px solid var(--kbsm-navy);
         }
 
         [data-module-search-button]:hover {
-            background-color: #1e293b;
-            border-color: #1e293b;
+            background-color: var(--kbsm-navy-dark);
+            border-color: var(--kbsm-navy-dark);
         }
 
         [data-module-search-results] {
@@ -276,13 +282,13 @@
         }
 
         [data-module-search-results] [data-module-result-item]:hover {
-            background-color: #f8fafc;
+            background-color: var(--kbsm-green-soft);
         }
 
         [data-module-search-results] [data-result-badge] {
-            background-color: #f8fafc;
-            border: 1px solid rgba(226, 232, 240, 0.95);
-            color: #0f172a;
+            background-color: var(--kbsm-green-soft);
+            border: 1px solid rgba(47, 143, 58, 0.12);
+            color: var(--kbsm-navy-dark);
         }
 
         [data-navbar-quick-links] {
@@ -390,7 +396,7 @@
                     if (!matches.length) {
                         results.innerHTML = `
                             <div class="px-4 py-4 text-sm text-slate-500">
-                                Modul "<strong>${escapeHtml(query)}</strong>" tidak ditemukan. Coba kata lain seperti produk, kasir, simpanan, atau SHU.
+                                Modul "<strong>${escapeHtml(query)}</strong>" tidak ditemukan. Coba kata lain seperti produk, kasir, simpanan, atau payroll.
                             </div>
                         `;
                         openResults();

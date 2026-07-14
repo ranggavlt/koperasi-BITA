@@ -47,14 +47,7 @@ class MutasiKasService
 
     public function backfillHistoricalTransactions(): void
     {
-        if (! $this->hasAvailableDompet()) {
-            return;
-        }
-
-        $this->backfillPenjualan();
-        $this->backfillSimpanan();
-        $this->backfillPinjaman();
-        $this->backfillCicilanPinjaman();
+        throw new RuntimeException('Backfill historis Mutasi Kas & Bank dinonaktifkan. Mutasi hanya boleh dibuat oleh service transaksi resmi dengan Dompet eksplisit.');
     }
 
     public function deleteAndReverse(MutasiKas $mutasi): void
@@ -68,12 +61,14 @@ class MutasiKasService
 
     protected function resolveDompet(?int $dompetId = null): DompetKoperasi
     {
-        $dompet = $dompetId
-            ? DompetKoperasi::find($dompetId)
-            : DompetKoperasi::orderBy('id')->first();
+        if (! $dompetId) {
+            throw new RuntimeException('Dompet wajib ditentukan secara eksplisit untuk mencatat Mutasi Kas & Bank.');
+        }
+
+        $dompet = DompetKoperasi::find($dompetId);
 
         if (! $dompet) {
-            throw new RuntimeException('Belum ada dompet koperasi yang tersedia untuk mencatat mutasi kas.');
+            throw new RuntimeException('Dompet koperasi yang dipilih tidak ditemukan untuk mencatat Mutasi Kas & Bank.');
         }
 
         return $dompet;

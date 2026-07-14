@@ -100,6 +100,7 @@ class ShuKoperasiService
         $tanggalSelesai = Carbon::parse($shuKoperasi->tanggal_selesai)->endOfDay();
 
         $anggota = Karyawan::query()
+            ->with('anggota')
             ->orderBy('nama')
             ->get(['id', 'nama']);
 
@@ -156,6 +157,7 @@ class ShuKoperasiService
             return [
                 'shu_koperasi_id' => $shuKoperasi->id,
                 'karyawan_id' => $karyawan->id,
+                'anggota_id' => $karyawan->anggota?->id,
                 'total_simpanan' => round((float) ($bobotModal[$karyawan->id] ?? 0), 2),
                 'total_transaksi_usaha' => round((float) ($bobotUsaha[$karyawan->id] ?? 0), 2),
                 'nominal_jasa_modal' => $nominalJasaModal,
