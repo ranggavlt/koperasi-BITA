@@ -49,15 +49,15 @@ class PosCheckoutService
                 $context = $this->resolveCustomer($tipe, $data);
                 $dompet = null;
 
-                if ($tipe === Penjualan::TIPE_ANGGOTA && $metode !== Pembayaran::METODE_POTONG_GAJI) {
-                    throw ValidationException::withMessages([
-                        'metode_pembayaran' => 'Anggota aktif wajib menggunakan metode Potong Gaji pada POS.',
-                    ]);
-                }
-
                 if ($tipe !== Penjualan::TIPE_ANGGOTA && $metode === Pembayaran::METODE_POTONG_GAJI) {
                     throw ValidationException::withMessages([
                         'metode_pembayaran' => 'Potong Gaji hanya boleh digunakan untuk pelanggan Anggota aktif.',
+                    ]);
+                }
+
+                if ($tipe === Penjualan::TIPE_ANGGOTA && ! in_array($metode, [Pembayaran::METODE_TUNAI, Pembayaran::METODE_POTONG_GAJI], true)) {
+                    throw ValidationException::withMessages([
+                        'metode_pembayaran' => 'Anggota aktif hanya dapat memilih Tunai atau Potong Gaji pada POS.',
                     ]);
                 }
 
@@ -160,7 +160,7 @@ class PosCheckoutService
 
         if ($karyawan->anggota?->status === Anggota::STATUS_AKTIF) {
             throw ValidationException::withMessages([
-                'karyawan_id' => 'Karyawan yang masih Anggota aktif wajib bertransaksi sebagai Anggota melalui potong gaji.',
+                'karyawan_id' => 'Karyawan yang masih Anggota aktif wajib bertransaksi sebagai Anggota.',
             ]);
         }
 

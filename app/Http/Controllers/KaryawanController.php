@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreKaryawanRequest;
 use App\Http\Requests\StoreKaryawanAccountRequest;
+
 use App\Http\Requests\UpdateKaryawanRequest;
 use App\Models\Karyawan;
+
 use App\Services\KaryawanAccountService;
 use App\Services\MasterDataKoperasiService;
 
@@ -64,10 +66,15 @@ class KaryawanController extends Controller
         Karyawan $karyawan,
         KaryawanAccountService $service
     ) {
-        $service->createAccount($karyawan, $request->validated('temporary_password'), $request->user()->id);
+        $service->createAccount(
+            $karyawan,
+            $request->validated('temporary_password'),
+            $request->validated('role'),
+            $request->user()->id
+        );
 
         return redirect()->route('karyawan.index')
-            ->with('success', 'Akun Karyawan berhasil dibuat. Karyawan wajib mengganti password saat login pertama.');
+            ->with('success', 'Akun Karyawan berhasil dibuat. Pengguna wajib mengganti password saat login pertama.');
     }
 
     public function resetAccountPassword(
@@ -96,4 +103,5 @@ class KaryawanController extends Controller
         return redirect()->route('karyawan.index')
             ->with('success', 'Akun Karyawan berhasil dinonaktifkan.');
     }
+
 }

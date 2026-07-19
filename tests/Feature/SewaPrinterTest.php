@@ -35,7 +35,7 @@ class SewaPrinterTest extends TestCase
     public function test_vendor_snapshot_detail_dinamis_margin_half_up_total_dan_kode(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $pic = Karyawan::factory()->create();
 
         $sewa = $service->createDraft($this->payload($pic, [
@@ -80,7 +80,7 @@ class SewaPrinterTest extends TestCase
 
     public function test_finance_only_master_printer_hidden_direct_url_404_dan_form_awal_satu_row(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $karyawanUser = User::factory()->create([
             'role' => 'karyawan',
@@ -134,7 +134,7 @@ class SewaPrinterTest extends TestCase
 
     public function test_filter_sewa_printer_memakai_status_karyawan_overlap_tanggal_dan_pagination_query(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $service = app(SewaPrinterService::class);
         $karyawanA = Karyawan::factory()->create(['nama' => 'Pemohon Printer Filter A']);
         $karyawanB = Karyawan::factory()->create(['nama' => 'Pemohon Printer Filter B']);
@@ -203,7 +203,7 @@ class SewaPrinterTest extends TestCase
     public function test_validasi_tidak_membutuhkan_aset_printer_dan_menolak_karyawan_nonaktif(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $active = Karyawan::factory()->create();
         $inactive = Karyawan::factory()->create([
             'status_kerja' => Karyawan::STATUS_BERHENTI,
@@ -229,7 +229,7 @@ class SewaPrinterTest extends TestCase
     public function test_pelunasan_dua_dompet_membuat_mutasi_masuk_keluar_jurnal_split_dan_tanpa_ledger_payroll(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $sewa = $this->confirmedSewa($service, $finance);
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
         $bank = $this->dompet(DompetKoperasi::JENIS_BANK, 2000000);
@@ -291,7 +291,7 @@ class SewaPrinterTest extends TestCase
     public function test_lifecycle_start_complete_hanya_margin_menjadi_pendapatan_dan_idempotent(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $sewa = $this->confirmedSewa($service, $finance);
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
 
@@ -323,7 +323,7 @@ class SewaPrinterTest extends TestCase
     public function test_cancel_sebelum_paid_boleh_dan_setelah_paid_ditolak_tanpa_refund_otomatis(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
 
         $draft = $service->createDraft($this->payload(Karyawan::factory()->create()), $finance->id);
         $cancelledDraft = $service->cancelByFinance($draft, 'Batal draft', $finance->id);
@@ -346,7 +346,7 @@ class SewaPrinterTest extends TestCase
 
     public function test_get_halaman_read_only_dan_preflight_mendeteksi_konflik_schema_final(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $service = app(SewaPrinterService::class);
         $sewa = $this->confirmedSewa($service, $finance);
         $countBefore = SewaPrinter::query()->count();

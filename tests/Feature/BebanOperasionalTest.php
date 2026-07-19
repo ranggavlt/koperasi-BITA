@@ -28,7 +28,7 @@ class BebanOperasionalTest extends TestCase
     public function test_draft_satu_detail_umum_edit_cancel_tanpa_posting_dan_aset_diabaikan(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
 
         $draft = $service->createDraft($this->payload($this->expenseAkun('beban_atk_kantor'), $dompet, [
@@ -73,7 +73,7 @@ class BebanOperasionalTest extends TestCase
     public function test_posting_mengurangi_dompet_membuat_mutasi_keluar_jurnal_seimbang_dan_tanpa_payroll(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $akunAtk = $this->expenseAkun('beban_atk_kantor');
 
@@ -99,7 +99,7 @@ class BebanOperasionalTest extends TestCase
     public function test_validasi_akun_dompet_saldo_hpp_dan_guard_immutable(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $kasAkun = $this->assetAkun('kas');
         $hpp = $this->expenseAkun('harga_pokok_penjualan');
@@ -129,7 +129,7 @@ class BebanOperasionalTest extends TestCase
     public function test_reversal_penuh_membuat_audit_mutasi_masuk_jurnal_terbalik_dan_menolak_ganda(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
         $detailAkun = $this->expenseAkun('beban_operasional');
         $posted = $service->post($service->createDraft($this->payload($detailAkun, $dompet, [
@@ -153,7 +153,7 @@ class BebanOperasionalTest extends TestCase
 
     public function test_index_form_terpisah_authorization_field_aset_absen_dan_get_read_only(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $karyawan = $this->user('karyawan');
         $akunAtk = $this->expenseAkun('beban_atk_kantor');
@@ -207,7 +207,7 @@ class BebanOperasionalTest extends TestCase
 
     public function test_http_store_mengabaikan_aset_legacy_dan_request_manipulation_ditolak(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $akun = $this->expenseAkun('beban_atk_kantor');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
 
@@ -236,7 +236,7 @@ class BebanOperasionalTest extends TestCase
     public function test_filter_status_dompet_akun_tanggal_dan_pagination_query(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $akunAtk = $this->expenseAkun('beban_atk_kantor');
         $akunTransport = $this->expenseAkun('beban_transportasi_operasional');
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 5000000);
@@ -297,7 +297,7 @@ class BebanOperasionalTest extends TestCase
 
     public function test_preflight_read_only_dan_route_delete_tidak_tersedia(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $service = app(BebanOperasionalService::class);
         $draft = $service->createDraft($this->payload($this->expenseAkun('beban_operasional'), $this->dompet(DompetKoperasi::JENIS_KAS, 1000000), [
             'keterangan' => 'Korupsi total untuk preflight',
@@ -333,7 +333,7 @@ class BebanOperasionalTest extends TestCase
     public function test_eligibility_coa_beban_operasional_ditegakkan_dan_diaudit(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $akunAtk = $this->expenseAkun('beban_atk_kantor');
         $draft = $service->createDraft($this->payload($akunAtk, $dompet), $finance->id);

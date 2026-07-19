@@ -102,21 +102,43 @@ class PotongGajiTahap2DTest extends TestCase
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PemakaianPotongGaji::class)->count());
     }
 
-    public function test_pos_menolak_anggota_nonpayroll_dan_nonanggota_payroll(): void
+    public function test_pos_anggota_tunai_tidak_memakai_limit_dan_transfer_ditolak(): void
     {
         $anggota = $this->anggota();
-        $produk = $this->produk();
+        $produk = $this->produk(50000, 10);
         $kas = $this->kasDompet();
         $service = app(PosCheckoutService::class);
 
-        $this->expectValidation(fn () => $service->checkout([
+        $penjualan = $service->checkout([
             'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,
             'anggota_id' => $anggota->id,
             'metode_pembayaran' => Pembayaran::METODE_TUNAI,
             'dompet_id' => $kas->id,
             'items' => [['produk_id' => $produk->id, 'jumlah' => 1]],
             'diskon' => 0,
+        ], $this->user()->id);
+
+        $this->assertSame($anggota->id, $penjualan->anggota_id);
+        $this->assertSame($anggota->karyawan_id, $penjualan->karyawan_id);
+        $this->assertSame(Pembayaran::METODE_TUNAI, $penjualan->pembayaran->metode_pembayaran);
+        $this->assertSame(Pembayaran::STATUS_PAID, $penjualan->pembayaran->status);
+        $this->assertSame('50000.00', $kas->fresh()->saldo);
+        $this->assertSame(0, PemakaianPotongGaji::query()->count());
+
+        $this->expectValidation(fn () => $service->checkout([
+            'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,
+            'anggota_id' => $anggota->id,
+            'metode_pembayaran' => Pembayaran::METODE_TRANSFER_BANK,
+            'dompet_id' => $kas->id,
+            'items' => [['produk_id' => $produk->id, 'jumlah' => 1]],
+            'diskon' => 0,
         ], $this->user()->id));
+    }
+
+    public function test_pos_menolak_nonanggota_payroll(): void
+    {
+        $produk = $this->produk();
+        $service = app(PosCheckoutService::class);
 
         $karyawan = Karyawan::factory()->create();
         $this->expectValidation(fn () => $service->checkout([
@@ -190,7 +212,7 @@ class PotongGajiTahap2DTest extends TestCase
 
     private function user(): User
     {
-        return User::factory()->create(['role' => 'keuangan']);
+        return User::factory()->create(['role' => 'admin']);
     }
 
     private function anggota(): Anggota

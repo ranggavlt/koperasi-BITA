@@ -20,7 +20,7 @@ class MutasiKasBankReportTest extends TestCase
 
     public function test_get_mutasi_kas_bank_is_read_only_and_does_not_change_saldo_dompet(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kas = $this->dompet('Kas Readonly', DompetKoperasi::JENIS_KAS, 500000);
 
         MutasiKas::query()->create([
@@ -49,7 +49,7 @@ class MutasiKasBankReportTest extends TestCase
 
     public function test_filter_tanggal_dompet_tipe_sumber_and_summary_are_correct(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kas = $this->dompet('Kas Filter', DompetKoperasi::JENIS_KAS, 0);
         $bank = $this->dompet('Bank Filter', DompetKoperasi::JENIS_BANK, 0);
 
@@ -83,7 +83,7 @@ class MutasiKasBankReportTest extends TestCase
 
     public function test_tanggal_selesai_tidak_boleh_sebelum_tanggal_mulai(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
 
         $this->actingAs($finance)
             ->from(route('mutasi-kas.index'))
@@ -97,7 +97,7 @@ class MutasiKasBankReportTest extends TestCase
 
     public function test_pagination_mempertahankan_query_filter(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kas = $this->dompet('Kas Pagination', DompetKoperasi::JENIS_KAS, 0);
 
         for ($i = 1; $i <= 16; $i++) {
@@ -120,7 +120,7 @@ class MutasiKasBankReportTest extends TestCase
 
     public function test_finance_boleh_mengakses_dan_role_lain_ditolak(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $karyawan = $this->user('karyawan');
 
@@ -132,7 +132,7 @@ class MutasiKasBankReportTest extends TestCase
 
     public function test_dompet_yang_sudah_memiliki_mutasi_tidak_dapat_dihapus(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kas = $this->dompet('Kas Terpakai', DompetKoperasi::JENIS_KAS, 0);
         $this->mutasi($kas, 'masuk', '50000.00', '2026-07-05', Penjualan::class, 'POS Dompet Terpakai');
 
@@ -166,7 +166,7 @@ class MutasiKasBankReportTest extends TestCase
         $this->assertSame('Usaha Koperasi', $modules['sewa-printer.index']['section']);
         $this->assertSame('Operasional', $modules['beban-operasional.index']['section']);
 
-        $this->actingAs($this->user('keuangan'))
+        $this->actingAs($this->user('admin'))
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSeeInOrder([

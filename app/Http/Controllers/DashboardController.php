@@ -95,6 +95,14 @@ class DashboardController extends Controller
         // RETURN VIEW
         // =============================
 
+        if (auth()->user()->role === 'kasir') {
+            return view('pages.dashboard-kasir', compact(
+                'pendapatanHariIni',
+                'transaksiHariIni',
+                'transaksiTerakhir'
+            ));
+        }
+
         return view('pages.dashboard', compact(
             'pendapatanHariIni',
             'transaksiHariIni',

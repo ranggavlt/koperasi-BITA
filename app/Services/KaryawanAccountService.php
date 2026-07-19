@@ -10,9 +10,9 @@ use Illuminate\Validation\ValidationException;
 
 class KaryawanAccountService
 {
-    public function createAccount(Karyawan $karyawan, string $temporaryPassword, ?int $financeUserId = null): User
+    public function createAccount(Karyawan $karyawan, string $temporaryPassword, string $role, ?int $financeUserId = null): User
     {
-        return DB::transaction(function () use ($karyawan, $temporaryPassword, $financeUserId): User {
+        return DB::transaction(function () use ($karyawan, $temporaryPassword, $role, $financeUserId): User {
             $locked = Karyawan::query()->lockForUpdate()->findOrFail($karyawan->id);
 
             if ($locked->status_kerja !== Karyawan::STATUS_AKTIF) {
@@ -37,7 +37,7 @@ class KaryawanAccountService
                 'name' => $locked->nama,
                 'email' => $locked->email,
                 'password' => Hash::make($temporaryPassword),
-                'role' => 'karyawan',
+                'role' => $role,
                 'karyawan_id' => $locked->id,
                 'is_active' => true,
                 'must_change_password' => true,

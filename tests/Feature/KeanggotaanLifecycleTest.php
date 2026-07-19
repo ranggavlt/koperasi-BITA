@@ -27,7 +27,7 @@ class KeanggotaanLifecycleTest extends TestCase
 
     public function test_karyawan_keluar_membuat_siklus_penyelesaian_dan_offset_pinjaman_tanpa_cicilan_palsu(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $anggota = $this->anggota();
         $this->settleSimpananPokok($anggota);
 
@@ -81,7 +81,7 @@ class KeanggotaanLifecycleTest extends TestCase
 
     public function test_refund_penyelesaian_completed_mengizinkan_reaktivasi_siklus_baru(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $anggota = $this->anggota();
         $this->settleSimpananPokok($anggota);

@@ -1,461 +1,577 @@
 @extends('layout.main')
+@section('title', 'Point of Sale')
 
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
 
-  @if (session('success'))
-    <div class="mb-4 rounded-lg bg-green-100 px-4 py-3 text-sm text-green-700">
-      {{ session('success') }}
-    </div>
-  @endif
+<style>
+    .pos-wrapper {
+        padding: 0 24px 24px 24px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .pos-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .pos-left, .pos-right {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    @media (min-width: 1024px) {
+        .pos-layout {
+            flex-direction: row;
+            align-items: flex-start;
+        }
+        .pos-left {
+            flex: 0 0 calc(62% - 10px);
+            width: calc(62% - 10px);
+        }
+        .pos-right {
+            flex: 0 0 calc(38% - 10px);
+            width: calc(38% - 10px);
+        }
+    }
 
-  @if ($errors->any())
-    <div class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
-      <ul class="mb-0 list-disc pl-5">
-        @foreach ($errors->all() as $error)
-          <li>{{ $error }}</li>
-        @endforeach
-      </ul>
-    </div>
-  @endif
+    /* Custom Scrollbar for Cart to make it visible and elegant */
+    #cartItemsContainer {
+        overscroll-behavior: contain; /* Prevent scrolling the main page when reaching the end */
+    }
+    #cartItemsContainer::-webkit-scrollbar {
+        width: 5px;
+    }
+    #cartItemsContainer::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #cartItemsContainer::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 20px;
+    }
+    #cartItemsContainer::-webkit-scrollbar-thumb:hover {
+        background-color: #94a3b8;
+    }
+</style>
 
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
-          <div>
-            <h6>Tambah Transaksi POS</h6>
-            <p class="text-sm text-slate-400">
-              Anggota aktif menggunakan Potong Gaji engine bulanan. Karyawan nonanggota dan pelanggan umum memakai Tunai, Transfer Bank, atau QRIS.
-            </p>
-          </div>
-
-          <button type="button" onclick="toggleForm()" id="btn-toggle-form"
-            class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-            {{ $errors->any() ? 'Tutup Form' : '+ Tambah Transaksi' }}
-          </button>
-        </div>
-
-        <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ $errors->any() ? 'block' : 'hidden' }}">
-          <form action="{{ route('penjualan.store') }}" method="POST">
-            @csrf
-
-            <div class="flex flex-wrap -mx-3">
-              <div class="w-full max-w-full px-3 md:w-3/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Kode Transaksi</label>
-                <input type="text" readonly value="Otomatis"
-                  class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-gray-100 px-3 py-2 font-bold text-gray-600 cursor-not-allowed">
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tanggal</label>
-                <input type="datetime-local" name="tanggal_transaksi" value="{{ old('tanggal_transaksi') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tipe Pelanggan</label>
-                <select name="tipe_pelanggan" id="tipe_pelanggan" required
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="anggota" {{ old('tipe_pelanggan', 'anggota') === 'anggota' ? 'selected' : '' }}>Anggota</option>
-                  <option value="karyawan" {{ old('tipe_pelanggan') === 'karyawan' ? 'selected' : '' }}>Karyawan Nonanggota</option>
-                  <option value="umum" {{ old('tipe_pelanggan') === 'umum' ? 'selected' : '' }}>Umum</option>
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-3/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Metode Pembayaran</label>
-                <select name="metode_pembayaran" id="metode_pembayaran" required
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="potong_gaji" {{ old('metode_pembayaran', 'potong_gaji') === 'potong_gaji' ? 'selected' : '' }}>Potong Gaji</option>
-                  <option value="tunai" {{ old('metode_pembayaran') === 'tunai' ? 'selected' : '' }}>Tunai</option>
-                  <option value="transfer_bank" {{ old('metode_pembayaran') === 'transfer_bank' ? 'selected' : '' }}>Transfer Bank</option>
-                  <option value="qris" {{ old('metode_pembayaran') === 'qris' ? 'selected' : '' }}>QRIS</option>
-                </select>
-                <p id="metode_hint" class="mt-2 text-xs text-slate-400"></p>
-              </div>
-
-              <div id="anggota-wrapper" class="w-full max-w-full px-3 md:w-6/12 mt-4">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Anggota Aktif</label>
-                <select name="anggota_id" id="anggota_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Anggota --</option>
-                  @foreach($anggota as $item)
-                    @php
-                      $limitAktif = $item->limitsPotongGaji
-                        ->where('status', \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE)
-                        ->sortByDesc(fn ($limit) => $limit->periodePotongGaji?->periode)
-                        ->first();
-                    @endphp
-                    <option value="{{ $item->id }}" {{ old('anggota_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nomor_anggota }} - {{ $item->karyawan->nama ?? '-' }}
-                      @if($limitAktif)
-                        (limit aktif {{ $limitAktif->periodePotongGaji?->periode?->format('m/Y') }}, sisa Rp {{ number_format(max(0, $limitAktif->sisaLimitCents()) / 100, 0, ',', '.') }})
-                      @else
-                        (belum ada limit aktif)
-                      @endif
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div id="karyawan-wrapper" class="w-full max-w-full px-3 md:w-6/12 mt-4 hidden">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Karyawan Nonanggota</label>
-                <select name="karyawan_id" id="karyawan_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Karyawan --</option>
-                  @foreach($karyawanNonAnggota as $item)
-                    <option value="{{ $item->id }}" {{ old('karyawan_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama }}
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div id="dompet-wrapper" class="w-full max-w-full px-3 md:w-6/12 mt-4 hidden">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dompet Penerimaan</label>
-                <select name="dompet_id" id="dompet_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Dompet --</option>
-                  @foreach($dompetKas as $item)
-                    <option value="{{ $item->id }}" data-jenis="kas" {{ old('dompet_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama_dompet }} (Kas)
-                    </option>
-                  @endforeach
-                  @foreach($dompetBank as $item)
-                    <option value="{{ $item->id }}" data-jenis="bank" {{ old('dompet_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama_dompet }} (Bank/QRIS)
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4">
-                <div class="mb-2 flex items-center justify-between">
-                  <label class="mb-0 ml-1 block text-xs font-bold uppercase text-slate-700">Produk & Jumlah</label>
-                  <button type="button" id="btn-add-item"
-                    class="inline-flex items-center rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-3 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                    + Tambah Produk
-                  </button>
+<div class="pos-wrapper">
+    <form id="posForm" action="{{ route('penjualan.store') }}" method="POST" style="width: 100%; box-sizing: border-box;">
+        @csrf
+        <div class="pos-layout">
+            <!-- Bagian Produk (KIRI) -->
+            <div class="pos-left" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Search Bar -->
+                <div class="relative w-full">
+                    <input type="text" id="searchInput" style="width: 100%; padding: 10px 12px 10px 38px; font-size: 13px; border: none; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); outline: none; background-color: white;" placeholder="Cari produk...">
+                    <i class="fas fa-search absolute top-1/2 transform -translate-y-1/2 text-slate-400" style="left: 14px; font-size: 14px;"></i>
                 </div>
 
-                <div id="items-container" class="space-y-3"></div>
-                <p class="mt-2 text-xs text-slate-500">Semua item dalam satu checkout akan diproses atomik bersama stok, pembayaran, ledger, Mutasi Kas, dan Jurnal.</p>
-              </div>
+                <!-- Kategori Chips -->
+                <div style="overflow-x: auto;" class="flex gap-2 pb-1 scrollbar-hide w-full max-w-full" id="kategoriContainer">
+                    <button type="button" onclick="filterKategori('all', this)" class="kategori-btn" style="padding: 6px 16px; font-size: 12px; font-weight: 600; border-radius: 20px; white-space: nowrap; transition: all 0.2s; background-color: #059669; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: none; cursor: pointer;">
+                        Semua
+                    </button>
+                    @foreach($kategoris as $kategori)
+                        <button type="button" onclick="filterKategori({{ $kategori->id }}, this)" class="kategori-btn" style="padding: 6px 16px; font-size: 12px; font-weight: 600; border-radius: 20px; white-space: nowrap; transition: all 0.2s; background-color: white; color: #475569; border: 1px solid #e2e8f0; cursor: pointer;">
+                            {{ $kategori->nama_kategori }}
+                        </button>
+                    @endforeach
+                </div>
 
-              <div class="w-full max-w-full px-3 md:w-4/12 mt-4">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Total Harga</label>
-                <input type="number" name="total_harga" id="total_harga" readonly value="0"
-                  class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-gray-100 px-3 py-2 font-bold text-gray-700 cursor-not-allowed">
-              </div>
+                <!-- Grid Produk -->
+                <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-bottom: 24px; width: 100%;" id="produkGrid">
+                    @forelse($produk as $item)
+                        <div class="produk-card bg-white cursor-pointer relative flex flex-col group hover:shadow-md transition-shadow" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);"
+                             data-id="{{ $item->id }}"
+                             data-kategori="{{ $item->kategori_id }}"
+                             data-nama="{{ strtolower($item->nama_produk) }}"
+                             onclick="addToCart({{ $item->id }}, '{{ addslashes($item->nama_produk) }}', {{ $item->harga_jual }}, {{ $item->stok }})">
+                            <!-- Foto -->
+                            <div style="width: 100%; height: 90px; border-radius: 8px; background-color: #f1f5f9; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                                @if($item->foto)
+                                    <img src="{{ asset('storage/' . $item->foto) }}" style="width: 100%; height: 100%; object-fit: cover;" alt="{{ $item->nama_produk }}">
+                                @else
+                                    <i class="fas fa-box text-slate-300" style="font-size: 28px;"></i>
+                                @endif
+                                <div class="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            </div>
 
-              <div class="w-full max-w-full px-3 md:w-4/12 mt-4">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Diskon (Rp)</label>
-                <input type="number" name="diskon" id="diskon" oninput="kalkulasiOtomatis()"
-                  value="{{ old('diskon', 0) }}" min="0"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-4/12 mt-4">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700 text-green-600">Grand Total</label>
-                <input type="number" name="grand_total" id="grand_total" readonly value="0"
-                  class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-green-500 bg-green-50 px-3 py-2 font-bold text-green-700 cursor-not-allowed">
-              </div>
+                            <!-- Info Produk -->
+                            <div class="flex flex-col flex-grow justify-between">
+                                <div>
+                                    <h3 style="font-size: 12px; font-weight: 600; color: #1e293b; line-height: 1.3; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ $item->nama_produk }}</h3>
+                                    <p style="color: #059669; font-weight: 700; font-size: 13px;">Rp {{ number_format($item->harga_jual, 0, ',', '.') }}</p>
+                                </div>
+                                <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 11px; color: #64748b;">Stok: {{ $item->stok }}</span>
+                                    @if($item->stok <= 5)
+                                        <span style="font-size: 9px; background-color: #ffedd5; color: #ea580c; padding: 2px 6px; border-radius: 10px; font-weight: 700;">Terbatas</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-span-full flex flex-col items-center justify-center text-slate-400 py-10">
+                            <i class="fas fa-box-open text-4xl mb-3"></i>
+                            <p style="font-size: 13px;">Tidak ada produk ditemukan.</p>
+                        </div>
+                    @endforelse
+                </div>
             </div>
 
-            <div class="mt-6 flex gap-2">
-              <button type="submit"
-                class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
-                Simpan Transaksi
-              </button>
+            <!-- Bagian Keranjang (KANAN) -->
+            <div class="pos-right" style="background-color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: sticky; top: 16px; align-self: flex-start; border: 1px solid #e2e8f0; border-radius: 16px; z-index: 20; max-height: calc(100vh - 40px);">
+
+                <div style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 16px 16px 0 0; flex-shrink: 0;">
+                    <h2 style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 0;"><i class="fas fa-shopping-cart" style="color: #059669; margin-right: 6px;"></i>Keranjang</h2>
+                    <span id="cartCount" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background-color: #d1fae5; color: #047857;">0 Item</span>
+                </div>
+
+                <!-- Error Messages dari Laravel Validation -->
+                @if ($errors->any())
+                    <div style="padding: 8px 12px 0 12px; flex-shrink: 0;">
+                        <div style="background-color: #fef2f2; color: #dc2626; padding: 8px; border-radius: 8px; font-size: 11px; font-weight: 600;">
+                            @foreach ($errors->all() as $error)
+                                <div style="margin-bottom: 2px;">- {{ $error }}</div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+                @if (session()->has('success'))
+                    <div style="padding: 8px 12px 0 12px; flex-shrink: 0;">
+                        <div style="background-color: #f0fdf4; color: #15803d; padding: 8px; border-radius: 8px; font-size: 11px; font-weight: 600; text-align: center;">
+                            {{ session('success') }}
+                        </div>
+                    </div>
+                @endif
+                <div id="jsErrorAlert" style="padding: 8px 12px 0 12px; display: none; flex-shrink: 0;">
+                    <div id="jsErrorText" style="background-color: #fef2f2; color: #dc2626; padding: 8px; border-radius: 8px; font-size: 11px; font-weight: 600;"></div>
+                </div>
+
+                <!-- Daftar Item -->
+                <div id="cartItemsContainer" style="padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; overflow-y: auto;">
+                    <!-- Diisi via JS -->
+                    <div style="display: flex; flex-direction: column; items-center; justify-content: center; color: #94a3b8; height: 100px; text-align: center;">
+                        <div style="width: 40px; height: 40px; background-color: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px auto;">
+                            <i class="fas fa-shopping-basket" style="font-size: 16px; color: #cbd5e1;"></i>
+                        </div>
+                        <p style="font-size: 11px; margin: 0;">Keranjang masih kosong</p>
+                    </div>
+                </div>
+
+                <!-- Hidden Input untuk dikirim ke Controller -->
+                <div id="hiddenCartInputs"></div>
+
+                <!-- Pembayaran & Total -->
+                <div style="padding: 12px 16px; background-color: white; border-top: 1px solid #e2e8f0; border-radius: 0 0 16px 16px;">
+
+                    <!-- Pengaturan Form -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <div style="width: 50%;">
+                                <label style="display: block; font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Tipe Pelanggan</label>
+                                <select name="tipe_pelanggan" id="tipe_pelanggan" onchange="updateIdentitasState()" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="umum">Umum</option>
+                                    <option value="anggota">Anggota</option>
+                                    <option value="karyawan">Karyawan</option>
+                                </select>
+                            </div>
+                            <div style="width: 50%;">
+                                <label style="display: block; font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Identitas</label>
+
+                                <select name="anggota_id" id="anggota_id" style="display: none; width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="">Pilih Anggota...</option>
+                                    @foreach($anggota as $ang)
+                                        <option value="{{ $ang->id }}">{{ $ang->karyawan->nama ?? 'Tanpa Nama' }}</option>
+                                    @endforeach
+                                </select>
+
+                                <select name="karyawan_id" id="karyawan_id" style="display: none; width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="">Pilih Karyawan...</option>
+                                    @foreach($karyawanNonAnggota as $kar)
+                                        <option value="{{ $kar->id }}">{{ $kar->nama }}</option>
+                                    @endforeach
+                                </select>
+
+                                <div id="identitas_umum" style="width: 100%; height: 32px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; color: #94a3b8;">
+                                    Umum
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Pembayaran -->
+                        <div style="display: flex; gap: 8px;">
+                            <div style="width: 50%;">
+                                <label style="display: block; font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Metode Bayar</label>
+                                <select name="metode_pembayaran" id="metode_pembayaran" onchange="updateDompetState()" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="tunai">Tunai</option>
+                                    <option value="transfer_bank">Transfer</option>
+                                    <option value="qris">QRIS</option>
+                                    <option value="potong_gaji" id="opt_potong_gaji" style="display: none;">Kasbon (Potong Gaji)</option>
+                                </select>
+                            </div>
+                            <div style="width: 50%;">
+                                <label style="display: block; font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Penyimpanan</label>
+
+                                <select name="dompet_id" id="dompet_id" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="">Pilih Dompet...</option>
+                                    @foreach($dompets as $dompet)
+                                        <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }}</option>
+                                    @endforeach
+                                </select>
+
+                                <div id="dompet_payroll" style="display: none; width: 100%; height: 32px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; align-items: center; padding: 0 8px; font-size: 12px; color: #94a3b8;">
+                                    Payroll
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rincian Biaya -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-bottom: 8px;">
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Subtotal</span>
+                                <span style="font-size: 13px; font-weight: 700; color: #334155;" id="lbl_subtotal">Rp 0</span>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Diskon</span>
+                                <div style="display: flex; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; height: 26px; width: 100px; overflow: hidden;">
+                                    <span style="padding: 0 6px; font-size: 11px; font-weight: 700; color: #94a3b8; background-color: #f1f5f9; border-right: 1px solid #e2e8f0; height: 100%; display: flex; align-items: center;">Rp</span>
+                                    <input type="number" name="diskon" id="diskon" value="0" oninput="calculateTotals()" style="width: 100%; height: 100%; border: none; background: transparent; text-align: right; padding-right: 6px; font-size: 12px; font-weight: 600; outline: none; box-shadow: none;">
+                                </div>
+                            </div>
+
+                            <div id="uang_diterima_container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Uang Diterima</span>
+                                <div style="display: flex; align-items: center; border: 1px solid #34d399; border-radius: 6px; background-color: #ecfdf5; height: 28px; width: 120px; overflow: hidden;">
+                                    <span style="padding: 0 6px; font-size: 11px; font-weight: 700; color: #10b981; background-color: #d1fae5; border-right: 1px solid #a7f3d0; height: 100%; display: flex; align-items: center;">Rp</span>
+                                    <input type="number" id="uang_diterima" oninput="calculateTotals()" style="width: 100%; height: 100%; border: none; background: transparent; text-align: right; padding-right: 6px; font-size: 13px; font-weight: 700; color: #059669; outline: none; box-shadow: none;" placeholder="0">
+                                </div>
+                            </div>
+
+                            <div id="kembalian_container" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Kembalian</span>
+                                <span style="font-size: 13px; font-weight: 700; color: #334155;" id="lbl_kembalian">Rp 0</span>
+                            </div>
+                        </div>
+
+                        <div style="background-color: #1e293b; color: #ffffff; padding: 10px 14px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                            <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #cbd5e1;">Total Bayar</span>
+                            <span style="font-size: 18px; font-weight: 900; color: #34d399; letter-spacing: -0.5px;" id="lbl_grandtotal">Rp 0</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" onclick="clearCart()" style="width: 25%; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background-color: #fef2f2; color: #ef4444; font-weight: bold; border: 1px solid #fee2e2; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.backgroundColor='#ef4444'; this.style.color='white';" onmouseout="this.style.backgroundColor='#fef2f2'; this.style.color='#ef4444';">
+                            <i class="fas fa-trash-alt" style="font-size: 13px;"></i>
+                        </button>
+                        <button type="button" onclick="submitCheckout()" style="width: 75%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; background-color: #10b981; color: white; font-weight: 700; font-size: 13px; border: none; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.backgroundColor='#059669';" onmouseout="this.style.backgroundColor='#10b981';">
+                            <i class="fas fa-check-circle" style="font-size: 14px;"></i>
+                            <span>PROSES BAYAR</span>
+                        </button>
+                    </div>
+                </div>
             </div>
-          </form>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-          <h6>Riwayat Transaksi POS</h6>
-          <p class="text-sm text-slate-400">Hard delete dinonaktifkan; koreksi transaksi keuangan dilakukan melalui alur reversal/adjustment tahap berikutnya.</p>
-        </div>
-
-        <div class="flex-auto px-0 pt-0 pb-2">
-          <div class="p-0 overflow-x-auto">
-            <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-              <thead class="align-bottom">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Kode & Tgl</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Pelanggan</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Barang & Qty</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Metode/Status</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Total</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70 border-b border-gray-200">Koreksi</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                @forelse($penjualan as $item)
-                  @php
-                    $pembayaran = $item->pembayaran;
-                    $metode = $pembayaran->metode_pembayaran ?? '-';
-                    $status = $pembayaran->status ?? '-';
-                    $pelanggan = match ($item->tipe_pelanggan) {
-                      'anggota' => ($item->anggota?->nomor_anggota ?? '-') . ' - ' . ($item->anggota?->karyawan?->nama ?? '-'),
-                      'karyawan' => $item->karyawan->nama ?? '-',
-                      'umum' => 'Pelanggan Umum',
-                      default => $item->karyawan->nama ?? 'Tidak Diketahui',
-                    };
-                  @endphp
-                  <tr>
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center px-4 py-2">
-                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
-                          {{ $penjualan->firstItem() + $loop->index }}
-                        </div>
-                        <div class="flex flex-col justify-center">
-                          <h6 class="mb-0 text-sm font-bold text-slate-700">{{ $item->kode_transaksi }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">
-                            {{ ($item->tanggal_transaksi ?? $item->created_at)?->format('d/m/Y H:i') ?? '-' }}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <p class="mb-0 px-4 text-sm font-semibold leading-tight text-slate-600">{{ $pelanggan }}</p>
-                      <p class="mb-0 px-4 text-xs leading-tight text-slate-400">{{ ucfirst($item->tipe_pelanggan ?? 'legacy') }}</p>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="px-4">
-                        @foreach($item->details as $detail)
-                          <p class="mb-0 text-sm font-semibold text-blue-600">
-                            {{ $detail->produk->nama_produk ?? 'Produk Dihapus' }}
-                            <span class="text-slate-500">x {{ $detail->qty }}</span>
-                          </p>
-                        @endforeach
-                      </div>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent text-center">
-                      <span class="inline-block rounded-full {{ $metode === 'potong_gaji' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700' }} px-3 py-1 text-xs font-bold">
-                        {{ str_replace('_', ' ', strtoupper($metode)) }}
-                      </span>
-                      <p class="mt-1 mb-0 text-xs text-slate-400">{{ str_replace('_', ' ', $status) }}</p>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent text-center">
-                      <p class="mb-0 text-xs text-slate-500">Harga: Rp {{ number_format($item->total_harga, 0, ',', '.') }}</p>
-                      <p class="mb-0 text-xs text-red-500">Diskon: Rp {{ number_format($item->diskon, 0, ',', '.') }}</p>
-                      <p class="mb-0 text-sm font-bold text-green-600 mt-1">Total: Rp {{ number_format($item->grand_total, 0, ',', '.') }}</p>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
-                      @if(! in_array($item->status ?? 'completed', ['cancelled','reversed','refunded'], true) && in_array($status, ['pending_payroll','paid'], true))
-                        <form method="POST" action="{{ route('penjualan.reversal', $item) }}" class="space-y-2">
-                          @csrf
-                          <textarea name="alasan" rows="2" required minlength="5" placeholder="Alasan reversal/refund penuh"
-                            class="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs"></textarea>
-
-                          @if($metode !== 'potong_gaji' || ($metode === 'potong_gaji' && $status === 'paid' && !($item->anggota?->status === 'aktif' && $item->anggota?->karyawan?->status_kerja === 'aktif')))
-                            <select name="dompet_refund_id" class="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs">
-                              @foreach(($metode === 'tunai' ? $dompetKas : $dompetBank) as $dompet)
-                                <option value="{{ $dompet->id }}" @selected($pembayaran?->dompet_id === $dompet->id)>{{ $dompet->nama_dompet }}</option>
-                              @endforeach
-                            </select>
-                          @endif
-
-                          <button class="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold uppercase text-white">
-                            Reversal Penuh
-                          </button>
-                        </form>
-                      @else
-                        <span class="text-xs text-slate-400">Tidak eligible</span>
-                      @endif
-                    </td>
-                  </tr>
-                @empty
-                  <tr>
-                    <td colspan="6" class="p-6 text-center text-sm text-slate-400">
-                      Belum ada data transaksi.
-                    </td>
-                  </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
-          <div class="p-4 border-t border-gray-200">
-            {{ $penjualan->links() }}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
+    </form>
 </div>
 
+<style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Elegant thin scrollbar for the cart items */
+    #cartItemsContainer::-webkit-scrollbar {
+        width: 6px;
+    }
+    #cartItemsContainer::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #cartItemsContainer::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 10px;
+    }
+    #cartItemsContainer::-webkit-scrollbar-thumb:hover {
+        background-color: #94a3b8;
+    }
+
+    .pos-container { min-height: calc(100vh - 100px); }
+    @media (max-width: 1024px) {
+        .pos-container { min-height: auto; }
+    }
+</style>
+
 <script>
-  const produkData = @json($produkOptions);
-  const oldItems = @json(old('items', []));
+    let cart = [];
+    let subtotal = 0;
+    let grandTotal = 0;
 
-  function toggleForm() {
-    const formContainer = document.getElementById('form-container');
-    const btnToggle = document.getElementById('btn-toggle-form');
-
-    if (formContainer.classList.contains('hidden')) {
-      formContainer.classList.remove('hidden');
-      formContainer.classList.add('block');
-      btnToggle.innerHTML = 'Tutup Form';
-    } else {
-      formContainer.classList.add('hidden');
-      formContainer.classList.remove('block');
-      btnToggle.innerHTML = '+ Tambah Transaksi';
-    }
-  }
-
-  function syncCustomerPayment() {
-    const tipe = document.getElementById('tipe_pelanggan').value;
-    const metode = document.getElementById('metode_pembayaran');
-    const anggotaWrapper = document.getElementById('anggota-wrapper');
-    const karyawanWrapper = document.getElementById('karyawan-wrapper');
-    const dompetWrapper = document.getElementById('dompet-wrapper');
-    const hint = document.getElementById('metode_hint');
-
-    anggotaWrapper.classList.toggle('hidden', tipe !== 'anggota');
-    karyawanWrapper.classList.toggle('hidden', tipe !== 'karyawan');
-
-    const potongOption = [...metode.options].find((option) => option.value === 'potong_gaji');
-    const nonPayrollOptions = [...metode.options].filter((option) => option.value !== 'potong_gaji');
-
-    if (tipe === 'anggota') {
-      metode.value = 'potong_gaji';
-      potongOption.disabled = false;
-      nonPayrollOptions.forEach((option) => option.disabled = true);
-      hint.textContent = 'Anggota aktif memakai limit Potong Gaji bulanan. Jika limit belum dibuat atau tidak cukup, transaksi ditolak seluruhnya.';
-    } else {
-      if (metode.value === 'potong_gaji') metode.value = 'tunai';
-      potongOption.disabled = true;
-      nonPayrollOptions.forEach((option) => option.disabled = false);
-      hint.textContent = tipe === 'karyawan'
-        ? 'Karyawan nonanggota tidak memakai limit Potong Gaji.'
-        : 'Pelanggan umum tidak terhubung ke Karyawan/Anggota.';
+    function formatRupiah(number) {
+        return new Intl.NumberFormat('id-ID').format(number);
     }
 
-    dompetWrapper.classList.toggle('hidden', metode.value === 'potong_gaji');
-    syncDompetOptions();
-  }
-
-  function syncDompetOptions() {
-    const metode = document.getElementById('metode_pembayaran').value;
-    const dompet = document.getElementById('dompet_id');
-    const expected = metode === 'tunai' ? 'kas' : 'bank';
-
-    [...dompet.options].forEach((option) => {
-      if (!option.value) return;
-      option.disabled = option.getAttribute('data-jenis') !== expected;
+    // SEARCH & FILTER
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        let keyword = e.target.value.toLowerCase();
+        let cards = document.querySelectorAll('.produk-card');
+        cards.forEach(card => {
+            if(card.getAttribute('data-nama').includes(keyword)) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
     });
 
-    const selected = dompet.options[dompet.selectedIndex];
-    if (selected && selected.value && selected.disabled) {
-      dompet.value = '';
-    }
-  }
+    function filterKategori(id, btn) {
+        // Update Buttons
+        document.querySelectorAll('.kategori-btn').forEach(b => {
+            b.style.backgroundColor = 'white';
+            b.style.color = '#475569';
+            b.style.border = '1px solid #e2e8f0';
+            b.style.boxShadow = 'none';
+        });
+        btn.style.backgroundColor = '#059669';
+        btn.style.color = 'white';
+        btn.style.border = 'none';
+        btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
 
-  function buildProdukOptions(selectedId = '') {
-    const options = ['<option value="">-- Pilih Produk --</option>'];
-    produkData.forEach((p) => {
-      const selected = String(selectedId) === String(p.id) ? 'selected' : '';
-      options.push(
-        `<option value="${p.id}" data-harga="${p.harga_jual}" ${selected}>${p.nama_produk} (Sisa: ${p.stok} | Rp ${Number(p.harga_jual).toLocaleString('id-ID')})</option>`
-      );
-    });
-    return options.join('');
-  }
-
-  function createItemRow(index, selectedProduk = '', jumlah = 1) {
-    const row = document.createElement('div');
-    row.className = 'item-row flex flex-wrap -mx-2 rounded-lg border border-gray-200 bg-gray-50 p-3';
-    row.innerHTML = `
-      <div class="w-full max-w-full px-2 md:w-7/12">
-        <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Produk</label>
-        <select name="items[${index}][produk_id]" required class="produk-select focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-          ${buildProdukOptions(selectedProduk)}
-        </select>
-      </div>
-      <div class="w-full max-w-full px-2 md:w-3/12 mt-3 md:mt-0">
-        <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jumlah (Qty)</label>
-        <input type="number" name="items[${index}][jumlah]" required min="1" value="${jumlah}" class="jumlah-input focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-      </div>
-      <div class="w-full max-w-full px-2 md:w-2/12 mt-3 md:mt-0 flex items-end">
-        <button type="button" class="btn-remove-item inline-block w-full rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-3 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-          Hapus
-        </button>
-      </div>
-    `;
-    return row;
-  }
-
-  function reindexRows() {
-    const rows = document.querySelectorAll('#items-container .item-row');
-    rows.forEach((row, index) => {
-      row.querySelector('.produk-select').name = `items[${index}][produk_id]`;
-      row.querySelector('.jumlah-input').name = `items[${index}][jumlah]`;
-    });
-  }
-
-  function addRow(selectedProduk = '', jumlah = 1) {
-    const container = document.getElementById('items-container');
-    const index = container.querySelectorAll('.item-row').length;
-    const row = createItemRow(index, selectedProduk, jumlah);
-    container.appendChild(row);
-
-    row.querySelector('.produk-select').addEventListener('change', kalkulasiOtomatis);
-    row.querySelector('.jumlah-input').addEventListener('input', kalkulasiOtomatis);
-    row.querySelector('.btn-remove-item').addEventListener('click', function () {
-      row.remove();
-      if (container.querySelectorAll('.item-row').length === 0) addRow();
-      reindexRows();
-      kalkulasiOtomatis();
-    });
-
-    kalkulasiOtomatis();
-  }
-
-  function kalkulasiOtomatis() {
-    const rows = document.querySelectorAll('#items-container .item-row');
-    let totalHarga = 0;
-
-    rows.forEach((row) => {
-      const select = row.querySelector('.produk-select');
-      const qty = parseFloat(row.querySelector('.jumlah-input').value) || 0;
-      const harga = parseFloat(select.options[select.selectedIndex]?.getAttribute('data-harga')) || 0;
-      totalHarga += harga * qty;
-    });
-
-    const diskon = parseFloat(document.getElementById('diskon').value) || 0;
-    const grandTotal = Math.max(0, totalHarga - diskon);
-
-    document.getElementById('total_harga').value = totalHarga;
-    document.getElementById('grand_total').value = grandTotal;
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('tipe_pelanggan').addEventListener('change', syncCustomerPayment);
-    document.getElementById('metode_pembayaran').addEventListener('change', syncCustomerPayment);
-    document.getElementById('btn-add-item').addEventListener('click', () => addRow());
-    document.getElementById('diskon').addEventListener('input', kalkulasiOtomatis);
-
-    if (Array.isArray(oldItems) && oldItems.length > 0) {
-      oldItems.forEach((item) => addRow(item.produk_id ?? '', item.jumlah ?? 1));
-    } else {
-      addRow();
+        // Update Grid
+        let cards = document.querySelectorAll('.produk-card');
+        cards.forEach(card => {
+            if(id === 'all' || card.getAttribute('data-kategori') == id) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
     }
 
-    syncCustomerPayment();
-  });
+    // CART LOGIC
+    function addToCart(id, nama, harga, stok) {
+        let existing = cart.find(item => item.id == id);
+        if(existing) {
+            if(existing.qty < stok) existing.qty++;
+        } else {
+            if(stok > 0) {
+                cart.push({id: id, nama: nama, harga: harga, qty: 1, max: stok});
+            }
+        }
+        renderCart();
+    }
+
+    function increaseQty(index) {
+        if(cart[index].qty < cart[index].max) cart[index].qty++;
+        renderCart();
+    }
+
+    function decreaseQty(index) {
+        if(cart[index].qty > 1) {
+            cart[index].qty--;
+            renderCart();
+        } else {
+            removeItem(index);
+        }
+    }
+
+    function removeItem(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function clearCart() {
+        cart = [];
+        renderCart();
+    }
+
+    function renderCart() {
+        let container = document.getElementById('cartItemsContainer');
+        document.getElementById('cartCount').innerText = cart.length + ' Item';
+
+        // Reset subtotal at the start of renderCart so it becomes 0 when cart is empty
+        subtotal = 0;
+
+        if(cart.length === 0) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-slate-400" style="height: 100%;">
+                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-2">
+                        <i class="fas fa-shopping-basket text-2xl text-slate-300"></i>
+                    </div>
+                    <p class="text-xs">Keranjang masih kosong</p>
+                </div>
+            `;
+        } else {
+            let html = '';
+            cart.forEach((item, index) => {
+                let itemTotal = item.harga * item.qty;
+                subtotal += itemTotal;
+                html += `
+                <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #f1f5f9; position: relative;" class="group">
+                    <button type="button" onclick="removeItem(${index})" style="position: absolute; right: -6px; top: -6px; background-color: #fee2e2; color: #ef4444; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: none; cursor: pointer;" class="group-hover:opacity-100">
+                        <i class="fas fa-times" style="font-size: 10px;"></i>
+                    </button>
+                    <div style="flex-grow: 1; overflow: hidden;">
+                        <div style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nama}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 12px; color: #059669; font-weight: bold;">Rp ${formatRupiah(item.harga)}</span>
+                            <span style="font-size: 13px; font-weight: bold; color: #1e293b;">Rp ${formatRupiah(itemTotal)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span style="font-size: 11px; color: #94a3b8;">Kuantitas:</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button type="button" onclick="decreaseQty(${index})" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: white; border: 1px solid #e2e8f0; color: #475569; cursor: pointer;">
+                                    <span style="font-size: 16px; font-weight: bold; line-height: 1; margin-top: -2px;">-</span>
+                                </button>
+                                <span style="font-size: 12px; font-weight: bold; width: 20px; text-align: center;">${item.qty}</span>
+                                <button type="button" onclick="increaseQty(${index})" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: #d1fae5; border: 1px solid #a7f3d0; color: #047857; cursor: pointer;">
+                                    <span style="font-size: 16px; font-weight: bold; line-height: 1; margin-top: -1px;">+</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        calculateTotals();
+        renderHiddenInputs();
+    }
+
+    function calculateTotals() {
+        document.getElementById('lbl_subtotal').innerText = 'Rp ' + formatRupiah(subtotal);
+        let diskon = parseInt(document.getElementById('diskon').value) || 0;
+        grandTotal = subtotal - diskon;
+        if(grandTotal < 0) grandTotal = 0;
+        document.getElementById('lbl_grandtotal').innerText = 'Rp ' + formatRupiah(grandTotal);
+
+        let metode = document.getElementById('metode_pembayaran').value;
+        if(metode === 'tunai') {
+            document.getElementById('uang_diterima_container').style.display = 'flex';
+            document.getElementById('kembalian_container').style.display = 'flex';
+            let diterima = parseInt(document.getElementById('uang_diterima').value) || 0;
+            let kembalian = diterima - grandTotal;
+            let lblKembalian = document.getElementById('lbl_kembalian');
+            lblKembalian.innerText = 'Rp ' + formatRupiah(kembalian);
+            lblKembalian.style.color = kembalian < 0 ? '#ef4444' : '#334155';
+        } else {
+            document.getElementById('uang_diterima_container').style.display = 'none';
+            document.getElementById('kembalian_container').style.display = 'none';
+        }
+    }
+
+    function renderHiddenInputs() {
+        let container = document.getElementById('hiddenCartInputs');
+        let html = '';
+        cart.forEach((item, index) => {
+            html += `<input type="hidden" name="items[${index}][produk_id]" value="${item.id}">`;
+            html += `<input type="hidden" name="items[${index}][jumlah]" value="${item.qty}">`;
+        });
+        container.innerHTML = html;
+    }
+
+    // FORM STATE
+    function updateIdentitasState() {
+        let tipe = document.getElementById('tipe_pelanggan').value;
+        let anggotaEl = document.getElementById('anggota_id');
+        let karyawanEl = document.getElementById('karyawan_id');
+
+        anggotaEl.style.display = 'none';
+        karyawanEl.style.display = 'none';
+        document.getElementById('identitas_umum').style.display = 'none';
+
+        let selMetode = document.getElementById('metode_pembayaran');
+        let allowedForAnggota = ['tunai', 'potong_gaji'];
+        [...selMetode.options].forEach(option => {
+            let isAllowedForTipe = tipe === 'anggota'
+                ? allowedForAnggota.includes(option.value)
+                : option.value !== 'potong_gaji';
+            option.hidden = !isAllowedForTipe;
+            option.disabled = !isAllowedForTipe;
+            option.style.display = isAllowedForTipe ? '' : 'none';
+        });
+
+        if(tipe === 'anggota') {
+            anggotaEl.style.display = 'block';
+            karyawanEl.value = "";
+            if(!allowedForAnggota.includes(selMetode.value)) selMetode.value = 'tunai';
+        } else if(tipe === 'karyawan') {
+            karyawanEl.style.display = 'block';
+            anggotaEl.value = "";
+            if(selMetode.value === 'potong_gaji') selMetode.value = 'tunai';
+        } else {
+            document.getElementById('identitas_umum').style.display = 'flex';
+            anggotaEl.value = "";
+            karyawanEl.value = "";
+            if(selMetode.value === 'potong_gaji') selMetode.value = 'tunai';
+        }
+        updateDompetState();
+    }
+
+    function updateDompetState() {
+        let tipe = document.getElementById('tipe_pelanggan').value;
+        let selMetode = document.getElementById('metode_pembayaran');
+
+        if(selMetode.value === 'potong_gaji') {
+            document.getElementById('dompet_id').style.display = 'none';
+            document.getElementById('dompet_id').value = "";
+            document.getElementById('dompet_payroll').style.display = 'flex';
+        } else {
+            document.getElementById('dompet_id').style.display = 'block';
+            document.getElementById('dompet_payroll').style.display = 'none';
+        }
+        calculateTotals();
+    }
+
+    function showError(msg) {
+        document.getElementById('jsErrorAlert').style.display = 'block';
+        document.getElementById('jsErrorText').innerText = msg;
+        setTimeout(() => { document.getElementById('jsErrorAlert').style.display = 'none'; }, 5000);
+    }
+
+    function submitCheckout() {
+        if(cart.length === 0) {
+            showError('Keranjang belanja kosong!');
+            return;
+        }
+
+        let tipe = document.getElementById('tipe_pelanggan').value;
+        if(tipe === 'anggota' && document.getElementById('anggota_id').value === '') {
+            showError('Silakan pilih Anggota!');
+            return;
+        }
+        if(tipe === 'karyawan' && document.getElementById('karyawan_id').value === '') {
+            showError('Silakan pilih Karyawan!');
+            return;
+        }
+
+        let metode = document.getElementById('metode_pembayaran').value;
+        if(tipe === 'anggota' && !['tunai', 'potong_gaji'].includes(metode)) {
+            showError('Anggota hanya dapat memilih Tunai atau Potong Gaji.');
+            return;
+        }
+        if(metode !== 'potong_gaji' && document.getElementById('dompet_id').value === '') {
+            showError('Silakan pilih Dompet Penyimpanan!');
+            return;
+        }
+
+        if(metode === 'tunai') {
+            let diterima = parseInt(document.getElementById('uang_diterima').value) || 0;
+            if(diterima < grandTotal) {
+                showError('Uang diterima kurang dari total belanja!');
+                return;
+            }
+        }
+
+        document.getElementById('posForm').submit();
+    }
+
+    // Init
+    updateIdentitasState();
 </script>
 @endsection

@@ -325,7 +325,7 @@ class JenisSimpananSp1Test extends TestCase
     private function finance(): User
     {
         return User::factory()->create([
-            'role' => 'keuangan',
+            'role' => 'admin',
             'is_active' => true,
             'must_change_password' => false,
         ]);

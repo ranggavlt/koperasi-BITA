@@ -63,7 +63,7 @@ class PreflightPotongGajiCommand extends Command
             $this->check('limit_confirmed_reserved', 'Limit confirmed masih mempunyai ledger reserved', $this->limitStatusMasihReserved('confirmed')),
             $this->check('limit_confirmed_consumed', 'Limit confirmed masih mempunyai ledger consumed', $this->limitStatusMasihConsumed('confirmed')),
             $this->check('limit_cancelled_reserved', 'Limit cancelled masih mempunyai reservasi aktif', $this->limitStatusMasihReserved('cancelled')),
-            $this->check('pos_anggota_bukan_payroll', 'POS Anggota aktif bukan Potong Gaji', $this->posAnggotaBukanPayroll()),
+            $this->check('pos_anggota_metode_invalid', 'POS Anggota aktif memakai metode selain Tunai/Potong Gaji', $this->posAnggotaMetodeInvalid()),
             $this->check('pos_payroll_tanpa_ledger', 'POS Potong Gaji tanpa ledger payroll', $this->posPayrollTanpaLedger()),
             $this->check('pos_ledger_nominal_mismatch', 'Ledger POS tidak sama dengan grand total', $this->posLedgerNominalMismatch()),
             $this->check('pos_payroll_settled_mismatch', 'POS payroll settled/payment tidak konsisten', $this->posPayrollSettlementMismatch()),
@@ -678,7 +678,7 @@ class PreflightPotongGajiCommand extends Command
             ->count('l.id');
     }
 
-    private function posAnggotaBukanPayroll(): int
+    private function posAnggotaMetodeInvalid(): int
     {
         if (! $this->hasTables(['penjualan', 'pembayaran', 'anggota', 'karyawan']) || ! Schema::hasColumn('penjualan', 'anggota_id')) {
             return 0;
@@ -692,7 +692,7 @@ class PreflightPotongGajiCommand extends Command
             ->where('k.status_kerja', 'aktif')
             ->where(function ($query): void {
                 $query->whereNull('pb.id')
-                    ->orWhere('pb.metode_pembayaran', '!=', 'potong_gaji');
+                    ->orWhereNotIn('pb.metode_pembayaran', ['tunai', 'potong_gaji']);
             })
             ->count('p.id');
     }

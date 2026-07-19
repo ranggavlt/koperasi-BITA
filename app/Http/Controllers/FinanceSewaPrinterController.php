@@ -102,7 +102,7 @@ class FinanceSewaPrinterController extends Controller
 
     public function confirm(Request $request, SewaPrinter $sewaPrinter)
     {
-        abort_unless($request->user()?->role === 'keuangan', 403);
+        abort_unless($request->user()?->role === 'admin', 403);
 
         $this->service->confirm($sewaPrinter, $request->user()->id);
 
@@ -120,7 +120,7 @@ class FinanceSewaPrinterController extends Controller
 
     public function start(Request $request, SewaPrinter $sewaPrinter)
     {
-        abort_unless($request->user()?->role === 'keuangan', 403);
+        abort_unless($request->user()?->role === 'admin', 403);
 
         $this->service->start($sewaPrinter, $request->user()->id);
 
@@ -130,7 +130,7 @@ class FinanceSewaPrinterController extends Controller
 
     public function complete(Request $request, SewaPrinter $sewaPrinter)
     {
-        abort_unless($request->user()?->role === 'keuangan', 403);
+        abort_unless($request->user()?->role === 'admin', 403);
 
         $this->service->complete($sewaPrinter, $request->user()->id);
 

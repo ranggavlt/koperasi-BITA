@@ -66,7 +66,7 @@
         <p class="mb-0 text-sm text-slate-400">Anggota tanpa limit tampil sebagai “Belum dikonfigurasi”, bukan Rp0.</p>
       </div>
 
-      <div class="overflow-x-auto">
+      <div style="overflow-x: auto;" class="">
         <table class="w-full text-left text-sm text-slate-600">
           <thead class="bg-slate-50 text-xs uppercase text-slate-400">
             <tr>

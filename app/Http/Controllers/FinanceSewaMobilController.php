@@ -116,7 +116,7 @@ class FinanceSewaMobilController extends Controller
 
     public function submit(Request $request, SewaMobil $sewaMobil)
     {
-        abort_unless($request->user()?->role === 'keuangan', 403);
+        abort_unless($request->user()?->role === 'admin', 403);
 
         $this->service->submit($sewaMobil, $request->user()->id);
 

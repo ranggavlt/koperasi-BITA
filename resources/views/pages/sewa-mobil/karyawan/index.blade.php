@@ -82,7 +82,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Pengajuan Saya</h2><p class="text-sm text-slate-400">Finance mencatat approval Pengurus dan pembayaran perusahaan setelah pengajuan diajukan.</p></div>
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1180px] text-left text-sm">
         <thead class="kbsm-thead"><tr><th class="px-6 py-4">Kode</th><th class="px-6 py-4">Mobil</th><th class="px-6 py-4">Kegiatan</th><th class="px-6 py-4">Jadwal</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Tarif/Pembayaran</th><th class="px-6 py-4">Approval</th><th class="px-6 py-4 text-center">Aksi</th></tr></thead>
         <tbody class="divide-y divide-slate-100">

@@ -259,7 +259,7 @@ class KoperasiDummySeeder extends Seeder
             [
                 'name' => 'Operator Testing BITA',
                 'password' => 'bita12345',
-                'role' => 'keuangan',
+                'role' => 'admin',
                 'is_active' => true,
                 'must_change_password' => false,
                 'password_changed_at' => now(),
@@ -896,7 +896,7 @@ class KoperasiDummySeeder extends Seeder
 
         foreach ($karyawan as $key => $employee) {
             $existing = $employee->user()->first();
-            $users[$key] = $existing ?: $service->createAccount($employee, 'karyawan123', $keuangan->id);
+            $users[$key] = $existing ?: $service->createAccount($employee, 'karyawan123', 'karyawan', $keuangan->id);
         }
 
         return $users;

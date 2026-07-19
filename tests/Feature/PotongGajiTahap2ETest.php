@@ -47,7 +47,7 @@ class PotongGajiTahap2ETest extends TestCase
     public function test_pos_payroll_pending_dapat_dibatalkan_penuh_dan_mengembalikan_limit_stok(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-12 09:00:00', 'Asia/Jakarta'));
-        $user = $this->user('keuangan');
+        $user = $this->user('admin');
         $anggota = $this->anggota();
         $produk = $this->produk(50000, 10);
         $service = app(PotongGajiBulananService::class);
@@ -79,7 +79,7 @@ class PotongGajiTahap2ETest extends TestCase
     public function test_refund_pos_payroll_confirmed_membuat_kredit_dan_kredit_dipakai_fifo_tanpa_net_negatif(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-12 09:00:00', 'Asia/Jakarta'));
-        $user = $this->user('keuangan');
+        $user = $this->user('admin');
         $anggota = $this->anggota();
         $produk = $this->produk(50000, 10);
         $bank = $this->bankDefaultPayroll();
@@ -123,7 +123,7 @@ class PotongGajiTahap2ETest extends TestCase
 
     public function test_refund_pos_non_payroll_memakai_dompet_asal_dan_idempotent(): void
     {
-        $user = $this->user('keuangan');
+        $user = $this->user('admin');
         $produk = $this->produk(25000, 5);
         $kas = $this->kasDompet(100000);
 
@@ -149,7 +149,7 @@ class PotongGajiTahap2ETest extends TestCase
     public function test_reversal_cicilan_payroll_mengembalikan_jadwal_sisa_pinjaman_dan_membuat_kredit(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-12 09:00:00', 'Asia/Jakarta'));
-        $user = $this->user('keuangan');
+        $user = $this->user('admin');
         $anggota = $this->anggota();
         $this->bankDefaultPayroll();
         $kas = $this->kasDompet(500000);
@@ -179,7 +179,7 @@ class PotongGajiTahap2ETest extends TestCase
 
     public function test_outstanding_cash_dibayar_penuh_dan_kasir_ditolak_route_keuangan(): void
     {
-        $user = $this->user('keuangan');
+        $user = $this->user('admin');
         $kasir = $this->user('kasir');
         $anggota = $this->anggota();
         $produk = $this->produk(50000, 5);

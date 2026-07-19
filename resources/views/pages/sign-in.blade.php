@@ -103,10 +103,7 @@
             <button type="submit" class="btn-login">Masuk</button>
           </form>
 
-          <footer class="login-card__footer">
-            Belum punya akun?
-            <a href="{{ route('register') }}">Daftar sekarang</a>
-          </footer>
+          <!-- Register link removed -->
         </div>
       </section>
     </main>

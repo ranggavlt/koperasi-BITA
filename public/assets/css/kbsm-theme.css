@@ -111,23 +111,57 @@
   outline-color: var(--kbsm-green);
 }
 
-/* Compatibility bridge for legacy Soft UI utility names still emitted by old views. */
+/* Compatibility bridge for legacy Soft UI utility names still emitted by old views.
+   Fixes Tailwind v4 purge issues that caused buttons to become white */
+
+.kbsm-app .from-blue-600 {
+  --tw-gradient-from: #2563eb !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #22d3ee !important; /* to-cyan-400 */
+}
+
+.kbsm-app .from-red-600 {
+  --tw-gradient-from: #dc2626 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #fb7185 !important; /* to-rose-400 */
+}
+
+.kbsm-app .from-green-600 {
+  --tw-gradient-from: #16a34a !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #a3e635 !important; /* to-lime-400 */
+}
+
 .kbsm-app .from-purple-700 {
-  --tw-gradient-from: var(--kbsm-green) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(47, 143, 58, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-from: #7e22ce !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #ec4899 !important; /* to-pink-500 */
 }
 
-.kbsm-app .to-pink-500 {
-  --tw-gradient-to: var(--kbsm-green-light) var(--tw-gradient-to-position) !important;
+.kbsm-app .from-slate-600 {
+  --tw-gradient-from: #475569 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #cbd5e1 !important; /* to-slate-300 */
 }
 
-.kbsm-app .after\:from-purple-700::after {
-  --tw-gradient-from: var(--kbsm-green) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(47, 143, 58, 0) var(--tw-gradient-to-position) !important;
+.kbsm-app .from-slate-700 {
+  --tw-gradient-from: #334155 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #94a3b8 !important; /* to-slate-400 */
 }
 
-.kbsm-app .after\:to-pink-500::after {
-  --tw-gradient-to: var(--kbsm-green-light) var(--tw-gradient-to-position) !important;
+.kbsm-app .from-emerald-700 {
+  --tw-gradient-from: #047857 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #14b8a6 !important; /* to-teal-500 */
+}
+
+.kbsm-app .from-blue-700 {
+  --tw-gradient-from: #1d4ed8 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #06b6d4 !important; /* to-cyan-500 */
+}
+
+.kbsm-app .from-gray-900 {
+  --tw-gradient-from: #111827 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #1e293b !important; /* to-slate-800 */
+}
+
+.kbsm-app .from-yellow-500 {
+  --tw-gradient-from: #eab308 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #fb923c !important; /* to-orange-400 */
 }
 
 .kbsm-app .bg-fuchsia-500 {

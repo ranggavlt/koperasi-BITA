@@ -7,7 +7,6 @@ use App\Models\Karyawan;
 use App\Services\KaryawanAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -47,50 +46,6 @@ class AuthController extends Controller
         }
 
         return redirect()->route('pages.dashboard');
-    }
-
-    public function showRegister()
-    {
-        return view('pages.sign-up');
-    }
-
-    public function register(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'kode_keuangan' => ['nullable', 'string', 'max:255'],
-        ], [
-            'password.confirmed' => 'Konfirmasi password tidak sama.',
-        ]);
-
-        $role = 'kasir';
-        $kodeKeuangan = trim((string) ($validated['kode_keuangan'] ?? ''));
-
-        if ($kodeKeuangan !== '') {
-            $expected = (string) config('koperasi.keuangan_register_code', '');
-            if ($expected === '' || ! hash_equals($expected, $kodeKeuangan)) {
-                throw ValidationException::withMessages([
-                    'kode_keuangan' => 'Kode khusus Keuangan tidak valid.',
-                ]);
-            }
-            $role = 'keuangan';
-        }
-
-        User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $role,
-            'is_active' => true,
-            'must_change_password' => false,
-            'password_changed_at' => now(),
-        ]);
-
-        return redirect()
-            ->route('login')
-            ->with('success', 'Registrasi berhasil. Silakan login.');
     }
 
     private function isInactiveEmployeeAccount(User $user): bool

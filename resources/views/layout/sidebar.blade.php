@@ -8,20 +8,29 @@
 
   $linkClass = fn(bool $active) =>
     $active
-      ? 'kbsm-sidebar-link kbsm-sidebar-link--active py-2.7 text-sm ease-nav-brand my-0 mx-4 flex items-center whitespace-nowrap rounded-lg px-4 font-semibold transition-colors'
-      : 'kbsm-sidebar-link py-2.7 text-sm ease-nav-brand my-0 mx-4 flex items-center whitespace-nowrap rounded-lg px-4 transition-colors';
+      ? 'kbsm-sidebar-link kbsm-sidebar-link--active py-2 ease-nav-brand my-0 mx-4 flex items-center rounded-lg px-4 font-semibold transition-colors'
+      : 'kbsm-sidebar-link py-2 ease-nav-brand my-0 mx-4 flex items-center rounded-lg px-4 transition-colors';
 
   $iconWrap = fn(bool $active) =>
     $active
-      ? 'kbsm-sidebar-icon kbsm-sidebar-icon--active shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-center stroke-0 text-center xl:p-2.5'
-      : 'kbsm-sidebar-icon shadow-soft-2xl mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-center stroke-0 text-center xl:p-2.5';
+      ? 'kbsm-sidebar-icon kbsm-sidebar-icon--active shadow-soft-2xl mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-center stroke-0 text-center xl:p-1.5'
+      : 'kbsm-sidebar-icon shadow-soft-2xl mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-center stroke-0 text-center xl:p-1.5';
 
   $iconColor = fn(bool $active) => $active ? 'text-white' : 'text-inherit';
   $role = auth()->user()->role ?? '';
 @endphp
 
+<style>
+  /* Global fix for sidebar link texts to ensure uniform font size and proper wrapping */
+  .kbsm-sidebar-link span.pointer-events-none {
+    font-size: 12.5px !important;
+    white-space: normal !important;
+    line-height: 1.3 !important;
+  }
+</style>
+
 <aside
-  class="kbsm-sidebar max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-none transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-transparent">
+  class="kbsm-sidebar max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-none transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-transparent" style="max-width: 210px;">
 
   {{-- FIX: Mengubah tinggi menjadi auto agar menyesuaikan teks yang turun baris --}}
   <div class="h-auto pb-4 pt-2">
@@ -35,7 +44,7 @@
       {{-- Bagian Logo --}}
       <span
         class="inline-flex items-center justify-center shrink-0 rounded-xl bg-white shadow-soft-xl"
-        style="width: 2.75rem; height: 2.75rem; padding: 0.35rem;">
+        style="width: 2.25rem; height: 2.25rem; padding: 0.35rem;">
         <img
           src="{{ asset($brandLogo) }}"
           alt="{{ $brandName }}"
@@ -43,12 +52,12 @@
       </span>
       
       {{-- Bagian Teks --}}
-      <span class="flex flex-col min-w-0" style="margin-left: 1.20rem;">
-        <span class="block font-semibold transition-all duration-200 ease-nav-brand truncate">
+      <span class="flex flex-col min-w-0" style="margin-left: 0.75rem;">
+        <span class="block font-semibold transition-all duration-200 ease-nav-brand truncate" style="font-size: 13px;">
           {{ $brandName }}
         </span>
         {{-- FIX: Menambahkan whitespace-normal agar teks bisa turun baris (wrap) dengan rapi --}}
-        <span class="block text-xs leading-normal text-slate-500 whitespace-normal break-words mt-0.5">
+        <span class="block text-slate-500 whitespace-normal break-words mt-0.5" style="font-size: 10px; line-height: 1.2;">
           {{ $brandSubtitle }}
         </span>
       </span>
@@ -74,11 +83,12 @@
             </svg>
           </div>
 
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Dashboard</span>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Dashboard</span>
         </a>
       </li>
 
       {{-- PROFILE --}}
+      @if($role !== 'kasir')
       @php $active = $is('pages.profile'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('pages.profile') }}">
@@ -93,12 +103,13 @@
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Profile</span>
         </a>
       </li>
+      @endif
 
       {{-- LOGOUT --}}
       <li class="mt-0.5 w-full">
         <form method="POST" action="{{ route('logout') }}">
           @csrf
-          <button type="submit" class="{{ $linkClass(false) }} w-full text-left">
+          <button type="submit" class="{{ $linkClass(false) }} text-left" style="width: calc(100% - 2rem);">
             <div class="{{ $iconWrap(false) }}">
               <svg width="12px" height="12px" viewBox="0 0 24 24"
                    class="fill-current {{ $iconColor(false) }}" xmlns="http://www.w3.org/2000/svg">
@@ -107,20 +118,22 @@
               </svg>
             </div>
 
-            <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Logout</span>
+            <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Logout</span>
           </button>
         </form>
       </li>
 
       {{-- POS KOPERASI --}}
-      @if($role === 'kasir')
+      @if(in_array($role, ['kasir', 'admin']))
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           POS Koperasi
         </h6>
       </li>
+      @endif
 
       {{-- PENJUALAN / KASIR --}}
+      @if($role === 'kasir')
       @php $active = $is('penjualan.index'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('penjualan.index') }}">
@@ -131,10 +144,12 @@
                 d="M7 4V2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v3H3V6a2 2 0 0 1 2-2h2Zm14 7v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7h18Zm-5 2H8v2h8v-2Z"/>
             </svg>
           </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Penjualan / Kasir</span>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Penjualan / Kasir</span>
         </a>
       </li>
+      @endif
 
+      @if($role === 'admin')
       {{-- KATEGORI PRODUK --}}
       @php $active = $is('kategori-produk.*'); @endphp
       <li class="mt-0.5 w-full">
@@ -198,11 +213,24 @@
       @endif
 
       {{-- ====== MASTER DATA ====== --}}
-      @if($role === 'keuangan')
+      @if($role === 'admin')
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           MASTER DATA
         </h6>
+      </li>
+
+      {{-- MANAJEMEN USER --}}
+      @php $active = $is('users.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('users.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24" class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5V21h16v-2.5C20 16 16.42 14 12 14Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Manajemen User</span>
+        </a>
       </li>
 
       {{-- KARYAWAN --}}
@@ -525,6 +553,7 @@
       @endif
 
       {{-- ====== MENU LAPORAN ====== --}}
+      @if($role === 'admin')
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           Laporan Operasional
@@ -549,7 +578,6 @@
       </li>
 
       {{-- LAPORAN AKUNTANSI (Keuangan) --}}
-      @if($role === 'keuangan')
       <li class="w-full mt-4">
         <h6 class="pl-6 ml-2 text-xs font-bold leading-tight uppercase opacity-60">
           LAPORAN AKUNTANSI

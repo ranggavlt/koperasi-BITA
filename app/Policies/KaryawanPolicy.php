@@ -13,7 +13,7 @@ class KaryawanPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role === 'keuangan';
+        return $user->role === 'admin';
     }
 
     /**
@@ -21,7 +21,7 @@ class KaryawanPolicy
      */
     public function view(User $user, Karyawan $karyawan): bool
     {
-        return $user->role === 'keuangan';
+        return $user->role === 'admin';
     }
 
     /**
@@ -29,7 +29,7 @@ class KaryawanPolicy
      */
     public function create(User $user): bool
     {
-        return $user->role === 'keuangan';
+        return $user->role === 'admin';
     }
 
     /**
@@ -37,7 +37,7 @@ class KaryawanPolicy
      */
     public function update(User $user, Karyawan $karyawan): bool
     {
-        return $user->role === 'keuangan';
+        return $user->role === 'admin';
     }
 
     /**
@@ -45,7 +45,7 @@ class KaryawanPolicy
      */
     public function delete(User $user, Karyawan $karyawan): bool
     {
-        return $user->role === 'keuangan';
+        return $user->role === 'admin';
     }
 
     /**
