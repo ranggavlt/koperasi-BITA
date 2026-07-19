@@ -13,23 +13,10 @@ class StoreBebanOperasionalRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $details = collect($this->input('details', []))
-            ->filter(fn ($row) => is_array($row)
-                && ($row['akun_id'] ?? null) !== null
-                && ($row['nominal'] ?? null) !== null
-                && trim((string) ($row['keterangan'] ?? '')) !== '')
-            ->map(fn (array $row): array => [
-                'akun_id' => $row['akun_id'] ?? null,
-                'aset_koperasi_id' => filled($row['aset_koperasi_id'] ?? null) ? $row['aset_koperasi_id'] : null,
-                'keterangan' => $this->nullableText($row['keterangan'] ?? null),
-                'nominal' => $row['nominal'] ?? null,
-            ])
-            ->values()
-            ->all();
-
         $this->merge([
-            'details' => $details,
             'keterangan' => $this->nullableText($this->input('keterangan')),
+            'nomor_referensi' => $this->nullableText($this->input('nomor_referensi')),
+            'nominal' => $this->normalizeMoney($this->input('nominal')),
         ]);
     }
 
@@ -37,15 +24,13 @@ class StoreBebanOperasionalRequest extends FormRequest
     {
         return [
             'tanggal_beban' => ['required', 'date'],
-            'keterangan' => ['nullable', 'string', 'max:1000'],
-            'details' => ['required', 'array', 'min:1'],
-            'details.*.akun_id' => ['required', 'exists:akun,id'],
-            'details.*.aset_koperasi_id' => ['nullable', 'exists:aset_koperasi,id'],
-            'details.*.keterangan' => ['required', 'string', 'max:1000'],
-            'details.*.nominal' => ['required', 'integer', 'min:1'],
+            'akun_id' => ['required', 'exists:akun,id'],
+            'dompet_id' => ['required', 'exists:dompet_koperasi,id'],
+            'nominal' => ['required', 'integer', 'min:1'],
+            'nomor_referensi' => ['nullable', 'string', 'max:50'],
+            'keterangan' => ['required', 'string', 'max:1000'],
             'idempotency_key' => ['nullable', 'string', 'max:191'],
             'kode_beban' => ['prohibited'],
-            'dompet_id' => ['prohibited'],
             'metode_pembayaran' => ['prohibited'],
             'total_beban' => ['prohibited'],
             'status' => ['prohibited'],
@@ -60,12 +45,12 @@ class StoreBebanOperasionalRequest extends FormRequest
     {
         return [
             'tanggal_beban.required' => 'Tanggal Beban Operasional wajib diisi.',
-            'details.required' => 'Minimal satu detail Beban Operasional wajib diisi.',
-            'details.min' => 'Minimal satu detail Beban Operasional wajib diisi.',
-            'details.*.akun_id.required' => 'Akun Beban wajib dipilih pada setiap detail.',
-            'details.*.keterangan.required' => 'Keterangan detail Beban wajib diisi.',
-            'details.*.nominal.min' => 'Nominal detail Beban wajib lebih besar dari nol.',
-            '*.prohibited' => 'Kode, status, dompet, total, dan data posting tidak boleh dikirim dari browser.',
+            'akun_id.required' => 'Akun Beban wajib dipilih.',
+            'dompet_id.required' => 'Dompet Kas/Bank wajib dipilih.',
+            'nominal.min' => 'Nominal Beban wajib lebih besar dari nol.',
+            'keterangan.required' => 'Keterangan/Memo Beban wajib diisi.',
+            'nomor_referensi.max' => 'Nomor referensi maksimal 50 karakter.',
+            '*.prohibited' => 'Kode, status, metode pembayaran, total, dan data posting tidak boleh dikirim dari browser.',
         ];
     }
 
@@ -74,5 +59,10 @@ class StoreBebanOperasionalRequest extends FormRequest
         $normalized = trim((string) preg_replace('/\s+/', ' ', (string) $value));
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    private function normalizeMoney(mixed $value): int
+    {
+        return (int) preg_replace('/[^\d]/', '', (string) $value);
     }
 }

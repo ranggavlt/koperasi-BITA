@@ -8,7 +8,7 @@ class StoreSewaMobilRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === 'karyawan';
+        return $this->user()?->role === 'keuangan';
     }
 
     protected function prepareForValidation(): void
@@ -23,13 +23,21 @@ class StoreSewaMobilRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'karyawan_id' => ['required', 'exists:karyawan,id'],
             'aset_koperasi_id' => ['required', 'exists:aset_koperasi,id'],
             'nama_kegiatan' => ['required', 'string', 'max:150'],
             'lokasi_kegiatan' => ['required', 'string', 'max:150'],
-            'mulai_at' => ['required', 'date'],
-            'selesai_at' => ['required', 'date', 'after:mulai_at'],
+            'tanggal_mulai' => ['required', 'date'],
+            'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
             'idempotency_key' => ['nullable', 'string', 'max:191'],
+            'kode_sewa' => ['prohibited'],
+            'jumlah_hari' => ['prohibited'],
+            'tarif_harian_snapshot' => ['prohibited'],
+            'total_sewa' => ['prohibited'],
+            'tarif_total' => ['prohibited'],
+            'status' => ['prohibited'],
+            'status_pembayaran' => ['prohibited'],
         ];
     }
 
@@ -37,10 +45,13 @@ class StoreSewaMobilRequest extends FormRequest
     {
         return [
             'aset_koperasi_id.required' => 'Mobil wajib dipilih.',
+            'karyawan_id.required' => 'Karyawan penyewa wajib dipilih.',
             'nama_kegiatan.required' => 'Nama kegiatan wajib diisi.',
             'lokasi_kegiatan.required' => 'Lokasi kegiatan wajib diisi.',
-            'mulai_at.required' => 'Waktu mulai wajib diisi.',
-            'selesai_at.after' => 'Waktu selesai harus setelah waktu mulai.',
+            'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
+            'tanggal_selesai.required' => 'Tanggal selesai wajib diisi.',
+            'tanggal_selesai.after_or_equal' => 'Tanggal selesai harus sama dengan atau setelah tanggal mulai.',
+            '*.prohibited' => 'Kode, status, jumlah hari, tarif snapshot, dan total sewa dihitung oleh server.',
         ];
     }
 

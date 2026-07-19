@@ -37,12 +37,15 @@ class SewaMobil extends Model
         'aset_koperasi_id',
         'karyawan_id',
         'pemohon_user_id',
+        'recorded_by',
         'nama_perusahaan_snapshot',
         'nama_kegiatan',
         'lokasi_kegiatan',
-        'mulai_at',
-        'selesai_at',
-        'tarif_total',
+        'tanggal_mulai',
+        'tanggal_selesai',
+        'jumlah_hari',
+        'tarif_harian_snapshot',
+        'total_sewa',
         'status',
         'status_pembayaran',
         'pengurus_penyetuju_id',
@@ -65,9 +68,11 @@ class SewaMobil extends Model
     ];
 
     protected $casts = [
-        'mulai_at' => 'datetime',
-        'selesai_at' => 'datetime',
-        'tarif_total' => 'decimal:2',
+        'tanggal_mulai' => 'date',
+        'tanggal_selesai' => 'date',
+        'jumlah_hari' => 'integer',
+        'tarif_harian_snapshot' => 'integer',
+        'total_sewa' => 'integer',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
@@ -134,6 +139,11 @@ class SewaMobil extends Model
         return $this->belongsTo(User::class, 'pemohon_user_id');
     }
 
+    public function recorder()
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
+    }
+
     public function pengurusPenyetuju()
     {
         return $this->belongsTo(PengurusKoperasi::class, 'pengurus_penyetuju_id');
@@ -177,6 +187,11 @@ class SewaMobil extends Model
     public function scopeBlockingSchedule($query)
     {
         return $query->whereIn('status', [self::STATUS_DISETUJUI, self::STATUS_BERJALAN]);
+    }
+
+    public function getTarifTotalAttribute(): int
+    {
+        return (int) ($this->total_sewa ?? 0);
     }
 
     public function getStatusLabelAttribute(): string

@@ -14,7 +14,7 @@ class PostBebanOperasionalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'dompet_id' => ['required', 'exists:dompet_koperasi,id'],
+            'dompet_id' => ['nullable', 'exists:dompet_koperasi,id'],
             'kode_beban' => ['prohibited'],
             'metode_pembayaran' => ['prohibited'],
             'total_beban' => ['prohibited'],
@@ -27,7 +27,7 @@ class PostBebanOperasionalRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'dompet_id.required' => 'Dompet pembayaran wajib dipilih sebelum posting.',
+            'dompet_id.exists' => 'Dompet pembayaran tidak valid.',
             '*.prohibited' => 'Data posting dihitung oleh server dan tidak boleh dikirim dari browser.',
         ];
     }

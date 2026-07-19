@@ -16,22 +16,27 @@ class SewaPrinterDetail extends Model
 
     protected $fillable = [
         'sewa_printer_id',
-        'aset_koperasi_id',
-        'kode_aset_snapshot',
-        'nomor_seri_snapshot',
-        'merek_snapshot',
-        'model_snapshot',
-        'harga_dasar',
+        'jenis_model_printer',
+        'spesifikasi_kebutuhan',
+        'kuantitas',
+        'harga_vendor_per_unit',
         'margin_persen_snapshot',
-        'margin_nominal',
-        'total_harga',
+        'margin_per_unit',
+        'harga_tagihan_per_unit',
+        'subtotal_harga_vendor',
+        'subtotal_margin',
+        'subtotal_tagihan',
     ];
 
     protected $casts = [
-        'harga_dasar' => 'decimal:2',
-        'margin_persen_snapshot' => 'decimal:2',
-        'margin_nominal' => 'decimal:2',
-        'total_harga' => 'decimal:2',
+        'kuantitas' => 'integer',
+        'harga_vendor_per_unit' => 'integer',
+        'margin_persen_snapshot' => 'integer',
+        'margin_per_unit' => 'integer',
+        'harga_tagihan_per_unit' => 'integer',
+        'subtotal_harga_vendor' => 'integer',
+        'subtotal_margin' => 'integer',
+        'subtotal_tagihan' => 'integer',
     ];
 
     protected static function booted(): void
@@ -50,8 +55,18 @@ class SewaPrinterDetail extends Model
         return $this->belongsTo(SewaPrinter::class, 'sewa_printer_id');
     }
 
-    public function aset()
+    public function getHargaDasarAttribute(): int
     {
-        return $this->belongsTo(AsetKoperasi::class, 'aset_koperasi_id');
+        return (int) ($this->subtotal_harga_vendor ?? 0);
+    }
+
+    public function getMarginNominalAttribute(): int
+    {
+        return (int) ($this->subtotal_margin ?? 0);
+    }
+
+    public function getTotalHargaAttribute(): int
+    {
+        return (int) ($this->subtotal_tagihan ?? 0);
     }
 }

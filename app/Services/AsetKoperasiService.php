@@ -17,6 +17,9 @@ class AsetKoperasiService
     {
         return $this->friendlyUniqueFailure(function () use ($data, $userId): AsetKoperasi {
             return DB::transaction(function () use ($data, $userId): AsetKoperasi {
+                $tarifSewaHarian = $this->rupiahInt($data['tarif_sewa_harian'] ?? 0);
+                $this->assertValidTarifSewaHarian($tarifSewaHarian);
+
                 $aset = AsetKoperasi::query()->create([
                     'kode_aset' => $this->nextKode(AsetKoperasi::JENIS_MOBIL),
                     'jenis_aset' => AsetKoperasi::JENIS_MOBIL,
@@ -32,6 +35,7 @@ class AsetKoperasiService
                     'plat_nomor' => $this->normalizeIdentity($data['plat_nomor']),
                     'tahun' => (int) $data['tahun'],
                     'warna' => $this->normalizeText($data['warna']),
+                    'tarif_sewa_harian' => $tarifSewaHarian,
                 ]);
 
                 return $aset->fresh(['mobil', 'creator', 'updater']);
@@ -70,6 +74,9 @@ class AsetKoperasiService
 
         return $this->friendlyUniqueFailure(function () use ($aset, $data, $userId): AsetKoperasi {
             return DB::transaction(function () use ($aset, $data, $userId): AsetKoperasi {
+                $tarifSewaHarian = $this->rupiahInt($data['tarif_sewa_harian'] ?? 0);
+                $this->assertValidTarifSewaHarian($tarifSewaHarian);
+
                 $locked = AsetKoperasi::query()
                     ->with('mobil')
                     ->lockForUpdate()
@@ -88,6 +95,7 @@ class AsetKoperasiService
                         'plat_nomor' => $this->normalizeIdentity($data['plat_nomor']),
                         'tahun' => (int) $data['tahun'],
                         'warna' => $this->normalizeText($data['warna']),
+                        'tarif_sewa_harian' => $tarifSewaHarian,
                     ]
                 );
 
@@ -350,6 +358,20 @@ class AsetKoperasiService
     private function normalizeIdentity(string $value): string
     {
         return strtoupper($this->normalizeText($value));
+    }
+
+    private function assertValidTarifSewaHarian(int $tarifSewaHarian): void
+    {
+        if ($tarifSewaHarian <= 0) {
+            throw ValidationException::withMessages([
+                'tarif_sewa_harian' => 'Tarif Sewa Harian wajib lebih besar dari nol.',
+            ]);
+        }
+    }
+
+    private function rupiahInt(mixed $value): int
+    {
+        return (int) preg_replace('/[^\d]/', '', (string) $value);
     }
 
     private function friendlyUniqueFailure(callable $callback): mixed

@@ -50,6 +50,7 @@ return new class extends Migration
             $table->string('plat_nomor', 30)->unique();
             $table->unsignedSmallInteger('tahun');
             $table->string('warna', 50);
+            $table->unsignedBigInteger('tarif_sewa_harian');
             $table->timestamps();
         });
 

@@ -33,7 +33,7 @@ class PembayaranSewaMobil extends Model
     ];
 
     protected $casts = [
-        'jumlah_bayar' => 'decimal:2',
+        'jumlah_bayar' => 'integer',
         'paid_at' => 'datetime',
         'refunded_at' => 'datetime',
     ];

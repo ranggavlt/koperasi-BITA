@@ -253,19 +253,32 @@ class AkuntansiService
         ]);
     }
 
-    public function recordSimpanan(Simpanan $simpanan): void
+    public function recordSimpanan(Simpanan $simpanan, ?Akun $akunDompet = null, ?int $userId = null, ?string $idempotencyKey = null): JurnalUmum
     {
-        if (JurnalUmum::query()
-            ->where('referensi_tipe', Simpanan::class)
-            ->where('referensi_id', $simpanan->id)
-            ->exists()) {
-            return;
+        if ($idempotencyKey) {
+            $existing = JurnalUmum::query()
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        } else {
+            $existing = JurnalUmum::query()
+                ->where('referensi_tipe', Simpanan::class)
+                ->where('referensi_id', $simpanan->id)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
         }
 
-        $jumlah = (float) ($simpanan->jumlah ?? 0);
+        $jumlah = $this->rupiahDecimal($simpanan->jumlah ?? 0);
         $tanggal = (string) ($simpanan->tanggal ?? now()->toDateString());
-        $simpanan->loadMissing('jenisSimpanan.akun');
+        $simpanan->loadMissing(['jenisSimpanan.akun', 'mutasiKas.dompet.akun']);
         $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+        $akunDompet ??= $simpanan->mutasiKas?->dompet?->akun;
 
         if (! $akunSimpanan) {
             throw new RuntimeException(
@@ -277,16 +290,29 @@ class AkuntansiService
             throw new RuntimeException('Akun jenis simpanan harus aktif dan berkategori kewajiban atau ekuitas.');
         }
 
-        $this->record([
+        if ($akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun jenis simpanan harus memiliki saldo normal Kredit.');
+        }
+
+        if (! $akunDompet) {
+            throw new RuntimeException('Dompet Simpanan belum mempunyai pemetaan COA untuk jurnal debit.');
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet Simpanan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
             'tanggal' => $tanggal,
             'nomor_bukti' => 'SIMP-' . $simpanan->id,
             'keterangan' => 'Setoran simpanan',
             'referensi_tipe' => Simpanan::class,
             'referensi_id' => $simpanan->id,
-            'created_by' => auth()->id(),
+            'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('simpanan.kas'),
+                $akunDompet,
                 'debit',
                 $jumlah
             ),
@@ -410,7 +436,7 @@ class AkuntansiService
             return $existing;
         }
 
-        $jumlah = (float) $sewaMobil->tarif_total;
+        $jumlah = (float) $sewaMobil->total_sewa;
 
         return $this->record([
             'idempotency_key' => 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $sewaMobil->id,
@@ -490,7 +516,9 @@ class AkuntansiService
             throw new RuntimeException('Akun Dompet pembayaran sewa printer harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
-        $jumlah = (float) $pembayaran->jumlah_bayar;
+        $totalTagihan = (float) $sewaPrinter->total_tagihan_perusahaan;
+        $hargaVendor = (float) $sewaPrinter->total_harga_vendor;
+        $margin = (float) $sewaPrinter->total_margin;
 
         return $this->record([
             'idempotency_key' => 'sewa-printer:pembayaran-dimuka:jurnal:' . $pembayaran->id,
@@ -501,12 +529,55 @@ class AkuntansiService
             'referensi_id' => $pembayaran->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
-            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line($akunDompet, 'debit', $totalTagihan),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_printer.utang_vendor'),
                 'kredit',
-                $jumlah
+                $hargaVendor
             ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'),
+                'kredit',
+                $margin
+            ),
+        ]);
+    }
+
+    public function recordPembayaranVendorSewaPrinter(
+        SewaPrinter $sewaPrinter,
+        PembayaranSewaPrinter $pembayaran,
+        Akun $akunDompetVendor,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-printer:pembayaran-vendor:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompetVendor->is_aktif || $akunDompetVendor->kategori !== 'aset' || $akunDompetVendor->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pembayaran vendor printer harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlahVendor = (float) $sewaPrinter->total_harga_vendor;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-printer:pembayaran-vendor:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaPrinter->kode_sewa,
+            'keterangan' => 'Pembayaran vendor sewa printer ' . $sewaPrinter->kode_sewa,
+            'referensi_tipe' => PembayaranSewaPrinter::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.utang_vendor'),
+                'debit',
+                $jumlahVendor
+            ),
+            $this->akunResolver->line($akunDompetVendor, 'kredit', $jumlahVendor),
         ]);
     }
 
@@ -520,8 +591,6 @@ class AkuntansiService
             return $existing;
         }
 
-        $grandTotal = (float) $sewaPrinter->grand_total;
-        $dasar = (float) $sewaPrinter->total_harga_dasar;
         $margin = (float) $sewaPrinter->total_margin;
 
         return $this->record([
@@ -534,14 +603,9 @@ class AkuntansiService
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'),
                 'debit',
-                $grandTotal
-            ),
-            $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_dasar'),
-                'kredit',
-                $dasar
+                $margin
             ),
             $this->akunResolver->line(
                 $this->akunResolver->posting('sewa_printer.pendapatan_margin'),
@@ -1211,6 +1275,30 @@ class AkuntansiService
         }
 
         return $lines;
+    }
+
+    private function rupiahInt(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        $string = trim((string) $value);
+
+        if ($string === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\d+(\.\d{1,2})?$/', $string) === 1) {
+            return (int) explode('.', $string)[0];
+        }
+
+        return (int) preg_replace('/[^\d]/', '', $string);
+    }
+
+    private function rupiahDecimal(mixed $value): string
+    {
+        return number_format($this->rupiahInt($value), 2, '.', '');
     }
 
     /**

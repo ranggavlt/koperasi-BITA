@@ -39,6 +39,7 @@
         <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ $errors->any() ? 'block' : 'hidden' }}">
           <form action="{{ route('simpanan.store') }}" method="POST">
             @csrf
+            <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan:manual:' . \Illuminate\Support\Str::uuid()) }}">
 
             <div class="flex flex-wrap -mx-3">
               <div class="w-full max-w-full px-3 md:w-4/12">
@@ -88,7 +89,7 @@
 
               <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jumlah</label>
-                <input type="number" name="jumlah" min="1" step="0.01" value="{{ old('jumlah') }}"
+                <input type="number" name="jumlah" min="1" step="1" value="{{ old('jumlah') }}"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
                   placeholder="0">
               </div>

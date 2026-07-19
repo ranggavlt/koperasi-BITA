@@ -17,6 +17,7 @@ class AsetMobilFactory extends Factory
             'plat_nomor' => strtoupper(fake()->bothify('? #### ??')),
             'tahun' => fake()->numberBetween(2015, now(config('app.timezone', 'Asia/Jakarta'))->year),
             'warna' => fake()->randomElement(['Hitam', 'Putih', 'Merah', 'Abu-abu']),
+            'tarif_sewa_harian' => fake()->numberBetween(250, 900) * 1000,
         ];
     }
 }

@@ -69,14 +69,21 @@ return new class extends Migration
                 ->constrained('karyawan')
                 ->restrictOnDelete();
             $table->foreignId('pemohon_user_id')
+                ->nullable()
+                ->constrained('users')
+                ->restrictOnDelete();
+            $table->foreignId('recorded_by')
+                ->nullable()
                 ->constrained('users')
                 ->restrictOnDelete();
             $table->string('nama_perusahaan_snapshot', 150);
             $table->string('nama_kegiatan', 150);
             $table->string('lokasi_kegiatan', 150);
-            $table->dateTime('mulai_at');
-            $table->dateTime('selesai_at');
-            $table->decimal('tarif_total', 15, 2)->default(0);
+            $table->date('tanggal_mulai');
+            $table->date('tanggal_selesai');
+            $table->unsignedInteger('jumlah_hari');
+            $table->unsignedBigInteger('tarif_harian_snapshot');
+            $table->unsignedBigInteger('total_sewa');
             $table->string('status', 30)->default('draft');
             $table->string('status_pembayaran', 30)->default('belum_bayar');
             $table->foreignId('pengurus_penyetuju_id')
@@ -110,8 +117,9 @@ return new class extends Migration
             $table->string('idempotency_key', 191)->unique();
             $table->timestamps();
 
-            $table->index(['aset_koperasi_id', 'mulai_at', 'selesai_at', 'status'], 'sewa_mobil_aset_jadwal_status_index');
+            $table->index(['aset_koperasi_id', 'tanggal_mulai', 'tanggal_selesai', 'status'], 'sewa_mobil_aset_jadwal_status_index');
             $table->index(['karyawan_id', 'status'], 'sewa_mobil_karyawan_status_index');
+            $table->index(['recorded_by', 'status'], 'sewa_mobil_recorded_status_index');
             $table->index(['status', 'status_pembayaran'], 'sewa_mobil_status_pembayaran_index');
         });
 
@@ -125,7 +133,7 @@ return new class extends Migration
                 ->constrained('dompet_koperasi')
                 ->restrictOnDelete();
             $table->string('metode_pembayaran', 30);
-            $table->decimal('jumlah_bayar', 15, 2);
+            $table->unsignedBigInteger('jumlah_bayar');
             $table->string('status', 30)->default('paid')->index();
             $table->timestamp('paid_at');
             $table->timestamp('refunded_at')->nullable();

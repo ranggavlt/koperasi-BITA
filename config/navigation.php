@@ -140,6 +140,7 @@ return [
             'label' => 'Printer Koperasi',
             'route' => 'aset-printer.index',
             'roles' => ['keuangan'],
+            'feature' => 'master_printer_enabled',
             'patterns' => ['aset-printer.*'],
             'description' => 'Kelola master aset printer koperasi.',
             'keywords' => ['printer', 'aset printer', 'perangkat koperasi'],

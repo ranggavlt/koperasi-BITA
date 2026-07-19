@@ -78,11 +78,6 @@ class AsetKoperasi extends Model
         return $this->hasOne(AsetPrinter::class, 'aset_koperasi_id');
     }
 
-    public function sewaPrinterDetails()
-    {
-        return $this->hasMany(SewaPrinterDetail::class, 'aset_koperasi_id');
-    }
-
     public function bebanOperasionalDetails()
     {
         return $this->hasMany(BebanOperasionalDetail::class, 'aset_koperasi_id');

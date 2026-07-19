@@ -26,7 +26,7 @@
     <div>
       <p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Aset Koperasi</p>
       <h1 class="text-2xl font-bold text-slate-700">Mobil Koperasi</h1>
-      <p class="mt-1 text-sm text-slate-400">Pencatatan identitas mobil saja. Belum ada sewa, depresiasi, COA, jurnal, atau mutasi kas.</p>
+      <p class="mt-1 text-sm text-slate-400">Kelola identitas mobil koperasi dan Tarif Sewa Harian sebagai sumber snapshot transaksi Sewa Mobil.</p>
     </div>
     @if (! $editing)
       <button type="button" onclick="toggleAsetMobilForm()" id="btn-toggle-aset-mobil"
@@ -62,6 +62,10 @@
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="warna">Warna</label>
           <input id="warna" name="warna" required maxlength="50" value="{{ old('warna', $data->mobil->warna ?? '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="Hitam">
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="tarif_sewa_harian">Tarif Sewa Harian</label>
+          <input id="tarif_sewa_harian" name="tarif_sewa_harian" type="number" min="1" required value="{{ old('tarif_sewa_harian', $data->mobil->tarif_sewa_harian ?? '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="500000">
         </div>
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Kode aset</label>
@@ -115,6 +119,7 @@
             <th class="px-6 py-4">Mobil</th>
             <th class="px-6 py-4">Plat</th>
             <th class="px-6 py-4">Tahun/Warna</th>
+            <th class="px-6 py-4">Tarif/Hari</th>
             <th class="px-6 py-4">Status</th>
             <th class="px-6 py-4">Audit</th>
             <th class="px-6 py-4 text-center">Aksi</th>
@@ -131,6 +136,7 @@
               </td>
               <td class="px-6 py-4 font-semibold text-slate-700">{{ $item->mobil->plat_nomor ?? '-' }}</td>
               <td class="px-6 py-4 text-slate-600">{{ $item->mobil->tahun ?? '-' }} / {{ $item->mobil->warna ?? '-' }}</td>
+              <td class="px-6 py-4 font-semibold text-slate-700">Rp {{ number_format((int) ($item->mobil->tarif_sewa_harian ?? 0), 0, ',', '.') }}</td>
               <td class="px-6 py-4">
                 <span class="{{ $statusBadge($item->status) }}">{{ $item->status_label }}</span>
                 @if($item->nonaktif_at)<div class="mt-1 text-xs text-slate-400">Nonaktif: {{ $item->nonaktif_at->format('d/m/Y H:i') }}</div>@endif
@@ -170,7 +176,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">Belum ada data mobil koperasi.</td></tr>
+            <tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">Belum ada data mobil koperasi.</td></tr>
           @endforelse
         </tbody>
       </table>

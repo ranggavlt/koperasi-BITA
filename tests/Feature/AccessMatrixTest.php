@@ -2,12 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\AsetKoperasi;
-use App\Models\AsetMobil;
 use App\Models\Karyawan;
-use App\Models\SewaMobil;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -22,6 +20,7 @@ class AccessMatrixTest extends TestCase
         config([
             'features.shu_enabled' => false,
             'features.jasa_print_enabled' => false,
+            'features.master_printer_enabled' => false,
         ]);
     }
 
@@ -47,7 +46,9 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($kasir)->get(route('periode-potong-gaji.index'))->assertForbidden();
         $this->actingAs($kasir)->get(route('sewa-mobil.finance.index'))->assertForbidden();
 
-        $this->actingAs($employee)->get(route('sewa-mobil.karyawan.index'))->assertOk();
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.index'));
+        $this->actingAs($employee)->get('/pengajuan-sewa-mobil')->assertNotFound();
+        $this->actingAs($employee)->get(route('sewa-mobil.finance.index'))->assertForbidden();
         $this->actingAs($employee)->get(route('penjualan.index'))->assertForbidden();
         $this->actingAs($employee)->get(route('karyawan.index'))->assertForbidden();
     }
@@ -79,49 +80,25 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($employee)
             ->get(route('pages.dashboard'))
             ->assertOk()
-            ->assertSee('Pengajuan Sewa Mobil')
+            ->assertDontSee('Pengajuan Sewa Mobil')
             ->assertDontSee('Penjualan / Kasir')
             ->assertDontSee('Periode Potong Gaji')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Jasa Print');
     }
 
-    public function test_employee_cannot_access_other_employee_sewa_mobil_resource(): void
+    public function test_employee_self_service_sewa_mobil_routes_tidak_tersedia(): void
     {
-        $owner = $this->employeeUser('owner-sewa@kbsm.test');
-        $other = $this->employeeUser('other-sewa@kbsm.test');
-        $asset = $this->mobil();
+        $employee = $this->employeeUser('owner-sewa@kbsm.test');
 
-        $sewa = SewaMobil::query()->create([
-            'kode_sewa' => null,
-            'aset_koperasi_id' => $asset->id,
-            'karyawan_id' => $owner->karyawan_id,
-            'pemohon_user_id' => $owner->id,
-            'nama_perusahaan_snapshot' => 'Bita Enarcon Engineering',
-            'nama_kegiatan' => 'Rapat Proyek',
-            'lokasi_kegiatan' => 'Karawang',
-            'mulai_at' => '2026-08-01 08:00:00',
-            'selesai_at' => '2026-08-01 17:00:00',
-            'tarif_total' => '0.00',
-            'status' => SewaMobil::STATUS_DRAFT,
-            'status_pembayaran' => SewaMobil::PEMBAYARAN_BELUM_BAYAR,
-            'created_by' => $owner->id,
-            'updated_by' => $owner->id,
-            'idempotency_key' => 'access-matrix-sewa',
-        ]);
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.index'));
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.store'));
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.edit'));
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.update'));
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.submit'));
+        $this->assertFalse(Route::has('sewa-mobil.karyawan.cancel'));
 
-        $payload = [
-            'aset_koperasi_id' => $asset->id,
-            'nama_kegiatan' => 'Manipulasi',
-            'lokasi_kegiatan' => 'Jakarta',
-            'mulai_at' => '2026-08-02 08:00:00',
-            'selesai_at' => '2026-08-02 17:00:00',
-        ];
-
-        $this->actingAs($other)->get(route('sewa-mobil.karyawan.edit', $sewa))->assertForbidden();
-        $this->actingAs($other)->put(route('sewa-mobil.karyawan.update', $sewa), $payload)->assertForbidden();
-        $this->actingAs($other)->post(route('sewa-mobil.karyawan.submit', $sewa))->assertForbidden();
-        $this->actingAs($other)->post(route('sewa-mobil.karyawan.cancel', $sewa), ['alasan' => 'Bukan milik saya'])->assertForbidden();
+        $this->actingAs($employee)->get('/pengajuan-sewa-mobil')->assertNotFound();
     }
 
     public function test_inactive_or_stopped_employee_cannot_login_or_use_existing_session(): void
@@ -148,8 +125,8 @@ class AccessMatrixTest extends TestCase
         ])->assertSessionHasErrors('email');
 
         $this->actingAs($user)
-            ->get(route('sewa-mobil.karyawan.index'))
-            ->assertForbidden();
+            ->get('/pengajuan-sewa-mobil')
+            ->assertNotFound();
     }
 
     public function test_public_registration_cannot_mutate_role_from_request(): void
@@ -205,23 +182,4 @@ class AccessMatrixTest extends TestCase
         ]);
     }
 
-    private function mobil(): AsetKoperasi
-    {
-        $asset = AsetKoperasi::query()->create([
-            'kode_aset' => 'MBL-ACCESS',
-            'jenis_aset' => AsetKoperasi::JENIS_MOBIL,
-            'merek' => 'Toyota',
-            'model' => 'Avanza',
-            'status' => AsetKoperasi::STATUS_TERSEDIA,
-        ]);
-
-        AsetMobil::query()->create([
-            'aset_koperasi_id' => $asset->id,
-            'plat_nomor' => 'B 1234 KBS',
-            'tahun' => 2022,
-            'warna' => 'Hitam',
-        ]);
-
-        return $asset;
-    }
 }

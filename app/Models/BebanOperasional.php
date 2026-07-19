@@ -30,6 +30,7 @@ class BebanOperasional extends Model
         'total_beban',
         'status',
         'keterangan',
+        'nomor_referensi',
         'posted_at',
         'reversed_at',
         'alasan_reversal',
