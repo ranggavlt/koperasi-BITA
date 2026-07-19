@@ -1000,7 +1000,7 @@ class PreflightPotongGajiCommand extends Command
             return 0;
         }
 
-        return DB::table('simpanan as s')
+        $query = DB::table('simpanan as s')
             ->join('mutasi_kas as mk', function ($join): void {
                 $join->on('mk.referensi_id', '=', 's.id')
                     ->where('mk.referensi_tipe', '=', 'App\\Models\\Simpanan');
@@ -1014,15 +1014,48 @@ class PreflightPotongGajiCommand extends Command
                 $join->on('debit.jurnal_umum_id', '=', 'ju.id')
                     ->where('debit.debit', '>', 0);
             })
-            ->where('s.metode_pembayaran', 'tunai')
-            ->where('s.status', 'settled')
-            ->where(function ($query): void {
+            ->leftJoin('jurnal_umum_detail as credit', function ($join): void {
+                $join->on('credit.jurnal_umum_id', '=', 'ju.id')
+                    ->where('credit.kredit', '>', 0);
+            })
+            ->whereIn('s.metode_pembayaran', ['tunai', 'transfer_bank'])
+            ->where('s.status', 'settled');
+
+        if (Schema::hasColumn('simpanan', 'jenis_transaksi')) {
+            $query->where(function ($query): void {
+                $query->where(function ($setoran): void {
+                    $setoran->where(function ($jenis): void {
+                        $jenis->whereNull('s.jenis_transaksi')
+                            ->orWhere('s.jenis_transaksi', 'setoran');
+                    })->where(function ($invalid): void {
+                        $invalid->whereNull('ju.id')
+                            ->orWhereNull('debit.id')
+                            ->orWhere('mk.tipe', '!=', 'masuk')
+                            ->orWhereColumn('debit.akun_id', '!=', 'd.akun_id')
+                            ->orWhereColumn('debit.debit', '!=', 'mk.jumlah');
+                    });
+                })->orWhere(function ($penarikan): void {
+                    $penarikan->where('s.jenis_transaksi', 'penarikan')
+                        ->where(function ($invalid): void {
+                            $invalid->whereNull('ju.id')
+                                ->orWhereNull('credit.id')
+                                ->orWhere('mk.tipe', '!=', 'keluar')
+                                ->orWhereColumn('credit.akun_id', '!=', 'd.akun_id')
+                                ->orWhereColumn('credit.kredit', '!=', 'mk.jumlah');
+                        });
+                });
+            });
+        } else {
+            $query->where('s.metode_pembayaran', 'tunai')
+                ->where(function ($query): void {
                 $query->whereNull('ju.id')
                     ->orWhereNull('debit.id')
                     ->orWhereColumn('debit.akun_id', '!=', 'd.akun_id')
                     ->orWhereColumn('debit.debit', '!=', 'mk.jumlah');
-            })
-            ->count('s.id');
+                });
+        }
+
+        return $query->count('s.id');
     }
 
     private function duplicateIdempotency(array $tables): int

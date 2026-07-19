@@ -1,17 +1,19 @@
 @extends('layout.main')
 
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
+@php
+  $rupiah = fn ($value) => 'Rp ' . number_format((float) $value, 0, ',', '.');
+  $hasFilter = collect($filters ?? [])->filter(fn ($value) => filled($value))->isNotEmpty();
+@endphp
 
+<div class="kbsm-business-page">
   @if (session('success'))
-    <div class="mb-4 rounded-lg bg-green-100 px-4 py-3 text-sm text-green-700">
-      {{ session('success') }}
-    </div>
+    <div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>
   @endif
 
   @if ($errors->any())
-    <div class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
-      <ul class="mb-0 list-disc pl-5">
+    <div class="kbsm-business-alert kbsm-business-alert--danger">
+      <ul>
         @foreach ($errors->all() as $error)
           <li>{{ $error }}</li>
         @endforeach
@@ -19,221 +21,202 @@
     </div>
   @endif
 
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
-          <div>
-            <h6>Tambah Transaksi Simpanan Manual</h6>
-            <p class="text-sm text-slate-400">
-              Simpanan Pokok dibuat otomatis saat Anggota dibuat. Form ini untuk setoran manual non-pokok.
-            </p>
-          </div>
-
-          <button type="button" onclick="toggleForm()" id="btn-toggle-form"
-            class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-            {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
-          </button>
-        </div>
-
-        <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ $errors->any() ? 'block' : 'hidden' }}">
-          <form action="{{ route('simpanan.store') }}" method="POST">
-            @csrf
-            <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan:manual:' . \Illuminate\Support\Str::uuid()) }}">
-
-            <div class="flex flex-wrap -mx-3">
-              <div class="w-full max-w-full px-3 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Anggota</label>
-                <select name="anggota_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Anggota --</option>
-                  @foreach($anggota as $item)
-                    <option value="{{ $item->id }}" {{ old('anggota_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nomor_anggota }} - {{ $item->karyawan->nama ?? '-' }}
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-4/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jenis Simpanan</label>
-                <select name="jenis_simpanan_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Jenis Simpanan --</option>
-                  @foreach($jenis as $item)
-                    <option value="{{ $item->id }}" {{ old('jenis_simpanan_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama_jenis }}
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-4/12 mt-4 md:mt-0">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dompet Penerimaan</label>
-                <select name="dompet_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">-- Pilih Dompet --</option>
-                  @foreach($dompet as $item)
-                    <option value="{{ $item->id }}" {{ old('dompet_id') == $item->id ? 'selected' : '' }}>
-                      {{ $item->nama_dompet }} ({{ strtoupper($item->jenis_dompet ?? '-') }})
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tanggal</label>
-                <input type="date" name="tanggal" value="{{ old('tanggal', now()->format('Y-m-d')) }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jumlah</label>
-                <input type="number" name="jumlah" min="1" step="1" value="{{ old('jumlah') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="0">
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Status</label>
-                <input type="text" value="Settled Tunai/Bank"
-                  class="text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-200 bg-gray-100 px-3 py-2 text-gray-500"
-                  readonly>
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Keterangan</label>
-                <textarea name="keterangan" rows="3"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="Tambahkan keterangan bila diperlukan">{{ old('keterangan') }}</textarea>
-              </div>
-            </div>
-
-            <div class="mt-6 flex gap-2">
-              <button type="submit"
-                class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
-                Simpan Transaksi
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+  <div class="kbsm-business-header kbsm-business-panel__header--action">
+    <div>
+      <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
+      <h1 class="kbsm-business-title">Transaksi Simpanan</h1>
+      <p class="kbsm-business-subtitle">Daftar immutable untuk Simpanan Pokok, Wajib, dan Sukarela. Koreksi Sukarela dilakukan dengan audit trail, bukan edit/hapus.</p>
     </div>
+    <a href="{{ route('simpanan.create') }}" class="kbsm-business-add-button">+ Transaksi Simpanan Sukarela</a>
   </div>
 
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-          <h6>Data Transaksi Simpanan</h6>
-          <p class="text-sm text-slate-400">Termasuk Simpanan Pokok otomatis dan status settlement payroll.</p>
-        </div>
-
-        <div class="flex-auto px-0 pt-0 pb-2">
-          <div style="overflow-x: auto;" class="p-0">
-            <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-              <thead class="align-bottom">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Anggota</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Tanggal</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jumlah</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Keterangan</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Koreksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                @forelse($simpanan as $item)
-                  <tr>
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center px-4 py-2">
-                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
-                          {{ $simpanan->firstItem() + $loop->index }}
-                        </div>
-                        <div class="flex flex-col justify-center">
-                          <h6 class="mb-0 text-sm leading-normal">{{ $item->anggota?->nomor_anggota ?? '-' }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">{{ $item->anggota?->karyawan?->nama ?? $item->karyawan->nama ?? '-' }}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <p class="mb-0 text-xs font-semibold leading-tight">{{ $item->nama_jenis_snapshot ?? $item->jenisSimpanan->nama_jenis ?? '-' }}</p>
-                      <p class="mb-0 text-xs leading-tight text-slate-400">{{ $item->kode_jenis_snapshot ?? $item->jenisSimpanan->kode ?? '-' }}</p>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">{{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}</span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 bg-gradient-to-tl from-green-600 to-lime-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        Rp {{ number_format($item->jumlah, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                        {{ str_replace('_', ' ', $item->status ?? 'settled') }}
-                      </span>
-                      <p class="mt-1 mb-0 text-xs text-slate-400">{{ str_replace('_', ' ', $item->metode_pembayaran ?? '-') }}</p>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
-                      <p class="mb-0 text-xs font-semibold leading-tight text-slate-500">{{ $item->keterangan ?: '-' }}</p>
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
-                      @if($item->isSimpananPokok() && ! in_array($item->status, ['reversed','settled_cash'], true))
-                        <form method="POST" action="{{ route('simpanan.koreksi', $item) }}" class="space-y-2">
-                          @csrf
-                          <input type="number" name="nominal_pengganti" min="1" placeholder="Nominal pengganti (opsional)"
-                            class="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs">
-                          <textarea name="alasan" rows="2" required minlength="5" placeholder="Alasan koreksi"
-                            class="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs"></textarea>
-                          <button class="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold uppercase text-white">Koreksi Penuh</button>
-                        </form>
-                      @else
-                        <span class="text-xs text-slate-400">Tidak eligible</span>
-                      @endif
-                    </td>
-                  </tr>
-                @empty
-                  <tr>
-                    <td colspan="7" class="p-4 text-center text-sm text-slate-400">
-                      Belum ada data transaksi simpanan.
-                    </td>
-                  </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
-
-          <div class="p-4 border-t border-gray-200">
-            {{ $simpanan->links() }}
-          </div>
-        </div>
-      </div>
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Filter Transaksi</h2>
+      <p class="kbsm-business-panel__copy">Filter bersifat read-only dan pagination mempertahankan parameter pencarian.</p>
     </div>
-  </div>
+    <form method="GET" action="{{ route('simpanan.index') }}" class="kbsm-business-filter kbsm-business-filter--simpanan">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Anggota</label>
+        <select name="anggota_id" class="kbsm-business-control">
+          <option value="">Semua Anggota</option>
+          @foreach($anggota as $item)
+            <option value="{{ $item->id }}" {{ (string) request('anggota_id') === (string) $item->id ? 'selected' : '' }}>
+              {{ $item->nomor_anggota }} - {{ $item->karyawan?->nama ?? '-' }}
+            </option>
+          @endforeach
+        </select>
+      </div>
 
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Kategori Simpanan</label>
+        <select name="kategori" class="kbsm-business-control">
+          <option value="">Semua Kategori</option>
+          @foreach($kategoriOptions as $value => $label)
+            <option value="{{ $value }}" {{ request('kategori') === $value ? 'selected' : '' }}>{{ $label }}</option>
+          @endforeach
+        </select>
+      </div>
+
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Jenis Transaksi</label>
+        <select name="jenis_transaksi" class="kbsm-business-control">
+          <option value="">Semua</option>
+          @foreach($jenisTransaksiOptions as $value => $label)
+            <option value="{{ $value }}" {{ request('jenis_transaksi') === $value ? 'selected' : '' }}>{{ $label }}</option>
+          @endforeach
+        </select>
+      </div>
+
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Status</label>
+        <select name="status" class="kbsm-business-control">
+          <option value="">Semua Status</option>
+          @foreach($statusOptions as $value => $label)
+            <option value="{{ $value }}" {{ request('status') === $value ? 'selected' : '' }}>{{ $label }}</option>
+          @endforeach
+        </select>
+      </div>
+
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Metode</label>
+        <select name="metode_pembayaran" class="kbsm-business-control">
+          <option value="">Semua Metode</option>
+          @foreach($metodeOptions as $value => $label)
+            <option value="{{ $value }}" {{ request('metode_pembayaran') === $value ? 'selected' : '' }}>{{ $label }}</option>
+          @endforeach
+        </select>
+      </div>
+
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Tanggal Mulai</label>
+        <input type="date" name="tanggal_mulai" value="{{ request('tanggal_mulai') }}" class="kbsm-business-control">
+      </div>
+
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Tanggal Selesai</label>
+        <input type="date" name="tanggal_selesai" value="{{ request('tanggal_selesai') }}" class="kbsm-business-control">
+      </div>
+
+      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split">
+        <button class="kbsm-btn kbsm-btn--navy">Filter</button>
+        <a href="{{ route('simpanan.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="kbsm-business-summary kbsm-business-summary--simpanan">
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--green">
+      <div class="kbsm-business-summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 3l4 4h-3v7h-2V7H8l4-4Zm-7 9h2v5h10v-5h2v7H5v-7Z"/></svg>
+      </div>
+      <p class="kbsm-business-summary-label">Total Setoran Sukarela</p>
+      <p class="kbsm-business-summary-value">{{ $rupiah($summary['setoran'] ?? 0) }}</p>
+    </article>
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--gold">
+      <div class="kbsm-business-summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 21l-4-4h3v-7h2v7h3l-4 4ZM5 5h14v7h-2V7H7v5H5V5Z"/></svg>
+      </div>
+      <p class="kbsm-business-summary-label">Total Penarikan Sukarela</p>
+      <p class="kbsm-business-summary-value">{{ $rupiah($summary['penarikan'] ?? 0) }}</p>
+    </article>
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--navy">
+      <div class="kbsm-business-summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v2h-5a3 3 0 0 0 0 6h5v1a2 2 0 0 1-2 2H4V7Zm0-3h12v2H4a1 1 0 0 1 0-2Zm14 9h-3a1 1 0 0 0 0 2h3v-2Z"/></svg>
+      </div>
+      <p class="kbsm-business-summary-label">Saldo Sukarela Aktif</p>
+      <p class="kbsm-business-summary-value">{{ $rupiah($summary['saldo_aktif'] ?? 0) }}</p>
+    </article>
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--red">
+      <div class="kbsm-business-summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-2.34-5.66L15 9h7V2l-2.93 2.93A9.97 9.97 0 0 0 12 2Zm-1 5h2v6h-2V7Zm0 8h2v2h-2v-2Z"/></svg>
+      </div>
+      <p class="kbsm-business-summary-label">Transaksi Dikoreksi</p>
+      <p class="kbsm-business-summary-value">{{ number_format($summary['dikoreksi'] ?? 0, 0, ',', '.') }}</p>
+    </article>
+  </section>
+
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Daftar Transaksi Simpanan</h2>
+      <p class="kbsm-business-panel__copy">Tidak ada tombol edit atau hapus. Transaksi Sukarela posted yang salah dapat dikoreksi penuh dengan alasan.</p>
+    </div>
+
+    <div class="kbsm-business-table-wrap">
+      <table class="kbsm-business-table kbsm-business-table--simpanan">
+        <thead>
+          <tr>
+            <th>Kode/Tanggal</th>
+            <th>Anggota</th>
+            <th>Jenis Simpanan</th>
+            <th>Transaksi</th>
+            <th>Metode/Dompet</th>
+            <th class="kbsm-business-table__right">Nominal</th>
+            <th class="kbsm-business-table__right">Saldo Setelah</th>
+            <th>Status</th>
+            <th>Posting</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($simpanan as $item)
+            <tr>
+              <td>
+                <div class="kbsm-business-code">{{ $item->kode_transaksi ?: ('SIMP-' . $item->id) }}</div>
+                <div class="kbsm-business-muted">{{ $item->tanggal?->format('d/m/Y') ?? '-' }}</div>
+              </td>
+              <td>
+                <div class="kbsm-business-strong">{{ $item->anggota?->nomor_anggota ?? '-' }}</div>
+                <div class="kbsm-business-muted">{{ $item->anggota?->karyawan?->nama ?? $item->karyawan?->nama ?? '-' }}</div>
+              </td>
+              <td>
+                <div class="kbsm-business-strong">{{ $item->nama_jenis_snapshot ?? $item->jenisSimpanan?->nama_jenis ?? '-' }}</div>
+                <div class="kbsm-business-muted">{{ $item->kode_jenis_snapshot ?? $item->jenisSimpanan?->kode ?? '-' }}</div>
+              </td>
+              <td>
+                <span class="kbsm-status kbsm-status--navy">{{ $item->jenis_transaksi_label }}</span>
+              </td>
+              <td>
+                <div class="kbsm-business-strong">{{ $metodeOptions[$item->metode_pembayaran] ?? str_replace('_', ' ', (string) $item->metode_pembayaran) }}</div>
+                <div class="kbsm-business-muted">{{ $item->dompet?->nama_dompet ?? $item->mutasiKas?->dompet?->nama_dompet ?? '-' }}</div>
+              </td>
+              <td class="kbsm-business-amount">{{ $rupiah($item->jumlah) }}</td>
+              <td class="kbsm-business-amount">{{ $item->saldo_sesudah_snapshot !== null ? $rupiah($item->saldo_sesudah_snapshot) : '-' }}</td>
+              <td>
+                <span class="kbsm-status {{ $item->status === 'reversed' ? 'kbsm-status--red' : 'kbsm-status--green' }}">
+                  {{ $item->status_label }}
+                </span>
+              </td>
+              <td>
+                <div class="kbsm-business-muted">Mutasi: {{ $item->mutasiKas ? 'Ada' : '-' }}</div>
+                <div class="kbsm-business-muted">Jurnal: {{ $item->jurnal ? 'Ada' : '-' }}</div>
+              </td>
+              <td>
+                @if($item->isSimpananSukarela() && $item->status === \App\Models\Simpanan::STATUS_SETTLED && in_array($item->jenis_transaksi, [\App\Models\Simpanan::JENIS_SETORAN, \App\Models\Simpanan::JENIS_PENARIKAN], true))
+                  <form method="POST" action="{{ route('simpanan.koreksi', $item) }}" class="kbsm-business-inline-actions">
+                    @csrf
+                    <textarea name="alasan" rows="2" required minlength="5" class="kbsm-business-control" placeholder="Alasan Koreksi"></textarea>
+                    <button class="kbsm-btn kbsm-btn--outline-red">Koreksi Transaksi</button>
+                  </form>
+                @else
+                  <span class="kbsm-business-muted">Tidak eligible</span>
+                @endif
+              </td>
+            </tr>
+          @empty
+            <tr>
+              <td colspan="10" class="kbsm-business-empty">
+                {{ $hasFilter ? 'Filter tidak menemukan transaksi Simpanan.' : 'Belum ada transaksi Simpanan.' }}
+              </td>
+            </tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+
+    <div class="kbsm-business-pagination">
+      {{ $simpanan->links() }}
+    </div>
+  </section>
 </div>
-
-<script>
-  function toggleForm() {
-    const formContainer = document.getElementById('form-container');
-    const btnToggle = document.getElementById('btn-toggle-form');
-
-    if (formContainer.classList.contains('hidden')) {
-      formContainer.classList.remove('hidden');
-      formContainer.classList.add('block');
-      btnToggle.innerHTML = 'Tutup Form';
-    } else {
-      formContainer.classList.add('hidden');
-      formContainer.classList.remove('block');
-      btnToggle.innerHTML = '+ Tambah Data';
-    }
-  }
-</script>
 @endsection

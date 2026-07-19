@@ -23,99 +23,19 @@ class SimpananManualService
 
     public function create(array $data, ?int $userId = null): Simpanan
     {
-        $idempotencyKey = $this->normalizeIdempotencyKey($data['idempotency_key'] ?? null);
+        if (empty($data['metode_pembayaran']) && ! empty($data['dompet_id'])) {
+            $jenisDompet = DompetKoperasi::query()
+                ->whereKey((int) $data['dompet_id'])
+                ->value('jenis_dompet');
 
-        try {
-            return DB::transaction(function () use ($data, $userId, $idempotencyKey): Simpanan {
-                $existing = Simpanan::query()
-                    ->with(['mutasiKas.dompet.akun', 'jurnal.details.akun'])
-                    ->where('idempotency_key', $idempotencyKey)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($existing) {
-                    return $existing;
-                }
-
-                $anggota = Anggota::query()
-                    ->with('karyawan')
-                    ->lockForUpdate()
-                    ->findOrFail((int) $data['anggota_id']);
-                $jenis = JenisSimpanan::query()
-                    ->with('akun')
-                    ->lockForUpdate()
-                    ->findOrFail((int) $data['jenis_simpanan_id']);
-                $dompet = DompetKoperasi::query()
-                    ->with('akun')
-                    ->lockForUpdate()
-                    ->findOrFail((int) $data['dompet_id']);
-
-                $this->assertManualJenis($jenis);
-                $this->assertAkunSimpanan($jenis->akun);
-                $this->assertDompetAkun($dompet);
-
-                $jumlah = $this->rupiahInt($data['jumlah'] ?? 0);
-                if ($jumlah <= 0) {
-                    throw ValidationException::withMessages([
-                        'jumlah' => 'Jumlah simpanan wajib lebih besar dari nol.',
-                    ]);
-                }
-
-                $siklusId = $anggota->siklusAktif()->value('id');
-
-                $simpanan = Simpanan::query()->create([
-                    'idempotency_key' => $idempotencyKey,
-                    'anggota_id' => $anggota->id,
-                    'karyawan_id' => $anggota->karyawan_id,
-                    'siklus_keanggotaan_id' => $siklusId,
-                    'jenis_simpanan_id' => $jenis->id,
-                    'kode_jenis_snapshot' => $jenis->kode,
-                    'nama_jenis_snapshot' => $jenis->nama_jenis,
-                    'nominal_snapshot' => $this->rupiahDecimal($jumlah),
-                    'jumlah' => $this->rupiahDecimal($jumlah),
-                    'metode_pembayaran' => Simpanan::METODE_TUNAI,
-                    'status' => Simpanan::STATUS_SETTLED,
-                    'settled_at' => now(),
-                    'tanggal' => $data['tanggal'],
-                    'keterangan' => $data['keterangan'] ?? null,
-                    'created_by' => $userId,
-                ]);
-
-                $mutasi = $this->mutasiKasService->record([
-                    'idempotency_key' => 'simpanan:manual:mutasi:' . $idempotencyKey,
-                    'dompet_id' => $dompet->id,
-                    'tipe' => 'masuk',
-                    'jumlah' => $jumlah,
-                    'keterangan' => 'Penerimaan simpanan anggota',
-                    'referensi_tipe' => Simpanan::class,
-                    'referensi_id' => $simpanan->id,
-                    'tanggal' => $data['tanggal'],
-                ]);
-
-                $jurnal = $this->akuntansiService->recordSimpanan(
-                    $simpanan->fresh('jenisSimpanan.akun'),
-                    $dompet->akun,
-                    $userId,
-                    'simpanan:manual:jurnal:' . $idempotencyKey
-                );
-
-                $this->assertPostingConsistent($mutasi, $jurnal->fresh('details'), $dompet);
-
-                return $simpanan->fresh(['anggota.karyawan', 'jenisSimpanan.akun', 'mutasiKas.dompet.akun', 'jurnal.details.akun']);
-            });
-        } catch (UniqueConstraintViolationException) {
-            $existing = Simpanan::query()
-                ->where('idempotency_key', $idempotencyKey)
-                ->first();
-
-            if ($existing) {
-                return $existing->fresh(['anggota.karyawan', 'jenisSimpanan.akun', 'mutasiKas.dompet.akun', 'jurnal.details.akun']);
-            }
-
-            throw ValidationException::withMessages([
-                'simpanan' => 'Transaksi Simpanan gagal karena konflik idempotency. Silakan muat ulang form.',
-            ]);
+            $data['metode_pembayaran'] = $jenisDompet === DompetKoperasi::JENIS_BANK
+                ? Simpanan::METODE_TRANSFER_BANK
+                : Simpanan::METODE_TUNAI;
         }
+
+        $data['jenis_transaksi'] = Simpanan::JENIS_SETORAN;
+
+        return app(SimpananSukarelaService::class)->setoran($data, $userId);
     }
 
     private function assertManualJenis(JenisSimpanan $jenis): void

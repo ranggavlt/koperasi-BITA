@@ -60,4 +60,9 @@ class SiklusKeanggotaan extends Model
     {
         return $this->hasMany(Simpanan::class, 'siklus_keanggotaan_id');
     }
+
+    public function saldoSimpananSukarela()
+    {
+        return $this->hasMany(SaldoSimpananSukarela::class, 'siklus_keanggotaan_id');
+    }
 }

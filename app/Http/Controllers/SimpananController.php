@@ -6,63 +6,154 @@ use App\Http\Requests\StoreSimpananRequest;
 use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\JenisSimpanan;
+use App\Models\Karyawan;
 use App\Models\Simpanan;
-use App\Services\SimpananManualService;
+use App\Services\SimpananSukarelaService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SimpananController extends Controller
 {
-    public function index(): View
+    public function index(Request $request, SimpananSukarelaService $service): View
     {
+        $filters = $request->validate([
+            'anggota_id' => ['nullable', 'integer', 'exists:anggota,id'],
+            'kategori' => ['nullable', Rule::in(array_keys(JenisSimpanan::KATEGORI))],
+            'jenis_transaksi' => ['nullable', Rule::in([Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])],
+            'status' => ['nullable', Rule::in([
+                Simpanan::STATUS_PENDING_PAYROLL,
+                Simpanan::STATUS_ALLOCATED,
+                Simpanan::STATUS_SETTLED,
+                Simpanan::STATUS_OUTSTANDING_CASH,
+                Simpanan::STATUS_SETTLED_CASH,
+                Simpanan::STATUS_REVERSED,
+                Simpanan::STATUS_REVERSED_DUE_TO_EXIT,
+                Simpanan::STATUS_SETTLED_OFFSET,
+            ])],
+            'metode_pembayaran' => ['nullable', Rule::in([
+                Simpanan::METODE_TUNAI,
+                Simpanan::METODE_TRANSFER_BANK,
+                Simpanan::METODE_POTONG_GAJI,
+            ])],
+            'tanggal_mulai' => ['nullable', 'date'],
+            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
+        ]);
+
         $simpanan = Simpanan::query()
-            ->with(['anggota.karyawan', 'karyawan', 'jenisSimpanan', 'ledger', 'mutasiKas.dompet'])
-            ->latest()
-            ->paginate(10);
+            ->with(['anggota.karyawan', 'karyawan', 'jenisSimpanan', 'ledger', 'mutasiKas.dompet', 'dompet', 'jurnal', 'reversal'])
+            ->when($filters['anggota_id'] ?? null, fn ($query, $anggotaId) => $query->where('anggota_id', $anggotaId))
+            ->when($filters['kategori'] ?? null, fn ($query, $kategori) => $query->whereHas('jenisSimpanan', fn ($jenisQuery) => $jenisQuery->where('kategori', $kategori)))
+            ->when($filters['jenis_transaksi'] ?? null, fn ($query, $jenis) => $query->where('jenis_transaksi', $jenis))
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['metode_pembayaran'] ?? null, fn ($query, $metode) => $query->where('metode_pembayaran', $metode))
+            ->when($filters['tanggal_mulai'] ?? null, fn ($query, $date) => $query->whereDate('tanggal', '>=', $date))
+            ->when($filters['tanggal_selesai'] ?? null, fn ($query, $date) => $query->whereDate('tanggal', '<=', $date))
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->paginate(12)
+            ->withQueryString();
+
+        $summary = $service->summary($filters);
 
         $anggota = Anggota::query()
             ->with('karyawan')
-            ->aktif()
             ->orderBy('nomor_anggota')
             ->get();
 
-        $jenis = JenisSimpanan::query()
+        return view('pages.simpanan.index', [
+            'simpanan' => $simpanan,
+            'anggota' => $anggota,
+            'filters' => $filters,
+            'summary' => $summary,
+            'kategoriOptions' => JenisSimpanan::KATEGORI,
+            'jenisTransaksiOptions' => [
+                Simpanan::JENIS_SETORAN => 'Setoran',
+                Simpanan::JENIS_PENARIKAN => 'Penarikan',
+            ],
+            'statusOptions' => [
+                Simpanan::STATUS_PENDING_PAYROLL => 'Pending Payroll',
+                Simpanan::STATUS_ALLOCATED => 'Dialokasikan',
+                Simpanan::STATUS_SETTLED => 'Posted',
+                Simpanan::STATUS_OUTSTANDING_CASH => 'Outstanding Tunai',
+                Simpanan::STATUS_SETTLED_CASH => 'Lunas Tunai',
+                Simpanan::STATUS_REVERSED => 'Dikoreksi',
+                Simpanan::STATUS_REVERSED_DUE_TO_EXIT => 'Dikoreksi Keluar Anggota',
+                Simpanan::STATUS_SETTLED_OFFSET => 'Diselesaikan Offset',
+            ],
+            'metodeOptions' => [
+                Simpanan::METODE_TUNAI => 'Tunai',
+                Simpanan::METODE_TRANSFER_BANK => 'Transfer Bank',
+                Simpanan::METODE_POTONG_GAJI => 'Potong Gaji',
+            ],
+        ]);
+    }
+
+    public function create(): View
+    {
+        $anggota = Anggota::query()
+            ->with(['karyawan', 'siklusAktif'])
             ->aktif()
-            ->where(fn ($query) => $query
-                ->whereNull('kode')
-                ->orWhere('kode', '!=', JenisSimpanan::KODE_SIMPANAN_POKOK))
-            ->where(fn ($query) => $query
-                ->whereNull('kode')
-                ->orWhere('kode', '!=', JenisSimpanan::KODE_SIMPANAN_WAJIB))
-            ->where(fn ($query) => $query
-                ->whereNull('kategori')
-                ->orWhere('kategori', '!=', JenisSimpanan::KATEGORI_POKOK))
-            ->where(fn ($query) => $query
-                ->whereNull('kategori')
-                ->orWhere('kategori', '!=', JenisSimpanan::KATEGORI_WAJIB))
-            ->orderBy('nama_jenis')
+            ->whereHas('karyawan', fn ($query) => $query->where('status_kerja', Karyawan::STATUS_AKTIF))
+            ->whereHas('siklusAktif')
+            ->orderBy('nomor_anggota')
             ->get();
+
+        $jenisSukarela = JenisSimpanan::query()
+            ->aktif()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)
+            ->first();
 
         $dompet = DompetKoperasi::query()
             ->with('akun')
+            ->whereHas('akun', fn ($query) => $query
+                ->where('is_aktif', true)
+                ->where('kategori', 'aset')
+                ->where('posisi_saldo', 'debit'))
             ->orderBy('nama_dompet')
             ->get();
 
-        return view('pages.simpanan.index', compact('simpanan', 'anggota', 'jenis', 'dompet'));
+        return view('pages.simpanan.create', compact('anggota', 'jenisSukarela', 'dompet'));
     }
 
-    public function store(StoreSimpananRequest $request, SimpananManualService $service): RedirectResponse
+    public function store(StoreSimpananRequest $request, SimpananSukarelaService $service): RedirectResponse
     {
         try {
             $service->create($request->validated(), $request->user()?->id);
 
             return redirect()
                 ->route('simpanan.index')
-                ->with('success', 'Transaksi simpanan berhasil disimpan.');
+                ->with('success', 'Transaksi Simpanan Sukarela berhasil diposting.');
+        } catch (ValidationException $exception) {
+            return back()
+                ->withErrors($exception->errors())
+                ->withInput();
         } catch (\Throwable $exception) {
             return back()
                 ->withErrors(['simpanan' => $exception->getMessage()])
                 ->withInput();
         }
+    }
+
+    public function saldoSukarela(Anggota $anggota, SimpananSukarelaService $service): JsonResponse
+    {
+        $anggota->loadMissing('karyawan');
+
+        if ($anggota->status !== Anggota::STATUS_AKTIF || $anggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {
+            return response()->json([
+                'message' => 'Anggota nonaktif atau Karyawan berhenti tidak dapat melakukan transaksi Simpanan Sukarela langsung.',
+            ], 422);
+        }
+
+        $saldo = $service->saldoTersedia($anggota);
+
+        return response()->json([
+            'saldo' => $saldo,
+            'saldo_formatted' => 'Rp ' . number_format($saldo, 0, ',', '.'),
+        ]);
     }
 }

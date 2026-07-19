@@ -365,6 +365,90 @@ class AkuntansiService
         ]);
     }
 
+    public function recordSimpananSukarelaPenarikan(Simpanan $simpanan, Akun $akunDompet, ?int $userId = null, ?string $idempotencyKey = null): JurnalUmum
+    {
+        $idempotencyKey ??= 'simpanan-sukarela:penarikan:jurnal:' . $simpanan->id;
+
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Sukarela harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet penarikan Simpanan Sukarela harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = $this->rupiahDecimal($simpanan->jumlah ?? 0);
+        $tanggal = (string) ($simpanan->tanggal ?? now()->toDateString());
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => $simpanan->kode_transaksi ?: 'SSK-' . $simpanan->id,
+            'keterangan' => 'Penarikan Simpanan Sukarela',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+            $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+        ]);
+    }
+
+    public function recordSimpananSukarelaCorrection(ReversalTransaksi $reversal, Simpanan $simpanan, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Sukarela tidak valid untuk koreksi.');
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet koreksi Simpanan Sukarela harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = (float) $reversal->nominal;
+
+        $lines = $simpanan->jenis_transaksi === Simpanan::JENIS_SETORAN
+            ? [
+                $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+                $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+            ]
+            : [
+                $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+                $this->akunResolver->line($akunSimpanan, 'kredit', $jumlah),
+            ];
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Koreksi Transaksi Simpanan Sukarela ' . ($simpanan->kode_transaksi ?: ('#' . $simpanan->id)),
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
     public function recordPinjaman(Pinjaman $pinjaman): void
     {
         if (JurnalUmum::query()

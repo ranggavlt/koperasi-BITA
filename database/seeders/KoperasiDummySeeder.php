@@ -38,7 +38,7 @@ use App\Services\PosCheckoutService;
 use App\Services\PotongGajiBulananService;
 use App\Services\SewaMobilService;
 use App\Services\SewaPrinterService;
-use App\Services\SimpananManualService;
+use App\Services\SimpananSukarelaService;
 use App\Services\SimpananWajibService;
 use App\Services\TransaksiReversalService;
 use Carbon\Carbon;
@@ -57,7 +57,7 @@ class KoperasiDummySeeder extends Seeder
             $mutasiKasService = app(MutasiKasService::class);
             $masterDataService = app(MasterDataKoperasiService::class);
             $jenisSimpananService = app(JenisSimpananService::class);
-            $simpananManualService = app(SimpananManualService::class);
+            $simpananSukarelaService = app(SimpananSukarelaService::class);
             $pinjamanService = app(PinjamanKoperasiService::class);
             $asetKoperasiService = app(AsetKoperasiService::class);
             $karyawanAccountService = app(KaryawanAccountService::class);
@@ -84,10 +84,12 @@ class KoperasiDummySeeder extends Seeder
             $this->seedAsetKoperasi($asetKoperasiService, $keuangan);
             $this->seedKaryawanAccounts($karyawanAccountService, $karyawan, $keuangan);
 
-            $this->seedSimpanan($simpananManualService, $karyawan, $jenisSimpanan, $dompet, $keuangan, [
+            $this->seedSimpanan($simpananSukarelaService, $karyawan, $jenisSimpanan, $dompet, $keuangan, [
                 [
                     'anggota' => 'agus',
                     'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+                    'metode_pembayaran' => Simpanan::METODE_TUNAI,
                     'jumlah' => 150000,
                     'tanggal' => $awalBulanLalu->copy()->addDays(18),
                     'dompet' => 'kas_operasional',
@@ -96,10 +98,54 @@ class KoperasiDummySeeder extends Seeder
                 [
                     'anggota' => 'dewi',
                     'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+                    'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
                     'jumlah' => 200000,
                     'tanggal' => $awalBulanIni->copy()->addDays(6),
                     'dompet' => 'bank_bca',
                     'keterangan' => 'Setoran simpanan sukarela melalui Bank [dummy-koperasi-bita]',
+                ],
+                [
+                    'anggota' => 'dewi',
+                    'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_PENARIKAN,
+                    'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
+                    'jumlah' => 50000,
+                    'tanggal' => $awalBulanIni->copy()->addDays(9),
+                    'dompet' => 'bank_bca',
+                    'keterangan' => 'Penarikan sebagian simpanan sukarela [dummy-koperasi-bita]',
+                ],
+                [
+                    'anggota' => 'fitri',
+                    'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+                    'metode_pembayaran' => Simpanan::METODE_TUNAI,
+                    'jumlah' => 75000,
+                    'tanggal' => $awalBulanIni->copy()->addDays(10),
+                    'dompet' => 'kas_operasional',
+                    'keterangan' => 'Setoran untuk contoh saldo nol [dummy-koperasi-bita]',
+                ],
+                [
+                    'anggota' => 'fitri',
+                    'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_PENARIKAN,
+                    'metode_pembayaran' => Simpanan::METODE_TUNAI,
+                    'jumlah' => 75000,
+                    'tanggal' => $awalBulanIni->copy()->addDays(11),
+                    'dompet' => 'kas_operasional',
+                    'keterangan' => 'Penarikan penuh untuk contoh saldo nol [dummy-koperasi-bita]',
+                ],
+                [
+                    'anggota' => 'lilis',
+                    'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+                    'metode_pembayaran' => Simpanan::METODE_TUNAI,
+                    'jumlah' => 120000,
+                    'tanggal' => $awalBulanIni->copy()->addDays(12),
+                    'dompet' => 'kas_operasional',
+                    'keterangan' => 'Setoran salah untuk contoh koreksi [dummy-koperasi-bita]',
+                    'koreksi' => true,
+                    'alasan_koreksi' => 'Dummy koreksi setoran Sukarela salah input.',
                 ],
             ]);
 
@@ -1345,7 +1391,7 @@ class KoperasiDummySeeder extends Seeder
     }
 
     private function seedSimpanan(
-        SimpananManualService $simpananManualService,
+        SimpananSukarelaService $simpananSukarelaService,
         array $karyawan,
         array $jenisSimpanan,
         array $dompet,
@@ -1355,13 +1401,15 @@ class KoperasiDummySeeder extends Seeder
         foreach ($rows as $row) {
             $anggotaModel = $karyawan[$row['anggota']]->anggota()->first();
             $jenis = $jenisSimpanan[$row['jenis']];
-            $idempotencyKey = 'dummy-simpanan:' . $row['anggota'] . ':' . $row['jenis'] . ':' . $row['dompet'] . ':' . $row['tanggal']->format('Ymd');
+            $idempotencyKey = 'dummy-simpanan:' . $row['anggota'] . ':' . $row['jenis'] . ':' . ($row['jenis_transaksi'] ?? 'setoran') . ':' . $row['dompet'] . ':' . $row['tanggal']->format('Ymd');
 
-            $simpanan = $simpananManualService->create([
+            $simpanan = $simpananSukarelaService->create([
                 'idempotency_key' => $idempotencyKey,
                 'anggota_id' => $anggotaModel?->id,
                 'jenis_simpanan_id' => $jenis->id,
                 'dompet_id' => $dompet[$row['dompet']]->id,
+                'jenis_transaksi' => $row['jenis_transaksi'] ?? Simpanan::JENIS_SETORAN,
+                'metode_pembayaran' => $row['metode_pembayaran'] ?? Simpanan::METODE_TUNAI,
                 'jumlah' => $row['jumlah'],
                 'tanggal' => $row['tanggal']->toDateString(),
                 'keterangan' => $row['keterangan'],
@@ -1376,6 +1424,31 @@ class KoperasiDummySeeder extends Seeder
                 $simpanan->jurnal->details()->get()->each(function ($detail) use ($row): void {
                     $this->setTimestamp('jurnal_umum_detail', $detail->id, $row['tanggal']);
                 });
+            }
+
+            if (($row['koreksi'] ?? false) && $simpanan->status !== Simpanan::STATUS_REVERSED) {
+                $reversal = $simpananSukarelaService->koreksi(
+                    $simpanan,
+                    $row['alasan_koreksi'] ?? 'Koreksi dummy Simpanan Sukarela.',
+                    $keuangan->id
+                );
+
+                $this->setTimestamp('reversal_transaksi', $reversal->id, $row['tanggal']);
+                $reversal->loadMissing(['originalMutasi', 'originalJurnal']);
+                MutasiKas::query()
+                    ->where('referensi_tipe', \App\Models\ReversalTransaksi::class)
+                    ->where('referensi_id', $reversal->id)
+                    ->get()
+                    ->each(fn (MutasiKas $mutasi) => $this->setTimestamp('mutasi_kas', $mutasi->id, $row['tanggal']));
+                \App\Models\JurnalUmum::query()
+                    ->where('referensi_tipe', \App\Models\ReversalTransaksi::class)
+                    ->where('referensi_id', $reversal->id)
+                    ->with('details')
+                    ->get()
+                    ->each(function ($jurnal) use ($row): void {
+                        $this->setTimestamp('jurnal_umum', $jurnal->id, $row['tanggal']);
+                        $jurnal->details->each(fn ($detail) => $this->setTimestamp('jurnal_umum_detail', $detail->id, $row['tanggal']));
+                    });
             }
         }
     }

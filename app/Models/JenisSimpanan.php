@@ -83,6 +83,11 @@ class JenisSimpanan extends Model
         return $this->hasMany(Simpanan::class, 'jenis_simpanan_id');
     }
 
+    public function saldoSimpananSukarela()
+    {
+        return $this->hasMany(SaldoSimpananSukarela::class, 'jenis_simpanan_id');
+    }
+
     public function riwayat()
     {
         return $this->hasMany(RiwayatJenisSimpanan::class, 'jenis_simpanan_id');

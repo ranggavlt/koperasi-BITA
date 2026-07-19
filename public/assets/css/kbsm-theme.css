@@ -1765,6 +1765,37 @@ textarea.kbsm-business-control {
 .kbsm-business-summary-card--green { --summary-accent: var(--kbsm-green); }
 .kbsm-business-summary-card--gold { --summary-accent: var(--kbsm-gold); }
 .kbsm-business-summary-card--navy { --summary-accent: var(--kbsm-navy); }
+.kbsm-business-summary-card--red { --summary-accent: #dc2626; }
+
+.kbsm-business-summary-icon {
+  display: inline-flex;
+  width: 2.45rem;
+  height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  color: var(--summary-accent, var(--kbsm-green));
+  background: rgba(234, 245, 232, 0.72);
+  border-radius: 0.78rem;
+}
+
+.kbsm-business-summary-card--gold .kbsm-business-summary-icon {
+  background: rgba(245, 166, 35, 0.14);
+}
+
+.kbsm-business-summary-card--navy .kbsm-business-summary-icon {
+  background: rgba(7, 59, 92, 0.1);
+}
+
+.kbsm-business-summary-card--red .kbsm-business-summary-icon {
+  background: rgba(220, 38, 38, 0.09);
+}
+
+.kbsm-business-summary-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: currentColor;
+}
 
 .kbsm-business-summary-label {
   margin: 0 0 0.38rem;
@@ -2029,6 +2060,10 @@ textarea.kbsm-business-control {
   grid-template-columns: repeat(2, minmax(0, 18rem)) repeat(2, minmax(0, 20rem)) auto;
 }
 
+.kbsm-business-filter--simpanan {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .kbsm-business-filter__actions--split {
   align-items: end;
   justify-content: flex-end;
@@ -2076,9 +2111,22 @@ textarea.kbsm-business-control {
   min-width: 1180px;
 }
 
+.kbsm-business-table--simpanan {
+  min-width: 1380px;
+}
+
 .kbsm-business-summary--wajib {
   margin-bottom: 1.25rem;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.kbsm-business-summary--simpanan {
+  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.kbsm-business-summary--form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .kbsm-business-table__right,
@@ -2102,7 +2150,10 @@ textarea.kbsm-business-control {
   }
 
   .kbsm-business-filter--wajib,
-  .kbsm-business-summary--wajib {
+  .kbsm-business-filter--simpanan,
+  .kbsm-business-summary--wajib,
+  .kbsm-business-summary--simpanan,
+  .kbsm-business-summary--form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2132,7 +2183,10 @@ textarea.kbsm-business-control {
   }
 
   .kbsm-business-filter--wajib,
-  .kbsm-business-summary--wajib {
+  .kbsm-business-filter--simpanan,
+  .kbsm-business-summary--wajib,
+  .kbsm-business-summary--simpanan,
+  .kbsm-business-summary--form {
     grid-template-columns: 1fr;
   }
 
