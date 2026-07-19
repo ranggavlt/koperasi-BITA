@@ -129,7 +129,7 @@
                     <h6>Top 5 Produk Terlaris</h6>
                 </div>
                 <div class="flex-auto p-6 px-0 pb-2">
-                    <div class="overflow-x-auto">
+                    <div style="overflow-x: auto;" class="">
                         <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
                             <thead class="align-bottom">
                                 <tr>

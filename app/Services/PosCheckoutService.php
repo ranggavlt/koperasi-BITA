@@ -49,12 +49,6 @@ class PosCheckoutService
                 $context = $this->resolveCustomer($tipe, $data);
                 $dompet = null;
 
-                if ($tipe === Penjualan::TIPE_ANGGOTA && $metode !== Pembayaran::METODE_POTONG_GAJI) {
-                    throw ValidationException::withMessages([
-                        'metode_pembayaran' => 'Anggota aktif wajib menggunakan metode Potong Gaji pada POS.',
-                    ]);
-                }
-
                 if ($tipe !== Penjualan::TIPE_ANGGOTA && $metode === Pembayaran::METODE_POTONG_GAJI) {
                     throw ValidationException::withMessages([
                         'metode_pembayaran' => 'Potong Gaji hanya boleh digunakan untuk pelanggan Anggota aktif.',

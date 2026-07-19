@@ -27,6 +27,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\JurnalUmumPeriodikController;
 use App\Http\Controllers\BukuBesarController;
 use App\Http\Controllers\AkunController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnggotaController;
 use App\Http\Controllers\AsetMobilController;
 use App\Http\Controllers\AsetPrinterController;
@@ -42,8 +43,7 @@ Route::get('/', fn () => redirect()->route('pages.dashboard'));
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
-    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
+    // Register routes removed per requirement
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
@@ -62,15 +62,22 @@ Route::middleware(['auth', 'active_user', 'password_changed'])->prefix('pages')-
     Route::view('/rtl', 'pages.rtl')->name('pages.rtl');
 });
 
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir'])->group(function () {
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,admin'])->group(function () {
+    //PENJUALAN (Kasir & Admin)
+    Route::resource('penjualan', PenjualanController::class)->only(['index', 'store']);
+});
+
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->group(function () {
+    // MANAJEMEN USER (Hak Akses Login)
+    Route::resource('users', UserController::class)->except(['create', 'show', 'edit']);
+    Route::patch('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::patch('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+
     // PRODUK (pakai resource biar binding rapi)
     Route::resource('produk', ProdukController::class)->except(['create', 'show']);
 
     // KATEGORI PRODUK
     Route::resource('kategori-produk', KategoriProdukController::class)->except(['create', 'show']);
-
-    //PENJUALAN (Kasir)
-    Route::resource('penjualan', PenjualanController::class)->only(['index', 'store']);
 
     // RESELLER (Konsinyasi)
     Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
@@ -78,9 +85,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir'])->gr
         ->name('pembayaran-konsinyasi.index');
     Route::post('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'store'])
         ->name('pembayaran-konsinyasi.store');
-});
 
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:keuangan'])->group(function () {
     Route::resource('jenis-simpanan', JenisSimpananController::class)->except(['create', 'show']);
 
     Route::resource('jenis-pinjaman', JenisPinjamanController::class)->except(['create', 'show']);
@@ -143,10 +148,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:keuangan'])-
 
     // Master data Karyawan dan Anggota
     Route::resource('karyawan', KaryawanController::class)->except(['create', 'show']);
-    Route::post('/karyawan/{karyawan}/akun', [KaryawanController::class, 'createAccount'])->name('karyawan.akun.store');
-    Route::patch('/karyawan/{karyawan}/akun/password', [KaryawanController::class, 'resetAccountPassword'])->name('karyawan.akun.password');
-    Route::patch('/karyawan/{karyawan}/akun/aktifkan', [KaryawanController::class, 'activateAccount'])->name('karyawan.akun.activate');
-    Route::patch('/karyawan/{karyawan}/akun/nonaktifkan', [KaryawanController::class, 'deactivateAccount'])->name('karyawan.akun.deactivate');
+
     Route::resource('anggota', AnggotaController::class)
         ->parameters(['anggota' => 'anggota'])
         ->only(['index', 'store', 'edit', 'update', 'destroy']);
@@ -271,7 +273,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:karyawan'])-
         ->name('sewa-mobil.karyawan.cancel');
 });
 
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,keuangan'])->group(function () {
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->group(function () {
     // LAPORAN KONSINYASI (operasional, boleh kasir & keuangan)
     Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
         ->name('konsinyasi.report');

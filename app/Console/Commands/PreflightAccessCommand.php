@@ -18,7 +18,7 @@ class PreflightAccessCommand extends Command
     {
         $checks = [
             $this->check('route_sensitif_tanpa_auth', 'Route sensitif tanpa auth middleware', $this->sensitiveRoutesWithoutAuth()),
-            $this->check('route_finance_tanpa_role', 'Route Finance tanpa role:keuangan', $this->financeRoutesWithoutRole()),
+            $this->check('route_finance_tanpa_role', 'Route Finance tanpa role:admin', $this->financeRoutesWithoutRole()),
             $this->check('route_karyawan_tanpa_ownership', 'Route Karyawan tanpa proteksi ownership', $this->employeeRoutesWithoutOwnership()),
             $this->check('shu_route_aktif_disabled', 'Route SHU aktif saat feature disabled', $this->shuRoutesActiveWhileDisabled()),
             $this->check('menu_disabled_visible', 'Menu/module disabled masih terlihat', $this->disabledFeatureVisibleInNavigation()),
@@ -74,7 +74,7 @@ class PreflightAccessCommand extends Command
     {
         return $this->webRoutes()
             ->filter(fn (RoutingRoute $route): bool => $this->isFinanceUri($route->uri()))
-            ->filter(fn (RoutingRoute $route): bool => ! $this->hasRoleMiddleware($route, 'keuangan'))
+            ->filter(fn (RoutingRoute $route): bool => ! $this->hasRoleMiddleware($route, 'admin'))
             ->count();
     }
 
@@ -172,7 +172,7 @@ class PreflightAccessCommand extends Command
         }
 
         return DB::table('users')
-            ->whereNotIn('role', ['keuangan', 'kasir', 'karyawan'])
+            ->whereNotIn('role', ['admin', 'kasir', 'karyawan'])
             ->count();
     }
 

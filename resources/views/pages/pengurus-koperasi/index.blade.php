@@ -43,7 +43,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar dan Histori Pengurus</h2><p class="text-sm text-slate-400">Identitas ditampilkan dari master Karyawan melalui Anggota.</p></div>
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[850px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white"><tr><th class="px-6 py-4">Nomor Anggota</th><th class="px-6 py-4">Nama</th><th class="px-6 py-4">Jabatan</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-center">Aksi</th></tr></thead>
         <tbody class="divide-y divide-slate-100">

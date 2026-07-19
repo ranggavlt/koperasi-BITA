@@ -70,7 +70,7 @@
       <h6 class="text-slate-700">Ringkasan per Anggota</h6>
       <p class="text-sm text-slate-400">Pinjaman baru tidak dihitung sebagai penggunaan limit; hanya Cicilan yang masuk payroll.</p>
     </div>
-    <div class="overflow-x-auto p-0">
+    <div style="overflow-x: auto;" class="p-0">
       <table class="mb-0 w-full text-sm text-slate-600">
         <thead>
           <tr class="text-left text-xxs uppercase text-slate-400">
@@ -113,7 +113,7 @@
     <div class="p-6 pb-0">
       <h6 class="text-slate-700">Detail Ledger</h6>
     </div>
-    <div class="overflow-x-auto p-0">
+    <div style="overflow-x: auto;" class="p-0">
       <table class="mb-0 w-full text-sm text-slate-600">
         <thead>
           <tr class="text-left text-xxs uppercase text-slate-400">

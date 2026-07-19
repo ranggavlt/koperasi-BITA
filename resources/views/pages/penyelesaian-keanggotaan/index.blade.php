@@ -54,7 +54,7 @@
   </section>
 
   <section class="rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl">
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1200px] text-left text-sm">
         <thead class="bg-slate-50 text-xs uppercase text-slate-500">
           <tr>

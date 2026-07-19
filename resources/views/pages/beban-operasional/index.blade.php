@@ -61,7 +61,7 @@
           <h3 class="text-sm font-bold text-slate-700">Detail Beban</h3>
           <p class="text-xs text-slate-400">Pilih akun kategori Beban aktif. Aset opsional untuk biaya terkait Mobil/Printer.</p>
         </div>
-        <div class="overflow-x-auto">
+        <div style="overflow-x: auto;" class="">
           <table class="w-full min-w-[1100px] text-left text-sm">
             <thead class="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
@@ -165,7 +165,7 @@
       <h2 class="font-bold text-slate-700">Daftar Beban Operasional</h2>
       <p class="text-sm text-slate-400">Draft dapat diedit/dibatalkan. Posted tidak dapat diedit/hapus; gunakan reversal penuh.</p>
     </div>
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1600px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white">
           <tr>

@@ -190,7 +190,7 @@ class PotongGajiTahap2DTest extends TestCase
 
     private function user(): User
     {
-        return User::factory()->create(['role' => 'keuangan']);
+        return User::factory()->create(['role' => 'admin']);
     }
 
     private function anggota(): Anggota

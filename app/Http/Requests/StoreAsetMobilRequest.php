@@ -9,7 +9,7 @@ class StoreAsetMobilRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === 'keuangan';
+        return $this->user()?->role === 'admin';
     }
 
     protected function prepareForValidation(): void

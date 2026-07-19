@@ -75,7 +75,7 @@ class AuthController extends Controller
                     'kode_keuangan' => 'Kode khusus Keuangan tidak valid.',
                 ]);
             }
-            $role = 'keuangan';
+            $role = 'admin';
         }
 
         User::create([

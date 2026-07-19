@@ -112,7 +112,7 @@ class FinanceBebanOperasionalController extends Controller
 
     public function cancelDraft(Request $request, BebanOperasional $bebanOperasional)
     {
-        abort_unless($request->user()?->role === 'keuangan', 403);
+        abort_unless($request->user()?->role === 'admin', 403);
 
         $this->service->cancelDraft($bebanOperasional, $request->user()->id);
 

@@ -27,7 +27,7 @@ class SewaPrinterTest extends TestCase
     public function test_multi_printer_margin_half_up_total_snapshot_dan_kode(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $pic = Karyawan::factory()->create();
         $printerA = $this->printer('PRN-A');
         $printerB = $this->printer('PRN-B');
@@ -57,7 +57,7 @@ class SewaPrinterTest extends TestCase
     public function test_draft_confirm_validation_overlap_dan_confirmed_tidak_bisa_edit(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $pic = Karyawan::factory()->create();
         $printerA = $this->printer('PRN-C');
         $printerB = $this->printer('PRN-D');
@@ -94,7 +94,7 @@ class SewaPrinterTest extends TestCase
     public function test_pembayaran_full_dompet_mutasi_jurnal_dimuka_dan_tanpa_ledger_payroll(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $sewa = $this->confirmedSewa($service, $finance);
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $bank = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
@@ -138,7 +138,7 @@ class SewaPrinterTest extends TestCase
     public function test_lifecycle_start_complete_aset_dan_jurnal_split_idempotent(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $sewa = $this->confirmedSewa($service, $finance);
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS);
 
@@ -169,7 +169,7 @@ class SewaPrinterTest extends TestCase
     public function test_cancel_refund_penuh_dan_berjalan_tidak_bisa_dibatalkan(): void
     {
         $service = app(SewaPrinterService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
 
         $draft = $service->createDraft($this->payload(Karyawan::factory()->create(), [
@@ -194,7 +194,7 @@ class SewaPrinterTest extends TestCase
 
     public function test_authorization_request_manipulation_preflight_dan_seeder(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $karyawanUser = User::factory()->create(['role' => 'karyawan', 'is_active' => true, 'must_change_password' => false]);
 
@@ -290,7 +290,7 @@ class SewaPrinterTest extends TestCase
             'model' => 'L3210',
             'lokasi' => 'Kantor',
             'keterangan' => 'Unit test printer',
-        ], $this->user('keuangan')->id);
+        ], $this->user('admin')->id);
     }
 
     private function mobil(): AsetKoperasi
@@ -302,7 +302,7 @@ class SewaPrinterTest extends TestCase
             'tahun' => 2022,
             'warna' => 'Hitam',
             'keterangan' => 'Unit test mobil',
-        ], $this->user('keuangan')->id);
+        ], $this->user('admin')->id);
     }
 
     private function dompet(string $jenis, int $saldo = 0): DompetKoperasi

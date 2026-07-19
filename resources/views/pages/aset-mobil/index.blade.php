@@ -107,7 +107,7 @@
       </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1180px] text-left text-sm">
         <thead class="kbsm-thead">
           <tr>

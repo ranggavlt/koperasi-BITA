@@ -30,7 +30,7 @@ class BebanOperasionalTest extends TestCase
     public function test_draft_multi_detail_kode_total_edit_dan_cancel_tanpa_posting(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $aset = $this->asset();
 
         $draft = $service->createDraft($this->payload([
@@ -59,7 +59,7 @@ class BebanOperasionalTest extends TestCase
     public function test_posting_mengurangi_dompet_membuat_mutasi_jurnal_snapshot_dan_tanpa_payroll(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $akunAtk = $this->expenseAkun('beban_atk_kantor');
         $akunPerawatan = $this->expenseAkun('beban_perawatan_aset');
@@ -87,7 +87,7 @@ class BebanOperasionalTest extends TestCase
     public function test_validasi_akun_dompet_saldo_rollback_dan_guard_delete_aset(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $aset = $this->asset();
         $kasAkun = $this->assetAkun('kas');
 
@@ -118,7 +118,7 @@ class BebanOperasionalTest extends TestCase
     public function test_reversal_penuh_membuat_audit_mutasi_jurnal_dan_menolak_ganda(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
         $posted = $service->post($service->createDraft($this->payload([
             ['akun_id' => $this->expenseAkun('beban_operasional')->id, 'keterangan' => 'Beban salah input', 'nominal' => 275000],
@@ -132,7 +132,7 @@ class BebanOperasionalTest extends TestCase
     public function test_reversal_flow_setelah_posted_immutable(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
         $detailAkun = $this->expenseAkun('beban_operasional');
         $posted = $service->post($service->createDraft($this->payload([
@@ -158,7 +158,7 @@ class BebanOperasionalTest extends TestCase
 
     public function test_authorization_request_manipulation_preflight_read_only_dan_route_delete_tidak_tersedia(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $karyawan = $this->user('karyawan');
 
@@ -191,7 +191,7 @@ class BebanOperasionalTest extends TestCase
     public function test_eligibility_coa_beban_operasional_ditegakkan_dan_diaudit(): void
     {
         $service = app(BebanOperasionalService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $dompet = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $akunAtk = $this->expenseAkun('beban_atk_kantor');
         $hpp = $this->expenseAkun('harga_pokok_penjualan');

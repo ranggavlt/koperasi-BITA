@@ -189,7 +189,7 @@
         </div>
 
         <div class="flex-auto px-0 pt-0 pb-2">
-          <div class="p-0 overflow-x-auto">
+          <div style="overflow-x: auto;" class="p-0">
             <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
               <thead class="align-bottom">
                 <tr>
@@ -211,7 +211,8 @@
                       <div class="flex items-center px-4 py-2">
                         
                         {{-- KOTAK NOMOR URUT --}}
-                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
+                        <div style="background-color: #a855f7;" 
+                             class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white">
                           {{ $produk->firstItem() + $loop->index }}
                         </div>
                         
@@ -281,7 +282,8 @@
                       <div class="flex items-center justify-center gap-2 px-4">
                         
                         <a href="{{ route('produk.edit', $item->id) }}"
-                           class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                           style="background-color: #3b82f6;"
+                           class="inline-block rounded-lg px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
                           Edit
                         </a>
 
@@ -290,7 +292,8 @@
                           @csrf
                           @method('DELETE')
                           <button type="submit" 
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                            style="background-color: #ef4444;"
+                            class="inline-block rounded-lg px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
                             Hapus
                           </button>
                         </form>

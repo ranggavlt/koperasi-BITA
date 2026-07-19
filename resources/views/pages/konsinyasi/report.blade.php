@@ -39,7 +39,7 @@
 
   <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
     <div class="flex-auto px-0 pt-0 pb-2">
-      <div class="p-0 overflow-x-auto">
+      <div style="overflow-x: auto;" class="p-0">
         <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
           <thead>
             <tr>

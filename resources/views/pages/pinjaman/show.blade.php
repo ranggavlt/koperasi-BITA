@@ -95,7 +95,7 @@
     </div>
 
     <div class="flex-auto px-0 pt-0 pb-2">
-      <div class="p-0 overflow-x-auto">
+      <div style="overflow-x: auto;" class="p-0">
         <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
           <thead class="align-bottom">
             <tr>

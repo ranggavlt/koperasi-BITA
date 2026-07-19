@@ -289,7 +289,7 @@
         </div>
 
         <div class="flex-auto px-0 pt-0 pb-2">
-          <div class="overflow-x-auto p-0">
+          <div style="overflow-x: auto;" class="p-0">
             <table class="items-center mb-0 w-full align-top border-gray-200 text-slate-500">
               <thead class="align-bottom">
                 <tr>
@@ -367,7 +367,7 @@
         </div>
 
         <div class="flex-auto px-0 pt-0 pb-2">
-          <div class="overflow-x-auto p-0">
+          <div style="overflow-x: auto;" class="p-0">
             <table class="items-center mb-0 w-full align-top border-gray-200 text-slate-500">
               <thead class="align-bottom">
                 <tr>

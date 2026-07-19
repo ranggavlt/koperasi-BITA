@@ -24,7 +24,7 @@ class AsetKoperasiTest extends TestCase
     public function test_generator_kode_per_jenis_tidak_reset_dan_tidak_reuse_setelah_delete(): void
     {
         $service = app(AsetKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
 
         $mobilA = $service->createMobil($this->mobilPayload(['plat_nomor' => 'B 1001 KBS']), $keuangan->id);
         $printerA = $service->createPrinter($this->printerPayload(['nomor_seri' => 'PRN-1001']), $keuangan->id);
@@ -46,7 +46,7 @@ class AsetKoperasiTest extends TestCase
     public function test_rollback_duplicate_detail_tidak_meninggalkan_kode_setengah(): void
     {
         $service = app(AsetKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
 
         $service->createMobil($this->mobilPayload(['plat_nomor' => 'B 2001 KBS']), $keuangan->id);
 
@@ -67,7 +67,7 @@ class AsetKoperasiTest extends TestCase
     public function test_relasi_detail_dan_tidak_membuat_posting_keuangan(): void
     {
         $service = app(AsetKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
 
         $mobil = $service->createMobil($this->mobilPayload(['plat_nomor' => 'B 3001 KBS']), $keuangan->id);
         $printer = $service->createPrinter($this->printerPayload(['nomor_seri' => 'PRN-3001']), $keuangan->id);
@@ -86,7 +86,7 @@ class AsetKoperasiTest extends TestCase
     public function test_lifecycle_status_nonaktif_idempotent_dan_aktifkan_membersihkan_audit(): void
     {
         $service = app(AsetKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $mobil = $service->createMobil($this->mobilPayload(['plat_nomor' => 'B 4001 KBS']), $keuangan->id);
 
         $this->assertSame(AsetKoperasi::STATUS_TERSEDIA, $mobil->status);
@@ -112,7 +112,7 @@ class AsetKoperasiTest extends TestCase
     public function test_delete_guard_menolak_status_berisiko_dan_dependency_future_sewa(): void
     {
         $service = app(AsetKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $mobil = $service->createMobil($this->mobilPayload(['plat_nomor' => 'B 5001 KBS']), $keuangan->id);
 
         $service->updateStatus($mobil, AsetKoperasi::STATUS_PERAWATAN, $keuangan->id);
@@ -150,7 +150,7 @@ class AsetKoperasiTest extends TestCase
     public function test_route_authorization_keuangan_kasir_dan_guest(): void
     {
         $kasir = $this->user('kasir');
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
 
         $this->get(route('aset-mobil.index'))->assertRedirect(route('login'));
         $this->actingAs($kasir)->get(route('aset-mobil.index'))->assertForbidden();
@@ -171,7 +171,7 @@ class AsetKoperasiTest extends TestCase
     public function test_preflight_aset_mendeteksi_konflik_dan_tetap_read_only(): void
     {
         $service = app(AsetKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $service->createMobil($this->mobilPayload(['plat_nomor' => 'B 7001 KBS']), $keuangan->id);
         $service->createPrinter($this->printerPayload(['nomor_seri' => 'PRN-7001']), $keuangan->id);
 

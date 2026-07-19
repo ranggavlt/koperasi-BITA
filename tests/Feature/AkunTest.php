@@ -14,7 +14,7 @@ class AkunTest extends TestCase
 
     public function test_keuangan_dapat_melihat_coa_sistem(): void
     {
-        $user = User::factory()->create(['role' => 'keuangan']);
+        $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
             ->get(route('akun.index'))
@@ -26,7 +26,7 @@ class AkunTest extends TestCase
 
     public function test_keuangan_dapat_menambah_akun_dengan_saldo_normal_otomatis(): void
     {
-        $user = User::factory()->create(['role' => 'keuangan']);
+        $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
             ->post(route('akun.store'), [
@@ -57,7 +57,7 @@ class AkunTest extends TestCase
 
     public function test_kode_akun_harus_unik(): void
     {
-        $user = User::factory()->create(['role' => 'keuangan']);
+        $user = User::factory()->create(['role' => 'admin']);
         $existing = Akun::query()->where('kode_akun', '101')->firstOrFail();
 
         $this->actingAs($user)

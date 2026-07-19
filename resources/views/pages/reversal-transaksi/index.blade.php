@@ -8,7 +8,7 @@
   </div>
 
   <div class="rounded-2xl bg-white shadow-soft-xl">
-    <div class="overflow-x-auto p-0">
+    <div style="overflow-x: auto;" class="p-0">
       <table class="mb-0 w-full text-sm text-slate-600">
         <thead>
           <tr class="text-left text-xxs uppercase text-slate-400">

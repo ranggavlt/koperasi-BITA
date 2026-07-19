@@ -287,7 +287,7 @@ class MasterDataKoperasiTest extends TestCase
 
     public function test_konflik_jabatan_pengurus_menghasilkan_validation_error_ramah(): void
     {
-        $keuangan = User::factory()->create(['role' => 'keuangan']);
+        $keuangan = User::factory()->create(['role' => 'admin']);
         $anggotaA = $this->anggota($this->karyawan());
         $anggotaB = $this->anggota($this->karyawan());
         app(MasterDataKoperasiService::class)->createPengurus([
@@ -311,7 +311,7 @@ class MasterDataKoperasiTest extends TestCase
 
     public function test_anggota_dengan_transaksi_tidak_dapat_dihapus_permanen(): void
     {
-        $user = User::factory()->create(['role' => 'keuangan']);
+        $user = User::factory()->create(['role' => 'admin']);
         $anggota = $this->anggota($this->karyawan());
         $jenis = JenisSimpanan::query()->create([
             'nama_jenis' => 'Simpanan Uji Hapus',
@@ -334,7 +334,7 @@ class MasterDataKoperasiTest extends TestCase
 
     public function test_karyawan_dengan_penjualan_tidak_dapat_dihapus_dan_fk_restrict_melindungi_histori(): void
     {
-        $keuangan = User::factory()->create(['role' => 'keuangan']);
+        $keuangan = User::factory()->create(['role' => 'admin']);
         $karyawan = $this->karyawan();
         $penjualan = Penjualan::query()->create([
             'kode_transaksi' => 'PJL-GUARD-001',
@@ -361,7 +361,7 @@ class MasterDataKoperasiTest extends TestCase
 
     public function test_anggota_dengan_histori_pengurus_tidak_dapat_dihapus(): void
     {
-        $keuangan = User::factory()->create(['role' => 'keuangan']);
+        $keuangan = User::factory()->create(['role' => 'admin']);
         $anggota = $this->anggota($this->karyawan());
         $pengurus = app(MasterDataKoperasiService::class)->createPengurus([
             'anggota_id' => $anggota->id,
@@ -429,7 +429,7 @@ class MasterDataKoperasiTest extends TestCase
 
     public function test_keuangan_dapat_mengelola_master_data_dan_kasir_ditolak(): void
     {
-        $keuangan = User::factory()->create(['role' => 'keuangan']);
+        $keuangan = User::factory()->create(['role' => 'admin']);
         $kasir = User::factory()->create(['role' => 'kasir']);
 
         $this->actingAs($keuangan)->get(route('karyawan.index'))->assertOk();

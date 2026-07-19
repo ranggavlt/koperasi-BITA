@@ -69,7 +69,7 @@
           <h3 class="text-sm font-bold text-slate-700">Detail Printer</h3>
           <p class="text-xs text-slate-400">Isi baris yang digunakan. Margin 15% hanya tampilan; backend tetap menghitung ulang.</p>
         </div>
-        <div class="overflow-x-auto">
+        <div style="overflow-x: auto;" class="">
           <table class="w-full min-w-[920px] text-left text-sm">
             <thead class="bg-slate-50 text-xs uppercase text-slate-500">
               <tr><th class="px-4 py-3">Printer</th><th class="px-4 py-3">Harga Dasar</th><th class="px-4 py-3">Margin 15%</th><th class="px-4 py-3">Total</th></tr>
@@ -140,7 +140,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Sewa Printer</h2><p class="text-sm text-slate-400">Kontrak confirmed tidak dapat diedit/hapus. Gunakan batal/refund penuh sebelum berjalan jika eligible.</p></div>
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1700px] text-left text-sm">
         <thead class="kbsm-thead">
           <tr>

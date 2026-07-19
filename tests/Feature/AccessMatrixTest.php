@@ -27,7 +27,7 @@ class AccessMatrixTest extends TestCase
 
     public function test_route_matrix_for_finance_kasir_karyawan_guest_and_disabled_features(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $employee = $this->employeeUser('employee-access@kbsm.test');
 
@@ -54,7 +54,7 @@ class AccessMatrixTest extends TestCase
 
     public function test_sidebar_and_module_search_follow_role_and_disabled_feature_flags(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $employee = $this->employeeUser('employee-sidebar@kbsm.test');
 
@@ -159,7 +159,7 @@ class AccessMatrixTest extends TestCase
             'email' => 'public-role-mutation@kbsm.test',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'role' => 'keuangan',
+            'role' => 'admin',
             'is_active' => false,
         ])->assertRedirect(route('login'));
 
@@ -172,7 +172,7 @@ class AccessMatrixTest extends TestCase
 
     public function test_preflight_access_is_read_only_and_clean_on_valid_data(): void
     {
-        $this->user('keuangan');
+        $this->user('admin');
         $userCount = User::query()->count();
         $karyawanCount = Karyawan::query()->count();
 

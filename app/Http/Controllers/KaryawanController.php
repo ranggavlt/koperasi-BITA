@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreKaryawanRequest;
-use App\Http\Requests\StoreKaryawanAccountRequest;
+
 use App\Http\Requests\UpdateKaryawanRequest;
 use App\Models\Karyawan;
-use App\Services\KaryawanAccountService;
+
 use App\Services\MasterDataKoperasiService;
 
 class KaryawanController extends Controller
@@ -59,41 +59,4 @@ class KaryawanController extends Controller
             ->with('success', 'Karyawan yang belum digunakan berhasil dihapus.');
     }
 
-    public function createAccount(
-        StoreKaryawanAccountRequest $request,
-        Karyawan $karyawan,
-        KaryawanAccountService $service
-    ) {
-        $service->createAccount($karyawan, $request->validated('temporary_password'), $request->user()->id);
-
-        return redirect()->route('karyawan.index')
-            ->with('success', 'Akun Karyawan berhasil dibuat. Karyawan wajib mengganti password saat login pertama.');
-    }
-
-    public function resetAccountPassword(
-        StoreKaryawanAccountRequest $request,
-        Karyawan $karyawan,
-        KaryawanAccountService $service
-    ) {
-        $service->resetPassword($karyawan, $request->validated('temporary_password'), $request->user()->id);
-
-        return redirect()->route('karyawan.index')
-            ->with('success', 'Password sementara akun Karyawan berhasil direset.');
-    }
-
-    public function activateAccount(Karyawan $karyawan, KaryawanAccountService $service)
-    {
-        $service->activateAccount($karyawan, auth()->id());
-
-        return redirect()->route('karyawan.index')
-            ->with('success', 'Akun Karyawan berhasil diaktifkan.');
-    }
-
-    public function deactivateAccount(Karyawan $karyawan, KaryawanAccountService $service)
-    {
-        $service->deactivateAccount($karyawan, auth()->id());
-
-        return redirect()->route('karyawan.index')
-            ->with('success', 'Akun Karyawan berhasil dinonaktifkan.');
-    }
 }

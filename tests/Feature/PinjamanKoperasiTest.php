@@ -32,7 +32,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_hanya_anggota_dan_karyawan_aktif_dapat_meminjam(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet();
         $anggotaNonaktif = $this->anggota(1000000, Anggota::STATUS_NONAKTIF);
 
@@ -44,7 +44,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_karyawan_berhenti_tidak_dapat_meminjam(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet();
         $anggota = $this->anggota(1000000);
         $anggota->karyawan->update([
@@ -60,7 +60,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_satu_anggota_maksimal_satu_pinjaman_aktif_dan_database_melindungi_race(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet(10000000);
         $anggota = $this->anggota(5000000);
 
@@ -83,7 +83,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_batas_nominal_plafon_bunga_dan_tenor(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet(10000000);
 
         $this->expectValidation(fn () => $service->create($this->payload($this->anggota(6000000), $dompet, [
@@ -110,7 +110,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_snapshot_plafon_tidak_berubah_saat_plafon_anggota_diubah(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet();
         $anggota = $this->anggota(3000000);
 
@@ -127,7 +127,7 @@ class PinjamanKoperasiTest extends TestCase
     {
         config(['app.timezone' => 'Asia/Jakarta']);
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet(10000000);
 
         $pinjamanA = $service->create($this->payload($this->anggota(5000000), $dompet, [
@@ -157,7 +157,7 @@ class PinjamanKoperasiTest extends TestCase
             'jumlah_pinjaman' => 5000000,
             'tenor_bulan' => 3,
             'tanggal_pinjaman' => '2026-07-10',
-        ]), $this->user('keuangan')->id);
+        ]), $this->user('admin')->id);
 
         $jadwal = $pinjaman->jadwalCicilan()->orderBy('angsuran_ke')->get();
 
@@ -181,7 +181,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_dompet_harus_punya_coa_dan_saldo_cukup(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
 
         $this->expectValidation(fn () => $service->create($this->payload($this->anggota(5000000), $this->dompetTanpaAkun()), $keuangan->id));
         $this->expectValidation(fn () => $service->create($this->payload($this->anggota(5000000), $this->dompet(100000), [
@@ -192,7 +192,7 @@ class PinjamanKoperasiTest extends TestCase
     public function test_pencairan_mengurangi_saldo_sekali_dan_membuat_mutasi_jurnal_balance(): void
     {
         $service = app(PinjamanKoperasiService::class);
-        $keuangan = $this->user('keuangan');
+        $keuangan = $this->user('admin');
         $dompet = $this->dompet(3000000);
 
         $pinjaman = $service->create($this->payload($this->anggota(3000000), $dompet, [
@@ -226,7 +226,7 @@ class PinjamanKoperasiTest extends TestCase
         $this->app->instance(AkuntansiService::class, $mock);
 
         try {
-            app(PinjamanKoperasiService::class)->create($this->payload($anggota, $dompet), $this->user('keuangan')->id);
+            app(PinjamanKoperasiService::class)->create($this->payload($anggota, $dompet), $this->user('admin')->id);
             $this->fail('Pencairan harus rollback saat posting gagal.');
         } catch (RuntimeException $exception) {
             $this->assertSame('posting gagal', $exception->getMessage());
@@ -257,7 +257,7 @@ class PinjamanKoperasiTest extends TestCase
     {
         $pinjaman = app(PinjamanKoperasiService::class)->create(
             $this->payload($this->anggota(3000000), $this->dompet()),
-            $this->user('keuangan')->id
+            $this->user('admin')->id
         );
 
         $this->expectDeleteGuard(fn () => $pinjaman->delete());
@@ -272,7 +272,7 @@ class PinjamanKoperasiTest extends TestCase
             $this->payload($this->anggota(3000000), $this->dompet(), [
                 'tenor_bulan' => 3,
             ]),
-            $this->user('keuangan')->id
+            $this->user('admin')->id
         );
 
         DB::table('jadwal_cicilan_pinjaman')

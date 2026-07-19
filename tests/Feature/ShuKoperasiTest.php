@@ -22,7 +22,7 @@ class ShuKoperasiTest extends TestCase
     {
         config(['features.shu_enabled' => true]);
 
-        $this->actingAs(User::factory()->create(['role' => 'keuangan']));
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
 
         $shuKoperasi = ShuKoperasi::create([
             'judul' => 'SHU Tahun 2026',

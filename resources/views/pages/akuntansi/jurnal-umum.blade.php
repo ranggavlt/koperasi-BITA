@@ -297,7 +297,7 @@
         <button type="submit" class="ju-filter__button">Tampilkan</button>
       </form>
 
-      <div class="ju-table-wrap overflow-x-auto">
+      <div style="overflow-x: auto;" class="ju-table-wrap">
         <table class="ju-table">
           <thead>
             <tr>

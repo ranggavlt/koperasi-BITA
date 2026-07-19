@@ -271,7 +271,7 @@ class KoperasiDummySeeder extends Seeder
             [
                 'name' => 'Operator Testing BITA',
                 'password' => 'bita12345',
-                'role' => 'keuangan',
+                'role' => 'admin',
                 'is_active' => true,
                 'must_change_password' => false,
                 'password_changed_at' => now(),

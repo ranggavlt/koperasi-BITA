@@ -69,7 +69,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Anggota</h2><p class="text-sm text-slate-400">Data nonaktif tetap dipertahankan sebagai histori.</p></div>
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1050px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white"><tr><th class="px-6 py-4">Nomor</th><th class="px-6 py-4">Karyawan</th><th class="px-6 py-4">Bergabung</th><th class="px-6 py-4">Alamat</th><th class="px-6 py-4">Plafon</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-center">Aksi</th></tr></thead>
         <tbody class="divide-y divide-slate-100">

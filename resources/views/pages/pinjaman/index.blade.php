@@ -128,7 +128,7 @@
       <p class="mt-1 text-sm text-slate-400">Pinjaman aktif langsung memiliki jadwal cicilan otomatis</p>
     </div>
 
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
         <thead class="align-bottom">
           <tr>

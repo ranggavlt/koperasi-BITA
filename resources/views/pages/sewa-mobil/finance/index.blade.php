@@ -67,7 +67,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Sewa Mobil</h2><p class="text-sm text-slate-400">Transaksi tidak dapat dihapus permanen. Gunakan pembatalan/refund sebelum berjalan jika eligible.</p></div>
-    <div class="overflow-x-auto">
+    <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1600px] text-left text-sm">
         <thead class="kbsm-thead">
           <tr>

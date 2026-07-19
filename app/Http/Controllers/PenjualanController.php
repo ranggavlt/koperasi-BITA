@@ -8,6 +8,7 @@ use App\Models\Karyawan;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\Produk;
+use App\Models\KategoriProduk;
 use App\Services\PosCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,8 @@ class PenjualanController extends Controller
 
         $dompetKas = DompetKoperasi::query()->with('akun')->kas()->orderBy('nama_dompet')->get();
         $dompetBank = DompetKoperasi::query()->with('akun')->bank()->orderBy('nama_dompet')->get();
+        $dompets = DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get();
+        $kategoris = KategoriProduk::orderBy('nama_kategori')->get();
 
         return view('pages.penjualan.index', compact(
             'penjualan',
@@ -58,7 +61,9 @@ class PenjualanController extends Controller
             'anggota',
             'karyawanNonAnggota',
             'dompetKas',
-            'dompetBank'
+            'dompetBank',
+            'dompets',
+            'kategoris'
         ));
     }
 

@@ -10,7 +10,7 @@ class PaySewaMobilRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === 'keuangan';
+        return $this->user()?->role === 'admin';
     }
 
     public function rules(): array

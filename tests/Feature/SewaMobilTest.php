@@ -30,7 +30,7 @@ class SewaMobilTest extends TestCase
     public function test_finance_membuat_akun_karyawan_unique_nonaktif_login_dan_must_change_password(): void
     {
         $service = app(KaryawanAccountService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $karyawan = Karyawan::factory()->create(['email' => 'karyawan.sewa@bita.test']);
 
         $account = $service->createAccount($karyawan, 'sementara123', $finance->id);
@@ -107,7 +107,7 @@ class SewaMobilTest extends TestCase
     public function test_approval_membutuhkan_finance_pengurus_aktif_tarif_dan_menolak_overlap(): void
     {
         $service = app(SewaMobilService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $asset = $this->mobil();
         $pengurus = $this->pengurus();
         [, $employee] = $this->employeeUser('sewa1@bita.test');
@@ -134,7 +134,7 @@ class SewaMobilTest extends TestCase
     public function test_pembayaran_dimuka_full_dompet_mutasi_jurnal_dan_tidak_membuat_ledger_payroll(): void
     {
         $service = app(SewaMobilService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $sewa = $this->approvedSewa($service, $finance);
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $bank = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
@@ -174,7 +174,7 @@ class SewaMobilTest extends TestCase
     public function test_lifecycle_berjalan_selesai_mengubah_status_aset_dan_pengakuan_pendapatan_idempotent(): void
     {
         $service = app(SewaMobilService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $sewa = $this->approvedSewa($service, $finance);
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS);
 
@@ -209,7 +209,7 @@ class SewaMobilTest extends TestCase
     public function test_refund_paid_sebelum_berjalan_penuh_dan_berjalan_selesai_tidak_bisa_dibatalkan(): void
     {
         $service = app(SewaMobilService::class);
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
         $sewa = $this->approvedSewa($service, $finance);
 
@@ -232,7 +232,7 @@ class SewaMobilTest extends TestCase
 
     public function test_authorization_routes_dan_preflight_sewa_mobil(): void
     {
-        $finance = $this->user('keuangan');
+        $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         [, $employee] = $this->employeeUser('route@bita.test');
 
@@ -319,7 +319,7 @@ class SewaMobilTest extends TestCase
             'tahun' => 2022,
             'warna' => 'Hitam',
             'keterangan' => 'Unit test mobil',
-        ], $this->user('keuangan')->id);
+        ], $this->user('admin')->id);
     }
 
     private function employeeUser(string $email): array
