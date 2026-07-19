@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoresimpananRequest;
+use App\Http\Requests\StoreSimpananRequest;
 use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\JenisSimpanan;
@@ -32,8 +32,14 @@ class SimpananController extends Controller
                 ->whereNull('kode')
                 ->orWhere('kode', '!=', JenisSimpanan::KODE_SIMPANAN_POKOK))
             ->where(fn ($query) => $query
+                ->whereNull('kode')
+                ->orWhere('kode', '!=', JenisSimpanan::KODE_SIMPANAN_WAJIB))
+            ->where(fn ($query) => $query
                 ->whereNull('kategori')
                 ->orWhere('kategori', '!=', JenisSimpanan::KATEGORI_POKOK))
+            ->where(fn ($query) => $query
+                ->whereNull('kategori')
+                ->orWhere('kategori', '!=', JenisSimpanan::KATEGORI_WAJIB))
             ->orderBy('nama_jenis')
             ->get();
 
@@ -45,7 +51,7 @@ class SimpananController extends Controller
         return view('pages.simpanan.index', compact('simpanan', 'anggota', 'jenis', 'dompet'));
     }
 
-    public function store(StoresimpananRequest $request, SimpananManualService $service): RedirectResponse
+    public function store(StoreSimpananRequest $request, SimpananManualService $service): RedirectResponse
     {
         try {
             $service->create($request->validated(), $request->user()?->id);

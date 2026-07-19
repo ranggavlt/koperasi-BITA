@@ -78,6 +78,7 @@
             <th class="px-6 py-3">Limit</th>
             <th class="px-6 py-3">Cicilan</th>
             <th class="px-6 py-3">Simpanan Pokok</th>
+            <th class="px-6 py-3">Simpanan Wajib</th>
             <th class="px-6 py-3">POS</th>
             <th class="px-6 py-3">Kredit</th>
             <th class="px-6 py-3">Net</th>
@@ -95,6 +96,7 @@
               <td class="border-b px-6 py-3">Rp {{ number_format($row->limit_nominal, 0, ',', '.') }}</td>
               <td class="border-b px-6 py-3">Rp {{ number_format($row->cicilan, 0, ',', '.') }}</td>
               <td class="border-b px-6 py-3">Rp {{ number_format($row->simpanan_pokok, 0, ',', '.') }}</td>
+              <td class="border-b px-6 py-3">Rp {{ number_format($row->simpanan_wajib ?? 0, 0, ',', '.') }}</td>
               <td class="border-b px-6 py-3">Rp {{ number_format($row->pos, 0, ',', '.') }}</td>
               <td class="border-b px-6 py-3">Rp {{ number_format($row->kredit_refund, 0, ',', '.') }}</td>
               <td class="border-b px-6 py-3 font-bold text-emerald-700">Rp {{ number_format($row->net_payroll, 0, ',', '.') }}</td>
@@ -102,7 +104,7 @@
               <td class="border-b px-6 py-3">{{ $row->status_limit }}</td>
             </tr>
           @empty
-            <tr><td colspan="9" class="p-6 text-center text-slate-400">Belum ada limit/ledger untuk periode ini.</td></tr>
+            <tr><td colspan="10" class="p-6 text-center text-slate-400">Belum ada limit/ledger untuk periode ini.</td></tr>
           @endforelse
         </tbody>
       </table>

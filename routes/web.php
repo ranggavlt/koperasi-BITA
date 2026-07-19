@@ -5,6 +5,7 @@ use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\KategoriProdukController;
 use App\Http\Controllers\KasirController;
 use App\Http\Controllers\JenisSimpananController;
+use App\Http\Controllers\JadwalSimpananWajibController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\JenisPinjamanController;
 use App\Http\Controllers\DompetKoperasiController;
@@ -115,6 +116,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('pengurus-koperasi.activate');
 
     Route::resource('simpanan', SimpananController::class)->only(['index', 'store']);
+    Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
+        ->name('jadwal-simpanan-wajib.index');
 
     Route::resource('pinjaman', PinjamanController::class)->only(['index', 'store', 'show']);
     Route::post('/pinjaman/{pinjaman}/bayar-tunai-terjadwal', [PinjamanController::class, 'payCashSchedule'])

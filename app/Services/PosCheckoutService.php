@@ -25,7 +25,8 @@ class PosCheckoutService
 {
     public function __construct(
         private readonly AkuntansiService $akuntansiService,
-        private readonly PotongGajiBulananService $potongGajiService
+        private readonly PotongGajiBulananService $potongGajiService,
+        private readonly SimpananWajibService $simpananWajibService
     ) {
     }
 
@@ -200,6 +201,12 @@ class PosCheckoutService
         if ($limit->status !== \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE) {
             throw ValidationException::withMessages([
                 'limit' => 'Limit potong gaji bulan ini belum active.',
+            ]);
+        }
+
+        if ($this->simpananWajibService->hasBlockingOutstandingBeforePos($anggota, $tanggal)) {
+            throw ValidationException::withMessages([
+                'limit' => 'Simpanan Wajib jatuh tempo harus dialokasikan penuh sebelum POS potong gaji.',
             ]);
         }
 

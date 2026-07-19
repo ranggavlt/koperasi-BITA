@@ -2025,6 +2025,10 @@ textarea.kbsm-business-control {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.kbsm-business-filter--wajib {
+  grid-template-columns: repeat(2, minmax(0, 18rem)) repeat(2, minmax(0, 20rem)) auto;
+}
+
 .kbsm-business-filter__actions--split {
   align-items: end;
   justify-content: flex-end;
@@ -2068,6 +2072,15 @@ textarea.kbsm-business-control {
   min-width: 1320px;
 }
 
+.kbsm-business-table--wajib {
+  min-width: 1180px;
+}
+
+.kbsm-business-summary--wajib {
+  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .kbsm-business-table__right,
 .kbsm-business-amount {
   text-align: right;
@@ -2085,6 +2098,11 @@ textarea.kbsm-business-control {
   }
 
   .kbsm-business-filter--beban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kbsm-business-filter--wajib,
+  .kbsm-business-summary--wajib {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2110,6 +2128,11 @@ textarea.kbsm-business-control {
   }
 
   .kbsm-business-filter--beban {
+    grid-template-columns: 1fr;
+  }
+
+  .kbsm-business-filter--wajib,
+  .kbsm-business-summary--wajib {
     grid-template-columns: 1fr;
   }
 

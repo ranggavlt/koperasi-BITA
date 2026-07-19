@@ -6,6 +6,7 @@ use App\Models\Anggota;
 use App\Models\AlokasiKreditPotongGaji;
 use App\Models\CicilanPinjaman;
 use App\Models\DompetKoperasi;
+use App\Models\JadwalSimpananWajib;
 use App\Models\JadwalCicilanPinjaman;
 use App\Models\Karyawan;
 use App\Models\KreditPotongGajiAnggota;
@@ -69,14 +70,20 @@ class PotongGajiBulananService
                 ->first();
 
             if ($existing) {
+                app(SimpananWajibService::class)->generateUntil($existing->periode, null, $userId);
+
                 return $existing;
             }
 
-            return PeriodePotongGaji::query()->create([
+            $periode = PeriodePotongGaji::query()->create([
                 'periode' => $periodeDate,
                 'status' => PeriodePotongGaji::STATUS_DRAFT,
                 'created_by' => $userId,
             ]);
+
+            app(SimpananWajibService::class)->generateUntil($periode->periode, null, $userId);
+
+            return $periode;
         });
     }
 
@@ -174,6 +181,10 @@ class PotongGajiBulananService
             $locked->update(['limit_nominal' => $nominalDecimal]);
             $this->recordHistory($locked, $before, $nominalDecimal, $changedBy, $alasan);
 
+            if ($locked->status === LimitPotongGajiAnggota::STATUS_ACTIVE) {
+                app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $changedBy);
+            }
+
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
         });
     }
@@ -194,9 +205,6 @@ class PotongGajiBulananService
             $this->assertAnggotaEligible($locked->anggota);
             $this->assertPreviousLimitConfirmed($locked);
 
-            $this->reserveScheduledInstallmentForLimit($locked, $userId);
-            $this->allocatePendingSimpananPokokForLimit($locked, $userId);
-
             $now = now($this->businessTimezone());
             $locked->update([
                 'status' => LimitPotongGajiAnggota::STATUS_ACTIVE,
@@ -213,6 +221,10 @@ class PotongGajiBulananService
                     'updated_by' => $userId,
                 ]);
             }
+
+            $this->reserveScheduledInstallmentForLimit($locked, $userId);
+            $this->allocatePendingSimpananPokokForLimit($locked, $userId);
+            app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $userId);
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
         });
@@ -271,6 +283,10 @@ class PotongGajiBulananService
                             ->where('source_type', JadwalCicilanPinjaman::class)
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
+                        $subQuery->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
+                            ->where('source_type', JadwalSimpananWajib::class)
+                            ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
+                    })->orWhere(function ($subQuery): void {
                         $subQuery->whereIn('kategori', [
                             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK,
                             PemakaianPotongGaji::KATEGORI_POS,
@@ -296,6 +312,11 @@ class PotongGajiBulananService
 
                 if ($entry->kategori === PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK) {
                     $this->settleSimpananPokokUsage($locked, $entry, $dompetPayroll, $userId, $creditCents);
+                    continue;
+                }
+
+                if ($entry->kategori === PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB) {
+                    app(SimpananWajibService::class)->settleUsage($locked, $entry, $dompetPayroll, $userId, $creditCents);
                     continue;
                 }
 
@@ -555,6 +576,12 @@ class PotongGajiBulananService
                         ]);
                     }
                 }
+
+                app(SimpananWajibService::class)->releaseReservationsForLimit(
+                    $limit,
+                    $userId,
+                    'Karyawan berhenti sebelum payroll confirmed; tagihan Simpanan Wajib tetap outstanding.'
+                );
 
                 $usages = PemakaianPotongGaji::query()
                     ->where('limit_potong_gaji_anggota_id', $limit->id)
@@ -1005,7 +1032,8 @@ class PotongGajiBulananService
         $priority = [
             PemakaianPotongGaji::KATEGORI_CICILAN => 10,
             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 20,
-            PemakaianPotongGaji::KATEGORI_POS => 30,
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 30,
+            PemakaianPotongGaji::KATEGORI_POS => 40,
         ];
 
         return $entries

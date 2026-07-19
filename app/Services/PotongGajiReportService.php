@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AlokasiKreditPotongGaji;
 use App\Models\CicilanPinjaman;
+use App\Models\JadwalSimpananWajib;
 use App\Models\JurnalUmum;
 use App\Models\LimitPotongGajiAnggota;
 use App\Models\MutasiKas;
@@ -51,7 +52,8 @@ class PotongGajiReportService
             ]);
 
             $cicilan = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_CICILAN)->sum('nominal');
-            $simpanan = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK)->sum('nominal');
+            $simpananPokok = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK)->sum('nominal');
+            $simpananWajib = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)->sum('nominal');
             $pos = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_POS)->sum('nominal');
             $reserved = (float) $ledgers->where('status', PemakaianPotongGaji::STATUS_RESERVED)->sum('nominal');
             $consumed = (float) $ledgers->where('status', PemakaianPotongGaji::STATUS_CONSUMED)->sum('nominal');
@@ -60,7 +62,7 @@ class PotongGajiReportService
                 ->whereIn('status', [PemakaianPotongGaji::STATUS_RELEASED, PemakaianPotongGaji::STATUS_REVERSED])
                 ->sum('nominal');
             $credit = (float) $creditByLimit->get($limit->id, collect())->sum('nominal_diterapkan');
-            $gross = $cicilan + $simpanan + $pos;
+            $gross = $cicilan + $simpananPokok + $simpananWajib + $pos;
             $net = max(0, $gross - $credit);
 
             return (object) [
@@ -71,7 +73,8 @@ class PotongGajiReportService
                 'nama' => $limit->anggota?->karyawan?->nama,
                 'limit_nominal' => (float) $limit->limit_nominal,
                 'cicilan' => $cicilan,
-                'simpanan_pokok' => $simpanan,
+                'simpanan_pokok' => $simpananPokok,
+                'simpanan_wajib' => $simpananWajib,
                 'pos' => $pos,
                 'jasa_print' => 0,
                 'reserved' => $reserved,
@@ -94,6 +97,7 @@ class PotongGajiReportService
             $rows = $rows->filter(fn ($row) => (float) match ($kategori) {
                 PemakaianPotongGaji::KATEGORI_CICILAN => $row->cicilan,
                 PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => $row->simpanan_pokok,
+                PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => $row->simpanan_wajib,
                 PemakaianPotongGaji::KATEGORI_POS => $row->pos,
                 PemakaianPotongGaji::KATEGORI_JASA_PRINT => $row->jasa_print,
                 default => $row->gross_payroll,
@@ -251,6 +255,10 @@ class PotongGajiReportService
             return 'SMP-' . $ledger->source_id;
         }
 
+        if ($ledger->source_type === JadwalSimpananWajib::class) {
+            return JadwalSimpananWajib::query()->whereKey($ledger->source_id)->value('kode_tagihan') ?? ('SWJ-' . $ledger->source_id);
+        }
+
         if ($ledger->source_type === \App\Models\JadwalCicilanPinjaman::class) {
             return 'JAD-' . $ledger->source_id;
         }
@@ -266,6 +274,7 @@ class PotongGajiReportService
             ->where(function ($query): void {
                 $query->where('idempotency_key', 'like', 'pos:payroll:mutasi:%')
                     ->orWhere('idempotency_key', 'like', 'simpanan-pokok:payroll:mutasi:%')
+                    ->orWhere('idempotency_key', 'like', 'simpanan-wajib:payroll:mutasi:%')
                     ->orWhere('idempotency_key', 'like', 'cicilan:pembayaran:mutasi:%');
             })
             ->sum('jumlah');
@@ -280,6 +289,7 @@ class PotongGajiReportService
             ->where(function ($query): void {
                 $query->where('jurnal_umum.idempotency_key', 'like', 'pos:payroll:jurnal:%')
                     ->orWhere('jurnal_umum.idempotency_key', 'like', 'simpanan-pokok:payroll:jurnal:%')
+                    ->orWhere('jurnal_umum.idempotency_key', 'like', 'simpanan-wajib:payroll:jurnal:%')
                     ->orWhere('jurnal_umum.idempotency_key', 'like', 'cicilan:pembayaran:jurnal:%');
             })
             ->whereIn('jurnal_umum_detail.akun_kode', ['101', '102'])
@@ -295,6 +305,7 @@ class PotongGajiReportService
             ->where(function ($query): void {
                 $query->where('jurnal_umum.idempotency_key', 'like', 'pos:payroll:jurnal:%')
                     ->orWhere('jurnal_umum.idempotency_key', 'like', 'simpanan-pokok:payroll:jurnal:%')
+                    ->orWhere('jurnal_umum.idempotency_key', 'like', 'simpanan-wajib:payroll:jurnal:%')
                     ->orWhere('jurnal_umum.idempotency_key', 'like', 'cicilan:pembayaran:jurnal:%');
             })
             ->whereIn('jurnal_umum_detail.akun_kode', ['103', '105'])

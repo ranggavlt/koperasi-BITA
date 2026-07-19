@@ -421,6 +421,24 @@
       </li>
 
       {{-- PINJAMAN --}}
+      {{-- JADWAL SIMPANAN WAJIB --}}
+      @php $active = $is('jadwal-simpanan-wajib.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('jadwal-simpanan-wajib.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M6 2h12a2 2 0 0 1 2 2v18l-3-2-3 2-3-2-3 2-3-2-3 2V4a2 2 0 0 1 2-2Zm2 5h8v2H8V7Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Jadwal Simpanan Wajib
+          </span>
+        </a>
+      </li>
+
+      {{-- PINJAMAN --}}
       @php $active = $is('pinjaman.*'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('pinjaman.index') }}">

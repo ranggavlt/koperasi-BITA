@@ -39,6 +39,7 @@ use App\Services\PotongGajiBulananService;
 use App\Services\SewaMobilService;
 use App\Services\SewaPrinterService;
 use App\Services\SimpananManualService;
+use App\Services\SimpananWajibService;
 use App\Services\TransaksiReversalService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -66,6 +67,7 @@ class KoperasiDummySeeder extends Seeder
             $keanggotaanLifecycleService = app(KeanggotaanLifecycleService::class);
             $posCheckoutService = app(PosCheckoutService::class);
             $potongGajiService = app(PotongGajiBulananService::class);
+            $simpananWajibService = app(SimpananWajibService::class);
             $reversalService = app(TransaksiReversalService::class);
 
             $keuangan = $this->seedUserDummy();
@@ -130,6 +132,8 @@ class KoperasiDummySeeder extends Seeder
                     'keterangan' => 'Pinjaman lama sebelum karyawan berhenti [dummy-koperasi-bita]',
                 ],
             ]);
+
+            $simpananWajibService->generateUntil($awalBulanIni->copy()->subMonth(), null, $keuangan->id);
 
             $masterDataService->updateKaryawan($karyawan['agus'], [
                 'nama' => $karyawan['agus']->nama,
@@ -1462,7 +1466,7 @@ class KoperasiDummySeeder extends Seeder
 
         $periodeBerikutnya = $awalBulanIni->copy()->addMonth();
         $limitBudi = $service->findLimitFor($budi, $periodeBerikutnya)
-            ?: $service->createLimit($budi, $periodeBerikutnya, 500000, $keuangan->id, 'Limit payroll dummy Budi bulan depan');
+            ?: $service->createLimit($budi, $periodeBerikutnya, 900000, $keuangan->id, 'Limit payroll dummy Budi bulan depan');
 
         if ($limitBudi->status === \App\Models\LimitPotongGajiAnggota::STATUS_DRAFT) {
             $service->activateLimit($limitBudi, $keuangan->id);

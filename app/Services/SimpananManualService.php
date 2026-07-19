@@ -131,6 +131,12 @@ class SimpananManualService
                 'jenis_simpanan_id' => 'Simpanan Pokok dibuat otomatis saat Anggota dibuat dan tidak boleh diinput manual.',
             ]);
         }
+
+        if ($jenis->kode === JenisSimpanan::KODE_SIMPANAN_WAJIB || $jenis->kategori === JenisSimpanan::KATEGORI_WAJIB) {
+            throw ValidationException::withMessages([
+                'jenis_simpanan_id' => 'Simpanan Wajib dibuat otomatis dari jadwal payroll dan tidak boleh diinput manual.',
+            ]);
+        }
     }
 
     private function assertAkunSimpanan(?Akun $akun): void

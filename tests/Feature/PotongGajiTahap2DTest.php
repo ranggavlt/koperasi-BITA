@@ -70,7 +70,7 @@ class PotongGajiTahap2DTest extends TestCase
         $service = app(PotongGajiBulananService::class);
 
         $limit = $service->activateLimit(
-            $service->createLimit($anggota, '2026-07', 300000, $user->id, 'Limit POS 2D'),
+            $service->createLimit($anggota, '2026-07', 600000, $user->id, 'Limit POS 2D'),
             $user->id
         );
 
@@ -90,16 +90,17 @@ class PotongGajiTahap2DTest extends TestCase
 
         $this->assertSame(Pembayaran::STATUS_PENDING_PAYROLL, $penjualan->pembayaran->status);
         $this->assertSame(2, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_CONSUMED)->count());
+        $this->assertSame(3, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)->where('status', PemakaianPotongGaji::STATUS_RESERVED)->count());
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', Pembayaran::class)->count());
 
         $service->confirmLimit($service->closeLimit($limit, $user->id), $user->id);
 
         $this->assertSame(Pembayaran::STATUS_PAID, $penjualan->pembayaran->fresh()->status);
         $this->assertSame(Simpanan::STATUS_SETTLED, $simpananPokok->fresh()->status);
-        $this->assertSame('200000.00', $bank->fresh()->saldo);
-        $this->assertSame(2, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_SETTLED)->count());
+        $this->assertSame('500000.00', $bank->fresh()->saldo);
+        $this->assertSame(5, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_SETTLED)->count());
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', Pembayaran::class)->count());
-        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PemakaianPotongGaji::class)->count());
+        $this->assertSame(4, MutasiKas::query()->where('referensi_tipe', PemakaianPotongGaji::class)->count());
     }
 
     public function test_pos_anggota_tunai_tidak_memakai_limit_dan_transfer_ditolak(): void
@@ -180,7 +181,7 @@ class PotongGajiTahap2DTest extends TestCase
         $service = app(PotongGajiBulananService::class);
 
         $limit = $service->activateLimit(
-            $service->createLimit($anggota, '2026-07', 250000, $user->id, 'Limit berhenti'),
+            $service->createLimit($anggota, '2026-07', 500000, $user->id, 'Limit berhenti'),
             $user->id
         );
 
@@ -207,7 +208,7 @@ class PotongGajiTahap2DTest extends TestCase
         $this->assertSame(LimitPotongGajiAnggota::STATUS_CANCELLED, $limit->fresh()->status);
         $this->assertSame(Simpanan::STATUS_OUTSTANDING_CASH, $simpananPokok->fresh()->status);
         $this->assertSame(Pembayaran::STATUS_OUTSTANDING_CASH, $penjualan->pembayaran->fresh()->status);
-        $this->assertSame(2, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_RELEASED)->count());
+        $this->assertSame(5, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_RELEASED)->count());
     }
 
     private function user(): User

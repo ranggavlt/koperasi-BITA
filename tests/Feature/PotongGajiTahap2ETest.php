@@ -51,7 +51,7 @@ class PotongGajiTahap2ETest extends TestCase
         $anggota = $this->anggota();
         $produk = $this->produk(50000, 10);
         $service = app(PotongGajiBulananService::class);
-        $limit = $service->activateLimit($service->createLimit($anggota, '2026-07', 300000, $user->id, 'Limit 2E'), $user->id);
+        $limit = $service->activateLimit($service->createLimit($anggota, '2026-07', 600000, $user->id, 'Limit 2E'), $user->id);
 
         $penjualan = app(PosCheckoutService::class)->checkout([
             'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,
@@ -84,7 +84,7 @@ class PotongGajiTahap2ETest extends TestCase
         $produk = $this->produk(50000, 10);
         $bank = $this->bankDefaultPayroll();
         $service = app(PotongGajiBulananService::class);
-        $limit = $service->activateLimit($service->createLimit($anggota, '2026-07', 300000, $user->id, 'Limit confirmed'), $user->id);
+        $limit = $service->activateLimit($service->createLimit($anggota, '2026-07', 600000, $user->id, 'Limit confirmed'), $user->id);
 
         $penjualan = app(PosCheckoutService::class)->checkout([
             'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,
@@ -185,7 +185,7 @@ class PotongGajiTahap2ETest extends TestCase
         $produk = $this->produk(50000, 5);
         $kas = $this->kasDompet(0);
         $service = app(PotongGajiBulananService::class);
-        $limit = $service->activateLimit($service->createLimit($anggota, '2026-07', 250000, $user->id, 'Limit stop'), $user->id);
+        $limit = $service->activateLimit($service->createLimit($anggota, '2026-07', 500000, $user->id, 'Limit stop'), $user->id);
 
         $penjualan = app(PosCheckoutService::class)->checkout([
             'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,

@@ -221,6 +221,47 @@ class AkuntansiService
         ]);
     }
 
+    public function recordSimpananWajibPayroll(Simpanan $simpanan, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Wajib harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id,
+            'tanggal' => (string) ($simpanan->tanggal ?? now()->toDateString()),
+            'nomor_bukti' => 'SWJ-' . $simpanan->id,
+            'keterangan' => 'Pengakuan piutang Simpanan Wajib Anggota',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.piutang_potong_gaji'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $akunSimpanan,
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
     public function recordPenerimaanPayrollPotongGaji(string $idempotencyKey, string $nomorBukti, string $tanggal, float|int $jumlah, Akun $akunBank, string $referensiTipe, int $referensiId, ?int $userId = null): JurnalUmum
     {
         $existing = JurnalUmum::query()

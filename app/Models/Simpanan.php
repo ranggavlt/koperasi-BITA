@@ -35,6 +35,7 @@ class Simpanan extends Model
         'karyawan_id',
         'anggota_id',
         'pemakaian_potong_gaji_id',
+        'jadwal_simpanan_wajib_id',
         'reversal_transaksi_id',
         'replacement_simpanan_id',
         'simpanan_pokok_anggota_id',
@@ -110,6 +111,11 @@ class Simpanan extends Model
         return $this->belongsTo(PemakaianPotongGaji::class, 'pemakaian_potong_gaji_id');
     }
 
+    public function jadwalSimpananWajib()
+    {
+        return $this->belongsTo(JadwalSimpananWajib::class, 'jadwal_simpanan_wajib_id');
+    }
+
     public function jurnal()
     {
         return $this->hasOne(JurnalUmum::class, 'referensi_id')
@@ -140,5 +146,12 @@ class Simpanan extends Model
     {
         return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_POKOK
             || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_POKOK;
+    }
+
+    public function isSimpananWajib(): bool
+    {
+        return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_WAJIB
+            || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_WAJIB
+            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_WAJIB;
     }
 }

@@ -19,6 +19,7 @@ class LaporanPotongGajiController extends Controller
         $kategoriOptions = [
             PemakaianPotongGaji::KATEGORI_CICILAN => 'Cicilan',
             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 'Simpanan Pokok',
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 'Simpanan Wajib',
             PemakaianPotongGaji::KATEGORI_POS => 'POS',
         ];
 

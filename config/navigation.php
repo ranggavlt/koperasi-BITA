@@ -174,6 +174,15 @@ return [
         ],
         [
             'section' => 'Simpan Pinjam',
+            'label' => 'Jadwal Simpanan Wajib',
+            'route' => 'jadwal-simpanan-wajib.index',
+            'roles' => ['admin'],
+            'patterns' => ['jadwal-simpanan-wajib.*'],
+            'description' => 'Pantau tagihan, alokasi, dan tunggakan Simpanan Wajib payroll.',
+            'keywords' => ['simpanan wajib', 'tagihan wajib', 'tunggakan wajib', 'payroll wajib'],
+        ],
+        [
+            'section' => 'Simpan Pinjam',
             'label' => 'Pinjaman',
             'route' => 'pinjaman.index',
             'roles' => ['admin'],
