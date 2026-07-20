@@ -221,7 +221,9 @@ class PinjamanController extends Controller
                 $query->whereDoesntHave('pinjaman', fn ($loan) => $loan->whereIn('status', Pinjaman::openStatuses()));
 
                 if ($pinjaman) {
-                    $query->orWhereKey($pinjaman->anggota_id);
+                    $query->orWhere(function ($memberQuery) use ($pinjaman): void {
+                        $memberQuery->whereKey($pinjaman->anggota_id);
+                    });
                 }
             })
             ->orderBy('nomor_anggota')

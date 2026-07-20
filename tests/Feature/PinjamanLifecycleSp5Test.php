@@ -202,6 +202,50 @@ class PinjamanLifecycleSp5Test extends TestCase
         $this->assertFalse(Route::has('cicilan-pinjaman.destroy'));
     }
 
+    public function test_edit_draft_pinjaman_menampilkan_anggota_sendiri_tanpa_meloloskan_anggota_open_lain(): void
+    {
+        $finance = $this->user('admin');
+        $kasir = $this->user('kasir');
+        $karyawanUser = $this->user('karyawan');
+        $service = app(PinjamanKoperasiService::class);
+
+        $anggotaDraft = $this->anggota(3000000);
+        $anggotaOpenLain = $this->anggota(3000000);
+        $anggotaAvailable = $this->anggota(3000000);
+
+        $draft = $service->createDraft($this->payload($anggotaDraft, [
+            'jumlah_pinjaman' => 1000000,
+            'keterangan' => 'Draft yang sedang diedit',
+        ]), $finance->id);
+
+        $otherOpen = $service->createDraft($this->payload($anggotaOpenLain, [
+            'jumlah_pinjaman' => 900000,
+            'keterangan' => 'Draft anggota lain',
+        ]), $finance->id);
+
+        $this->actingAs($finance)
+            ->get(route('pinjaman.edit', $draft))
+            ->assertOk()
+            ->assertSee((string) $anggotaDraft->nomor_anggota)
+            ->assertSee($anggotaDraft->karyawan->nama)
+            ->assertSee((string) $anggotaAvailable->nomor_anggota)
+            ->assertDontSee((string) $anggotaOpenLain->nomor_anggota)
+            ->assertDontSee($anggotaOpenLain->karyawan->nama)
+            ->assertDontSee($otherOpen->keterangan);
+
+        $this->actingAs($finance)
+            ->get(route('pinjaman.create'))
+            ->assertOk()
+            ->assertSee((string) $anggotaAvailable->nomor_anggota)
+            ->assertDontSee((string) $anggotaDraft->nomor_anggota)
+            ->assertDontSee((string) $anggotaOpenLain->nomor_anggota);
+
+        $this->actingAs($kasir)->get(route('pinjaman.edit', $draft))->assertForbidden();
+        $this->actingAs($kasir)->get(route('pinjaman.create'))->assertForbidden();
+        $this->actingAs($karyawanUser)->get(route('pinjaman.edit', $draft))->assertForbidden();
+        $this->actingAs($karyawanUser)->get(route('pinjaman.create'))->assertForbidden();
+    }
+
     public function test_pinjaman_aktif_tetap_terintegrasi_dengan_pelunasan_tunai_mantan_karyawan(): void
     {
         $finance = $this->user('admin');

@@ -44,6 +44,7 @@ use App\Services\TransaksiReversalService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
 class KoperasiDummySeeder extends Seeder
@@ -332,18 +333,35 @@ class KoperasiDummySeeder extends Seeder
 
     private function seedUserDummy(): User
     {
-        return User::updateOrCreate(
-            ['email' => 'operator.testing@bita.test'],
+        $finance = User::updateOrCreate(
+            ['email' => 'keuangan@kbsm.test'],
             [
-                'name' => 'Operator Testing BITA',
-                'password' => 'bita12345',
+                'name' => 'Admin Keuangan KBSM',
+                'password' => Hash::make('Kbsm12345!'),
                 'role' => 'admin',
+                'karyawan_id' => null,
                 'is_active' => true,
                 'must_change_password' => false,
                 'password_changed_at' => now(),
                 'email_verified_at' => now(),
             ]
         );
+
+        User::updateOrCreate(
+            ['email' => 'kasir@kbsm.test'],
+            [
+                'name' => 'Kasir KBSM',
+                'password' => Hash::make('Kbsm12345!'),
+                'role' => 'kasir',
+                'karyawan_id' => null,
+                'is_active' => true,
+                'must_change_password' => false,
+                'password_changed_at' => now(),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        return $finance;
     }
 
     private function seedKaryawan(MasterDataKoperasiService $service): array

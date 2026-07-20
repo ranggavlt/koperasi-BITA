@@ -247,8 +247,32 @@ class AccessMatrixTest extends TestCase
     {
         $this->seed(KoperasiDummySeeder::class);
 
+        $finance = User::query()->where('email', 'keuangan@kbsm.test')->firstOrFail();
+        $kasir = User::query()->where('email', 'kasir@kbsm.test')->firstOrFail();
+
+        $this->assertSame('Admin Keuangan KBSM', $finance->name);
+        $this->assertSame('admin', $finance->role);
+        $this->assertTrue((bool) $finance->is_active);
+        $this->assertFalse((bool) $finance->must_change_password);
+        $this->assertTrue(Hash::check('Kbsm12345!', $finance->password));
+
+        $this->assertSame('Kasir KBSM', $kasir->name);
+        $this->assertSame('kasir', $kasir->role);
+        $this->assertTrue((bool) $kasir->is_active);
+        $this->assertFalse((bool) $kasir->must_change_password);
+        $this->assertTrue(Hash::check('Kbsm12345!', $kasir->password));
+
+        $this->assertSame(1, User::query()->where('role', 'admin')->count());
+        $this->assertSame(1, User::query()->where('role', 'kasir')->count());
+        $this->assertGreaterThan(0, User::query()->where('role', 'karyawan')->count());
         $this->assertSame(0, User::query()->where('role', 'keuangan')->count());
-        $this->assertGreaterThan(0, User::query()->where('role', 'admin')->count());
+
+        $this->actingAs($finance)->get(route('users.index'))->assertOk();
+        $this->actingAs($kasir)->get(route('penjualan.index'))->assertOk();
+        $this->actingAs($kasir)->get(route('users.index'))->assertForbidden();
+
+        $this->assertFalse(Route::has('register'));
+        $this->get('/register')->assertNotFound();
 
         $this->artisan('koperasi:preflight-access')->assertExitCode(0);
     }
