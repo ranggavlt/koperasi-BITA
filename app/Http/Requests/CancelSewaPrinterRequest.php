@@ -22,7 +22,7 @@ class CancelSewaPrinterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'alasan.required' => 'Alasan pembatalan/refund wajib diisi.',
+            'alasan.required' => 'Alasan pembatalan wajib diisi.',
         ];
     }
 }

@@ -67,7 +67,7 @@ class Karyawan extends Model
 
     public function sewaPrinter()
     {
-        return $this->hasMany(SewaPrinter::class, 'karyawan_pic_id');
+        return $this->hasMany(SewaPrinter::class, 'karyawan_id');
     }
 
     public function scopeAktif($query)

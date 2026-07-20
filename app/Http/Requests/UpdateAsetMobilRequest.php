@@ -21,6 +21,7 @@ class UpdateAsetMobilRequest extends FormRequest
             'model' => $this->normalizeText($this->input('model')),
             'warna' => $this->normalizeText($this->input('warna')),
             'keterangan' => $this->nullableText($this->input('keterangan')),
+            'tarif_sewa_harian' => $this->normalizeMoney($this->input('tarif_sewa_harian')),
         ]);
     }
 
@@ -36,6 +37,7 @@ class UpdateAsetMobilRequest extends FormRequest
             'model' => ['required', 'string', 'max:100'],
             'tahun' => ['required', 'integer', 'min:1980', 'max:' . (now(config('app.timezone', 'Asia/Jakarta'))->year + 1)],
             'warna' => ['required', 'string', 'max:50'],
+            'tarif_sewa_harian' => ['required', 'integer', 'min:1'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -51,6 +53,8 @@ class UpdateAsetMobilRequest extends FormRequest
             'tahun.min' => 'Tahun mobil tidak masuk akal.',
             'tahun.max' => 'Tahun mobil tidak boleh melewati tahun depan.',
             'warna.required' => 'Warna mobil wajib diisi.',
+            'tarif_sewa_harian.required' => 'Tarif Sewa Harian wajib diisi.',
+            'tarif_sewa_harian.min' => 'Tarif Sewa Harian wajib lebih besar dari nol.',
         ];
     }
 
@@ -75,5 +79,10 @@ class UpdateAsetMobilRequest extends FormRequest
         $normalized = $this->normalizeText($value);
 
         return $normalized === null ? null : strtoupper($normalized);
+    }
+
+    private function normalizeMoney(mixed $value): int
+    {
+        return (int) preg_replace('/[^\d]/', '', (string) $value);
     }
 }

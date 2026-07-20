@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Akun;
+use App\Models\DompetKoperasi;
 use App\Models\JenisSimpanan;
 use App\Models\JurnalUmum;
 use App\Models\Karyawan;
@@ -69,7 +70,7 @@ class AkuntansiServiceTest extends TestCase
         app(AkuntansiService::class)->recordSimpanan($simpanan);
     }
 
-    public function test_akun_sistem_nonaktif_tidak_boleh_dipakai_posting(): void
+    public function test_akun_dompet_nonaktif_tidak_boleh_dipakai_posting_simpanan(): void
     {
         Akun::query()->where('kode_akun', '101')->update(['is_aktif' => false]);
 
@@ -90,11 +91,17 @@ class AkuntansiServiceTest extends TestCase
             'jumlah' => 50000,
             'tanggal' => '2026-07-10',
         ]);
+        $dompet = DompetKoperasi::query()->create([
+            'akun_id' => Akun::query()->where('kode_akun', '101')->value('id'),
+            'nama_dompet' => 'Kas Nonaktif',
+            'jenis_dompet' => DompetKoperasi::JENIS_KAS,
+            'saldo' => 0,
+        ]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('sedang tidak aktif');
+        $this->expectExceptionMessage('Akun Dompet Simpanan harus aktif');
 
-        app(AkuntansiService::class)->recordSimpanan($simpanan);
+        app(AkuntansiService::class)->recordSimpanan($simpanan, $dompet->akun);
     }
 
     private function daftarkanAnggota(Karyawan $karyawan): void

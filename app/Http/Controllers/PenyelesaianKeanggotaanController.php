@@ -7,6 +7,7 @@ use App\Models\PenyelesaianKeanggotaan;
 use App\Services\KeanggotaanLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PenyelesaianKeanggotaanController extends Controller
@@ -17,16 +18,23 @@ class PenyelesaianKeanggotaanController extends Controller
 
     public function index(Request $request): View
     {
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::in(PenyelesaianKeanggotaan::statuses())],
+            'anggota' => ['nullable', 'string', 'max:120'],
+            'tanggal_mulai' => ['nullable', 'date'],
+            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
+        ]);
+
         $query = PenyelesaianKeanggotaan::query()
             ->with(['anggota.karyawan', 'siklus', 'details.source', 'dompetRefund'])
             ->latest('id');
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        if ($request->filled('anggota')) {
-            $keyword = trim((string) $request->input('anggota'));
+        if (! empty($filters['anggota'])) {
+            $keyword = trim((string) $filters['anggota']);
             $query->whereHas('anggota', function ($anggotaQuery) use ($keyword): void {
                 $anggotaQuery->where('nomor_anggota', 'like', "%{$keyword}%")
                     ->orWhereHas('karyawan', function ($karyawanQuery) use ($keyword): void {
@@ -35,15 +43,43 @@ class PenyelesaianKeanggotaanController extends Controller
             });
         }
 
+        if (! empty($filters['tanggal_mulai'])) {
+            $query->whereDate('tanggal_keluar', '>=', $filters['tanggal_mulai']);
+        }
+
+        if (! empty($filters['tanggal_selesai'])) {
+            $query->whereDate('tanggal_keluar', '<=', $filters['tanggal_selesai']);
+        }
+
+        $summaryRows = (clone $query)->get(['total_hak_anggota', 'total_kewajiban_awal', 'total_offset', 'total_refund']);
+
         return view('pages.penyelesaian-keanggotaan.index', [
             'penyelesaianList' => $query->paginate(15)->withQueryString(),
             'statuses' => PenyelesaianKeanggotaan::statuses(),
+            'summary' => [
+                'total_hak' => $summaryRows->sum(fn (PenyelesaianKeanggotaan $item): int => $this->decimalToRupiahInt($item->total_hak_anggota)),
+                'total_kewajiban' => $summaryRows->sum(fn (PenyelesaianKeanggotaan $item): int => $this->decimalToRupiahInt($item->total_kewajiban_awal)),
+                'total_offset' => $summaryRows->sum(fn (PenyelesaianKeanggotaan $item): int => $this->decimalToRupiahInt($item->total_offset)),
+                'total_refund' => $summaryRows->sum(fn (PenyelesaianKeanggotaan $item): int => $this->decimalToRupiahInt($item->total_refund)),
+            ],
             'dompetOptions' => DompetKoperasi::query()
                 ->with('akun')
                 ->whereIn('jenis_dompet', [DompetKoperasi::JENIS_KAS, DompetKoperasi::JENIS_BANK])
                 ->orderBy('nama_dompet')
                 ->get(),
-            'filters' => $request->only(['status', 'anggota']),
+            'filters' => $filters,
+        ]);
+    }
+
+    public function show(PenyelesaianKeanggotaan $penyelesaian): View
+    {
+        return view('pages.penyelesaian-keanggotaan.show', [
+            'penyelesaian' => $penyelesaian->load(['anggota.karyawan', 'siklus', 'details.source', 'details.akun', 'dompetRefund', 'mutasiKas', 'jurnal.details']),
+            'dompetOptions' => DompetKoperasi::query()
+                ->with('akun')
+                ->whereIn('jenis_dompet', [DompetKoperasi::JENIS_KAS, DompetKoperasi::JENIS_BANK])
+                ->orderBy('nama_dompet')
+                ->get(),
         ]);
     }
 
@@ -65,11 +101,15 @@ class PenyelesaianKeanggotaanController extends Controller
     {
         $validated = $request->validate([
             'dompet_id' => ['required', 'integer', 'exists:dompet_koperasi,id'],
+            'metode_refund' => ['required', Rule::in([
+                PenyelesaianKeanggotaan::METODE_TUNAI,
+                PenyelesaianKeanggotaan::METODE_TRANSFER_BANK,
+            ])],
             'alasan' => ['required', 'string', 'min:5'],
         ]);
 
         $dompet = DompetKoperasi::query()->findOrFail($validated['dompet_id']);
-        $this->service->processRefund($penyelesaian, $dompet, (int) auth()->id());
+        $this->service->processRefund($penyelesaian, $dompet, (int) auth()->id(), $validated['metode_refund']);
 
         return back()->with('success', 'Refund penyelesaian berhasil diproses.');
     }
@@ -79,5 +119,17 @@ class PenyelesaianKeanggotaanController extends Controller
         $this->service->complete($penyelesaian, (int) auth()->id());
 
         return back()->with('success', 'Penyelesaian keanggotaan selesai dan immutable.');
+    }
+
+    private function decimalToRupiahInt(int|string|null $value): int
+    {
+        $normalized = trim((string) ($value ?? '0'));
+        $negative = str_starts_with($normalized, '-');
+        $normalized = ltrim($normalized, '+-');
+        [$whole] = array_pad(explode('.', $normalized, 2), 1, '0');
+        $whole = preg_replace('/\D/', '', $whole) ?: '0';
+        $rupiah = (int) $whole;
+
+        return $negative ? -1 * $rupiah : $rupiah;
     }
 }

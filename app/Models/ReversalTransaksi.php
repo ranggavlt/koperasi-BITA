@@ -21,6 +21,10 @@ class ReversalTransaksi extends Model
 
     public const JENIS_SIMPANAN_POKOK_CORRECTION = 'simpanan_pokok_correction';
 
+    public const JENIS_SIMPANAN_SUKARELA_CORRECTION = 'simpanan_sukarela_correction';
+
+    public const JENIS_SIMPANAN_WAJIB_EXIT_CANCEL = 'simpanan_wajib_exit_cancel';
+
     public const JENIS_CICILAN_PAYROLL_REVERSAL = 'cicilan_payroll_reversal';
 
     public const JENIS_CICILAN_CASH_REVERSAL = 'cicilan_cash_reversal';

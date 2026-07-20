@@ -140,6 +140,7 @@ return [
             'label' => 'Printer Koperasi',
             'route' => 'aset-printer.index',
             'roles' => ['admin'],
+            'feature' => 'master_printer_enabled',
             'patterns' => ['aset-printer.*'],
             'description' => 'Kelola master aset printer koperasi.',
             'keywords' => ['printer', 'aset printer', 'perangkat koperasi'],
@@ -170,6 +171,15 @@ return [
             'patterns' => ['simpanan.*'],
             'description' => 'Catat setoran dan transaksi simpanan anggota.',
             'keywords' => ['setoran', 'tabungan anggota', 'transaksi simpanan'],
+        ],
+        [
+            'section' => 'Simpan Pinjam',
+            'label' => 'Jadwal Simpanan Wajib',
+            'route' => 'jadwal-simpanan-wajib.index',
+            'roles' => ['admin'],
+            'patterns' => ['jadwal-simpanan-wajib.*'],
+            'description' => 'Pantau tagihan, alokasi, dan tunggakan Simpanan Wajib payroll.',
+            'keywords' => ['simpanan wajib', 'tagihan wajib', 'tunggakan wajib', 'payroll wajib'],
         ],
         [
             'section' => 'Simpan Pinjam',

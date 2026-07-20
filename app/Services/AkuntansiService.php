@@ -13,6 +13,7 @@ use App\Models\PembayaranSewaPrinter;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\PenyelesaianKeanggotaan;
+use App\Models\PenyelesaianKeanggotaanDetail;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
 use App\Models\SewaMobil;
@@ -221,6 +222,47 @@ class AkuntansiService
         ]);
     }
 
+    public function recordSimpananWajibPayroll(Simpanan $simpanan, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Wajib harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id,
+            'tanggal' => (string) ($simpanan->tanggal ?? now()->toDateString()),
+            'nomor_bukti' => 'SWJ-' . $simpanan->id,
+            'keterangan' => 'Pengakuan piutang Simpanan Wajib Anggota',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('penjualan.piutang_potong_gaji'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line(
+                $akunSimpanan,
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
     public function recordPenerimaanPayrollPotongGaji(string $idempotencyKey, string $nomorBukti, string $tanggal, float|int $jumlah, Akun $akunBank, string $referensiTipe, int $referensiId, ?int $userId = null): JurnalUmum
     {
         $existing = JurnalUmum::query()
@@ -253,19 +295,32 @@ class AkuntansiService
         ]);
     }
 
-    public function recordSimpanan(Simpanan $simpanan): void
+    public function recordSimpanan(Simpanan $simpanan, ?Akun $akunDompet = null, ?int $userId = null, ?string $idempotencyKey = null): JurnalUmum
     {
-        if (JurnalUmum::query()
-            ->where('referensi_tipe', Simpanan::class)
-            ->where('referensi_id', $simpanan->id)
-            ->exists()) {
-            return;
+        if ($idempotencyKey) {
+            $existing = JurnalUmum::query()
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        } else {
+            $existing = JurnalUmum::query()
+                ->where('referensi_tipe', Simpanan::class)
+                ->where('referensi_id', $simpanan->id)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
         }
 
-        $jumlah = (float) ($simpanan->jumlah ?? 0);
+        $jumlah = $this->rupiahDecimal($simpanan->jumlah ?? 0);
         $tanggal = (string) ($simpanan->tanggal ?? now()->toDateString());
-        $simpanan->loadMissing('jenisSimpanan.akun');
+        $simpanan->loadMissing(['jenisSimpanan.akun', 'mutasiKas.dompet.akun']);
         $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+        $akunDompet ??= $simpanan->mutasiKas?->dompet?->akun;
 
         if (! $akunSimpanan) {
             throw new RuntimeException(
@@ -277,16 +332,29 @@ class AkuntansiService
             throw new RuntimeException('Akun jenis simpanan harus aktif dan berkategori kewajiban atau ekuitas.');
         }
 
-        $this->record([
+        if ($akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun jenis simpanan harus memiliki saldo normal Kredit.');
+        }
+
+        if (! $akunDompet) {
+            throw new RuntimeException('Dompet Simpanan belum mempunyai pemetaan COA untuk jurnal debit.');
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet Simpanan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
             'tanggal' => $tanggal,
             'nomor_bukti' => 'SIMP-' . $simpanan->id,
             'keterangan' => 'Setoran simpanan',
             'referensi_tipe' => Simpanan::class,
             'referensi_id' => $simpanan->id,
-            'created_by' => auth()->id(),
+            'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('simpanan.kas'),
+                $akunDompet,
                 'debit',
                 $jumlah
             ),
@@ -296,6 +364,90 @@ class AkuntansiService
                 $jumlah
             ),
         ]);
+    }
+
+    public function recordSimpananSukarelaPenarikan(Simpanan $simpanan, Akun $akunDompet, ?int $userId = null, ?string $idempotencyKey = null): JurnalUmum
+    {
+        $idempotencyKey ??= 'simpanan-sukarela:penarikan:jurnal:' . $simpanan->id;
+
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Sukarela harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet penarikan Simpanan Sukarela harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = $this->rupiahDecimal($simpanan->jumlah ?? 0);
+        $tanggal = (string) ($simpanan->tanggal ?? now()->toDateString());
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => $tanggal,
+            'nomor_bukti' => $simpanan->kode_transaksi ?: 'SSK-' . $simpanan->id,
+            'keterangan' => 'Penarikan Simpanan Sukarela',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+            $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+        ]);
+    }
+
+    public function recordSimpananSukarelaCorrection(ReversalTransaksi $reversal, Simpanan $simpanan, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Sukarela tidak valid untuk koreksi.');
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet koreksi Simpanan Sukarela harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlah = (float) $reversal->nominal;
+
+        $lines = $simpanan->jenis_transaksi === Simpanan::JENIS_SETORAN
+            ? [
+                $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+                $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+            ]
+            : [
+                $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+                $this->akunResolver->line($akunSimpanan, 'kredit', $jumlah),
+            ];
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Koreksi Transaksi Simpanan Sukarela ' . ($simpanan->kode_transaksi ?: ('#' . $simpanan->id)),
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
     }
 
     public function recordPinjaman(Pinjaman $pinjaman): void
@@ -410,7 +562,7 @@ class AkuntansiService
             return $existing;
         }
 
-        $jumlah = (float) $sewaMobil->tarif_total;
+        $jumlah = (float) $sewaMobil->total_sewa;
 
         return $this->record([
             'idempotency_key' => 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $sewaMobil->id,
@@ -490,7 +642,9 @@ class AkuntansiService
             throw new RuntimeException('Akun Dompet pembayaran sewa printer harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
-        $jumlah = (float) $pembayaran->jumlah_bayar;
+        $totalTagihan = (float) $sewaPrinter->total_tagihan_perusahaan;
+        $hargaVendor = (float) $sewaPrinter->total_harga_vendor;
+        $margin = (float) $sewaPrinter->total_margin;
 
         return $this->record([
             'idempotency_key' => 'sewa-printer:pembayaran-dimuka:jurnal:' . $pembayaran->id,
@@ -501,12 +655,55 @@ class AkuntansiService
             'referensi_id' => $pembayaran->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
-            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line($akunDompet, 'debit', $totalTagihan),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_printer.utang_vendor'),
                 'kredit',
-                $jumlah
+                $hargaVendor
             ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'),
+                'kredit',
+                $margin
+            ),
+        ]);
+    }
+
+    public function recordPembayaranVendorSewaPrinter(
+        SewaPrinter $sewaPrinter,
+        PembayaranSewaPrinter $pembayaran,
+        Akun $akunDompetVendor,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-printer:pembayaran-vendor:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompetVendor->is_aktif || $akunDompetVendor->kategori !== 'aset' || $akunDompetVendor->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pembayaran vendor printer harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlahVendor = (float) $sewaPrinter->total_harga_vendor;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-printer:pembayaran-vendor:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaPrinter->kode_sewa,
+            'keterangan' => 'Pembayaran vendor sewa printer ' . $sewaPrinter->kode_sewa,
+            'referensi_tipe' => PembayaranSewaPrinter::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_printer.utang_vendor'),
+                'debit',
+                $jumlahVendor
+            ),
+            $this->akunResolver->line($akunDompetVendor, 'kredit', $jumlahVendor),
         ]);
     }
 
@@ -520,8 +717,6 @@ class AkuntansiService
             return $existing;
         }
 
-        $grandTotal = (float) $sewaPrinter->grand_total;
-        $dasar = (float) $sewaPrinter->total_harga_dasar;
         $margin = (float) $sewaPrinter->total_margin;
 
         return $this->record([
@@ -534,14 +729,9 @@ class AkuntansiService
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'),
                 'debit',
-                $grandTotal
-            ),
-            $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_dasar'),
-                'kredit',
-                $dasar
+                $margin
             ),
             $this->akunResolver->line(
                 $this->akunResolver->posting('sewa_printer.pendapatan_margin'),
@@ -944,6 +1134,43 @@ class AkuntansiService
         ]);
     }
 
+    public function recordSimpananWajibExitCancellation(Simpanan $simpanan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Wajib tidak valid untuk pembatalan tagihan keluar.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Pembatalan tagihan Simpanan Wajib karena Keanggotaan Berakhir #' . $simpanan->id,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('refund.piutang_potong_gaji'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
     public function recordCicilanReversalToCredit(CicilanPinjaman $cicilan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
     {
         return $this->recordCicilanReversal($cicilan, $reversal, $this->akunResolver->posting('refund.utang_anggota'), $userId);
@@ -1094,6 +1321,79 @@ class AkuntansiService
         ], $lines);
     }
 
+    public function recordPenyelesaianKeanggotaanOffsetFromDetails(PenyelesaianKeanggotaan $penyelesaian, ?int $userId = null): ?JurnalUmum
+    {
+        $idempotencyKey = 'keanggotaan:offset:jurnal:' . $penyelesaian->id;
+        $existing = JurnalUmum::query()->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $hakDetails = PenyelesaianKeanggotaanDetail::query()
+            ->with('akun')
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->whereRaw('CAST(nominal_dipakai_offset AS DECIMAL(15,2)) > 0')
+            ->orderBy('urutan_alokasi')
+            ->get();
+
+        $kewajibanDetails = PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN)
+            ->whereRaw('CAST(nominal_offset AS DECIMAL(15,2)) > 0')
+            ->orderBy('urutan_alokasi')
+            ->get();
+
+        if ($hakDetails->isEmpty() || $kewajibanDetails->isEmpty()) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($hakDetails as $detail) {
+            $akun = $detail->akun;
+            if (! $akun || ! $akun->is_aktif || ! in_array($akun->kategori, ['kewajiban', 'ekuitas'], true) || $akun->posisi_saldo !== 'kredit') {
+                throw new RuntimeException('Akun hak Anggota pada detail penyelesaian tidak valid.');
+            }
+
+            $lines[] = $this->akunResolver->line($akun, 'debit', $detail->nominal_dipakai_offset);
+        }
+
+        $pinjamanSettled = $kewajibanDetails
+            ->where('kategori_sumber', PenyelesaianKeanggotaanDetail::KATEGORI_PINJAMAN)
+            ->sum(fn (PenyelesaianKeanggotaanDetail $detail): float => (float) $detail->nominal_offset);
+        $piutangAnggotaSettled = $kewajibanDetails
+            ->where('kategori_sumber', '!=', PenyelesaianKeanggotaanDetail::KATEGORI_PINJAMAN)
+            ->sum(fn (PenyelesaianKeanggotaanDetail $detail): float => (float) $detail->nominal_offset);
+
+        if ($pinjamanSettled > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('keanggotaan.piutang_pinjaman'),
+                'kredit',
+                $pinjamanSettled
+            );
+        }
+
+        if ($piutangAnggotaSettled > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('keanggotaan.piutang_anggota'),
+                'kredit',
+                $piutangAnggotaSettled
+            );
+        }
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $penyelesaian->kode_penyelesaian,
+            'keterangan' => 'Offset hak Anggota terhadap kewajiban keluar ' . $penyelesaian->kode_penyelesaian,
+            'referensi_tipe' => PenyelesaianKeanggotaan::class,
+            'referensi_id' => $penyelesaian->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
     public function recordPenyelesaianKeanggotaanRefund(
         PenyelesaianKeanggotaan $penyelesaian,
         Akun $akunDompet,
@@ -1143,6 +1443,57 @@ class AkuntansiService
         return $this->record([
             'idempotency_key' => $idempotencyKey,
             'tanggal' => now()->toDateString(),
+            'nomor_bukti' => $penyelesaian->kode_penyelesaian,
+            'keterangan' => 'Refund hak Anggota keluar ' . $penyelesaian->kode_penyelesaian,
+            'referensi_tipe' => PenyelesaianKeanggotaan::class,
+            'referensi_id' => $penyelesaian->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordPenyelesaianKeanggotaanRefundFromDetails(PenyelesaianKeanggotaan $penyelesaian, Akun $akunDompet, ?int $userId = null): ?JurnalUmum
+    {
+        $idempotencyKey = 'keanggotaan:refund:jurnal:' . $penyelesaian->id;
+        $existing = JurnalUmum::query()->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund penyelesaian keanggotaan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $hakDetails = PenyelesaianKeanggotaanDetail::query()
+            ->with('akun')
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->whereRaw('CAST(nominal_direfund AS DECIMAL(15,2)) > 0')
+            ->orderBy('urutan_alokasi')
+            ->get();
+
+        if ($hakDetails->isEmpty()) {
+            return null;
+        }
+
+        $lines = [];
+        $total = 0.0;
+
+        foreach ($hakDetails as $detail) {
+            $akun = $detail->akun;
+            if (! $akun || ! $akun->is_aktif || ! in_array($akun->kategori, ['kewajiban', 'ekuitas'], true) || $akun->posisi_saldo !== 'kredit') {
+                throw new RuntimeException('Akun hak Anggota pada detail refund tidak valid.');
+            }
+
+            $total += (float) $detail->nominal_direfund;
+            $lines[] = $this->akunResolver->line($akun, 'debit', $detail->nominal_direfund);
+        }
+
+        $lines[] = $this->akunResolver->line($akunDompet, 'kredit', $total);
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
             'nomor_bukti' => $penyelesaian->kode_penyelesaian,
             'keterangan' => 'Refund hak Anggota keluar ' . $penyelesaian->kode_penyelesaian,
             'referensi_tipe' => PenyelesaianKeanggotaan::class,
@@ -1211,6 +1562,30 @@ class AkuntansiService
         }
 
         return $lines;
+    }
+
+    private function rupiahInt(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        $string = trim((string) $value);
+
+        if ($string === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\d+(\.\d{1,2})?$/', $string) === 1) {
+            return (int) explode('.', $string)[0];
+        }
+
+        return (int) preg_replace('/[^\d]/', '', $string);
+    }
+
+    private function rupiahDecimal(mixed $value): string
+    {
+        return number_format($this->rupiahInt($value), 2, '.', '');
     }
 
     /**

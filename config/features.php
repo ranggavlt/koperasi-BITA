@@ -29,4 +29,16 @@ return [
     |
     */
     'jasa_print_enabled' => $boolean('FEATURE_JASA_PRINT_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Master Printer Koperasi
+    |--------------------------------------------------------------------------
+    |
+    | Transaksi Sewa Printer final memakai vendor eksternal dan snapshot
+    | transaksi, bukan aset Printer koperasi. Master aset printer lama disimpan
+    | untuk histori/rollback, tetapi route/menu runtime dimatikan secara default.
+    |
+    */
+    'master_printer_enabled' => $boolean('FEATURE_MASTER_PRINTER_ENABLED', false),
 ];

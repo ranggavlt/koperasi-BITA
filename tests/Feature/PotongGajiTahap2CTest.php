@@ -53,8 +53,9 @@ class PotongGajiTahap2CTest extends TestCase
         $this->assertSame(JadwalCicilanPinjaman::STATUS_RESERVED, $jadwal->fresh()->status);
         $this->assertSame(JadwalCicilanPinjaman::METODE_POTONG_GAJI, $jadwal->fresh()->metode_penyelesaian);
         $this->assertSame('300000.00', $ledger->nominal);
-        $this->assertSame(20000000, $limit->fresh()->sisaLimitCents());
-        $this->assertSame(1, PemakaianPotongGaji::query()->count());
+        $this->assertSame(0, $limit->fresh()->sisaLimitCents());
+        $this->assertSame(3, PemakaianPotongGaji::query()->count());
+        $this->assertSame(2, PemakaianPotongGaji::query()->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)->count());
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', CicilanPinjaman::class)->count());
         $this->assertSame(0, JurnalUmum::query()->where('referensi_tipe', CicilanPinjaman::class)->count());
     }
@@ -243,18 +244,18 @@ class PotongGajiTahap2CTest extends TestCase
             $service->reserveFullPayoffPayroll($limitKurang, $user->id);
             $this->fail('Pelunasan penuh payroll harus ditolak jika sisa limit kurang.');
         } catch (\Illuminate\Validation\ValidationException $exception) {
-            $this->assertSame(1, PemakaianPotongGaji::query()->count());
+            $this->assertSame(3, PemakaianPotongGaji::query()->count());
         }
 
         $pinjaman = $this->pinjamanDenganJadwalJuli(jumlah: 900000, tenor: 3);
         $limit = $service->activateLimit(
-            $service->createLimit($pinjaman->anggota, '2026-07', 900000, $user->id, 'Limit payoff'),
+            $service->createLimit($pinjaman->anggota, '2026-07', 1200000, $user->id, 'Limit payoff'),
             $user->id
         );
         $service->reserveFullPayoffPayroll($limit, $user->id);
         $service->reserveFullPayoffPayroll($limit, $user->id);
 
-        $this->assertSame(4, PemakaianPotongGaji::query()->count()); // 1 dari skenario kurang + 3 dari pelunasan valid
+        $this->assertSame(9, PemakaianPotongGaji::query()->count()); // 3 dari skenario kurang + 6 dari pelunasan valid termasuk Wajib
         $service->confirmLimit($service->closeLimit($limit, $user->id), $user->id);
         $this->assertSame(Pinjaman::STATUS_LUNAS, $pinjaman->fresh()->status);
     }

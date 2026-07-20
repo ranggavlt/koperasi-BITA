@@ -63,13 +63,24 @@ class PreflightPotongGajiCommand extends Command
             $this->check('limit_confirmed_reserved', 'Limit confirmed masih mempunyai ledger reserved', $this->limitStatusMasihReserved('confirmed')),
             $this->check('limit_confirmed_consumed', 'Limit confirmed masih mempunyai ledger consumed', $this->limitStatusMasihConsumed('confirmed')),
             $this->check('limit_cancelled_reserved', 'Limit cancelled masih mempunyai reservasi aktif', $this->limitStatusMasihReserved('cancelled')),
-            $this->check('pos_anggota_bukan_payroll', 'POS Anggota aktif bukan Potong Gaji', $this->posAnggotaBukanPayroll()),
+            $this->check('pos_anggota_metode_invalid', 'POS Anggota aktif memakai metode selain Tunai/Potong Gaji', $this->posAnggotaMetodeInvalid()),
             $this->check('pos_payroll_tanpa_ledger', 'POS Potong Gaji tanpa ledger payroll', $this->posPayrollTanpaLedger()),
             $this->check('pos_ledger_nominal_mismatch', 'Ledger POS tidak sama dengan grand total', $this->posLedgerNominalMismatch()),
             $this->check('pos_payroll_settled_mismatch', 'POS payroll settled/payment tidak konsisten', $this->posPayrollSettlementMismatch()),
             $this->check('simpanan_pokok_ganda', 'Lebih dari satu Simpanan Pokok per Anggota', $this->simpananPokokGanda()),
             $this->check('simpanan_pokok_manual', 'Simpanan Pokok dibuat manual tanpa payroll lifecycle', $this->simpananPokokManual()),
             $this->check('simpanan_pokok_ledger_mismatch', 'Ledger Simpanan Pokok tidak sesuai transaksi', $this->simpananPokokLedgerMismatch()),
+            $this->check('jenis_simpanan_aktif_ganda', 'Master aktif ganda per kategori Simpanan', $this->jenisSimpananAktifGanda()),
+            $this->check('jenis_simpanan_kategori_invalid', 'Kategori Jenis Simpanan null/tidak dikenal', $this->jenisSimpananKategoriInvalid()),
+            $this->check('jenis_simpanan_kode_mismatch', 'Kode sistem tidak sesuai kategori Jenis Simpanan', $this->jenisSimpananKodeMismatch()),
+            $this->check('jenis_simpanan_interval_invalid', 'Interval Simpanan Wajib di luar 1-12 bulan', $this->jenisSimpananIntervalInvalid()),
+            $this->check('jenis_simpanan_interval_terlarang', 'Simpanan Pokok/Sukarela mempunyai interval', $this->jenisSimpananIntervalTerlarang()),
+            $this->check('jenis_simpanan_nominal_invalid', 'Simpanan Pokok/Wajib tanpa nominal valid', $this->jenisSimpananNominalInvalid()),
+            $this->check('jenis_simpanan_coa_invalid', 'Master aktif tanpa COA valid', $this->jenisSimpananCoaInvalid()),
+            $this->check('simpanan_reference_invalid', 'Transaksi Simpanan tanpa Jenis/Anggota/Dompet valid', $this->simpananReferenceInvalid()),
+            $this->check('simpanan_posting_dompet_mismatch', 'Mutasi dan Jurnal Simpanan memakai Dompet/COA debit berbeda', $this->simpananPostingDompetMismatch()),
+            $this->check('simpanan_idempotency_duplicate', 'Duplicate idempotency Simpanan/Mutasi/Jurnal', $this->duplicateIdempotency(['simpanan', 'mutasi_kas', 'jurnal_umum'])),
+            $this->check('simpanan_pokok_snapshot_hilang', 'Snapshot Simpanan Pokok hilang', $this->simpananPokokSnapshotHilang()),
             $this->check('source_reversed_tanpa_reversal', 'Source reversed/refunded/cancelled tanpa record reversal', $this->sourceReversedTanpaReversal()),
             $this->check('reversal_tanpa_source', 'Reversal tanpa source', $this->reversalTanpaSource()),
             $this->check('reversal_ganda', 'Reversal ganda untuk source yang sama', $this->reversalGanda()),
@@ -667,7 +678,7 @@ class PreflightPotongGajiCommand extends Command
             ->count('l.id');
     }
 
-    private function posAnggotaBukanPayroll(): int
+    private function posAnggotaMetodeInvalid(): int
     {
         if (! $this->hasTables(['penjualan', 'pembayaran', 'anggota', 'karyawan']) || ! Schema::hasColumn('penjualan', 'anggota_id')) {
             return 0;
@@ -681,7 +692,7 @@ class PreflightPotongGajiCommand extends Command
             ->where('k.status_kerja', 'aktif')
             ->where(function ($query): void {
                 $query->whereNull('pb.id')
-                    ->orWhere('pb.metode_pembayaran', '!=', 'potong_gaji');
+                    ->orWhereNotIn('pb.metode_pembayaran', ['tunai', 'potong_gaji']);
             })
             ->count('p.id');
     }
@@ -826,6 +837,262 @@ class PreflightPotongGajiCommand extends Command
                 });
             })
             ->count('s.id');
+    }
+
+    private function jenisSimpananAktifGanda(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan') || ! Schema::hasColumn('jenis_simpanan', 'kategori')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->select('kategori', DB::raw('COUNT(*) as total'))
+            ->where('aktif', true)
+            ->whereIn('kategori', ['pokok', 'wajib', 'sukarela'])
+            ->groupBy('kategori')
+            ->having('total', '>', 1)
+            ->get()
+            ->count();
+    }
+
+    private function jenisSimpananKategoriInvalid(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan') || ! Schema::hasColumn('jenis_simpanan', 'kategori')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->where(function ($query): void {
+                $query->whereNull('kategori')
+                    ->orWhereNotIn('kategori', ['pokok', 'wajib', 'sukarela']);
+            })
+            ->count();
+    }
+
+    private function jenisSimpananKodeMismatch(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan') || ! Schema::hasColumn('jenis_simpanan', 'kategori') || ! Schema::hasColumn('jenis_simpanan', 'kode')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->whereIn('kategori', ['pokok', 'wajib', 'sukarela'])
+            ->where(function ($query): void {
+                $query->where(function ($subQuery): void {
+                    $subQuery->where('kategori', 'pokok')->where('kode', '!=', 'SIMPANAN_POKOK');
+                })->orWhere(function ($subQuery): void {
+                    $subQuery->where('kategori', 'wajib')->where('kode', '!=', 'SIMPANAN_WAJIB');
+                })->orWhere(function ($subQuery): void {
+                    $subQuery->where('kategori', 'sukarela')->where('kode', '!=', 'SIMPANAN_SUKARELA');
+                })->orWhereNull('kode');
+            })
+            ->count();
+    }
+
+    private function jenisSimpananIntervalInvalid(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan') || ! Schema::hasColumn('jenis_simpanan', 'interval_bulan')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->where('kategori', 'wajib')
+            ->where(function ($query): void {
+                $query->whereNull('interval_bulan')
+                    ->orWhere('interval_bulan', '<', 1)
+                    ->orWhere('interval_bulan', '>', 12);
+            })
+            ->count();
+    }
+
+    private function jenisSimpananIntervalTerlarang(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan') || ! Schema::hasColumn('jenis_simpanan', 'interval_bulan')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->whereIn('kategori', ['pokok', 'sukarela'])
+            ->whereNotNull('interval_bulan')
+            ->count();
+    }
+
+    private function jenisSimpananNominalInvalid(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->whereIn('kategori', ['pokok', 'wajib'])
+            ->where(function ($query): void {
+                $query->whereNull('nominal_default')
+                    ->orWhere('nominal_default', '<=', 0);
+            })
+            ->count();
+    }
+
+    private function jenisSimpananCoaInvalid(): int
+    {
+        if (! $this->hasTables(['jenis_simpanan', 'akun']) || ! Schema::hasColumn('jenis_simpanan', 'akun_id')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan as js')
+            ->leftJoin('akun as a', 'a.id', '=', 'js.akun_id')
+            ->where('js.aktif', true)
+            ->whereIn('js.kategori', ['pokok', 'wajib', 'sukarela'])
+            ->where(function ($query): void {
+                $query->whereNull('a.id')
+                    ->orWhere('a.is_aktif', false)
+                    ->orWhere('a.posisi_saldo', '!=', 'kredit')
+                    ->orWhere(function ($subQuery): void {
+                        $subQuery->whereIn('js.kategori', ['pokok', 'wajib'])
+                            ->where('a.kategori', '!=', 'ekuitas');
+                    })
+                    ->orWhere(function ($subQuery): void {
+                        $subQuery->where('js.kategori', 'sukarela')
+                            ->where('a.kategori', '!=', 'kewajiban');
+                    });
+            })
+            ->count('js.id');
+    }
+
+    private function simpananReferenceInvalid(): int
+    {
+        if (! $this->hasTables(['simpanan', 'jenis_simpanan', 'anggota'])) {
+            return 0;
+        }
+
+        $query = DB::table('simpanan as s')
+            ->leftJoin('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')
+            ->leftJoin('anggota as a', 'a.id', '=', 's.anggota_id')
+            ->where(function ($query): void {
+                $query->whereNull('js.id')
+                    ->orWhereNull('s.anggota_id')
+                    ->orWhereNull('a.id');
+            });
+
+        $invalid = $query->count('s.id');
+
+        if ($this->hasTables(['mutasi_kas', 'dompet_koperasi'])) {
+            $invalid += DB::table('simpanan as s')
+                ->leftJoin('mutasi_kas as mk', function ($join): void {
+                    $join->on('mk.referensi_id', '=', 's.id')
+                        ->where('mk.referensi_tipe', '=', 'App\\Models\\Simpanan');
+                })
+                ->leftJoin('dompet_koperasi as d', 'd.id', '=', 'mk.dompet_id')
+                ->where('s.metode_pembayaran', 'tunai')
+                ->where('s.status', 'settled')
+                ->where(function ($query): void {
+                    $query->whereNull('mk.id')
+                        ->orWhereNull('d.id');
+                })
+                ->count('s.id');
+        }
+
+        return $invalid;
+    }
+
+    private function simpananPostingDompetMismatch(): int
+    {
+        if (! $this->hasTables(['simpanan', 'mutasi_kas', 'dompet_koperasi', 'akun', 'jurnal_umum', 'jurnal_umum_detail'])) {
+            return 0;
+        }
+
+        $query = DB::table('simpanan as s')
+            ->join('mutasi_kas as mk', function ($join): void {
+                $join->on('mk.referensi_id', '=', 's.id')
+                    ->where('mk.referensi_tipe', '=', 'App\\Models\\Simpanan');
+            })
+            ->join('dompet_koperasi as d', 'd.id', '=', 'mk.dompet_id')
+            ->leftJoin('jurnal_umum as ju', function ($join): void {
+                $join->on('ju.referensi_id', '=', 's.id')
+                    ->where('ju.referensi_tipe', '=', 'App\\Models\\Simpanan');
+            })
+            ->leftJoin('jurnal_umum_detail as debit', function ($join): void {
+                $join->on('debit.jurnal_umum_id', '=', 'ju.id')
+                    ->where('debit.debit', '>', 0);
+            })
+            ->leftJoin('jurnal_umum_detail as credit', function ($join): void {
+                $join->on('credit.jurnal_umum_id', '=', 'ju.id')
+                    ->where('credit.kredit', '>', 0);
+            })
+            ->whereIn('s.metode_pembayaran', ['tunai', 'transfer_bank'])
+            ->where('s.status', 'settled');
+
+        if (Schema::hasColumn('simpanan', 'jenis_transaksi')) {
+            $query->where(function ($query): void {
+                $query->where(function ($setoran): void {
+                    $setoran->where(function ($jenis): void {
+                        $jenis->whereNull('s.jenis_transaksi')
+                            ->orWhere('s.jenis_transaksi', 'setoran');
+                    })->where(function ($invalid): void {
+                        $invalid->whereNull('ju.id')
+                            ->orWhereNull('debit.id')
+                            ->orWhere('mk.tipe', '!=', 'masuk')
+                            ->orWhereColumn('debit.akun_id', '!=', 'd.akun_id')
+                            ->orWhereColumn('debit.debit', '!=', 'mk.jumlah');
+                    });
+                })->orWhere(function ($penarikan): void {
+                    $penarikan->where('s.jenis_transaksi', 'penarikan')
+                        ->where(function ($invalid): void {
+                            $invalid->whereNull('ju.id')
+                                ->orWhereNull('credit.id')
+                                ->orWhere('mk.tipe', '!=', 'keluar')
+                                ->orWhereColumn('credit.akun_id', '!=', 'd.akun_id')
+                                ->orWhereColumn('credit.kredit', '!=', 'mk.jumlah');
+                        });
+                });
+            });
+        } else {
+            $query->where('s.metode_pembayaran', 'tunai')
+                ->where(function ($query): void {
+                $query->whereNull('ju.id')
+                    ->orWhereNull('debit.id')
+                    ->orWhereColumn('debit.akun_id', '!=', 'd.akun_id')
+                    ->orWhereColumn('debit.debit', '!=', 'mk.jumlah');
+                });
+        }
+
+        return $query->count('s.id');
+    }
+
+    private function duplicateIdempotency(array $tables): int
+    {
+        $total = 0;
+
+        foreach ($tables as $table) {
+            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'idempotency_key')) {
+                continue;
+            }
+
+            $total += DB::table($table)
+                ->select('idempotency_key', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('idempotency_key')
+                ->groupBy('idempotency_key')
+                ->having('total', '>', 1)
+                ->get()
+                ->count();
+        }
+
+        return $total;
+    }
+
+    private function simpananPokokSnapshotHilang(): int
+    {
+        if (! Schema::hasTable('simpanan') || ! Schema::hasColumn('simpanan', 'kode_jenis_snapshot')) {
+            return 0;
+        }
+
+        return DB::table('simpanan')
+            ->where('kode_jenis_snapshot', 'SIMPANAN_POKOK')
+            ->where(function ($query): void {
+                $query->whereNull('nama_jenis_snapshot')
+                    ->orWhereNull('nominal_snapshot')
+                    ->orWhere('nominal_snapshot', '<=', 0);
+            })
+            ->count();
     }
 
     private function pinjamanPostingIssues(string $table): int

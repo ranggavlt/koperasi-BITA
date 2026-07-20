@@ -34,7 +34,7 @@
             width: calc(38% - 10px);
         }
     }
-    
+
     /* Custom Scrollbar for Cart to make it visible and elegant */
     #cartItemsContainer {
         overscroll-behavior: contain; /* Prevent scrolling the main page when reaching the end */
@@ -82,7 +82,7 @@
                 <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-bottom: 24px; width: 100%;" id="produkGrid">
                     @forelse($produk as $item)
                         <div class="produk-card bg-white cursor-pointer relative flex flex-col group hover:shadow-md transition-shadow" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);"
-                             data-id="{{ $item->id }}" 
+                             data-id="{{ $item->id }}"
                              data-kategori="{{ $item->kategori_id }}"
                              data-nama="{{ strtolower($item->nama_produk) }}"
                              onclick="addToCart({{ $item->id }}, '{{ addslashes($item->nama_produk) }}', {{ $item->harga_jual }}, {{ $item->stok }})">
@@ -95,7 +95,7 @@
                                 @endif
                                 <div class="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
-                            
+
                             <!-- Info Produk -->
                             <div class="flex flex-col flex-grow justify-between">
                                 <div>
@@ -121,7 +121,7 @@
 
             <!-- Bagian Keranjang (KANAN) -->
             <div class="pos-right" style="background-color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: sticky; top: 16px; align-self: flex-start; border: 1px solid #e2e8f0; border-radius: 16px; z-index: 20; max-height: calc(100vh - 40px);">
-                
+
                 <div style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 16px 16px 0 0; flex-shrink: 0;">
                     <h2 style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 0;"><i class="fas fa-shopping-cart" style="color: #059669; margin-right: 6px;"></i>Keranjang</h2>
                     <span id="cartCount" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background-color: #d1fae5; color: #047857;">0 Item</span>
@@ -164,7 +164,7 @@
 
                 <!-- Pembayaran & Total -->
                 <div style="padding: 12px 16px; background-color: white; border-top: 1px solid #e2e8f0; border-radius: 0 0 16px 16px;">
-                    
+
                     <!-- Pengaturan Form -->
                     <div style="margin-bottom: 12px;">
                         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
@@ -178,21 +178,21 @@
                             </div>
                             <div style="width: 50%;">
                                 <label style="display: block; font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Identitas</label>
-                                
+
                                 <select name="anggota_id" id="anggota_id" style="display: none; width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
                                     <option value="">Pilih Anggota...</option>
                                     @foreach($anggota as $ang)
                                         <option value="{{ $ang->id }}">{{ $ang->karyawan->nama ?? 'Tanpa Nama' }}</option>
                                     @endforeach
                                 </select>
-                                
+
                                 <select name="karyawan_id" id="karyawan_id" style="display: none; width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
                                     <option value="">Pilih Karyawan...</option>
                                     @foreach($karyawanNonAnggota as $kar)
                                         <option value="{{ $kar->id }}">{{ $kar->nama }}</option>
                                     @endforeach
                                 </select>
-                                
+
                                 <div id="identitas_umum" style="width: 100%; height: 32px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; color: #94a3b8;">
                                     Umum
                                 </div>
@@ -212,14 +212,14 @@
                             </div>
                             <div style="width: 50%;">
                                 <label style="display: block; font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Penyimpanan</label>
-                                
+
                                 <select name="dompet_id" id="dompet_id" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; color: #334155; outline: none; cursor: pointer;">
                                     <option value="">Pilih Dompet...</option>
                                     @foreach($dompets as $dompet)
                                         <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }}</option>
                                     @endforeach
                                 </select>
-                                
+
                                 <div id="dompet_payroll" style="display: none; width: 100%; height: 32px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; align-items: center; padding: 0 8px; font-size: 12px; color: #94a3b8;">
                                     Payroll
                                 </div>
@@ -230,12 +230,12 @@
                     <!-- Rincian Biaya -->
                     <div style="margin-bottom: 12px;">
                         <div style="border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-bottom: 8px;">
-                            
+
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <span style="font-size: 12px; color: #64748b; font-weight: 500;">Subtotal</span>
                                 <span style="font-size: 13px; font-weight: 700; color: #334155;" id="lbl_subtotal">Rp 0</span>
                             </div>
-                            
+
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <span style="font-size: 12px; color: #64748b; font-weight: 500;">Diskon</span>
                                 <div style="display: flex; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; height: 26px; width: 100px; overflow: hidden;">
@@ -251,7 +251,7 @@
                                     <input type="number" id="uang_diterima" oninput="calculateTotals()" style="width: 100%; height: 100%; border: none; background: transparent; text-align: right; padding-right: 6px; font-size: 13px; font-weight: 700; color: #059669; outline: none; box-shadow: none;" placeholder="0">
                                 </div>
                             </div>
-                            
+
                             <div id="kembalian_container" style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 12px; color: #64748b; font-weight: 500;">Kembalian</span>
                                 <span style="font-size: 13px; font-weight: 700; color: #334155;" id="lbl_kembalian">Rp 0</span>
@@ -283,7 +283,7 @@
 <style>
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    
+
     /* Elegant thin scrollbar for the cart items */
     #cartItemsContainer::-webkit-scrollbar {
         width: 6px;
@@ -391,10 +391,10 @@
     function renderCart() {
         let container = document.getElementById('cartItemsContainer');
         document.getElementById('cartCount').innerText = cart.length + ' Item';
-        
+
         // Reset subtotal at the start of renderCart so it becomes 0 when cart is empty
         subtotal = 0;
-        
+
         if(cart.length === 0) {
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center text-slate-400" style="height: 100%;">
@@ -438,7 +438,7 @@
             });
             container.innerHTML = html;
         }
-        
+
         calculateTotals();
         renderHiddenInputs();
     }
@@ -480,28 +480,34 @@
         let tipe = document.getElementById('tipe_pelanggan').value;
         let anggotaEl = document.getElementById('anggota_id');
         let karyawanEl = document.getElementById('karyawan_id');
-        
+
         anggotaEl.style.display = 'none';
         karyawanEl.style.display = 'none';
         document.getElementById('identitas_umum').style.display = 'none';
-        
-        let optPotongGaji = document.getElementById('opt_potong_gaji');
+
         let selMetode = document.getElementById('metode_pembayaran');
-        
+        let allowedForAnggota = ['tunai', 'potong_gaji'];
+        [...selMetode.options].forEach(option => {
+            let isAllowedForTipe = tipe === 'anggota'
+                ? allowedForAnggota.includes(option.value)
+                : option.value !== 'potong_gaji';
+            option.hidden = !isAllowedForTipe;
+            option.disabled = !isAllowedForTipe;
+            option.style.display = isAllowedForTipe ? '' : 'none';
+        });
+
         if(tipe === 'anggota') {
             anggotaEl.style.display = 'block';
             karyawanEl.value = "";
-            optPotongGaji.style.display = 'block';
+            if(!allowedForAnggota.includes(selMetode.value)) selMetode.value = 'tunai';
         } else if(tipe === 'karyawan') {
             karyawanEl.style.display = 'block';
             anggotaEl.value = "";
-            optPotongGaji.style.display = 'none';
             if(selMetode.value === 'potong_gaji') selMetode.value = 'tunai';
         } else {
             document.getElementById('identitas_umum').style.display = 'flex';
             anggotaEl.value = "";
             karyawanEl.value = "";
-            optPotongGaji.style.display = 'none';
             if(selMetode.value === 'potong_gaji') selMetode.value = 'tunai';
         }
         updateDompetState();
@@ -510,7 +516,7 @@
     function updateDompetState() {
         let tipe = document.getElementById('tipe_pelanggan').value;
         let selMetode = document.getElementById('metode_pembayaran');
-        
+
         if(selMetode.value === 'potong_gaji') {
             document.getElementById('dompet_id').style.display = 'none';
             document.getElementById('dompet_id').value = "";
@@ -533,7 +539,7 @@
             showError('Keranjang belanja kosong!');
             return;
         }
-        
+
         let tipe = document.getElementById('tipe_pelanggan').value;
         if(tipe === 'anggota' && document.getElementById('anggota_id').value === '') {
             showError('Silakan pilih Anggota!');
@@ -543,8 +549,12 @@
             showError('Silakan pilih Karyawan!');
             return;
         }
-        
+
         let metode = document.getElementById('metode_pembayaran').value;
+        if(tipe === 'anggota' && !['tunai', 'potong_gaji'].includes(metode)) {
+            showError('Anggota hanya dapat memilih Tunai atau Potong Gaji.');
+            return;
+        }
         if(metode !== 'potong_gaji' && document.getElementById('dompet_id').value === '') {
             showError('Silakan pilih Dompet Penyimpanan!');
             return;

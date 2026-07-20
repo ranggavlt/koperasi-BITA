@@ -19,10 +19,23 @@ class MutasiKasService
 
     public function record(array $data): MutasiKas
     {
+        $idempotencyKey = $data['idempotency_key'] ?? null;
+
+        if (is_string($idempotencyKey) && trim($idempotencyKey) !== '') {
+            $existing = MutasiKas::query()
+                ->where('idempotency_key', trim($idempotencyKey))
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         $dompet = $this->resolveDompet($data['dompet_id'] ?? null);
-        $jumlah = round((float) $data['jumlah'], 2);
+        $jumlah = $this->rupiahDecimal($data['jumlah']);
 
         $mutasi = MutasiKas::create([
+            'idempotency_key' => is_string($idempotencyKey) && trim($idempotencyKey) !== '' ? trim($idempotencyKey) : null,
             'dompet_id' => $dompet->id,
             'tipe' => $data['tipe'],
             'jumlah' => $jumlah,
@@ -65,7 +78,9 @@ class MutasiKasService
             throw new RuntimeException('Dompet wajib ditentukan secara eksplisit untuk mencatat Mutasi Kas & Bank.');
         }
 
-        $dompet = DompetKoperasi::find($dompetId);
+        $dompet = DompetKoperasi::query()
+            ->lockForUpdate()
+            ->find($dompetId);
 
         if (! $dompet) {
             throw new RuntimeException('Dompet koperasi yang dipilih tidak ditemukan untuk mencatat Mutasi Kas & Bank.');
@@ -74,26 +89,54 @@ class MutasiKasService
         return $dompet;
     }
 
-    protected function applySaldo(DompetKoperasi $dompet, string $tipe, float $jumlah): void
+    protected function applySaldo(DompetKoperasi $dompet, string $tipe, int|string $jumlah): void
     {
+        $jumlahInt = $this->rupiahInt($jumlah);
+        $saldoInt = $this->rupiahInt($dompet->saldo);
         $saldoBaru = $tipe === 'masuk'
-            ? (float) $dompet->saldo + $jumlah
-            : (float) $dompet->saldo - $jumlah;
+            ? $saldoInt + $jumlahInt
+            : $saldoInt - $jumlahInt;
 
         $dompet->update([
-            'saldo' => round($saldoBaru, 2),
+            'saldo' => $this->rupiahDecimal($saldoBaru),
         ]);
     }
 
-    protected function reverseSaldo(DompetKoperasi $dompet, string $tipe, float $jumlah): void
+    protected function reverseSaldo(DompetKoperasi $dompet, string $tipe, float|int|string $jumlah): void
     {
+        $jumlahInt = $this->rupiahInt($jumlah);
+        $saldoInt = $this->rupiahInt($dompet->saldo);
         $saldoBaru = $tipe === 'masuk'
-            ? (float) $dompet->saldo - $jumlah
-            : (float) $dompet->saldo + $jumlah;
+            ? $saldoInt - $jumlahInt
+            : $saldoInt + $jumlahInt;
 
         $dompet->update([
-            'saldo' => round($saldoBaru, 2),
+            'saldo' => $this->rupiahDecimal($saldoBaru),
         ]);
+    }
+
+    private function rupiahInt(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        $string = trim((string) $value);
+
+        if ($string === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\d+(\.\d{1,2})?$/', $string) === 1) {
+            return (int) explode('.', $string)[0];
+        }
+
+        return (int) preg_replace('/[^\d]/', '', $string);
+    }
+
+    private function rupiahDecimal(mixed $value): string
+    {
+        return number_format($this->rupiahInt($value), 2, '.', '');
     }
 
     protected function backfillPenjualan(): void

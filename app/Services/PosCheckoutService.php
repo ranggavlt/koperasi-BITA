@@ -25,7 +25,8 @@ class PosCheckoutService
 {
     public function __construct(
         private readonly AkuntansiService $akuntansiService,
-        private readonly PotongGajiBulananService $potongGajiService
+        private readonly PotongGajiBulananService $potongGajiService,
+        private readonly SimpananWajibService $simpananWajibService
     ) {
     }
 
@@ -52,6 +53,12 @@ class PosCheckoutService
                 if ($tipe !== Penjualan::TIPE_ANGGOTA && $metode === Pembayaran::METODE_POTONG_GAJI) {
                     throw ValidationException::withMessages([
                         'metode_pembayaran' => 'Potong Gaji hanya boleh digunakan untuk pelanggan Anggota aktif.',
+                    ]);
+                }
+
+                if ($tipe === Penjualan::TIPE_ANGGOTA && ! in_array($metode, [Pembayaran::METODE_TUNAI, Pembayaran::METODE_POTONG_GAJI], true)) {
+                    throw ValidationException::withMessages([
+                        'metode_pembayaran' => 'Anggota aktif hanya dapat memilih Tunai atau Potong Gaji pada POS.',
                     ]);
                 }
 
@@ -154,7 +161,7 @@ class PosCheckoutService
 
         if ($karyawan->anggota?->status === Anggota::STATUS_AKTIF) {
             throw ValidationException::withMessages([
-                'karyawan_id' => 'Karyawan yang masih Anggota aktif wajib bertransaksi sebagai Anggota melalui potong gaji.',
+                'karyawan_id' => 'Karyawan yang masih Anggota aktif wajib bertransaksi sebagai Anggota.',
             ]);
         }
 
@@ -194,6 +201,12 @@ class PosCheckoutService
         if ($limit->status !== \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE) {
             throw ValidationException::withMessages([
                 'limit' => 'Limit potong gaji bulan ini belum active.',
+            ]);
+        }
+
+        if ($this->simpananWajibService->hasBlockingOutstandingBeforePos($anggota, $tanggal)) {
+            throw ValidationException::withMessages([
+                'limit' => 'Simpanan Wajib jatuh tempo harus dialokasikan penuh sebelum POS potong gaji.',
             ]);
         }
 

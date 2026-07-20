@@ -5,6 +5,7 @@ use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\KategoriProdukController;
 use App\Http\Controllers\KasirController;
 use App\Http\Controllers\JenisSimpananController;
+use App\Http\Controllers\JadwalSimpananWajibController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\JenisPinjamanController;
 use App\Http\Controllers\DompetKoperasiController;
@@ -31,7 +32,6 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnggotaController;
 use App\Http\Controllers\AsetMobilController;
 use App\Http\Controllers\AsetPrinterController;
-use App\Http\Controllers\KaryawanSewaMobilController;
 use App\Http\Controllers\PeriodePotongGajiController;
 use App\Http\Controllers\OutstandingCashController;
 use App\Http\Controllers\RekonsiliasiPotongGajiController;
@@ -69,7 +69,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,admin'
 
 Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->group(function () {
     // MANAJEMEN USER (Hak Akses Login)
-    Route::resource('users', UserController::class)->except(['create', 'show', 'edit']);
+    Route::resource('users', UserController::class)->except(['create', 'show', 'edit', 'destroy']);
     Route::patch('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     Route::patch('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
 
@@ -81,12 +81,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     // RESELLER (Konsinyasi)
     Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
-    Route::get('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'index'])
-        ->name('pembayaran-konsinyasi.index');
-    Route::post('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'store'])
-        ->name('pembayaran-konsinyasi.store');
 
-    Route::resource('jenis-simpanan', JenisSimpananController::class)->except(['create', 'show']);
+    Route::resource('jenis-simpanan', JenisSimpananController::class)->except(['show']);
 
     Route::resource('jenis-pinjaman', JenisPinjamanController::class)->except(['create', 'show']);
 
@@ -101,14 +97,16 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::patch('/aset-mobil/{aset}/aktifkan', [AsetMobilController::class, 'aktifkan'])->name('aset-mobil.aktifkan');
     Route::delete('/aset-mobil/{aset}', [AsetMobilController::class, 'destroy'])->name('aset-mobil.destroy');
 
-    Route::get('/aset-printer', [AsetPrinterController::class, 'index'])->name('aset-printer.index');
-    Route::post('/aset-printer', [AsetPrinterController::class, 'store'])->name('aset-printer.store');
-    Route::get('/aset-printer/{aset}/edit', [AsetPrinterController::class, 'edit'])->name('aset-printer.edit');
-    Route::put('/aset-printer/{aset}', [AsetPrinterController::class, 'update'])->name('aset-printer.update');
-    Route::patch('/aset-printer/{aset}/status', [AsetPrinterController::class, 'updateStatus'])->name('aset-printer.status');
-    Route::patch('/aset-printer/{aset}/nonaktifkan', [AsetPrinterController::class, 'nonaktifkan'])->name('aset-printer.nonaktifkan');
-    Route::patch('/aset-printer/{aset}/aktifkan', [AsetPrinterController::class, 'aktifkan'])->name('aset-printer.aktifkan');
-    Route::delete('/aset-printer/{aset}', [AsetPrinterController::class, 'destroy'])->name('aset-printer.destroy');
+    Route::middleware('feature:master_printer_enabled')->group(function (): void {
+        Route::get('/aset-printer', [AsetPrinterController::class, 'index'])->name('aset-printer.index');
+        Route::post('/aset-printer', [AsetPrinterController::class, 'store'])->name('aset-printer.store');
+        Route::get('/aset-printer/{aset}/edit', [AsetPrinterController::class, 'edit'])->name('aset-printer.edit');
+        Route::put('/aset-printer/{aset}', [AsetPrinterController::class, 'update'])->name('aset-printer.update');
+        Route::patch('/aset-printer/{aset}/status', [AsetPrinterController::class, 'updateStatus'])->name('aset-printer.status');
+        Route::patch('/aset-printer/{aset}/nonaktifkan', [AsetPrinterController::class, 'nonaktifkan'])->name('aset-printer.nonaktifkan');
+        Route::patch('/aset-printer/{aset}/aktifkan', [AsetPrinterController::class, 'aktifkan'])->name('aset-printer.aktifkan');
+        Route::delete('/aset-printer/{aset}', [AsetPrinterController::class, 'destroy'])->name('aset-printer.destroy');
+    });
 
     Route::resource('pengurus-koperasi', PengurusKoperasiController::class)
         ->only(['index', 'store', 'edit', 'update']);
@@ -117,7 +115,11 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::patch('/pengurus-koperasi/{pengurusKoperasi}/aktifkan', [PengurusKoperasiController::class, 'activate'])
         ->name('pengurus-koperasi.activate');
 
-    Route::resource('simpanan', SimpananController::class)->only(['index', 'store']);
+    Route::get('/simpanan/saldo-sukarela/{anggota}', [SimpananController::class, 'saldoSukarela'])
+        ->name('simpanan.saldo-sukarela');
+    Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
+    Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
+        ->name('jadwal-simpanan-wajib.index');
 
     Route::resource('pinjaman', PinjamanController::class)->only(['index', 'store', 'show']);
     Route::post('/pinjaman/{pinjaman}/bayar-tunai-terjadwal', [PinjamanController::class, 'payCashSchedule'])
@@ -148,6 +150,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     // Master data Karyawan dan Anggota
     Route::resource('karyawan', KaryawanController::class)->except(['create', 'show']);
+    Route::post('/karyawan/{karyawan}/akun', [KaryawanController::class, 'createAccount'])->name('karyawan.akun.store');
+    Route::patch('/karyawan/{karyawan}/akun/password', [KaryawanController::class, 'resetAccountPassword'])->name('karyawan.akun.password');
+    Route::patch('/karyawan/{karyawan}/akun/aktifkan', [KaryawanController::class, 'activateAccount'])->name('karyawan.akun.activate');
+    Route::patch('/karyawan/{karyawan}/akun/nonaktifkan', [KaryawanController::class, 'deactivateAccount'])->name('karyawan.akun.deactivate');
 
     Route::resource('anggota', AnggotaController::class)
         ->parameters(['anggota' => 'anggota'])
@@ -191,6 +197,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/penyelesaian-keanggotaan', [PenyelesaianKeanggotaanController::class, 'index'])
         ->name('penyelesaian-keanggotaan.index');
+    Route::get('/penyelesaian-keanggotaan/{penyelesaian}', [PenyelesaianKeanggotaanController::class, 'show'])
+        ->name('penyelesaian-keanggotaan.show');
     Route::post('/penyelesaian-keanggotaan/{penyelesaian}/refresh', [PenyelesaianKeanggotaanController::class, 'refresh'])
         ->name('penyelesaian-keanggotaan.refresh');
     Route::post('/penyelesaian-keanggotaan/{penyelesaian}/process-offset', [PenyelesaianKeanggotaanController::class, 'processOffset'])
@@ -202,6 +210,16 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/sewa-mobil', [FinanceSewaMobilController::class, 'index'])
         ->name('sewa-mobil.finance.index');
+    Route::get('/sewa-mobil/create', [FinanceSewaMobilController::class, 'create'])
+        ->name('sewa-mobil.finance.create');
+    Route::post('/sewa-mobil', [FinanceSewaMobilController::class, 'store'])
+        ->name('sewa-mobil.finance.store');
+    Route::get('/sewa-mobil/{sewaMobil}/edit', [FinanceSewaMobilController::class, 'edit'])
+        ->name('sewa-mobil.finance.edit');
+    Route::put('/sewa-mobil/{sewaMobil}', [FinanceSewaMobilController::class, 'update'])
+        ->name('sewa-mobil.finance.update');
+    Route::post('/sewa-mobil/{sewaMobil}/submit', [FinanceSewaMobilController::class, 'submit'])
+        ->name('sewa-mobil.finance.submit');
     Route::post('/sewa-mobil/{sewaMobil}/approve', [FinanceSewaMobilController::class, 'approve'])
         ->name('sewa-mobil.finance.approve');
     Route::post('/sewa-mobil/{sewaMobil}/reject', [FinanceSewaMobilController::class, 'reject'])
@@ -217,6 +235,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/sewa-printer', [FinanceSewaPrinterController::class, 'index'])
         ->name('sewa-printer.index');
+    Route::get('/sewa-printer/create', [FinanceSewaPrinterController::class, 'create'])
+        ->name('sewa-printer.create');
     Route::post('/sewa-printer', [FinanceSewaPrinterController::class, 'store'])
         ->name('sewa-printer.store');
     Route::get('/sewa-printer/{sewaPrinter}/edit', [FinanceSewaPrinterController::class, 'edit'])
@@ -236,6 +256,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/beban-operasional', [FinanceBebanOperasionalController::class, 'index'])
         ->name('beban-operasional.index');
+    Route::get('/beban-operasional/create', [FinanceBebanOperasionalController::class, 'create'])
+        ->name('beban-operasional.create');
     Route::post('/beban-operasional', [FinanceBebanOperasionalController::class, 'store'])
         ->name('beban-operasional.store');
     Route::get('/beban-operasional/{bebanOperasional}/edit', [FinanceBebanOperasionalController::class, 'edit'])
@@ -258,23 +280,12 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::get('/akuntansi/buku-besar', [BukuBesarController::class, 'index'])->name('akuntansi.buku-besar');
 });
 
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:karyawan'])->group(function () {
-    Route::get('/pengajuan-sewa-mobil', [KaryawanSewaMobilController::class, 'index'])
-        ->name('sewa-mobil.karyawan.index');
-    Route::post('/pengajuan-sewa-mobil', [KaryawanSewaMobilController::class, 'store'])
-        ->name('sewa-mobil.karyawan.store');
-    Route::get('/pengajuan-sewa-mobil/{sewaMobil}/edit', [KaryawanSewaMobilController::class, 'edit'])
-        ->name('sewa-mobil.karyawan.edit');
-    Route::put('/pengajuan-sewa-mobil/{sewaMobil}', [KaryawanSewaMobilController::class, 'update'])
-        ->name('sewa-mobil.karyawan.update');
-    Route::post('/pengajuan-sewa-mobil/{sewaMobil}/ajukan', [KaryawanSewaMobilController::class, 'submit'])
-        ->name('sewa-mobil.karyawan.submit');
-    Route::post('/pengajuan-sewa-mobil/{sewaMobil}/batalkan', [KaryawanSewaMobilController::class, 'cancel'])
-        ->name('sewa-mobil.karyawan.cancel');
-});
-
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,admin'])->group(function () {
     // LAPORAN KONSINYASI (operasional, boleh kasir & keuangan)
     Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
         ->name('konsinyasi.report');
+    Route::get('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'index'])
+        ->name('pembayaran-konsinyasi.index');
+    Route::post('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'store'])
+        ->name('pembayaran-konsinyasi.store');
 });

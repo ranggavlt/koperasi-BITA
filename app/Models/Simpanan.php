@@ -12,6 +12,12 @@ class Simpanan extends Model
 
     public const METODE_TUNAI = 'tunai';
 
+    public const METODE_TRANSFER_BANK = 'transfer_bank';
+
+    public const JENIS_SETORAN = 'setoran';
+
+    public const JENIS_PENARIKAN = 'penarikan';
+
     public const STATUS_PENDING_PAYROLL = 'pending_payroll';
 
     public const STATUS_ALLOCATED = 'allocated';
@@ -32,9 +38,11 @@ class Simpanan extends Model
 
     protected $fillable = [
         'idempotency_key',
+        'kode_transaksi',
         'karyawan_id',
         'anggota_id',
         'pemakaian_potong_gaji_id',
+        'jadwal_simpanan_wajib_id',
         'reversal_transaksi_id',
         'replacement_simpanan_id',
         'simpanan_pokok_anggota_id',
@@ -46,6 +54,11 @@ class Simpanan extends Model
         'nama_jenis_snapshot',
         'nominal_snapshot',
         'jumlah',
+        'jenis_transaksi',
+        'dompet_id',
+        'saldo_sebelum_snapshot',
+        'saldo_sesudah_snapshot',
+        'nomor_referensi',
         'metode_pembayaran',
         'status',
         'tanggal',
@@ -57,6 +70,8 @@ class Simpanan extends Model
     protected $casts = [
         'jumlah' => 'decimal:2',
         'nominal_snapshot' => 'decimal:2',
+        'saldo_sebelum_snapshot' => 'decimal:2',
+        'saldo_sesudah_snapshot' => 'decimal:2',
         'tanggal' => 'date',
         'settled_at' => 'datetime',
     ];
@@ -99,6 +114,11 @@ class Simpanan extends Model
         return $this->belongsTo(JenisSimpanan::class);
     }
 
+    public function dompet()
+    {
+        return $this->belongsTo(DompetKoperasi::class, 'dompet_id');
+    }
+
     public function mutasiKas()
     {
         return $this->hasOne(MutasiKas::class, 'referensi_id')
@@ -108,6 +128,11 @@ class Simpanan extends Model
     public function ledger()
     {
         return $this->belongsTo(PemakaianPotongGaji::class, 'pemakaian_potong_gaji_id');
+    }
+
+    public function jadwalSimpananWajib()
+    {
+        return $this->belongsTo(JadwalSimpananWajib::class, 'jadwal_simpanan_wajib_id');
     }
 
     public function jurnal()
@@ -140,5 +165,43 @@ class Simpanan extends Model
     {
         return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_POKOK
             || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_POKOK;
+    }
+
+    public function isSimpananWajib(): bool
+    {
+        return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_WAJIB
+            || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_WAJIB
+            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_WAJIB;
+    }
+
+    public function isSimpananSukarela(): bool
+    {
+        return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_SUKARELA
+            || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_SUKARELA
+            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_SUKARELA;
+    }
+
+    public function getJenisTransaksiLabelAttribute(): string
+    {
+        return match ($this->jenis_transaksi) {
+            self::JENIS_SETORAN => 'Setoran',
+            self::JENIS_PENARIKAN => 'Penarikan',
+            default => '-',
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING_PAYROLL => 'Pending Payroll',
+            self::STATUS_ALLOCATED => 'Dialokasikan',
+            self::STATUS_SETTLED => 'Posted',
+            self::STATUS_OUTSTANDING_CASH => 'Outstanding Tunai',
+            self::STATUS_SETTLED_CASH => 'Lunas Tunai',
+            self::STATUS_REVERSED => 'Dikoreksi',
+            self::STATUS_REVERSED_DUE_TO_EXIT => 'Dikoreksi Keluar Anggota',
+            self::STATUS_SETTLED_OFFSET => 'Diselesaikan Offset',
+            default => str_replace('_', ' ', (string) $this->status),
+        };
     }
 }

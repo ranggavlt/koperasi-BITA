@@ -2,11 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AsetKoperasi;
-use App\Models\PembayaranSewaPrinter;
 use App\Models\SewaPrinter;
 use App\Models\SewaPrinterDetail;
-use App\Services\AsetKoperasiService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -15,40 +12,30 @@ class PreflightSewaPrinterCommand extends Command
 {
     protected $signature = 'koperasi:preflight-sewa-printer';
 
-    protected $description = 'Audit read-only kesiapan data transaksi Sewa Printer Koperasi.';
+    protected $description = 'Audit read-only kesiapan transaksi Sewa Printer vendor-based.';
 
-    public function handle(AsetKoperasiService $asetService): int
+    public function handle(): int
     {
         $checks = [
-            $this->check('kontrak_tanpa_detail', 'Kontrak Sewa Printer tanpa detail', $this->contractWithoutDetails()),
-            $this->check('detail_duplikat', 'Detail Printer duplikat dalam satu kontrak', $this->duplicateDetails()),
-            $this->check('detail_bukan_printer', 'Detail menunjuk aset bukan Printer', $this->detailNotPrinter()),
-            $this->check('detail_orphan', 'Detail Sewa Printer orphan', $this->detailOrphan()),
-            $this->check('pic_invalid', 'PIC tidak valid atau bukan Karyawan aktif', $this->invalidPic()),
-            $this->check('snapshot_perusahaan_kosong', 'Snapshot perusahaan penyewa kosong', $this->emptyCompanySnapshot()),
-            $this->check('periode_invalid', 'Tanggal mulai setelah tanggal selesai', $this->invalidPeriod()),
-            $this->check('kontrak_overlap', 'Kontrak Sewa Printer overlap pada aset yang sama', $this->overlap()),
-            $this->check('harga_dasar_invalid', 'Harga dasar nol/negatif', $this->invalidBasePrice()),
-            $this->check('margin_persen_invalid', 'Margin persen bukan 15%', $this->invalidMarginPercent()),
-            $this->check('margin_nominal_salah', 'Margin nominal tidak sesuai 15% half-up', $this->invalidMarginNominal()),
-            $this->check('total_detail_salah', 'Total detail tidak sama harga dasar + margin', $this->invalidDetailTotal()),
-            $this->check('total_header_salah', 'Total header tidak sama jumlah detail', $this->invalidHeaderTotals()),
-            $this->check('pembayaran_sebagian', 'Pembayaran sebagian atau tidak sama grand total', $this->partialPayment()),
-            $this->check('metode_dompet_mismatch', 'Metode pembayaran dan jenis Dompet tidak cocok', $this->methodDompetMismatch()),
-            $this->check('pembayaran_tanpa_posting', 'Pembayaran tanpa Mutasi/Jurnal', $this->paymentWithoutPosting()),
-            $this->check('jurnal_pembayaran_salah', 'Jurnal pembayaran tidak memakai Pendapatan Diterima Dimuka', $this->paymentJournalWithoutDeferredRevenue()),
-            $this->check('pendapatan_sebelum_selesai', 'Pendapatan diakui sebelum kontrak selesai', $this->revenueBeforeCompleted()),
-            $this->check('berjalan_belum_paid', 'Kontrak berjalan belum paid', $this->runningNotPaid()),
-            $this->check('printer_berjalan_status_salah', 'Printer berjalan tetapi status bukan digunakan/disewa', $this->runningAssetWrongStatus()),
-            $this->check('selesai_printer_masih_used', 'Kontrak selesai tetapi Printer masih digunakan/disewa tanpa kontrak lain', $this->completedAssetStillUsedWithoutRunning()),
-            $this->check('jurnal_selesai_salah', 'Jurnal selesai tidak memisahkan dasar dan margin', $this->completedJournalNotSplit()),
-            $this->check('refund_ganda', 'Refund Sewa Printer ganda', $this->duplicateRefund()),
-            $this->check('ledger_payroll_sewa_printer', 'Sewa Printer membuat ledger payroll', $this->payrollLedgerForSewaPrinter()),
-            $this->check('aset_transaksi_masih_deletable', 'Aset dengan histori Sewa Printer masih dapat dihapus', $this->assetWithSewaStillDeletable($asetService)),
+            $this->check('schema_legacy', 'Schema Sewa Printer masih memakai struktur aset printer legacy', $this->legacySchemaIssues()),
+            $this->check('kode_invalid', 'Kode Sewa Printer tidak sesuai format SWP-YYYYMM-000001', $this->invalidKode()),
+            $this->check('karyawan_nonaktif', 'Sewa Printer milik Karyawan nonaktif/berhenti', $this->inactiveEmployees()),
+            $this->check('vendor_snapshot_missing', 'Snapshot vendor tidak lengkap', $this->missingVendorSnapshot()),
+            $this->check('detail_missing', 'Kontrak Sewa Printer tanpa detail kebutuhan', $this->withoutDetails()),
+            $this->check('detail_invalid', 'Detail Sewa Printer tidak valid atau subtotal tidak konsisten', $this->invalidDetails()),
+            $this->check('header_total_invalid', 'Total header Sewa Printer tidak sama dengan detail', $this->invalidHeaderTotals()),
+            $this->check('paid_tanpa_pembayaran', 'Sewa Printer paid tanpa pembayaran', $this->paidWithoutPayment()),
+            $this->check('pembayaran_invalid', 'Nominal pembayaran printer tidak sama dengan snapshot tagihan/vendor', $this->invalidPayments()),
+            $this->check('dompet_invalid', 'Dompet pembayaran printer tidak sesuai metode atau COA', $this->invalidPaymentDompets()),
+            $this->check('mutasi_missing', 'Pembayaran printer tanpa Mutasi masuk/keluar resmi', $this->paymentWithoutMutasi()),
+            $this->check('jurnal_missing', 'Pembayaran printer tanpa Jurnal penerimaan/vendor resmi', $this->paymentWithoutJournals()),
+            $this->check('jurnal_pengakuan_missing', 'Sewa Printer selesai tanpa Jurnal pengakuan margin', $this->completedWithoutRevenueJournal()),
+            $this->check('akun_405_dipakai_baru', 'Transaksi Sewa Printer baru masih memakai akun legacy 405', $this->newTransactionsUsingLegacyRevenueAccount()),
+            $this->check('jurnal_unbalanced', 'Jurnal Sewa Printer tidak balance', $this->unbalancedJournals()),
         ];
 
         $this->newLine();
-        $this->info('Ringkasan preflight Sewa Printer');
+        $this->info('Ringkasan preflight Sewa Printer (read-only)');
         $this->table(
             ['Kode', 'Pemeriksaan', 'Count', 'Severity'],
             array_map(fn (array $check) => [
@@ -64,12 +51,12 @@ class PreflightSewaPrinterCommand extends Command
             ->count();
 
         if ($criticalCount > 0) {
-            $this->error('Preflight Sewa Printer menemukan konflik kritis. Command ini hanya membaca database.');
+            $this->error('Preflight Sewa Printer menemukan konflik kritis. Command ini tidak menulis database.');
 
             return self::FAILURE;
         }
 
-        $this->info('Preflight Sewa Printer bersih: tidak ada konflik kritis yang terdeteksi.');
+        $this->info('Preflight Sewa Printer bersih.');
 
         return self::SUCCESS;
     }
@@ -79,9 +66,89 @@ class PreflightSewaPrinterCommand extends Command
         return compact('code', 'label', 'count', 'critical');
     }
 
-    private function contractWithoutDetails(): int
+    private function legacySchemaIssues(): int
     {
-        if (! $this->hasTables(['sewa_printer', 'sewa_printer_detail'])) {
+        if (! Schema::hasTable('sewa_printer')) {
+            return 0;
+        }
+
+        $requiredHeader = [
+            'karyawan_id',
+            'vendor_nama',
+            'vendor_kontak',
+            'vendor_alamat',
+            'total_harga_vendor',
+            'total_margin',
+            'total_tagihan_perusahaan',
+            'recorded_by',
+        ];
+        $legacyHeader = ['karyawan_pic_id', 'total_harga_dasar', 'grand_total', 'aset_koperasi_id', 'aset_printer_id'];
+        $requiredDetail = [
+            'jenis_model_printer',
+            'kuantitas',
+            'harga_vendor_per_unit',
+            'margin_per_unit',
+            'harga_tagihan_per_unit',
+            'subtotal_harga_vendor',
+            'subtotal_margin',
+            'subtotal_tagihan',
+        ];
+        $legacyDetail = ['aset_koperasi_id', 'kode_aset_snapshot', 'nomor_seri_snapshot', 'harga_dasar', 'margin_nominal', 'total_harga'];
+        $requiredPayment = ['dompet_penerimaan_id', 'dompet_vendor_id', 'metode_penerimaan', 'metode_pembayaran_vendor', 'jumlah_diterima', 'jumlah_bayar_vendor'];
+        $legacyPayment = ['dompet_id', 'metode_pembayaran', 'jumlah_bayar', 'refunded_at'];
+
+        return collect($requiredHeader)->filter(fn (string $column): bool => ! Schema::hasColumn('sewa_printer', $column))->count()
+            + collect($legacyHeader)->filter(fn (string $column): bool => Schema::hasColumn('sewa_printer', $column))->count()
+            + collect($requiredDetail)->filter(fn (string $column): bool => ! Schema::hasColumn('sewa_printer_detail', $column))->count()
+            + collect($legacyDetail)->filter(fn (string $column): bool => Schema::hasColumn('sewa_printer_detail', $column))->count()
+            + collect($requiredPayment)->filter(fn (string $column): bool => ! Schema::hasColumn('pembayaran_sewa_printer', $column))->count()
+            + collect($legacyPayment)->filter(fn (string $column): bool => Schema::hasColumn('pembayaran_sewa_printer', $column))->count();
+    }
+
+    private function invalidKode(): int
+    {
+        if (! $this->hasColumns('sewa_printer', ['kode_sewa'])) {
+            return 0;
+        }
+
+        return DB::table('sewa_printer')
+            ->pluck('kode_sewa')
+            ->filter(fn ($kode): bool => preg_match('/^SWP-[0-9]{6}-[0-9]{6}$/', (string) $kode) !== 1)
+            ->count();
+    }
+
+    private function inactiveEmployees(): int
+    {
+        if (! $this->hasColumns('sewa_printer', ['karyawan_id']) || ! $this->hasColumns('karyawan', ['status_kerja'])) {
+            return 0;
+        }
+
+        return DB::table('sewa_printer as s')
+            ->join('karyawan as k', 'k.id', '=', 's.karyawan_id')
+            ->where('k.status_kerja', '!=', 'aktif')
+            ->count('s.id');
+    }
+
+    private function missingVendorSnapshot(): int
+    {
+        if (! $this->hasColumns('sewa_printer', ['vendor_nama', 'vendor_kontak', 'vendor_alamat'])) {
+            return 0;
+        }
+
+        return DB::table('sewa_printer')
+            ->where(fn ($query) => $query
+                ->whereNull('vendor_nama')
+                ->orWhere('vendor_nama', '')
+                ->orWhereNull('vendor_kontak')
+                ->orWhere('vendor_kontak', '')
+                ->orWhereNull('vendor_alamat')
+                ->orWhere('vendor_alamat', ''))
+            ->count();
+    }
+
+    private function withoutDetails(): int
+    {
+        if (! $this->hasColumns('sewa_printer', ['id']) || ! $this->hasColumns('sewa_printer_detail', ['sewa_printer_id'])) {
             return 0;
         }
 
@@ -91,402 +158,199 @@ class PreflightSewaPrinterCommand extends Command
             ->count('s.id');
     }
 
-    private function duplicateDetails(): int
+    private function invalidDetails(): int
     {
-        if (! Schema::hasTable('sewa_printer_detail')) {
+        if (! $this->hasColumns('sewa_printer_detail', [
+            'jenis_model_printer',
+            'kuantitas',
+            'harga_vendor_per_unit',
+            'margin_persen_snapshot',
+            'margin_per_unit',
+            'harga_tagihan_per_unit',
+            'subtotal_harga_vendor',
+            'subtotal_margin',
+            'subtotal_tagihan',
+        ])) {
             return 0;
         }
 
         return DB::table('sewa_printer_detail')
-            ->select('sewa_printer_id', 'aset_koperasi_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('sewa_printer_id', 'aset_koperasi_id')
-            ->having('total', '>', 1)
             ->get()
-            ->count();
-    }
+            ->filter(function ($row): bool {
+                $qty = (int) $row->kuantitas;
+                $price = (int) $row->harga_vendor_per_unit;
+                $margin = intdiv(($price * SewaPrinterDetail::MARGIN_PERSEN) + 50, 100);
+                $tagihan = $price + $margin;
 
-    private function detailNotPrinter(): int
-    {
-        if (! $this->hasTables(['sewa_printer_detail', 'aset_koperasi', 'aset_printer'])) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer_detail as d')
-            ->join('aset_koperasi as a', 'a.id', '=', 'd.aset_koperasi_id')
-            ->leftJoin('aset_printer as p', 'p.aset_koperasi_id', '=', 'a.id')
-            ->where(function ($query): void {
-                $query->where('a.jenis_aset', '!=', AsetKoperasi::JENIS_PRINTER)
-                    ->orWhereNull('p.id');
+                return trim((string) $row->jenis_model_printer) === ''
+                    || $qty <= 0
+                    || $price <= 0
+                    || (int) $row->margin_persen_snapshot !== SewaPrinterDetail::MARGIN_PERSEN
+                    || (int) $row->margin_per_unit !== $margin
+                    || (int) $row->harga_tagihan_per_unit !== $tagihan
+                    || (int) $row->subtotal_harga_vendor !== $price * $qty
+                    || (int) $row->subtotal_margin !== $margin * $qty
+                    || (int) $row->subtotal_tagihan !== $tagihan * $qty;
             })
-            ->count('d.id');
-    }
-
-    private function detailOrphan(): int
-    {
-        if (! $this->hasTables(['sewa_printer_detail', 'sewa_printer', 'aset_koperasi'])) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer_detail as d')
-            ->leftJoin('sewa_printer as s', 's.id', '=', 'd.sewa_printer_id')
-            ->leftJoin('aset_koperasi as a', 'a.id', '=', 'd.aset_koperasi_id')
-            ->where(function ($query): void {
-                $query->whereNull('s.id')->orWhereNull('a.id');
-            })
-            ->count('d.id');
-    }
-
-    private function invalidPic(): int
-    {
-        if (! $this->hasTables(['sewa_printer', 'karyawan'])) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer as s')
-            ->leftJoin('karyawan as k', 'k.id', '=', 's.karyawan_pic_id')
-            ->where(function ($query): void {
-                $query->whereNull('k.id')->orWhere('k.status_kerja', '!=', 'aktif');
-            })
-            ->whereNotIn('s.status', [SewaPrinter::STATUS_DIBATALKAN])
-            ->count('s.id');
-    }
-
-    private function emptyCompanySnapshot(): int
-    {
-        return Schema::hasTable('sewa_printer')
-            ? DB::table('sewa_printer')->where(function ($query): void {
-                $query->whereNull('nama_perusahaan_snapshot')->orWhere('nama_perusahaan_snapshot', '');
-            })->count()
-            : 0;
-    }
-
-    private function invalidPeriod(): int
-    {
-        return Schema::hasTable('sewa_printer')
-            ? DB::table('sewa_printer')->whereColumn('mulai_tanggal', '>', 'selesai_tanggal')->count()
-            : 0;
-    }
-
-    private function overlap(): int
-    {
-        if (! $this->hasTables(['sewa_printer', 'sewa_printer_detail'])) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer_detail as da')
-            ->join('sewa_printer as a', 'a.id', '=', 'da.sewa_printer_id')
-            ->join('sewa_printer_detail as db', function ($join): void {
-                $join->on('db.aset_koperasi_id', '=', 'da.aset_koperasi_id')
-                    ->whereColumn('da.sewa_printer_id', '<', 'db.sewa_printer_id');
-            })
-            ->join('sewa_printer as b', 'b.id', '=', 'db.sewa_printer_id')
-            ->whereIn('a.status', [SewaPrinter::STATUS_DIKONFIRMASI, SewaPrinter::STATUS_BERJALAN])
-            ->whereIn('b.status', [SewaPrinter::STATUS_DIKONFIRMASI, SewaPrinter::STATUS_BERJALAN])
-            ->whereColumn('a.mulai_tanggal', '<=', 'b.selesai_tanggal')
-            ->whereColumn('a.selesai_tanggal', '>=', 'b.mulai_tanggal')
-            ->count('da.id');
-    }
-
-    private function invalidBasePrice(): int
-    {
-        return Schema::hasTable('sewa_printer_detail')
-            ? DB::table('sewa_printer_detail')->where('harga_dasar', '<=', 0)->count()
-            : 0;
-    }
-
-    private function invalidMarginPercent(): int
-    {
-        return Schema::hasTable('sewa_printer_detail')
-            ? DB::table('sewa_printer_detail')->where('margin_persen_snapshot', '!=', SewaPrinterDetail::MARGIN_PERSEN)->count()
-            : 0;
-    }
-
-    private function invalidMarginNominal(): int
-    {
-        if (! Schema::hasTable('sewa_printer_detail')) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer_detail')
-            ->get(['harga_dasar', 'margin_nominal'])
-            ->filter(fn ($row) => $this->rupiahInt($row->margin_nominal) !== $this->margin($this->rupiahInt($row->harga_dasar)))
-            ->count();
-    }
-
-    private function invalidDetailTotal(): int
-    {
-        if (! Schema::hasTable('sewa_printer_detail')) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer_detail')
-            ->get(['harga_dasar', 'margin_nominal', 'total_harga'])
-            ->filter(fn ($row) => $this->rupiahInt($row->total_harga) !== $this->rupiahInt($row->harga_dasar) + $this->rupiahInt($row->margin_nominal))
             ->count();
     }
 
     private function invalidHeaderTotals(): int
     {
-        if (! $this->hasTables(['sewa_printer', 'sewa_printer_detail'])) {
+        if (! $this->hasColumns('sewa_printer', ['total_harga_vendor', 'total_margin', 'total_tagihan_perusahaan'])
+            || ! $this->hasColumns('sewa_printer_detail', ['sewa_printer_id', 'subtotal_harga_vendor', 'subtotal_margin', 'subtotal_tagihan'])) {
             return 0;
         }
 
         return DB::table('sewa_printer as s')
             ->leftJoin('sewa_printer_detail as d', 'd.sewa_printer_id', '=', 's.id')
-            ->select(
-                's.id',
-                's.total_harga_dasar',
-                's.total_margin',
-                's.grand_total',
-                DB::raw('COALESCE(SUM(d.harga_dasar),0) as detail_dasar'),
-                DB::raw('COALESCE(SUM(d.margin_nominal),0) as detail_margin'),
-                DB::raw('COALESCE(SUM(d.total_harga),0) as detail_total')
-            )
-            ->groupBy('s.id', 's.total_harga_dasar', 's.total_margin', 's.grand_total')
+            ->select('s.id', 's.total_harga_vendor', 's.total_margin', 's.total_tagihan_perusahaan')
+            ->selectRaw('COALESCE(SUM(d.subtotal_harga_vendor), 0) as detail_vendor')
+            ->selectRaw('COALESCE(SUM(d.subtotal_margin), 0) as detail_margin')
+            ->selectRaw('COALESCE(SUM(d.subtotal_tagihan), 0) as detail_tagihan')
+            ->groupBy('s.id', 's.total_harga_vendor', 's.total_margin', 's.total_tagihan_perusahaan')
             ->get()
-            ->filter(fn ($row) => $this->rupiahInt($row->total_harga_dasar) !== $this->rupiahInt($row->detail_dasar)
-                || $this->rupiahInt($row->total_margin) !== $this->rupiahInt($row->detail_margin)
-                || $this->rupiahInt($row->grand_total) !== $this->rupiahInt($row->detail_total))
+            ->filter(fn ($row): bool => (int) $row->total_harga_vendor !== (int) $row->detail_vendor
+                || (int) $row->total_margin !== (int) $row->detail_margin
+                || (int) $row->total_tagihan_perusahaan !== (int) $row->detail_tagihan)
             ->count();
     }
 
-    private function partialPayment(): int
+    private function paidWithoutPayment(): int
     {
-        if (! $this->hasTables(['pembayaran_sewa_printer', 'sewa_printer'])) {
+        if (! $this->hasColumns('sewa_printer', ['status_pembayaran']) || ! Schema::hasTable('pembayaran_sewa_printer')) {
+            return 0;
+        }
+
+        return DB::table('sewa_printer as s')
+            ->leftJoin('pembayaran_sewa_printer as p', 'p.sewa_printer_id', '=', 's.id')
+            ->where('s.status_pembayaran', SewaPrinter::PEMBAYARAN_PAID)
+            ->whereNull('p.id')
+            ->count('s.id');
+    }
+
+    private function invalidPayments(): int
+    {
+        if (! $this->hasColumns('sewa_printer', ['total_harga_vendor', 'total_tagihan_perusahaan'])
+            || ! $this->hasColumns('pembayaran_sewa_printer', ['sewa_printer_id', 'jumlah_diterima', 'jumlah_bayar_vendor'])) {
             return 0;
         }
 
         return DB::table('pembayaran_sewa_printer as p')
             ->join('sewa_printer as s', 's.id', '=', 'p.sewa_printer_id')
-            ->whereColumn('p.jumlah_bayar', '!=', 's.grand_total')
+            ->where(fn ($query) => $query
+                ->whereColumn('p.jumlah_diterima', '!=', 's.total_tagihan_perusahaan')
+                ->orWhereColumn('p.jumlah_bayar_vendor', '!=', 's.total_harga_vendor'))
             ->count('p.id');
     }
 
-    private function methodDompetMismatch(): int
+    private function invalidPaymentDompets(): int
     {
-        if (! $this->hasTables(['pembayaran_sewa_printer', 'dompet_koperasi'])) {
+        if (! $this->hasColumns('pembayaran_sewa_printer', ['dompet_penerimaan_id', 'dompet_vendor_id', 'metode_penerimaan', 'metode_pembayaran_vendor'])
+            || ! $this->hasColumns('dompet_koperasi', ['jenis_dompet', 'akun_id'])
+            || ! $this->hasColumns('akun', ['kategori', 'posisi_saldo', 'is_aktif'])) {
             return 0;
         }
 
         return DB::table('pembayaran_sewa_printer as p')
-            ->join('dompet_koperasi as d', 'd.id', '=', 'p.dompet_id')
+            ->join('dompet_koperasi as dp', 'dp.id', '=', 'p.dompet_penerimaan_id')
+            ->join('akun as ap', 'ap.id', '=', 'dp.akun_id')
+            ->join('dompet_koperasi as dv', 'dv.id', '=', 'p.dompet_vendor_id')
+            ->join('akun as av', 'av.id', '=', 'dv.akun_id')
             ->where(function ($query): void {
-                $query->where(fn ($q) => $q->where('p.metode_pembayaran', PembayaranSewaPrinter::METODE_TUNAI)->where('d.jenis_dompet', '!=', 'kas'))
-                    ->orWhere(fn ($q) => $q->where('p.metode_pembayaran', PembayaranSewaPrinter::METODE_TRANSFER_BANK)->where('d.jenis_dompet', '!=', 'bank'));
+                $query->where(fn ($q) => $q->where('p.metode_penerimaan', 'tunai')->where('dp.jenis_dompet', '!=', 'kas'))
+                    ->orWhere(fn ($q) => $q->where('p.metode_penerimaan', 'transfer_bank')->where('dp.jenis_dompet', '!=', 'bank'))
+                    ->orWhere(fn ($q) => $q->where('p.metode_pembayaran_vendor', 'tunai')->where('dv.jenis_dompet', '!=', 'kas'))
+                    ->orWhere(fn ($q) => $q->where('p.metode_pembayaran_vendor', 'transfer_bank')->where('dv.jenis_dompet', '!=', 'bank'))
+                    ->orWhere('ap.kategori', '!=', 'aset')
+                    ->orWhere('ap.posisi_saldo', '!=', 'debit')
+                    ->orWhere('ap.is_aktif', false)
+                    ->orWhere('av.kategori', '!=', 'aset')
+                    ->orWhere('av.posisi_saldo', '!=', 'debit')
+                    ->orWhere('av.is_aktif', false);
             })
             ->count('p.id');
     }
 
-    private function paymentWithoutPosting(): int
+    private function paymentWithoutMutasi(): int
     {
-        if (! $this->hasTables(['pembayaran_sewa_printer', 'mutasi_kas', 'jurnal_umum'])) {
+        if (! $this->hasColumns('pembayaran_sewa_printer', ['id']) || ! $this->hasColumns('mutasi_kas', ['idempotency_key'])) {
             return 0;
         }
 
-        return DB::table('pembayaran_sewa_printer as p')
-            ->leftJoin('mutasi_kas as m', function ($join): void {
-                $join->on('m.referensi_id', '=', 'p.id')
-                    ->where('m.referensi_tipe', PembayaranSewaPrinter::class)
-                    ->where('m.tipe', 'masuk');
-            })
-            ->leftJoin('jurnal_umum as j', function ($join): void {
-                $join->on('j.referensi_id', '=', 'p.id')
-                    ->where('j.referensi_tipe', PembayaranSewaPrinter::class)
-                    ->where('j.idempotency_key', 'like', 'sewa-printer:pembayaran-dimuka:jurnal:%');
-            })
-            ->where('p.status', PembayaranSewaPrinter::STATUS_PAID)
-            ->where(function ($query): void {
-                $query->whereNull('m.id')->orWhereNull('j.id');
-            })
-            ->count('p.id');
+        return DB::table('pembayaran_sewa_printer')
+            ->where('status', 'paid')
+            ->pluck('id')
+            ->filter(fn ($id): bool => ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-printer:penerimaan:mutasi:' . $id)->exists()
+                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-printer:pembayaran-vendor:mutasi:' . $id)->exists())
+            ->count();
     }
 
-    private function paymentJournalWithoutDeferredRevenue(): int
+    private function paymentWithoutJournals(): int
     {
-        if (! $this->hasTables(['jurnal_umum', 'jurnal_umum_detail'])) {
+        if (! $this->hasColumns('pembayaran_sewa_printer', ['id']) || ! $this->hasColumns('jurnal_umum', ['idempotency_key'])) {
             return 0;
         }
 
-        $kode = (string) config('account_map.accounts.pendapatan_diterima_dimuka_sewa_printer.kode_akun');
-
-        return DB::table('jurnal_umum as j')
-            ->leftJoin('jurnal_umum_detail as d', function ($join) use ($kode): void {
-                $join->on('d.jurnal_umum_id', '=', 'j.id')
-                    ->where('d.akun_kode', $kode)
-                    ->where('d.kredit', '>', 0);
-            })
-            ->where('j.referensi_tipe', PembayaranSewaPrinter::class)
-            ->where('j.idempotency_key', 'like', 'sewa-printer:pembayaran-dimuka:jurnal:%')
-            ->whereNull('d.id')
-            ->count('j.id');
+        return DB::table('pembayaran_sewa_printer')
+            ->where('status', 'paid')
+            ->pluck('id')
+            ->filter(fn ($id): bool => ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-printer:pembayaran-dimuka:jurnal:' . $id)->exists()
+                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-printer:pembayaran-vendor:jurnal:' . $id)->exists())
+            ->count();
     }
 
-    private function revenueBeforeCompleted(): int
+    private function completedWithoutRevenueJournal(): int
     {
-        if (! $this->hasTables(['sewa_printer', 'jurnal_umum'])) {
+        if (! $this->hasColumns('sewa_printer', ['id', 'status']) || ! $this->hasColumns('jurnal_umum', ['idempotency_key'])) {
             return 0;
         }
 
-        return DB::table('jurnal_umum as j')
-            ->join('sewa_printer as s', 's.id', '=', 'j.referensi_id')
-            ->where('j.referensi_tipe', SewaPrinter::class)
-            ->where('j.idempotency_key', 'like', 'sewa-printer:pengakuan-pendapatan:jurnal:%')
-            ->where('s.status', '!=', SewaPrinter::STATUS_SELESAI)
-            ->count('j.id');
-    }
-
-    private function runningNotPaid(): int
-    {
-        return Schema::hasTable('sewa_printer')
-            ? DB::table('sewa_printer')
-                ->where('status', SewaPrinter::STATUS_BERJALAN)
-                ->where('status_pembayaran', '!=', SewaPrinter::PEMBAYARAN_PAID)
-                ->count()
-            : 0;
-    }
-
-    private function runningAssetWrongStatus(): int
-    {
-        if (! $this->hasTables(['sewa_printer', 'sewa_printer_detail', 'aset_koperasi'])) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer as s')
-            ->join('sewa_printer_detail as d', 'd.sewa_printer_id', '=', 's.id')
-            ->join('aset_koperasi as a', 'a.id', '=', 'd.aset_koperasi_id')
-            ->where('s.status', SewaPrinter::STATUS_BERJALAN)
-            ->where('a.status', '!=', AsetKoperasi::STATUS_DIGUNAKAN_DISEWA)
-            ->count('d.id');
-    }
-
-    private function completedAssetStillUsedWithoutRunning(): int
-    {
-        if (! $this->hasTables(['sewa_printer', 'sewa_printer_detail', 'aset_koperasi'])) {
-            return 0;
-        }
-
-        return DB::table('sewa_printer as s')
-            ->join('sewa_printer_detail as d', 'd.sewa_printer_id', '=', 's.id')
-            ->join('aset_koperasi as a', 'a.id', '=', 'd.aset_koperasi_id')
-            ->where('s.status', SewaPrinter::STATUS_SELESAI)
-            ->where('a.status', AsetKoperasi::STATUS_DIGUNAKAN_DISEWA)
-            ->whereNotExists(function ($query): void {
-                $query->selectRaw('1')
-                    ->from('sewa_printer_detail as running_detail')
-                    ->join('sewa_printer as running', 'running.id', '=', 'running_detail.sewa_printer_id')
-                    ->whereColumn('running_detail.aset_koperasi_id', 'a.id')
-                    ->where('running.status', SewaPrinter::STATUS_BERJALAN);
-            })
-            ->count('d.id');
-    }
-
-    private function completedJournalNotSplit(): int
-    {
-        if (! $this->hasTables(['sewa_printer', 'jurnal_umum', 'jurnal_umum_detail'])) {
-            return 0;
-        }
-
-        $deferred = (string) config('account_map.accounts.pendapatan_diterima_dimuka_sewa_printer.kode_akun');
-        $dasar = (string) config('account_map.accounts.pendapatan_sewa_printer_dasar.kode_akun');
-        $margin = (string) config('account_map.accounts.pendapatan_margin_sewa_printer.kode_akun');
-
-        return SewaPrinter::query()
+        return DB::table('sewa_printer')
             ->where('status', SewaPrinter::STATUS_SELESAI)
-            ->get()
-            ->filter(function (SewaPrinter $sewa) use ($deferred, $dasar, $margin): bool {
-                $jurnal = DB::table('jurnal_umum')
-                    ->where('referensi_tipe', SewaPrinter::class)
-                    ->where('referensi_id', $sewa->id)
-                    ->where('idempotency_key', 'like', 'sewa-printer:pengakuan-pendapatan:jurnal:%')
-                    ->first();
-
-                if (! $jurnal) {
-                    return true;
-                }
-
-                $details = DB::table('jurnal_umum_detail')
-                    ->where('jurnal_umum_id', $jurnal->id)
-                    ->get()
-                    ->groupBy('akun_kode');
-
-                return $this->rupiahInt($details->get($deferred)?->sum('debit') ?? 0) !== $this->rupiahInt($sewa->grand_total)
-                    || $this->rupiahInt($details->get($dasar)?->sum('kredit') ?? 0) !== $this->rupiahInt($sewa->total_harga_dasar)
-                    || $this->rupiahInt($details->get($margin)?->sum('kredit') ?? 0) !== $this->rupiahInt($sewa->total_margin);
-            })
+            ->pluck('id')
+            ->filter(fn ($id): bool => ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-printer:pengakuan-pendapatan:jurnal:' . $id)->exists())
             ->count();
     }
 
-    private function duplicateRefund(): int
+    private function newTransactionsUsingLegacyRevenueAccount(): int
     {
-        if (! $this->hasTables(['pembayaran_sewa_printer', 'mutasi_kas', 'jurnal_umum'])) {
+        if (! $this->hasColumns('jurnal_umum', ['id', 'idempotency_key']) || ! $this->hasColumns('jurnal_umum_detail', ['jurnal_umum_id', 'akun_kode'])) {
             return 0;
         }
 
-        $mutasi = DB::table('mutasi_kas')
-            ->select('referensi_id', DB::raw('COUNT(*) as total'))
-            ->where('referensi_tipe', PembayaranSewaPrinter::class)
-            ->where('idempotency_key', 'like', 'sewa-printer:refund:mutasi:%')
-            ->groupBy('referensi_id')
-            ->having('total', '>', 1)
-            ->get()
-            ->count();
-
-        $jurnal = DB::table('jurnal_umum')
-            ->select('referensi_id', DB::raw('COUNT(*) as total'))
-            ->where('referensi_tipe', PembayaranSewaPrinter::class)
-            ->where('idempotency_key', 'like', 'sewa-printer:refund:jurnal:%')
-            ->groupBy('referensi_id')
-            ->having('total', '>', 1)
-            ->get()
-            ->count();
-
-        return $mutasi + $jurnal;
+        return DB::table('jurnal_umum as j')
+            ->select('j.id')
+            ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
+            ->where('j.idempotency_key', 'like', 'sewa-printer:%')
+            ->where('d.akun_kode', '405')
+            ->count('d.id');
     }
 
-    private function payrollLedgerForSewaPrinter(): int
+    private function unbalancedJournals(): int
     {
-        if (! Schema::hasTable('pemakaian_potong_gaji')) {
+        if (! $this->hasColumns('jurnal_umum', ['id', 'idempotency_key']) || ! $this->hasColumns('jurnal_umum_detail', ['jurnal_umum_id', 'debit', 'kredit'])) {
             return 0;
         }
 
-        return DB::table('pemakaian_potong_gaji')
-            ->whereIn('source_type', [SewaPrinter::class, SewaPrinterDetail::class, PembayaranSewaPrinter::class])
+        return DB::table('jurnal_umum as j')
+            ->select('j.id')
+            ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
+            ->where('j.idempotency_key', 'like', 'sewa-printer:%')
+            ->groupBy('j.id')
+            ->havingRaw('ABS(SUM(d.debit) - SUM(d.kredit)) > 0.01')
+            ->get()
             ->count();
     }
 
-    private function assetWithSewaStillDeletable(AsetKoperasiService $service): int
+    private function hasColumns(string $table, array $columns): bool
     {
-        if (! Schema::hasTable('aset_koperasi')) {
-            return 0;
+        if (! Schema::hasTable($table)) {
+            return false;
         }
 
-        return AsetKoperasi::query()
-            ->printer()
-            ->with('printer')
-            ->get()
-            ->filter(function (AsetKoperasi $aset) use ($service): bool {
-                $dependencies = $service->dependencyCounts($aset);
-                $guard = $service->canDelete($aset);
-
-                return (($dependencies['Sewa Printer Detail'] ?? 0) > 0) && $guard['allowed'];
-            })
-            ->count();
-    }
-
-    private function margin(int $hargaDasar): int
-    {
-        return intdiv(($hargaDasar * SewaPrinterDetail::MARGIN_PERSEN) + 50, 100);
-    }
-
-    private function rupiahInt(mixed $value): int
-    {
-        return (int) round((float) $value);
-    }
-
-    private function hasTables(array $tables): bool
-    {
-        foreach ($tables as $table) {
-            if (! Schema::hasTable($table)) {
+        foreach ($columns as $column) {
+            if (! Schema::hasColumn($table, $column)) {
                 return false;
             }
         }

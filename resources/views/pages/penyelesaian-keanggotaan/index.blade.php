@@ -2,165 +2,153 @@
 
 @section('content')
 @php
-  $money = fn($value) => 'Rp ' . number_format((float) $value, 0, ',', '.');
-  $badge = fn(string $status) => match ($status) {
-    'pending_review' => 'bg-amber-100 text-amber-700',
-    'waiting_settlement' => 'bg-orange-100 text-orange-700',
-    'ready_to_complete' => 'bg-blue-100 text-blue-700',
-    'completed' => 'bg-green-100 text-green-700',
-    'cancelled' => 'bg-slate-100 text-slate-600',
-    default => 'bg-slate-100 text-slate-600',
+  $rupiahInt = function ($value): int {
+    if (is_int($value)) {
+      return $value;
+    }
+    $normalized = trim((string) ($value ?? '0'));
+    $negative = str_starts_with($normalized, '-');
+    $normalized = ltrim($normalized, '+-');
+    [$whole] = array_pad(explode('.', $normalized, 2), 1, '0');
+    $whole = preg_replace('/\D/', '', $whole) ?: '0';
+    $rupiah = (int) $whole;
+
+    return $negative ? -1 * $rupiah : $rupiah;
+  };
+  $money = fn($value) => 'Rp ' . number_format($rupiahInt($value), 0, ',', '.');
+  $statusClass = fn(string $status) => match ($status) {
+    \App\Models\PenyelesaianKeanggotaan::STATUS_PENDING_REVIEW => 'kbsm-status--gold',
+    \App\Models\PenyelesaianKeanggotaan::STATUS_WAITING_SETTLEMENT => 'kbsm-status--red',
+    \App\Models\PenyelesaianKeanggotaan::STATUS_READY_TO_COMPLETE => 'kbsm-status--navy',
+    \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED => 'kbsm-status--green',
+    default => 'kbsm-status--slate',
   };
 @endphp
 
-<div class="w-full px-6 py-6 mx-auto">
+<div class="kbsm-business-page">
   @if (session('success'))
-    <div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('success') }}</div>
+    <div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>
   @endif
   @if ($errors->any())
-    <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      <ul class="mb-0 list-disc pl-5">
+    <div class="kbsm-business-alert kbsm-business-alert--danger">
+      <ul>
         @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
       </ul>
     </div>
   @endif
 
-  <div class="mb-6">
-    <p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Keanggotaan</p>
-    <h1 class="text-2xl font-bold text-slate-700">Penyelesaian Keanggotaan</h1>
-    <p class="mt-1 text-sm text-slate-400">Settlement Karyawan keluar: snapshot hak, offset kewajiban, refund, dan audit trail tanpa edit transaksi lama.</p>
+  <div class="kbsm-business-header">
+    <div>
+      <p class="kbsm-business-eyebrow">Keanggotaan</p>
+      <h1 class="kbsm-business-title">Penyelesaian Keanggotaan</h1>
+      <p class="kbsm-business-subtitle">Snapshot hak, pembatalan tagihan Wajib, offset kewajiban, dan refund hak Anggota saat siklus berakhir.</p>
+    </div>
   </div>
 
-  <section class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl">
-    <form class="grid gap-4 md:grid-cols-4" method="GET" action="{{ route('penyelesaian-keanggotaan.index') }}">
-      <div>
-        <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Status</label>
-        <select name="status" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-          <option value="">Semua status</option>
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Filter Settlement</h2>
+      <p class="kbsm-business-panel__copy">GET halaman ini read-only; refresh/offset/refund hanya berjalan lewat aksi eksplisit Finance.</p>
+    </div>
+    <form method="GET" action="{{ route('penyelesaian-keanggotaan.index') }}" class="kbsm-business-filter kbsm-business-filter--simpanan">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Anggota</label>
+        <input name="anggota" value="{{ $filters['anggota'] ?? '' }}" class="kbsm-business-control" placeholder="Nomor anggota / nama karyawan">
+      </div>
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Status</label>
+        <select name="status" class="kbsm-business-control">
+          <option value="">Semua Status</option>
           @foreach($statuses as $status)
-            <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ str_replace('_', ' ', $status) }}</option>
+            <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>
+              {{ (new \App\Models\PenyelesaianKeanggotaan(['status' => $status]))->status_label }}
+            </option>
           @endforeach
         </select>
       </div>
-      <div class="md:col-span-2">
-        <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Anggota</label>
-        <input name="anggota" value="{{ $filters['anggota'] ?? '' }}" placeholder="Nomor anggota / nama karyawan" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Tanggal Keluar Mulai</label>
+        <input type="date" name="tanggal_mulai" value="{{ $filters['tanggal_mulai'] ?? '' }}" class="kbsm-business-control">
       </div>
-      <div class="flex items-end gap-2">
-        <button class="rounded-xl bg-[#073b5c] px-5 py-3 text-xs font-bold uppercase text-white">Filter</button>
-        <a href="{{ route('penyelesaian-keanggotaan.index') }}" class="rounded-xl border border-slate-200 px-5 py-3 text-xs font-bold uppercase text-slate-600">Reset</a>
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Tanggal Keluar Selesai</label>
+        <input type="date" name="tanggal_selesai" value="{{ $filters['tanggal_selesai'] ?? '' }}" class="kbsm-business-control">
+      </div>
+      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split">
+        <button class="kbsm-btn kbsm-btn--navy">Filter</button>
+        <a href="{{ route('penyelesaian-keanggotaan.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
       </div>
     </form>
   </section>
 
-  <section class="rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl">
-    <div style="overflow-x: auto;" class="">
-      <table class="w-full min-w-[1200px] text-left text-sm">
-        <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+  <section class="kbsm-business-summary kbsm-business-summary--simpanan">
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--green">
+      <p class="kbsm-business-summary-label">Total Hak</p>
+      <p class="kbsm-business-summary-value">{{ $money($summary['total_hak'] ?? 0) }}</p>
+    </article>
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--red">
+      <p class="kbsm-business-summary-label">Total Kewajiban</p>
+      <p class="kbsm-business-summary-value">{{ $money($summary['total_kewajiban'] ?? 0) }}</p>
+    </article>
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--navy">
+      <p class="kbsm-business-summary-label">Total Offset</p>
+      <p class="kbsm-business-summary-value">{{ $money($summary['total_offset'] ?? 0) }}</p>
+    </article>
+    <article class="kbsm-business-summary-card kbsm-business-summary-card--gold">
+      <p class="kbsm-business-summary-label">Total Refund</p>
+      <p class="kbsm-business-summary-value">{{ $money($summary['total_refund'] ?? 0) }}</p>
+    </article>
+  </section>
+
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Daftar Settlement</h2>
+      <p class="kbsm-business-panel__copy">Transaksi final tidak diedit/hapus; koreksi dilakukan lewat alokasi settlement dan audit trail.</p>
+    </div>
+
+    <div class="kbsm-business-table-wrap">
+      <table class="kbsm-business-table">
+        <thead>
           <tr>
-            <th class="px-4 py-3">Kode</th>
-            <th class="px-4 py-3">Anggota</th>
-            <th class="px-4 py-3">Siklus</th>
-            <th class="px-4 py-3">Hak</th>
-            <th class="px-4 py-3">Kewajiban</th>
-            <th class="px-4 py-3">Offset</th>
-            <th class="px-4 py-3">Refund</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Aksi</th>
+            <th>Kode</th>
+            <th>Anggota</th>
+            <th>Siklus</th>
+            <th class="kbsm-business-table__right">Hak</th>
+            <th class="kbsm-business-table__right">Kewajiban</th>
+            <th class="kbsm-business-table__right">Offset</th>
+            <th class="kbsm-business-table__right">Refund</th>
+            <th>Status</th>
+            <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
           @forelse($penyelesaianList as $penyelesaian)
-            <tr class="border-t border-slate-100 align-top">
-              <td class="px-4 py-4">
-                <div class="font-bold text-[#073b5c]">{{ $penyelesaian->kode_penyelesaian }}</div>
-                <div class="text-xs text-slate-400">{{ $penyelesaian->tanggal_keluar?->format('d/m/Y') }}</div>
+            <tr>
+              <td>
+                <div class="kbsm-business-code">{{ $penyelesaian->kode_penyelesaian }}</div>
+                <div class="kbsm-business-muted">{{ $penyelesaian->tanggal_keluar?->format('d/m/Y') }}</div>
               </td>
-              <td class="px-4 py-4">
-                <div class="font-semibold text-slate-700">{{ $penyelesaian->anggota?->nomor_anggota }}</div>
-                <div class="text-xs text-slate-500">{{ $penyelesaian->anggota?->karyawan?->nama }}</div>
+              <td>
+                <div class="kbsm-business-strong">{{ $penyelesaian->anggota?->nomor_anggota }}</div>
+                <div class="kbsm-business-muted">{{ $penyelesaian->anggota?->karyawan?->nama }}</div>
               </td>
-              <td class="px-4 py-4">#{{ $penyelesaian->siklus?->siklus_ke ?? '-' }}</td>
-              <td class="px-4 py-4">
-                <div>{{ $money($penyelesaian->total_hak_anggota) }}</div>
-                <div class="text-xs text-slate-400">Pokok {{ $money($penyelesaian->simpanan_pokok_snapshot) }} · Kredit {{ $money($penyelesaian->kredit_refund_snapshot) }}</div>
-              </td>
-              <td class="px-4 py-4">
-                <div>{{ $money($penyelesaian->total_kewajiban_awal) }}</div>
-                <div class="text-xs text-slate-400">Sisa {{ $money($penyelesaian->sisa_kewajiban) }}</div>
-              </td>
-              <td class="px-4 py-4">{{ $money($penyelesaian->total_offset) }}</td>
-              <td class="px-4 py-4">
-                <div>{{ $money($penyelesaian->total_refund) }}</div>
-                @if($penyelesaian->dompetRefund)
-                  <div class="text-xs text-slate-400">{{ $penyelesaian->dompetRefund->nama_dompet }}</div>
-                @endif
-              </td>
-              <td class="px-4 py-4">
-                <span class="rounded-full px-3 py-1 text-xs font-bold {{ $badge($penyelesaian->status) }}">{{ str_replace('_', ' ', $penyelesaian->status) }}</span>
-              </td>
-              <td class="px-4 py-4">
-                <div class="flex flex-col gap-2">
-                  @if($penyelesaian->status !== 'completed')
-                    <form method="POST" action="{{ route('penyelesaian-keanggotaan.refresh', $penyelesaian) }}">
-                      @csrf
-                      <button class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600">Refresh</button>
-                    </form>
-                  @endif
-                  @if(in_array($penyelesaian->status, ['pending_review', 'waiting_settlement'], true) && (float) $penyelesaian->total_offset <= 0)
-                    <form method="POST" action="{{ route('penyelesaian-keanggotaan.process-offset', $penyelesaian) }}">
-                      @csrf
-                      <button class="w-full rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold uppercase text-white">Proses Offset</button>
-                    </form>
-                  @endif
-                  @if($penyelesaian->status === 'ready_to_complete' && (float) $penyelesaian->total_refund > 0 && ! $penyelesaian->mutasiKas()->exists())
-                    <form method="POST" action="{{ route('penyelesaian-keanggotaan.refund', $penyelesaian) }}" class="grid gap-2">
-                      @csrf
-                      <select name="dompet_id" required class="kbsm-focus rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
-                        <option value="">Dompet refund</option>
-                        @foreach($dompetOptions as $dompet)
-                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} · {{ $dompet->akun?->kode_akun ?? 'tanpa COA' }}</option>
-                        @endforeach
-                      </select>
-                      <input name="alasan" required minlength="5" placeholder="Alasan refund" class="kbsm-focus rounded-lg border border-slate-200 px-3 py-2 text-xs">
-                      <button class="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold uppercase text-white">Refund</button>
-                    </form>
-                  @endif
-                  @if($penyelesaian->status === 'ready_to_complete' && ((float) $penyelesaian->total_refund <= 0 || $penyelesaian->mutasiKas()->exists()))
-                    <form method="POST" action="{{ route('penyelesaian-keanggotaan.complete', $penyelesaian) }}">
-                      @csrf
-                      <button class="w-full rounded-lg bg-green-600 px-3 py-2 text-xs font-bold uppercase text-white">Complete</button>
-                    </form>
-                  @endif
-                </div>
-              </td>
-            </tr>
-            <tr class="border-t border-slate-50 bg-slate-50/50">
-              <td colspan="9" class="px-4 py-3">
-                <div class="grid gap-2 md:grid-cols-3">
-                  @forelse($penyelesaian->details as $detail)
-                    <div class="rounded-xl border border-slate-100 bg-white p-3 text-xs">
-                      <div class="font-bold uppercase text-slate-600">{{ $detail->kategori_sumber }}</div>
-                      <div class="text-slate-400">{{ class_basename($detail->source_type) }} #{{ $detail->source_id }}</div>
-                      <div class="mt-2 grid grid-cols-2 gap-1">
-                        <span>Awal</span><strong>{{ $money($detail->nominal_kewajiban_awal) }}</strong>
-                        <span>Offset</span><strong>{{ $money($detail->nominal_offset) }}</strong>
-                        <span>Sisa</span><strong>{{ $money($detail->nominal_sisa) }}</strong>
-                      </div>
-                    </div>
-                  @empty
-                    <div class="text-xs text-slate-400">Belum ada kewajiban tersnapshot.</div>
-                  @endforelse
-                </div>
+              <td>#{{ $penyelesaian->siklus?->siklus_ke ?? '-' }}</td>
+              <td class="kbsm-business-amount">{{ $money($penyelesaian->total_hak_anggota) }}</td>
+              <td class="kbsm-business-amount">{{ $money($penyelesaian->total_kewajiban_awal) }}</td>
+              <td class="kbsm-business-amount">{{ $money($penyelesaian->total_offset) }}</td>
+              <td class="kbsm-business-amount">{{ $money($penyelesaian->total_refund) }}</td>
+              <td><span class="kbsm-status {{ $statusClass($penyelesaian->status) }}">{{ $penyelesaian->status_label }}</span></td>
+              <td>
+                <a href="{{ route('penyelesaian-keanggotaan.show', $penyelesaian) }}" class="kbsm-btn kbsm-btn--outline-slate">Detail</a>
               </td>
             </tr>
           @empty
-            <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Belum ada penyelesaian keanggotaan.</td></tr>
+            <tr><td colspan="9" class="kbsm-business-empty">Belum ada penyelesaian keanggotaan.</td></tr>
           @endforelse
         </tbody>
       </table>
     </div>
-    <div class="mt-4">{{ $penyelesaianList->links() }}</div>
+    <div class="kbsm-business-pagination">{{ $penyelesaianList->links() }}</div>
   </section>
 </div>
 @endsection

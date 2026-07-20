@@ -21,6 +21,7 @@ class PreflightAccessCommand extends Command
             $this->check('route_finance_tanpa_role', 'Route Finance tanpa role:admin', $this->financeRoutesWithoutRole()),
             $this->check('route_karyawan_tanpa_ownership', 'Route Karyawan tanpa proteksi ownership', $this->employeeRoutesWithoutOwnership()),
             $this->check('shu_route_aktif_disabled', 'Route SHU aktif saat feature disabled', $this->shuRoutesActiveWhileDisabled()),
+            $this->check('master_printer_route_aktif_disabled', 'Route Master Printer aktif saat feature disabled', $this->featureRoutesActiveWhileDisabled('aset-printer.', 'master_printer_enabled')),
             $this->check('menu_disabled_visible', 'Menu/module disabled masih terlihat', $this->disabledFeatureVisibleInNavigation()),
             $this->check('route_hard_delete_final', 'Route hard delete/edit transaksi final masih tersedia', $this->hardDeleteFinalRoutes()),
             $this->check('user_role_invalid', 'User privileged tanpa role valid', $this->invalidUserRoles()),
@@ -80,34 +81,25 @@ class PreflightAccessCommand extends Command
 
     private function employeeRoutesWithoutOwnership(): int
     {
-        $routesMissingRole = $this->webRoutes()
+        return $this->webRoutes()
             ->filter(fn (RoutingRoute $route): bool => str_starts_with(trim($route->uri(), '/'), 'pengajuan-sewa-mobil'))
-            ->filter(fn (RoutingRoute $route): bool => ! $this->hasRoleMiddleware($route, 'karyawan'))
             ->count();
-
-        $controllerPath = app_path('Http/Controllers/KaryawanSewaMobilController.php');
-        $contents = is_file($controllerPath) ? (string) file_get_contents($controllerPath) : '';
-        $requiredMethods = ['edit', 'update', 'submit', 'cancel'];
-        $methodsMissingOwnership = collect($requiredMethods)
-            ->filter(function (string $method) use ($contents): bool {
-                $pattern = '/public\s+function\s+' . preg_quote($method, '/') . '\s*\([^)]*\)\s*\{(?:(?!public\s+function).)*abortUnlessOwner/s';
-
-                return preg_match($pattern, $contents) !== 1;
-            })
-            ->count();
-
-        return $routesMissingRole + $methodsMissingOwnership;
     }
 
     private function shuRoutesActiveWhileDisabled(): int
     {
-        if ((bool) config('features.shu_enabled', false)) {
+        return $this->featureRoutesActiveWhileDisabled('shu-koperasi.', 'shu_enabled');
+    }
+
+    private function featureRoutesActiveWhileDisabled(string $routeNamePrefix, string $feature): int
+    {
+        if ((bool) config("features.{$feature}", false)) {
             return 0;
         }
 
         return $this->webRoutes()
-            ->filter(fn (RoutingRoute $route): bool => str_starts_with((string) $route->getName(), 'shu-koperasi.'))
-            ->filter(fn (RoutingRoute $route): bool => ! $this->hasMiddleware($route, 'feature:shu_enabled'))
+            ->filter(fn (RoutingRoute $route): bool => str_starts_with((string) $route->getName(), $routeNamePrefix))
+            ->filter(fn (RoutingRoute $route): bool => ! $this->hasMiddleware($route, "feature:{$feature}"))
             ->count();
     }
 
@@ -140,6 +132,16 @@ class PreflightAccessCommand extends Command
             ] as $path) {
                 $issues += $this->plainTextInFile($path, 'Jasa Print');
             }
+        }
+
+        if (! (bool) config('features.master_printer_enabled', false)) {
+            $printerModulesWithoutFlag = collect(config('navigation.modules', []))
+                ->filter(fn (array $module): bool => ($module['route'] ?? null) === 'aset-printer.index')
+                ->filter(fn (array $module): bool => ($module['feature'] ?? null) !== 'master_printer_enabled')
+                ->count();
+
+            $issues += $printerModulesWithoutFlag;
+            $issues += $this->bladeFeatureGuardMissing(resource_path('views/layout/sidebar.blade.php'), 'aset-printer.index', 'features.master_printer_enabled');
         }
 
         return $issues;
@@ -224,7 +226,7 @@ class PreflightAccessCommand extends Command
 
     private function invalidFeatureFlags(): int
     {
-        return collect(['shu_enabled', 'jasa_print_enabled'])
+        return collect(['shu_enabled', 'jasa_print_enabled', 'master_printer_enabled'])
             ->filter(fn (string $key): bool => ! is_bool(config("features.{$key}")))
             ->count();
     }
@@ -317,6 +319,7 @@ class PreflightAccessCommand extends Command
             'beban-operasional',
             'akun',
             'akuntansi',
+            'users',
         ];
     }
 

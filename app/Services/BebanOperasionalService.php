@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Akun;
-use App\Models\AsetKoperasi;
 use App\Models\BebanOperasional;
 use App\Models\BebanOperasionalDetail;
 use App\Models\DompetKoperasi;
@@ -26,15 +25,20 @@ class BebanOperasionalService
     {
         return DB::transaction(function () use ($data, $financeUserId): BebanOperasional {
             $tanggal = $this->normalizeDate($data['tanggal_beban']);
-            $detailRows = $this->buildDraftDetailRows($data['details'] ?? []);
+            $detailRows = $this->buildDraftDetailRows($data);
             $total = $this->sumDetails($detailRows);
+            $dompet = $this->resolveDraftDompet((int) ($data['dompet_id'] ?? 0));
+            $metode = $this->metodeFromDompet($dompet);
 
             $beban = BebanOperasional::query()->create([
                 'kode_beban' => $this->nextCode('beban_operasional', 'BOP', $tanggal),
                 'tanggal_beban' => $tanggal->toDateString(),
+                'dompet_id' => $dompet->id,
+                'metode_pembayaran' => $metode,
                 'total_beban' => $this->rupiahDecimal($total),
                 'status' => BebanOperasional::STATUS_DRAFT,
                 'keterangan' => $this->nullableText($data['keterangan'] ?? null),
+                'nomor_referensi' => $this->nullableText($data['nomor_referensi'] ?? null),
                 'created_by' => $financeUserId,
                 'updated_by' => $financeUserId,
                 'idempotency_key' => $data['idempotency_key'] ?? (string) Str::uuid(),
@@ -42,7 +46,7 @@ class BebanOperasionalService
 
             $beban->details()->createMany($detailRows);
 
-            return $beban->fresh(['details.akun', 'details.aset', 'creator']);
+            return $beban->fresh(['details.akun', 'dompet.akun', 'creator']);
         });
     }
 
@@ -57,20 +61,25 @@ class BebanOperasionalService
             $this->assertStatus($locked, [BebanOperasional::STATUS_DRAFT], 'Beban Operasional yang sudah posted tidak dapat diedit.');
 
             $tanggal = $this->normalizeDate($data['tanggal_beban']);
-            $detailRows = $this->buildDraftDetailRows($data['details'] ?? []);
+            $detailRows = $this->buildDraftDetailRows($data);
             $total = $this->sumDetails($detailRows);
+            $dompet = $this->resolveDraftDompet((int) ($data['dompet_id'] ?? 0));
+            $metode = $this->metodeFromDompet($dompet);
 
             $locked->details->each->delete();
             $locked->details()->createMany($detailRows);
 
             $locked->update([
                 'tanggal_beban' => $tanggal->toDateString(),
+                'dompet_id' => $dompet->id,
+                'metode_pembayaran' => $metode,
                 'total_beban' => $this->rupiahDecimal($total),
                 'keterangan' => $this->nullableText($data['keterangan'] ?? null),
+                'nomor_referensi' => $this->nullableText($data['nomor_referensi'] ?? null),
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details.akun', 'details.aset', 'updater']);
+            return $locked->fresh(['details.akun', 'dompet.akun', 'updater']);
         });
     }
 
@@ -96,11 +105,11 @@ class BebanOperasionalService
         });
     }
 
-    public function post(BebanOperasional $beban, int $dompetId, int $financeUserId): BebanOperasional
+    public function post(BebanOperasional $beban, ?int $dompetId, int $financeUserId): BebanOperasional
     {
         return DB::transaction(function () use ($beban, $dompetId, $financeUserId): BebanOperasional {
             $locked = BebanOperasional::query()
-                ->with(['details.akun', 'details.aset'])
+                ->with(['details.akun', 'dompet.akun'])
                 ->lockForUpdate()
                 ->findOrFail($beban->id);
 
@@ -112,14 +121,27 @@ class BebanOperasionalService
                 ]);
             }
 
+            if ($locked->details->count() !== 1) {
+                throw ValidationException::withMessages([
+                    'details' => 'Beban Operasional baru hanya boleh mempunyai satu detail akun dan nominal.',
+                ]);
+            }
+
             $this->lockDetails($locked);
             $snapshotRows = $this->buildPostingSnapshots($locked->details);
             $total = $this->sumDetails($snapshotRows);
+            $postingDompetId = $dompetId ?: (int) $locked->dompet_id;
+
+            if ($postingDompetId <= 0) {
+                throw ValidationException::withMessages([
+                    'dompet_id' => 'Dompet Kas/Bank wajib dipilih sebelum posting Beban Operasional.',
+                ]);
+            }
 
             $dompet = DompetKoperasi::query()
                 ->with('akun')
                 ->lockForUpdate()
-                ->findOrFail($dompetId);
+                ->findOrFail($postingDompetId);
             $metode = $this->metodeFromDompet($dompet);
 
             if ($this->rupiahInt($dompet->saldo) < $total) {
@@ -155,7 +177,7 @@ class BebanOperasionalService
             $this->recordPostingMutasi($locked->fresh(), $dompet, $total);
             $this->akuntansiService->recordBebanOperasionalPosting($locked->fresh(['details.akun']), $dompet->akun, $financeUserId);
 
-            return $locked->fresh(['details.akun', 'details.aset', 'dompet.akun', 'jurnal.details']);
+            return $locked->fresh(['details.akun', 'dompet.akun', 'jurnal.details']);
         });
     }
 
@@ -232,15 +254,23 @@ class BebanOperasionalService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details.akun', 'details.aset', 'dompet.akun', 'reversal']);
+            return $locked->fresh(['details.akun', 'dompet.akun', 'reversal']);
         });
     }
 
-    private function buildDraftDetailRows(array $details): array
+    private function buildDraftDetailRows(array $data): array
     {
+        $details = $this->extractSingleDetail($data);
+
         if ($details === []) {
             throw ValidationException::withMessages([
-                'details' => 'Beban Operasional wajib mempunyai minimal satu detail.',
+                'details' => 'Beban Operasional wajib mempunyai satu detail akun dan nominal.',
+            ]);
+        }
+
+        if (count($details) !== 1) {
+            throw ValidationException::withMessages([
+                'details' => 'Beban Operasional baru hanya boleh mempunyai satu akun Beban dan satu nominal.',
             ]);
         }
 
@@ -249,11 +279,6 @@ class BebanOperasionalService
         foreach ($details as $detail) {
             $akun = Akun::query()->findOrFail((int) ($detail['akun_id'] ?? 0));
             $this->assertBebanAkunStructure($akun);
-
-            $asetId = $detail['aset_koperasi_id'] ?? null;
-            if ($asetId) {
-                AsetKoperasi::query()->findOrFail((int) $asetId);
-            }
 
             $nominal = $this->rupiahInt($detail['nominal'] ?? 0);
             if ($nominal <= 0) {
@@ -271,7 +296,7 @@ class BebanOperasionalService
 
             $rows[] = [
                 'akun_id' => $akun->id,
-                'aset_koperasi_id' => $asetId ? (int) $asetId : null,
+                'aset_koperasi_id' => null,
                 'keterangan' => $keterangan,
                 'nominal' => $this->rupiahDecimal($nominal),
             ];
@@ -286,10 +311,6 @@ class BebanOperasionalService
             $akun = Akun::query()->lockForUpdate()->findOrFail($detail->akun_id);
             $this->assertBebanAkunForPosting($akun);
 
-            $aset = $detail->aset_koperasi_id
-                ? AsetKoperasi::query()->with(['mobil', 'printer'])->lockForUpdate()->findOrFail($detail->aset_koperasi_id)
-                : null;
-
             $nominal = $this->rupiahInt($detail->nominal);
             if ($nominal <= 0) {
                 throw ValidationException::withMessages([
@@ -300,14 +321,44 @@ class BebanOperasionalService
             return [
                 'id' => $detail->id,
                 'akun_id' => $akun->id,
-                'aset_koperasi_id' => $aset?->id,
+                'aset_koperasi_id' => null,
                 'kode_akun_snapshot' => $akun->kode_akun,
                 'nama_akun_snapshot' => $akun->nama_akun,
-                'kode_aset_snapshot' => $aset?->kode_aset,
-                'nama_aset_snapshot' => $aset ? trim($aset->kode_aset . ' - ' . $aset->merek . ' ' . $aset->model) : null,
+                'kode_aset_snapshot' => null,
+                'nama_aset_snapshot' => null,
                 'nominal' => $this->rupiahDecimal($nominal),
             ];
         })->values()->all();
+    }
+
+    private function extractSingleDetail(array $data): array
+    {
+        if (array_key_exists('akun_id', $data) || array_key_exists('nominal', $data)) {
+            return [[
+                'akun_id' => $data['akun_id'] ?? null,
+                'keterangan' => $data['keterangan'] ?? null,
+                'nominal' => $data['nominal'] ?? null,
+            ]];
+        }
+
+        return array_values($data['details'] ?? []);
+    }
+
+    private function resolveDraftDompet(int $dompetId): DompetKoperasi
+    {
+        if ($dompetId <= 0) {
+            throw ValidationException::withMessages([
+                'dompet_id' => 'Dompet Kas/Bank wajib dipilih.',
+            ]);
+        }
+
+        $dompet = DompetKoperasi::query()
+            ->with('akun')
+            ->findOrFail($dompetId);
+
+        $this->assertDompetAkun($dompet);
+
+        return $dompet;
     }
 
     private function lockDetails(BebanOperasional $beban): void
@@ -392,9 +443,21 @@ class BebanOperasionalService
 
     private function assertBebanAkunStructure(Akun $akun): void
     {
+        if (! $akun->is_aktif) {
+            throw ValidationException::withMessages([
+                'akun_id' => 'Akun Beban wajib aktif untuk Beban Operasional.',
+            ]);
+        }
+
         if ($akun->kategori !== 'beban' || $akun->posisi_saldo !== 'debit') {
             throw ValidationException::withMessages([
                 'akun_id' => 'Detail Beban Operasional wajib memakai akun kategori Beban dengan saldo normal Debit.',
+            ]);
+        }
+
+        if ($this->isHargaPokokPenjualanAccount($akun)) {
+            throw ValidationException::withMessages([
+                'akun_id' => 'Akun HPP tidak boleh dipakai untuk Beban Operasional.',
             ]);
         }
 
@@ -403,6 +466,13 @@ class BebanOperasionalService
                 'akun_id' => 'Akun ini tidak ditandai eligible untuk Beban Operasional. Aktifkan eligibility COA terlebih dahulu.',
             ]);
         }
+    }
+
+    private function isHargaPokokPenjualanAccount(Akun $akun): bool
+    {
+        $hppKode = config('account_map.accounts.harga_pokok_penjualan.kode_akun');
+
+        return $hppKode !== null && (string) $akun->kode_akun === (string) $hppKode;
     }
 
     private function assertBebanAkunForPosting(Akun $akun): void

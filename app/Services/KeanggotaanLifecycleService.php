@@ -6,6 +6,7 @@ use App\Models\Anggota;
 use App\Models\Akun;
 use App\Models\DompetKoperasi;
 use App\Models\JadwalCicilanPinjaman;
+use App\Models\JadwalSimpananWajib;
 use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\KreditPotongGajiAnggota;
@@ -17,6 +18,7 @@ use App\Models\PenyelesaianKeanggotaan;
 use App\Models\PenyelesaianKeanggotaanDetail;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
+use App\Models\SaldoSimpananSukarela;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
@@ -117,6 +119,9 @@ class KeanggotaanLifecycleService
                 ->first();
 
             if ($existing) {
+                $this->cancelUnpaidWajibForExit($existing, $userId);
+                $this->freezeSukarelaSaldo($existing);
+
                 return $this->refreshSnapshot($existing);
             }
 
@@ -138,6 +143,9 @@ class KeanggotaanLifecycleService
                 'idempotency_key' => 'penyelesaian-keanggotaan:siklus:' . $lockedSiklus->id,
             ]);
 
+            $this->cancelUnpaidWajibForExit($penyelesaian, $userId);
+            $this->freezeSukarelaSaldo($penyelesaian);
+
             return $this->refreshSnapshot($penyelesaian);
         });
     }
@@ -154,11 +162,18 @@ class KeanggotaanLifecycleService
                 return $locked->fresh(['details.source']);
             }
 
-            $hak = $this->calculateRights($locked);
+            $this->cancelUnpaidWajibForExit($locked, $locked->processed_by ?? $locked->created_by);
+            $this->freezeSukarelaSaldo($locked);
+
+            $rights = $this->rightSources($locked);
+            foreach ($rights as $index => $right) {
+                $this->upsertRightDetail($locked, $right, $index + 1);
+            }
+
             $obligations = $this->obligationSources($locked->anggota);
 
             foreach ($obligations as $index => $obligation) {
-                $this->upsertDetail($locked, $obligation, $index + 1);
+                $this->upsertObligationDetail($locked, $obligation, $index + 1);
             }
 
             $currentKeys = $obligations
@@ -170,13 +185,16 @@ class KeanggotaanLifecycleService
             $totalKewajiban = $totals['awal'];
             $totalOffset = $totals['offset'];
             $sisa = $totals['sisa'];
-            $refund = $sisa === 0 ? max(0, $hak['total_cents'] - $totalOffset) : 0;
+            $refund = $sisa === 0
+                ? max($totals['refund'], max(0, $totals['hak'] - $totalOffset))
+                : $totals['refund'];
 
             $locked->update([
-                'simpanan_pokok_snapshot' => $this->decimalFromCents($hak['simpanan_pokok_cents']),
-                'kredit_refund_snapshot' => $this->decimalFromCents($hak['kredit_refund_cents']),
-                'total_hak_anggota' => $this->decimalFromCents($hak['total_cents']),
+                'simpanan_pokok_snapshot' => $this->decimalFromCents($totals['hak_pokok']),
+                'kredit_refund_snapshot' => $this->decimalFromCents($totals['hak_kredit']),
+                'total_hak_anggota' => $this->decimalFromCents($totals['hak']),
                 'total_kewajiban_awal' => $this->decimalFromCents($totalKewajiban),
+                'total_offset' => $this->decimalFromCents($totalOffset),
                 'sisa_kewajiban' => $this->decimalFromCents($sisa),
                 'total_refund' => $this->decimalFromCents($refund),
             ]);
@@ -202,17 +220,18 @@ class KeanggotaanLifecycleService
             }
 
             $this->reverseUnpaidSimpananPokok($locked, $userId);
+            $this->cancelUnpaidWajibForExit($locked, $userId);
             $locked = $this->refreshSnapshot($locked);
-            $hak = $this->calculateRights($locked);
-            $available = $hak['total_cents'];
             $totalOffset = 0;
-            $pinjamanOffset = 0;
-            $piutangAnggotaOffset = 0;
+            $available = $this->rightRemainingCents($locked);
 
             foreach ($locked->details()->whereIn('status', [
                 PenyelesaianKeanggotaanDetail::STATUS_OPEN,
                 PenyelesaianKeanggotaanDetail::STATUS_PARTIAL,
-            ])->lockForUpdate()->get() as $detail) {
+            ])
+                ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN)
+                ->lockForUpdate()
+                ->get() as $detail) {
                 if ($available <= 0) {
                     break;
                 }
@@ -231,31 +250,25 @@ class KeanggotaanLifecycleService
                     'status' => $remaining === 0
                         ? PenyelesaianKeanggotaanDetail::STATUS_OFFSET
                         : PenyelesaianKeanggotaanDetail::STATUS_PARTIAL,
+                    'processed_by' => $userId,
+                    'processed_at' => $this->now(),
                 ]);
 
+                $this->allocateRightsToOffset($locked, $offset, $userId);
                 $this->applyOffsetToSource($detail->fresh('source'), $offset, $remaining);
-
-                if ($detail->kategori_sumber === PenyelesaianKeanggotaanDetail::KATEGORI_PINJAMAN) {
-                    $pinjamanOffset += $offset;
-                } else {
-                    $piutangAnggotaOffset += $offset;
-                }
 
                 $available -= $offset;
                 $totalOffset += $offset;
             }
 
-            $simpananUsed = min($totalOffset, $hak['simpanan_pokok_cents']);
-            $creditUsed = max(0, $totalOffset - $simpananUsed);
-            $this->consumeCredits($locked->anggota, $creditUsed);
-
             $totals = $this->detailTotals($locked);
             $totalKewajiban = $totals['awal'];
             $totalOffset = $totals['offset'];
             $sisa = $totals['sisa'];
-            $refund = $sisa === 0 ? max(0, $hak['total_cents'] - $totalOffset) : 0;
+            $refund = $sisa === 0 ? max($totals['refund'], max(0, $totals['hak'] - $totalOffset)) : $totals['refund'];
 
             $locked->update([
+                'total_hak_anggota' => $this->decimalFromCents($totals['hak']),
                 'total_kewajiban_awal' => $this->decimalFromCents($totalKewajiban),
                 'total_offset' => $this->decimalFromCents($totalOffset),
                 'total_refund' => $this->decimalFromCents($refund),
@@ -267,22 +280,15 @@ class KeanggotaanLifecycleService
                 'processed_at' => $this->now(),
             ]);
 
-            $this->akuntansiService->recordPenyelesaianKeanggotaanOffset(
-                $locked,
-                $this->decimalFromCents($simpananUsed),
-                $this->decimalFromCents($creditUsed),
-                $this->decimalFromCents($pinjamanOffset),
-                $this->decimalFromCents($piutangAnggotaOffset),
-                $userId
-            );
+            $this->akuntansiService->recordPenyelesaianKeanggotaanOffsetFromDetails($locked, $userId);
 
             return $locked->fresh(['details.source', 'jurnal.details']);
         });
     }
 
-    public function processRefund(PenyelesaianKeanggotaan $penyelesaian, DompetKoperasi $dompet, ?int $userId): PenyelesaianKeanggotaan
+    public function processRefund(PenyelesaianKeanggotaan $penyelesaian, DompetKoperasi $dompet, ?int $userId, ?string $metodeRefund = null): PenyelesaianKeanggotaan
     {
-        return DB::transaction(function () use ($penyelesaian, $dompet, $userId): PenyelesaianKeanggotaan {
+        return DB::transaction(function () use ($penyelesaian, $dompet, $userId, $metodeRefund): PenyelesaianKeanggotaan {
             $locked = PenyelesaianKeanggotaan::query()
                 ->with(['anggota', 'mutasiKas'])
                 ->lockForUpdate()
@@ -296,12 +302,17 @@ class KeanggotaanLifecycleService
                 throw ValidationException::withMessages(['penyelesaian' => 'Refund hanya dapat diproses setelah seluruh kewajiban nol.']);
             }
 
-            $refund = $this->decimalToCents($locked->total_refund);
+            $locked = $this->refreshSnapshot($locked);
+            if ($this->decimalToCents($locked->sisa_kewajiban) > 0) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Refund hanya dapat diproses setelah seluruh kewajiban nol.']);
+            }
+
+            $refund = $this->rightRemainingCents($locked);
             if ($refund <= 0) {
                 return $locked->fresh(['mutasiKas', 'jurnal.details']);
             }
 
-            $lockedDompet = $this->validRefundDompet($dompet->id);
+            $lockedDompet = $this->validRefundDompet($dompet->id, $metodeRefund);
             if ($this->decimalToCents($lockedDompet->saldo) < $refund) {
                 throw ValidationException::withMessages(['dompet_id' => 'Saldo Dompet tidak mencukupi untuk refund penyelesaian keanggotaan.']);
             }
@@ -327,26 +338,21 @@ class KeanggotaanLifecycleService
                 ]);
             }
 
-            $rights = $this->calculateRights($locked, includeSnapshots: true);
-            $offset = $this->decimalToCents($locked->total_offset);
-            $simpananUsed = min($offset, $rights['simpanan_pokok_cents']);
-            $simpananRefund = min($refund, max(0, $rights['simpanan_pokok_cents'] - $simpananUsed));
-            $creditRefund = max(0, $refund - $simpananRefund);
-            $this->consumeCredits($locked->anggota, $creditRefund);
+            $this->allocateRightsToRefund($locked, $refund, $userId);
 
-            $this->akuntansiService->recordPenyelesaianKeanggotaanRefund(
+            $this->akuntansiService->recordPenyelesaianKeanggotaanRefundFromDetails(
                 $locked,
                 $lockedDompet->akun,
-                $this->decimalFromCents($simpananRefund),
-                $this->decimalFromCents($creditRefund),
                 $userId
             );
 
+            $totals = $this->detailTotals($locked);
             $locked->update([
                 'dompet_refund_id' => $lockedDompet->id,
                 'metode_refund' => $lockedDompet->jenis_dompet === DompetKoperasi::JENIS_BANK
                     ? PenyelesaianKeanggotaan::METODE_TRANSFER_BANK
                     : PenyelesaianKeanggotaan::METODE_TUNAI,
+                'total_refund' => $this->decimalFromCents($totals['refund']),
                 'processed_by' => $userId,
                 'processed_at' => $locked->processed_at ?? $this->now(),
             ]);
@@ -368,8 +374,16 @@ class KeanggotaanLifecycleService
                 throw ValidationException::withMessages(['penyelesaian' => 'Penyelesaian belum dapat completed karena masih ada kewajiban.']);
             }
 
+            if ($this->rightRemainingCents($locked) > 0) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Penyelesaian belum dapat completed karena masih ada hak Anggota yang belum di-offset atau direfund.']);
+            }
+
             if ($this->decimalToCents($locked->total_refund) > 0 && ! $locked->mutasiKas()->exists()) {
                 throw ValidationException::withMessages(['penyelesaian' => 'Refund wajib diproses sebelum penyelesaian completed.']);
+            }
+
+            if ($this->oldSukarelaSaldoCents($locked) > 0) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Saldo Simpanan Sukarela siklus lama wajib nol sebelum penyelesaian completed.']);
             }
 
             $locked->update([
@@ -408,6 +422,15 @@ class KeanggotaanLifecycleService
                         'penyelesaian' => 'Reaktivasi Anggota ditolak sampai penyelesaian keanggotaan sebelumnya completed.',
                     ]);
                 }
+
+                if ($this->rightRemainingCents($settlement) > 0
+                    || $this->decimalToCents($settlement->sisa_kewajiban) > 0
+                    || $this->oldSukarelaSaldoCents($settlement) > 0
+                    || $this->hasActiveOldPayrollReservations($locked->id, $latestClosed->id)) {
+                    throw ValidationException::withMessages([
+                        'penyelesaian' => 'Reaktivasi Anggota ditolak karena masih ada hak, kewajiban, saldo Sukarela, atau reservasi payroll lama yang belum tuntas.',
+                    ]);
+                }
             }
 
             $locked->update([
@@ -417,6 +440,7 @@ class KeanggotaanLifecycleService
 
             $cycle = $this->ensureActiveCycle($locked, $userId, $tanggalMulai ?? now());
             $this->createSimpananPokokForCycle($locked->fresh('karyawan'), $cycle, $userId);
+            $this->ensureZeroSukarelaSaldoForCycle($locked->fresh('karyawan'), $cycle);
 
             return $locked->fresh(['karyawan', 'siklusAktif', 'simpanan']);
         });
@@ -463,42 +487,103 @@ class KeanggotaanLifecycleService
         return $simpanan;
     }
 
-    /**
-     * @return array{simpanan_pokok_cents:int,kredit_refund_cents:int,total_cents:int}
-     */
-    private function calculateRights(PenyelesaianKeanggotaan $penyelesaian, bool $includeSnapshots = false): array
+    private function rightSources(PenyelesaianKeanggotaan $penyelesaian): Collection
     {
-        if ($includeSnapshots) {
-            $simpanan = $this->decimalToCents($penyelesaian->simpanan_pokok_snapshot);
-            $credit = $this->decimalToCents($penyelesaian->kredit_refund_snapshot);
-
-            return [
-                'simpanan_pokok_cents' => $simpanan,
-                'kredit_refund_cents' => $credit,
-                'total_cents' => $simpanan + $credit,
-            ];
-        }
-
-        $simpanan = Simpanan::query()
+        $simpananRows = Simpanan::query()
+            ->with('jenisSimpanan.akun')
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
-            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
-            ->whereIn('status', [Simpanan::STATUS_SETTLED, Simpanan::STATUS_SETTLED_CASH, Simpanan::STATUS_SETTLED_OFFSET])
-            ->sum('nominal_snapshot');
+            ->whereIn('kode_jenis_snapshot', [
+                JenisSimpanan::KODE_SIMPANAN_POKOK,
+                JenisSimpanan::KODE_SIMPANAN_WAJIB,
+            ])
+            ->whereIn('status', [Simpanan::STATUS_SETTLED, Simpanan::STATUS_SETTLED_CASH])
+            ->whereNull('penyelesaian_keanggotaan_id')
+            ->orderByRaw("case when kode_jenis_snapshot = 'SIMPANAN_POKOK' then 1 else 2 end")
+            ->orderBy('tanggal')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->map(function (Simpanan $simpanan): array {
+                $kategori = $simpanan->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_POKOK
+                    ? PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_POKOK
+                    : PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_WAJIB;
 
-        $credit = KreditPotongGajiAnggota::query()
+                return $this->rightPayload(
+                    $kategori,
+                    Simpanan::class,
+                    $simpanan->id,
+                    $this->decimalToCents($simpanan->nominal_snapshot ?? $simpanan->jumlah),
+                    $simpanan->jenisSimpanan?->akun
+                );
+            });
+
+        $saldoRows = SaldoSimpananSukarela::query()
+            ->with('jenisSimpanan.akun')
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where(function ($query) use ($penyelesaian): void {
+                $query->whereNull('penyelesaian_keanggotaan_id')
+                    ->orWhere('penyelesaian_keanggotaan_id', $penyelesaian->id);
+            })
+            ->whereRaw('CAST(saldo AS DECIMAL(15,2)) > 0')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->map(fn (SaldoSimpananSukarela $saldo): array => $this->rightPayload(
+                PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_SUKARELA,
+                SaldoSimpananSukarela::class,
+                $saldo->id,
+                $this->decimalToCents($saldo->saldo),
+                $saldo->jenisSimpanan?->akun
+            ));
+
+        $creditRows = KreditPotongGajiAnggota::query()
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->whereIn('status', [KreditPotongGajiAnggota::STATUS_OPEN, KreditPotongGajiAnggota::STATUS_PARTIALLY_APPLIED])
-            ->sum('nominal_sisa');
+            ->whereRaw('CAST(nominal_sisa AS DECIMAL(15,2)) > 0')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->map(fn (KreditPotongGajiAnggota $credit): array => $this->rightPayload(
+                PenyelesaianKeanggotaanDetail::KATEGORI_KREDIT_REFUND,
+                KreditPotongGajiAnggota::class,
+                $credit->id,
+                $this->decimalToCents($credit->nominal_sisa),
+                $this->accountForRightCategory(PenyelesaianKeanggotaanDetail::KATEGORI_KREDIT_REFUND)
+            ));
 
-        $simpananCents = $this->decimalToCents((string) $simpanan);
-        $creditCents = $this->decimalToCents((string) $credit);
+        return $simpananRows
+            ->concat($saldoRows)
+            ->concat($creditRows)
+            ->filter(fn (array $source): bool => $source['nominal_cents'] > 0)
+            ->values();
+    }
+
+    private function rightPayload(string $kategori, string $sourceType, int $sourceId, int $nominalCents, ?Akun $akun): array
+    {
+        if (! $akun || ! $akun->is_aktif || ! in_array($akun->kategori, ['kewajiban', 'ekuitas'], true) || $akun->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun sumber hak Anggota tidak valid untuk penyelesaian keanggotaan.');
+        }
 
         return [
-            'simpanan_pokok_cents' => $simpananCents,
-            'kredit_refund_cents' => $creditCents,
-            'total_cents' => $simpananCents + $creditCents,
+            'kategori' => $kategori,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'nominal_cents' => $nominalCents,
+            'akun' => $akun,
         ];
+    }
+
+    private function accountForRightCategory(string $kategori): Akun
+    {
+        return match ($kategori) {
+            PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_POKOK => app(AkunResolver::class)->posting('keanggotaan.simpanan_pokok'),
+            PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_WAJIB => app(AkunResolver::class)->posting('keanggotaan.simpanan_wajib'),
+            PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_SUKARELA => app(AkunResolver::class)->posting('keanggotaan.simpanan_sukarela'),
+            PenyelesaianKeanggotaanDetail::KATEGORI_KREDIT_REFUND => app(AkunResolver::class)->posting('keanggotaan.utang_refund_anggota'),
+            default => throw new RuntimeException('Kategori hak Anggota tidak dikenal.'),
+        };
     }
 
     private function obligationSources(Anggota $anggota): Collection
@@ -542,8 +627,57 @@ class KeanggotaanLifecycleService
         return $pinjaman->concat($pos)->concat($simpanan)->values();
     }
 
-    private function upsertDetail(PenyelesaianKeanggotaan $penyelesaian, array $obligation, int $order): void
+    private function upsertRightDetail(PenyelesaianKeanggotaan $penyelesaian, array $right, int $order): void
     {
+        $existing = PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('source_type', $right['source_type'])
+            ->where('source_id', $right['source_id'])
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing && $this->decimalToCents($existing->nominal_dipakai_offset) + $this->decimalToCents($existing->nominal_direfund) > 0) {
+            return;
+        }
+
+        PenyelesaianKeanggotaanDetail::query()->updateOrCreate(
+            [
+                'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+                'source_type' => $right['source_type'],
+                'source_id' => $right['source_id'],
+            ],
+            [
+                'tipe_detail' => PenyelesaianKeanggotaanDetail::TIPE_HAK,
+                'kategori_sumber' => $right['kategori'],
+                'akun_id' => $right['akun']->id,
+                'akun_kode_snapshot' => $right['akun']->kode_akun,
+                'akun_nama_snapshot' => $right['akun']->nama_akun,
+                'nominal_hak_awal' => $this->decimalFromCents($right['nominal_cents']),
+                'nominal_kewajiban_awal' => '0.00',
+                'nominal_sisa' => '0.00',
+                'urutan_alokasi' => $order,
+                'status' => PenyelesaianKeanggotaanDetail::STATUS_OPEN,
+                'idempotency_key' => 'penyelesaian:hak:' . $penyelesaian->id . ':' . class_basename($right['source_type']) . ':' . $right['source_id'],
+            ]
+        );
+    }
+
+    private function upsertObligationDetail(PenyelesaianKeanggotaan $penyelesaian, array $obligation, int $order): void
+    {
+        $existing = PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('source_type', $obligation['source_type'])
+            ->where('source_id', $obligation['source_id'])
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing && (
+            $this->decimalToCents($existing->nominal_offset)
+            + $this->decimalToCents($existing->nominal_dibayar_tunai)
+        ) > 0) {
+            return;
+        }
+
         PenyelesaianKeanggotaanDetail::query()->updateOrCreate(
             [
                 'penyelesaian_keanggotaan_id' => $penyelesaian->id,
@@ -551,11 +685,13 @@ class KeanggotaanLifecycleService
                 'source_id' => $obligation['source_id'],
             ],
             [
+                'tipe_detail' => PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN,
                 'kategori_sumber' => $obligation['kategori'],
                 'nominal_kewajiban_awal' => $this->decimalFromCents($obligation['nominal_cents']),
                 'nominal_sisa' => $this->decimalFromCents($obligation['nominal_cents']),
                 'urutan_alokasi' => $order,
                 'status' => PenyelesaianKeanggotaanDetail::STATUS_OPEN,
+                'idempotency_key' => 'penyelesaian:kewajiban:' . $penyelesaian->id . ':' . class_basename($obligation['source_type']) . ':' . $obligation['source_id'],
             ]
         );
     }
@@ -567,6 +703,7 @@ class KeanggotaanLifecycleService
     {
         PenyelesaianKeanggotaanDetail::query()
             ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN)
             ->whereIn('status', [PenyelesaianKeanggotaanDetail::STATUS_OPEN, PenyelesaianKeanggotaanDetail::STATUS_PARTIAL])
             ->lockForUpdate()
             ->get()
@@ -588,20 +725,207 @@ class KeanggotaanLifecycleService
     }
 
     /**
-     * @return array{awal:int,offset:int,cash:int,sisa:int}
+     * @return array{awal:int,offset:int,cash:int,sisa:int,hak:int,hak_pokok:int,hak_kredit:int,refund:int}
      */
     private function detailTotals(PenyelesaianKeanggotaan $penyelesaian): array
     {
         $rows = PenyelesaianKeanggotaanDetail::query()
             ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
-            ->get(['nominal_kewajiban_awal', 'nominal_offset', 'nominal_dibayar_tunai', 'nominal_sisa']);
+            ->get([
+                'tipe_detail',
+                'kategori_sumber',
+                'nominal_hak_awal',
+                'nominal_dipakai_offset',
+                'nominal_direfund',
+                'nominal_kewajiban_awal',
+                'nominal_offset',
+                'nominal_dibayar_tunai',
+                'nominal_sisa',
+            ]);
+
+        $hakRows = $rows->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK);
+        $kewajibanRows = $rows->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN);
 
         return [
-            'awal' => $rows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_kewajiban_awal)),
-            'offset' => $rows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_offset)),
-            'cash' => $rows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_dibayar_tunai)),
-            'sisa' => $rows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_sisa)),
+            'awal' => $kewajibanRows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_kewajiban_awal)),
+            'offset' => $kewajibanRows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_offset)),
+            'cash' => $kewajibanRows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_dibayar_tunai)),
+            'sisa' => $kewajibanRows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_sisa)),
+            'hak' => $hakRows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_hak_awal)),
+            'hak_pokok' => $hakRows
+                ->where('kategori_sumber', PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_POKOK)
+                ->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_hak_awal)),
+            'hak_kredit' => $hakRows
+                ->where('kategori_sumber', PenyelesaianKeanggotaanDetail::KATEGORI_KREDIT_REFUND)
+                ->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_hak_awal)),
+            'refund' => $hakRows->sum(fn (PenyelesaianKeanggotaanDetail $detail): int => $this->decimalToCents($detail->nominal_direfund)),
         ];
+    }
+
+    private function rightRemainingCents(PenyelesaianKeanggotaan $penyelesaian): int
+    {
+        return PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->lockForUpdate()
+            ->get()
+            ->sum(function (PenyelesaianKeanggotaanDetail $detail): int {
+                $total = $this->decimalToCents($detail->nominal_hak_awal);
+                $used = $this->decimalToCents($detail->nominal_dipakai_offset)
+                    + $this->decimalToCents($detail->nominal_direfund);
+
+                return max(0, $total - $used);
+            });
+    }
+
+    private function allocateRightsToOffset(PenyelesaianKeanggotaan $penyelesaian, int $nominalCents, ?int $userId): void
+    {
+        $this->allocateRights($penyelesaian, $nominalCents, 'offset', $userId);
+    }
+
+    private function allocateRightsToRefund(PenyelesaianKeanggotaan $penyelesaian, int $nominalCents, ?int $userId): void
+    {
+        $this->allocateRights($penyelesaian, $nominalCents, 'refund', $userId);
+    }
+
+    private function allocateRights(PenyelesaianKeanggotaan $penyelesaian, int $nominalCents, string $mode, ?int $userId): void
+    {
+        $remaining = $nominalCents;
+        $details = PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->whereIn('status', [
+                PenyelesaianKeanggotaanDetail::STATUS_OPEN,
+                PenyelesaianKeanggotaanDetail::STATUS_PARTIAL,
+            ])
+            ->orderBy('urutan_alokasi')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($details as $detail) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $hak = $this->decimalToCents($detail->nominal_hak_awal);
+            $offset = $this->decimalToCents($detail->nominal_dipakai_offset);
+            $refund = $this->decimalToCents($detail->nominal_direfund);
+            $available = max(0, $hak - $offset - $refund);
+            $used = min($remaining, $available);
+
+            if ($used <= 0) {
+                continue;
+            }
+
+            $newOffset = $mode === 'offset' ? $offset + $used : $offset;
+            $newRefund = $mode === 'refund' ? $refund + $used : $refund;
+            $fullyUsed = ($newOffset + $newRefund) >= $hak;
+
+            $detail->update([
+                'nominal_dipakai_offset' => $this->decimalFromCents($newOffset),
+                'nominal_direfund' => $this->decimalFromCents($newRefund),
+                'status' => $fullyUsed
+                    ? ($mode === 'refund' && $newOffset === 0
+                        ? PenyelesaianKeanggotaanDetail::STATUS_REFUNDED
+                        : ($newRefund > 0 ? PenyelesaianKeanggotaanDetail::STATUS_PARTIAL : PenyelesaianKeanggotaanDetail::STATUS_OFFSET))
+                    : PenyelesaianKeanggotaanDetail::STATUS_PARTIAL,
+                'processed_by' => $userId,
+                'processed_at' => $this->now(),
+            ]);
+
+            $this->syncRightSourceAllocation($detail->fresh(), $userId);
+            $remaining -= $used;
+        }
+
+        if ($remaining > 0) {
+            throw new RuntimeException('Hak Anggota tidak cukup untuk alokasi settlement.');
+        }
+    }
+
+    private function syncRightSourceAllocation(PenyelesaianKeanggotaanDetail $detail, ?int $userId): void
+    {
+        $allocated = $this->decimalToCents($detail->nominal_dipakai_offset)
+            + $this->decimalToCents($detail->nominal_direfund);
+
+        if ($detail->source_type === Simpanan::class) {
+            Simpanan::query()
+                ->whereKey($detail->source_id)
+                ->whereNull('penyelesaian_keanggotaan_id')
+                ->update(['penyelesaian_keanggotaan_id' => $detail->penyelesaian_keanggotaan_id]);
+            return;
+        }
+
+        if ($detail->source_type === SaldoSimpananSukarela::class) {
+            $saldo = SaldoSimpananSukarela::query()->lockForUpdate()->find($detail->source_id);
+            if (! $saldo) {
+                return;
+            }
+
+            $remaining = max(0, $this->decimalToCents($detail->nominal_hak_awal) - $allocated);
+            $saldo->update([
+                'saldo' => $this->decimalFromCents($remaining),
+                'penyelesaian_keanggotaan_id' => $detail->penyelesaian_keanggotaan_id,
+                'frozen_at' => $saldo->frozen_at ?? $this->now(),
+            ]);
+            return;
+        }
+
+        if ($detail->source_type === KreditPotongGajiAnggota::class) {
+            $credit = KreditPotongGajiAnggota::query()->lockForUpdate()->find($detail->source_id);
+            if (! $credit) {
+                return;
+            }
+
+            $total = $this->decimalToCents($credit->nominal_awal);
+            $baselineTerpakai = max(0, $total - $this->decimalToCents($detail->nominal_hak_awal));
+            $newTerpakai = min($total, $baselineTerpakai + $allocated);
+            $newSisa = max(0, $total - $newTerpakai);
+
+            $credit->update([
+                'nominal_terpakai' => $this->decimalFromCents($newTerpakai),
+                'nominal_sisa' => $this->decimalFromCents($newSisa),
+                'status' => $newSisa === 0
+                    ? KreditPotongGajiAnggota::STATUS_APPLIED
+                    : KreditPotongGajiAnggota::STATUS_PARTIALLY_APPLIED,
+            ]);
+        }
+    }
+
+    private function oldSukarelaSaldoCents(PenyelesaianKeanggotaan $penyelesaian): int
+    {
+        return $this->decimalToCents((string) SaldoSimpananSukarela::query()
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->sum('saldo'));
+    }
+
+    private function hasActiveOldPayrollReservations(int $anggotaId, int $siklusId): bool
+    {
+        return PemakaianPotongGaji::query()
+            ->whereIn('status', [PemakaianPotongGaji::STATUS_RESERVED, PemakaianPotongGaji::STATUS_CONSUMED])
+            ->where(function ($query) use ($anggotaId, $siklusId): void {
+                $query->where(function ($jadwal) use ($anggotaId, $siklusId): void {
+                    $jadwal->where('source_type', JadwalSimpananWajib::class)
+                        ->whereExists(function ($exists) use ($anggotaId, $siklusId): void {
+                            $exists->selectRaw('1')
+                                ->from('jadwal_simpanan_wajib')
+                                ->whereColumn('jadwal_simpanan_wajib.id', 'pemakaian_potong_gaji.source_id')
+                                ->where('jadwal_simpanan_wajib.anggota_id', $anggotaId)
+                                ->where('jadwal_simpanan_wajib.siklus_keanggotaan_id', $siklusId);
+                        });
+                })->orWhere(function ($simpanan) use ($anggotaId, $siklusId): void {
+                    $simpanan->where('source_type', Simpanan::class)
+                        ->whereExists(function ($exists) use ($anggotaId, $siklusId): void {
+                            $exists->selectRaw('1')
+                                ->from('simpanan')
+                                ->whereColumn('simpanan.id', 'pemakaian_potong_gaji.source_id')
+                                ->where('simpanan.anggota_id', $anggotaId)
+                                ->where('simpanan.siklus_keanggotaan_id', $siklusId);
+                        });
+                });
+            })
+            ->exists();
     }
 
     private function applyOffsetToSource(PenyelesaianKeanggotaanDetail $detail, int $offsetCents, int $remainingCents): void
@@ -755,12 +1079,189 @@ class KeanggotaanLifecycleService
         }
     }
 
-    private function validRefundDompet(int $dompetId): DompetKoperasi
+    private function cancelUnpaidWajibForExit(PenyelesaianKeanggotaan $penyelesaian, ?int $userId): void
+    {
+        $jadwals = JadwalSimpananWajib::query()
+            ->with(['simpanan.jurnal', 'simpanan.ledger', 'jenisSimpanan.akun', 'activeLedger'])
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->whereIn('status', [
+                JadwalSimpananWajib::STATUS_OUTSTANDING,
+                JadwalSimpananWajib::STATUS_RESERVED,
+                JadwalSimpananWajib::STATUS_CANCELLED_EXIT,
+            ])
+            ->orderBy('periode')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($jadwals as $jadwal) {
+            if ($jadwal->status === JadwalSimpananWajib::STATUS_CANCELLED_EXIT) {
+                $this->upsertWajibCancellationDetail($penyelesaian, $jadwal, $userId);
+                continue;
+            }
+
+            $simpanan = $jadwal->simpanan;
+            if (! $simpanan || $simpanan->status === Simpanan::STATUS_SETTLED) {
+                continue;
+            }
+
+            if (! in_array($simpanan->status, [Simpanan::STATUS_PENDING_PAYROLL, Simpanan::STATUS_ALLOCATED], true)) {
+                continue;
+            }
+
+            $ledger = $simpanan->ledger ?: $jadwal->activeLedger;
+            if ($ledger && $ledger->status === PemakaianPotongGaji::STATUS_RESERVED) {
+                $ledger->update([
+                    'status' => PemakaianPotongGaji::STATUS_RELEASED,
+                    'released_at' => $this->now(),
+                    'released_by' => $userId,
+                    'release_reason' => 'Keanggotaan berakhir; tagihan Simpanan Wajib dibatalkan.',
+                    'updated_by' => $userId,
+                ]);
+            }
+
+            if ($ledger && in_array($ledger->status, [PemakaianPotongGaji::STATUS_CONSUMED, PemakaianPotongGaji::STATUS_SETTLED], true)) {
+                continue;
+            }
+
+            $reversal = ReversalTransaksi::query()
+                ->where('source_type', Simpanan::class)
+                ->where('source_id', $simpanan->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $reversal) {
+                $reversal = ReversalTransaksi::query()->create([
+                    'kode_reversal' => $this->nextCode('reversal', 'REV'),
+                    'source_type' => Simpanan::class,
+                    'source_id' => $simpanan->id,
+                    'jenis_reversal' => ReversalTransaksi::JENIS_SIMPANAN_WAJIB_EXIT_CANCEL,
+                    'nominal' => $simpanan->nominal_snapshot ?? $simpanan->jumlah,
+                    'alasan' => 'Tagihan Simpanan Wajib belum dibayar saat keanggotaan berakhir.',
+                    'status' => ReversalTransaksi::STATUS_PROCESSED,
+                    'original_ledger_id' => $simpanan->pemakaian_potong_gaji_id,
+                    'original_jurnal_id' => $simpanan->jurnal?->id,
+                    'created_by' => $userId,
+                    'processed_by' => $userId,
+                    'processed_at' => $this->now(),
+                    'idempotency_key' => 'reversal:simpanan-wajib-exit:' . $simpanan->id,
+                ]);
+            }
+
+            $this->akuntansiService->recordSimpananWajibExitCancellation($simpanan->fresh('jenisSimpanan.akun'), $reversal, $userId);
+
+            $simpanan->update([
+                'status' => Simpanan::STATUS_REVERSED_DUE_TO_EXIT,
+                'reversal_transaksi_id' => $reversal->id,
+                'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+            ]);
+
+            $jadwal->update([
+                'status' => JadwalSimpananWajib::STATUS_CANCELLED_EXIT,
+                'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+                'cancellation_reversal_id' => $reversal->id,
+                'cancelled_at' => $this->now(),
+                'cancelled_by' => $userId,
+                'cancel_reason' => 'Tagihan Wajib dibatalkan karena Keanggotaan Berakhir.',
+            ]);
+
+            $this->upsertWajibCancellationDetail($penyelesaian, $jadwal->fresh(['jenisSimpanan.akun']), $userId);
+        }
+    }
+
+    private function upsertWajibCancellationDetail(PenyelesaianKeanggotaan $penyelesaian, JadwalSimpananWajib $jadwal, ?int $userId): void
+    {
+        $akun = $jadwal->jenisSimpanan?->akun ?: $this->accountForRightCategory(PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_WAJIB);
+        $nominalCents = $this->decimalToCents($jadwal->nominal_snapshot);
+
+        PenyelesaianKeanggotaanDetail::query()->updateOrCreate(
+            [
+                'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+                'source_type' => JadwalSimpananWajib::class,
+                'source_id' => $jadwal->id,
+            ],
+            [
+                'tipe_detail' => PenyelesaianKeanggotaanDetail::TIPE_PEMBATALAN_WAJIB,
+                'kategori_sumber' => PenyelesaianKeanggotaanDetail::KATEGORI_PEMBATALAN_WAJIB,
+                'akun_id' => $akun->id,
+                'akun_kode_snapshot' => $akun->kode_akun,
+                'akun_nama_snapshot' => $akun->nama_akun,
+                'nominal_dibatalkan' => $this->decimalFromCents($nominalCents),
+                'nominal_hak_awal' => '0.00',
+                'nominal_kewajiban_awal' => '0.00',
+                'nominal_sisa' => '0.00',
+                'urutan_alokasi' => 9000 + (int) $jadwal->id,
+                'status' => PenyelesaianKeanggotaanDetail::STATUS_CANCELLED,
+                'processed_by' => $userId,
+                'processed_at' => $this->now(),
+                'idempotency_key' => 'penyelesaian:pembatalan-wajib:' . $penyelesaian->id . ':' . $jadwal->id,
+            ]
+        );
+    }
+
+    private function freezeSukarelaSaldo(PenyelesaianKeanggotaan $penyelesaian): void
+    {
+        SaldoSimpananSukarela::query()
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where(function ($query) use ($penyelesaian): void {
+                $query->whereNull('penyelesaian_keanggotaan_id')
+                    ->orWhere('penyelesaian_keanggotaan_id', $penyelesaian->id);
+            })
+            ->lockForUpdate()
+            ->get()
+            ->each(function (SaldoSimpananSukarela $saldo) use ($penyelesaian): void {
+                $saldo->update([
+                    'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+                    'frozen_at' => $saldo->frozen_at ?? $this->now(),
+                ]);
+            });
+    }
+
+    private function ensureZeroSukarelaSaldoForCycle(Anggota $anggota, SiklusKeanggotaan $cycle): void
+    {
+        $jenis = JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)
+            ->where('aktif', true)
+            ->first();
+
+        if (! $jenis) {
+            return;
+        }
+
+        try {
+            SaldoSimpananSukarela::query()->firstOrCreate(
+                [
+                    'anggota_id' => $anggota->id,
+                    'siklus_keanggotaan_id' => $cycle->id,
+                    'jenis_simpanan_id' => $jenis->id,
+                ],
+                [
+                    'saldo' => '0.00',
+                    'penyelesaian_keanggotaan_id' => null,
+                    'frozen_at' => null,
+                ]
+            );
+        } catch (QueryException) {
+        }
+    }
+
+    private function validRefundDompet(int $dompetId, ?string $metodeRefund = null): DompetKoperasi
     {
         $dompet = DompetKoperasi::query()->with('akun')->lockForUpdate()->findOrFail($dompetId);
 
         if (! in_array($dompet->jenis_dompet, [DompetKoperasi::JENIS_KAS, DompetKoperasi::JENIS_BANK], true)) {
             throw ValidationException::withMessages(['dompet_id' => 'Dompet refund harus Kas atau Bank.']);
+        }
+
+        if ($metodeRefund === PenyelesaianKeanggotaan::METODE_TUNAI && $dompet->jenis_dompet !== DompetKoperasi::JENIS_KAS) {
+            throw ValidationException::withMessages(['dompet_id' => 'Refund Tunai wajib memakai Dompet Kas.']);
+        }
+
+        if ($metodeRefund === PenyelesaianKeanggotaan::METODE_TRANSFER_BANK && $dompet->jenis_dompet !== DompetKoperasi::JENIS_BANK) {
+            throw ValidationException::withMessages(['dompet_id' => 'Refund Transfer Bank wajib memakai Dompet Bank.']);
         }
 
         if (! $dompet->akun || ! $dompet->akun->is_aktif || $dompet->akun->kategori !== 'aset' || $dompet->akun->posisi_saldo !== 'debit') {

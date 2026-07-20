@@ -20,6 +20,7 @@ class PreflightAsetCommand extends Command
             $this->check('kode_duplikat', 'Kode aset duplikat', $this->duplicates('aset_koperasi', 'kode_aset')),
             $this->check('format_kode_invalid', 'Format kode aset tidak sesuai jenis', $this->invalidCodeFormat()),
             $this->check('mobil_tanpa_detail', 'Aset mobil tanpa detail mobil', $this->assetWithoutDetail(AsetKoperasi::JENIS_MOBIL)),
+            $this->check('mobil_tarif_invalid', 'Mobil aktif/tersedia tanpa Tarif Sewa Harian valid', $this->invalidMobilTariff()),
             $this->check('printer_tanpa_detail', 'Aset printer tanpa detail printer', $this->assetWithoutDetail(AsetKoperasi::JENIS_PRINTER)),
             $this->check('aset_detail_ganda', 'Aset mempunyai detail mobil dan printer sekaligus', $this->assetWithBothDetails()),
             $this->check('detail_mobil_orphan', 'Detail mobil tanpa parent aset', $this->detailOrphan('aset_mobil')),
@@ -124,6 +125,20 @@ class PreflightAsetCommand extends Command
         return DB::table('aset_koperasi as a')
             ->join('aset_mobil as m', 'm.aset_koperasi_id', '=', 'a.id')
             ->join('aset_printer as p', 'p.aset_koperasi_id', '=', 'a.id')
+            ->count('a.id');
+    }
+
+    private function invalidMobilTariff(): int
+    {
+        if (! $this->hasTables(['aset_koperasi', 'aset_mobil']) || ! Schema::hasColumn('aset_mobil', 'tarif_sewa_harian')) {
+            return 0;
+        }
+
+        return DB::table('aset_koperasi as a')
+            ->join('aset_mobil as m', 'm.aset_koperasi_id', '=', 'a.id')
+            ->where('a.jenis_aset', AsetKoperasi::JENIS_MOBIL)
+            ->whereIn('a.status', [AsetKoperasi::STATUS_TERSEDIA, AsetKoperasi::STATUS_DIGUNAKAN_DISEWA])
+            ->where(fn ($query) => $query->whereNull('m.tarif_sewa_harian')->orWhere('m.tarif_sewa_harian', '<=', 0))
             ->count('a.id');
     }
 

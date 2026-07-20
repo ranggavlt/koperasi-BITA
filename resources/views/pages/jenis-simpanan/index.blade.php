@@ -1,16 +1,18 @@
 @extends('layout.main')
 
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
+@php
+  $kategoriOptions = \App\Models\JenisSimpanan::KATEGORI;
+  $statusClass = fn ($aktif) => $aktif ? 'kbsm-status kbsm-status--green' : 'kbsm-status kbsm-status--slate';
+@endphp
 
+<div class="kbsm-business-page">
   @if (session('success'))
-    <div class="mb-4 rounded-lg bg-green-100 px-4 py-3 text-sm text-green-700">
-      {{ session('success') }}
-    </div>
+    <div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>
   @endif
 
   @if ($errors->any())
-    <div class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
+    <div class="kbsm-business-alert kbsm-business-alert--danger">
       <ul class="mb-0 list-disc pl-5">
         @foreach ($errors->all() as $error)
           <li>{{ $error }}</li>
@@ -19,263 +21,133 @@
     </div>
   @endif
 
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl flex justify-between items-center">
-          <div>
-            <h6>{{ isset($data) ? 'Edit Jenis Simpanan' : 'Tambah Jenis Simpanan' }}</h6>
-            <p class="text-sm text-slate-400">
-              Isi master data jenis simpanan untuk kebutuhan operasional koperasi
-            </p>
-          </div>
-
-          @if(!isset($data))
-            <button type="button" onclick="toggleForm()" id="btn-toggle-form"
-              class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-              {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
-            </button>
-          @endif
-        </div>
-
-        <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">
-          <form action="{{ isset($data) ? route('jenis-simpanan.update', $data->id) : route('jenis-simpanan.store') }}" method="POST">
-            @csrf
-            @if(isset($data))
-              @method('PUT')
-            @endif
-
-            <div class="flex flex-wrap -mx-3">
-              <div class="w-full max-w-full px-3 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Nama Jenis Simpanan
-                </label>
-                <input type="text" name="nama_jenis"
-                  value="{{ old('nama_jenis', $data->nama_jenis ?? '') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="Masukkan nama jenis simpanan">
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Kode Stabil
-                </label>
-                <input type="text" name="kode"
-                  value="{{ old('kode', $data->kode ?? '') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="Contoh: SIMPANAN_POKOK">
-                <p class="mt-1 text-xs text-slate-400">Kosongkan untuk dibuat dari nama. Jangan ubah kode yang sudah dipakai transaksi.</p>
-              </div>
-
-              <div class="w-full max-w-full px-3 md:w-4/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Status Simpanan
-                </label>
-                @php
-                  $wajibVal = old('wajib', isset($data) ? (int) $data->wajib : 0);
-                @endphp
-                <select name="wajib"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="0" {{ (string) $wajibVal === '0' ? 'selected' : '' }}>Sukarela</option>
-                  <option value="1" {{ (string) $wajibVal === '1' ? 'selected' : '' }}>Wajib</option>
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Status Aktif
-                </label>
-                @php
-                  $aktifVal = old('aktif', isset($data) ? (int) $data->aktif : 1);
-                @endphp
-                <select name="aktif"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="1" {{ (string) $aktifVal === '1' ? 'selected' : '' }}>Aktif</option>
-                  <option value="0" {{ (string) $aktifVal === '0' ? 'selected' : '' }}>Nonaktif</option>
-                </select>
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Akun COA
-                </label>
-                <select name="akun_id"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                  <option value="">Pilih akun pencatatan</option>
-                  @foreach($akunSimpanan as $akunItem)
-                    <option value="{{ $akunItem->id }}" {{ (string) old('akun_id', $data->akun_id ?? '') === (string) $akunItem->id ? 'selected' : '' }}>
-                      {{ $akunItem->kode_akun }} - {{ $akunItem->nama_akun }} ({{ $akunItem->kategori_label }})
-                    </option>
-                  @endforeach
-                </select>
-                <p class="mt-1 text-xs text-slate-400">Simpanan pokok/wajib menggunakan ekuitas; simpanan yang dapat ditarik menggunakan kewajiban.</p>
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Nominal Default
-                </label>
-                <input type="number" name="nominal_default" step="0.01" min="0"
-                  value="{{ old('nominal_default', $data->nominal_default ?? '') }}"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="0">
-              </div>
-
-              <div class="w-full max-w-full px-3 mt-4 md:w-6/12">
-                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
-                  Keterangan
-                </label>
-                <textarea name="keterangan" rows="3"
-                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                  placeholder="Tambahkan keterangan bila diperlukan">{{ old('keterangan', $data->keterangan ?? '') }}</textarea>
-              </div>
-            </div>
-
-            <div class="mt-6 flex gap-2">
-              <button type="submit"
-                class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
-                {{ isset($data) ? 'Update Jenis' : 'Simpan Jenis' }}
-              </button>
-
-              @if(isset($data))
-                <a href="{{ route('jenis-simpanan.index') }}"
-                  class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
-                  Batal
-                </a>
-              @endif
-            </div>
-          </form>
-        </div>
-      </div>
+  <div class="kbsm-business-header">
+    <div>
+      <p class="kbsm-business-eyebrow">Master Data</p>
+      <h1 class="kbsm-business-title">Jenis Simpanan</h1>
+      <p class="kbsm-business-subtitle">Kelola master resmi Simpanan Pokok, Wajib, dan Sukarela. Snapshot transaksi lama tidak ikut berubah.</p>
     </div>
   </div>
 
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-          <h6>Data Jenis Simpanan</h6>
-          <p class="text-sm text-slate-400">Daftar master data jenis simpanan koperasi</p>
-        </div>
-
-        <div class="flex-auto px-0 pt-0 pb-2">
-          <div style="overflow-x: auto;" class="p-0">
-            <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-              <thead class="align-bottom">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis Simpanan</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Akun COA</th>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Keterangan</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Nominal Default</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                @forelse($jenisSimpanan as $item)
-                  <tr>
-                    <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center px-4 py-2">
-                        <div class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
-                          {{ $jenisSimpanan->firstItem() + $loop->index }}
-                        </div>
-
-                        <div class="flex flex-col justify-center">
-                          <h6 class="mb-0 text-sm leading-normal">{{ $item->nama_jenis }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">{{ $item->kode ?: '-' }}</p>
-                          <p class="mb-0 text-xs leading-tight {{ $item->aktif ? 'text-green-500' : 'text-red-500' }}">
-                            {{ $item->aktif ? 'Aktif' : 'Nonaktif' }}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      @if($item->wajib)
-                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-green-600 to-lime-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                          Wajib
-                        </span>
-                      @else
-                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-slate-600 to-slate-300 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                          Sukarela
-                        </span>
-                      @endif
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
-                      @if($item->akun)
-                        <p class="mb-0 text-xs font-bold text-slate-600">{{ $item->akun->kode_akun }} - {{ $item->akun->nama_akun }}</p>
-                        <p class="mb-0 text-xs text-slate-400">{{ $item->akun->kategori_label }}</p>
-                      @else
-                        <span class="text-xs font-bold text-red-500">Belum dipetakan</span>
-                      @endif
-                    </td>
-
-                    <td class="p-2 align-middle bg-transparent border-b shadow-transparent">
-                      <p class="mb-0 text-xs font-semibold leading-tight text-slate-500">
-                        {{ $item->keterangan ?: '-' }}
-                      </p>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">
-                        {{ $item->nominal_default !== null ? 'Rp ' . number_format($item->nominal_default, 0, ',', '.') : '-' }}
-                      </span>
-                    </td>
-
-                    <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center justify-center gap-2 px-4">
-                        <a href="{{ route('jenis-simpanan.edit', $item->id) }}"
-                          class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                          Edit
-                        </a>
-
-                        <form action="{{ route('jenis-simpanan.destroy', $item->id) }}" method="POST"
-                          onsubmit="return confirm('Yakin ingin menghapus jenis simpanan ini?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                            Hapus
-                          </button>
-                        </form>
-                      </div>
-                    </td>
-                  </tr>
-                @empty
-                  <tr>
-                    <td colspan="6" class="p-4 text-center text-sm text-slate-400">
-                      Belum ada data jenis simpanan.
-                    </td>
-                  </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
-
-          <div class="p-4 border-t border-gray-200">
-            {{ $jenisSimpanan->links() }}
-          </div>
-        </div>
-      </div>
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Filter Jenis Simpanan</h2>
+      <p class="kbsm-business-panel__copy">Gunakan filter kategori dan status tanpa mengubah data.</p>
     </div>
-  </div>
+
+    <form method="GET" action="{{ route('jenis-simpanan.index') }}" class="kbsm-business-filter kbsm-business-filter--compact">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label" for="kategori">Kategori</label>
+        <select id="kategori" name="kategori" class="kbsm-business-control">
+          <option value="">Semua Kategori</option>
+          @foreach($kategoriOptions as $value => $label)
+            <option value="{{ $value }}" @selected(request('kategori') === $value)>{{ $label }}</option>
+          @endforeach
+        </select>
+      </div>
+
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label" for="status">Status</label>
+        <select id="status" name="status" class="kbsm-business-control">
+          <option value="">Semua Status</option>
+          <option value="aktif" @selected(request('status') === 'aktif')>Aktif</option>
+          <option value="nonaktif" @selected(request('status') === 'nonaktif')>Nonaktif</option>
+        </select>
+      </div>
+
+      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split">
+        <button class="kbsm-btn kbsm-btn--navy">Filter</button>
+        <a href="{{ route('jenis-simpanan.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header kbsm-business-panel__header--action">
+      <div>
+        <h2 class="kbsm-business-panel__title">Master Jenis Simpanan</h2>
+        <p class="kbsm-business-panel__copy">Satu kategori hanya boleh memiliki satu master aktif.</p>
+      </div>
+
+      @if(count($missingActiveCategories) > 0)
+        <a href="{{ route('jenis-simpanan.create') }}" class="kbsm-business-add-button">+ TAMBAH JENIS SIMPANAN</a>
+      @endif
+    </div>
+
+    <div class="kbsm-business-table-wrap">
+      <table class="kbsm-business-table">
+        <thead>
+          <tr>
+            <th>Kode</th>
+            <th>Nama</th>
+            <th>Kategori</th>
+            <th class="kbsm-business-table__right">Nominal</th>
+            <th>Frekuensi</th>
+            <th>Berlaku Mulai</th>
+            <th>Status</th>
+            <th>Audit</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($jenisSimpanan as $item)
+            <tr>
+              <td>
+                <span class="kbsm-business-code">{{ $item->kode ?: '-' }}</span>
+              </td>
+              <td>
+                <span class="kbsm-business-strong">{{ $item->nama_jenis }}</span>
+                <div class="kbsm-business-muted">{{ $item->akun ? $item->akun->kode_akun . ' - ' . $item->akun->nama_akun : 'COA belum dipetakan' }}</div>
+              </td>
+              <td>{{ $item->kategori_label }}</td>
+              <td class="kbsm-business-table__right">
+                <span class="kbsm-business-amount">
+                  {{ $item->nominal_default !== null ? 'Rp ' . number_format((float) $item->nominal_default, 0, ',', '.') : '-' }}
+                </span>
+              </td>
+              <td>{{ $item->frekuensi_label }}</td>
+              <td>{{ $item->berlaku_mulai?->format('d/m/Y') ?? '-' }}</td>
+              <td>
+                <span class="{{ $statusClass($item->aktif) }}">{{ $item->aktif ? 'Aktif' : 'Nonaktif' }}</span>
+              </td>
+              <td>
+                <div class="kbsm-business-muted">
+                  Dibuat: {{ $item->created_at?->format('d/m/Y H:i') ?? '-' }}
+                </div>
+                <div class="kbsm-business-muted">
+                  Update: {{ $item->updated_at?->format('d/m/Y H:i') ?? '-' }}
+                </div>
+                @if($item->latestRiwayat)
+                  <div class="kbsm-business-muted">
+                    Oleh: {{ $item->latestRiwayat->changedBy->name ?? 'System' }}
+                  </div>
+                @endif
+              </td>
+              <td>
+                <div class="kbsm-business-inline-actions">
+                  <a href="{{ route('jenis-simpanan.edit', $item) }}" class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Edit</a>
+                  @unless($item->is_terpakai)
+                    <form method="POST" action="{{ route('jenis-simpanan.destroy', $item) }}" onsubmit="return confirm('Hapus master yang belum dipakai ini?')">
+                      @csrf
+                      @method('DELETE')
+                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Hapus</button>
+                    </form>
+                  @endunless
+                </div>
+              </td>
+            </tr>
+          @empty
+            <tr>
+              <td colspan="9" class="kbsm-business-empty">Belum ada Master Jenis Simpanan sesuai filter.</td>
+            </tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+
+    <div class="kbsm-business-pagination">
+      {{ $jenisSimpanan->links() }}
+    </div>
+  </section>
 </div>
-
-<script>
-  function toggleForm() {
-    const formContainer = document.getElementById('form-container');
-    const btnToggle = document.getElementById('btn-toggle-form');
-
-    if (formContainer.classList.contains('hidden')) {
-      formContainer.classList.remove('hidden');
-      formContainer.classList.add('block');
-      btnToggle.innerHTML = 'Tutup Form';
-    } else {
-      formContainer.classList.add('hidden');
-      formContainer.classList.remove('block');
-      btnToggle.innerHTML = '+ Tambah Data';
-    }
-  }
-</script>
 @endsection

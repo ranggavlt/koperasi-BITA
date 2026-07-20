@@ -5,7 +5,7 @@
   <body class="kbsm-app m-0 font-sans text-base antialiased font-normal leading-default bg-gray-50 text-slate-500">
 
     @include('layout.sidebar')
-    
+
     <style>
       @media (min-width: 1200px) {
         /* Override default template margin to give more space for POS */
@@ -21,7 +21,7 @@
     <script src="{{ asset('assets/js/plugins/perfect-scrollbar.min.js') }}" defer></script>
     <script src="https://buttons.github.io/buttons.js" defer></script>
     <script src="{{ asset('assets/js/soft-ui-dashboard-tailwind.js') }}?v=1.0.5" defer></script>
-    
+
     @stack('scripts')
     @livewireScripts
   </body>

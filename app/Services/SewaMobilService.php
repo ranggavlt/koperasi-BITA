@@ -9,12 +9,10 @@ use App\Models\MutasiKas;
 use App\Models\PembayaranSewaMobil;
 use App\Models\PengurusKoperasi;
 use App\Models\SewaMobil;
-use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class SewaMobilService
 {
@@ -23,85 +21,104 @@ class SewaMobilService
     ) {
     }
 
-    public function createDraft(array $data, User $user): SewaMobil
+    public function createDraft(array $data, int $financeUserId): SewaMobil
     {
-        return DB::transaction(function () use ($data, $user): SewaMobil {
-            $this->assertEmployeeUser($user);
-
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail($user->karyawan_id);
+        return DB::transaction(function () use ($data, $financeUserId): SewaMobil {
+            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
 
             $aset = AsetKoperasi::query()
                 ->with('mobil')
                 ->lockForUpdate()
                 ->findOrFail((int) $data['aset_koperasi_id']);
+            $this->assertRentableAsset($aset);
 
-            $this->assertDraftAsset($aset);
-            [$mulai, $selesai] = $this->normalizePeriod($data['mulai_at'], $data['selesai_at']);
+            [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
+            $tarifHarian = $this->rupiahInt($aset->mobil->tarif_sewa_harian ?? 0);
+            $totalSewa = $jumlahHari * $tarifHarian;
 
             return SewaMobil::query()->create([
                 'kode_sewa' => null,
                 'aset_koperasi_id' => $aset->id,
                 'karyawan_id' => $karyawan->id,
-                'pemohon_user_id' => $user->id,
+                'pemohon_user_id' => null,
+                'recorded_by' => $financeUserId,
                 'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
                 'nama_kegiatan' => $this->normalizeText($data['nama_kegiatan']),
                 'lokasi_kegiatan' => $this->normalizeText($data['lokasi_kegiatan']),
-                'mulai_at' => $mulai->toDateTimeString(),
-                'selesai_at' => $selesai->toDateTimeString(),
-                'tarif_total' => '0.00',
+                'tanggal_mulai' => $mulai->toDateString(),
+                'tanggal_selesai' => $selesai->toDateString(),
+                'jumlah_hari' => $jumlahHari,
+                'tarif_harian_snapshot' => $tarifHarian,
+                'total_sewa' => $totalSewa,
                 'status' => SewaMobil::STATUS_DRAFT,
                 'status_pembayaran' => SewaMobil::PEMBAYARAN_BELUM_BAYAR,
                 'keterangan' => $this->nullableText($data['keterangan'] ?? null),
-                'created_by' => $user->id,
-                'updated_by' => $user->id,
+                'created_by' => $financeUserId,
+                'updated_by' => $financeUserId,
                 'idempotency_key' => $data['idempotency_key'] ?? (string) Str::uuid(),
-            ])->fresh(['aset.mobil', 'karyawan', 'pemohon']);
+            ])->fresh(['aset.mobil', 'karyawan', 'recorder']);
         });
     }
 
-    public function updateDraft(SewaMobil $sewaMobil, array $data, User $user): SewaMobil
+    public function updateDraft(SewaMobil $sewaMobil, array $data, int $financeUserId): SewaMobil
     {
-        return DB::transaction(function () use ($sewaMobil, $data, $user): SewaMobil {
+        return DB::transaction(function () use ($sewaMobil, $data, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
-            $this->assertOwner($locked, $user);
             $this->assertStatus($locked, [SewaMobil::STATUS_DRAFT], 'Draft yang sudah diajukan tidak dapat diedit.');
-            $this->assertActiveKaryawan($locked->karyawan);
+
+            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $this->assertActiveKaryawan($karyawan);
 
             $aset = AsetKoperasi::query()
                 ->with('mobil')
                 ->lockForUpdate()
                 ->findOrFail((int) $data['aset_koperasi_id']);
-            $this->assertDraftAsset($aset);
-            [$mulai, $selesai] = $this->normalizePeriod($data['mulai_at'], $data['selesai_at']);
+            $this->assertRentableAsset($aset);
+
+            [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
+            $tarifHarian = $this->rupiahInt($aset->mobil->tarif_sewa_harian ?? 0);
+            $totalSewa = $jumlahHari * $tarifHarian;
 
             $locked->update([
                 'aset_koperasi_id' => $aset->id,
+                'karyawan_id' => $karyawan->id,
+                'recorded_by' => $locked->recorded_by ?? $financeUserId,
                 'nama_kegiatan' => $this->normalizeText($data['nama_kegiatan']),
                 'lokasi_kegiatan' => $this->normalizeText($data['lokasi_kegiatan']),
-                'mulai_at' => $mulai->toDateTimeString(),
-                'selesai_at' => $selesai->toDateTimeString(),
+                'tanggal_mulai' => $mulai->toDateString(),
+                'tanggal_selesai' => $selesai->toDateString(),
+                'jumlah_hari' => $jumlahHari,
+                'tarif_harian_snapshot' => $tarifHarian,
+                'total_sewa' => $totalSewa,
                 'keterangan' => $this->nullableText($data['keterangan'] ?? null),
-                'updated_by' => $user->id,
+                'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder']);
         });
     }
 
-    public function submit(SewaMobil $sewaMobil, User $user): SewaMobil
+    public function submit(SewaMobil $sewaMobil, int $financeUserId): SewaMobil
     {
-        return DB::transaction(function () use ($sewaMobil, $user): SewaMobil {
+        return DB::transaction(function () use ($sewaMobil, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
+                ->with(['karyawan', 'aset.mobil'])
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
-            $this->assertOwner($locked, $user);
             $this->assertStatus($locked, [SewaMobil::STATUS_DRAFT], 'Hanya draft yang dapat diajukan.');
             $this->assertActiveKaryawan($locked->karyawan);
+            $this->assertRentableAsset($locked->aset);
+
+            if ($this->hasOverlap($locked)) {
+                throw ValidationException::withMessages([
+                    'jadwal' => 'Jadwal mobil bertabrakan dengan sewa yang sudah disetujui atau sedang berjalan.',
+                ]);
+            }
 
             $submittedAt = CarbonImmutable::now(config('app.timezone', 'Asia/Jakarta'));
 
@@ -109,31 +126,10 @@ class SewaMobilService
                 'kode_sewa' => $locked->kode_sewa ?: $this->nextKodeSewa($submittedAt),
                 'status' => SewaMobil::STATUS_DIAJUKAN,
                 'submitted_at' => $submittedAt->toDateTimeString(),
-                'updated_by' => $user->id,
+                'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon']);
-        });
-    }
-
-    public function cancelByEmployee(SewaMobil $sewaMobil, User $user, string $reason): SewaMobil
-    {
-        return DB::transaction(function () use ($sewaMobil, $user, $reason): SewaMobil {
-            $locked = SewaMobil::query()
-                ->lockForUpdate()
-                ->findOrFail($sewaMobil->id);
-
-            $this->assertOwner($locked, $user);
-            $this->assertStatus($locked, [SewaMobil::STATUS_DRAFT, SewaMobil::STATUS_DIAJUKAN], 'Karyawan hanya dapat membatalkan draft atau pengajuan.');
-
-            $locked->update([
-                'status' => SewaMobil::STATUS_DIBATALKAN,
-                'cancelled_at' => now(),
-                'alasan_pembatalan' => $this->normalizeText($reason),
-                'updated_by' => $user->id,
-            ]);
-
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder']);
         });
     }
 
@@ -153,7 +149,7 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder']);
         });
     }
 
@@ -167,19 +163,7 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DIAJUKAN], 'Hanya pengajuan yang dapat disetujui.');
             $this->assertActiveKaryawan($locked->karyawan);
-
-            $aset = AsetKoperasi::query()
-                ->with('mobil')
-                ->lockForUpdate()
-                ->findOrFail($locked->aset_koperasi_id);
-            $this->assertApprovableAsset($aset);
-
-            $tarif = $this->rupiahInt($data['tarif_total']);
-            if ($tarif <= 0) {
-                throw ValidationException::withMessages([
-                    'tarif_total' => 'Tarif sewa wajib lebih besar dari nol.',
-                ]);
-            }
+            $this->assertRentableAsset($locked->aset);
 
             if ($this->hasOverlap($locked)) {
                 throw ValidationException::withMessages([
@@ -194,7 +178,6 @@ class SewaMobilService
             $this->assertActivePengurus($pengurus);
 
             $locked->update([
-                'tarif_total' => $this->rupiahDecimal($tarif),
                 'status' => SewaMobil::STATUS_DISETUJUI,
                 'pengurus_penyetuju_id' => $pengurus->id,
                 'nama_pengurus_snapshot' => $pengurus->anggota->karyawan->nama,
@@ -204,7 +187,7 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon', 'pengurusPenyetuju.anggota.karyawan']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pengurusPenyetuju.anggota.karyawan']);
         });
     }
 
@@ -225,11 +208,11 @@ class SewaMobilService
             }
 
             $jumlah = $this->rupiahInt($data['jumlah_bayar']);
-            $tarif = $this->rupiahInt($locked->tarif_total);
+            $totalSewa = $this->rupiahInt($locked->total_sewa);
 
-            if ($jumlah !== $tarif) {
+            if ($jumlah !== $totalSewa) {
                 throw ValidationException::withMessages([
-                    'jumlah_bayar' => 'Pembayaran Sewa Mobil wajib penuh sesuai tarif. Pembayaran sebagian tidak diperbolehkan.',
+                    'jumlah_bayar' => 'Pembayaran Sewa Mobil wajib penuh sesuai total sewa. Pembayaran sebagian tidak diperbolehkan.',
                 ]);
             }
 
@@ -247,7 +230,7 @@ class SewaMobilService
                 'sewa_mobil_id' => $locked->id,
                 'dompet_id' => $dompet->id,
                 'metode_pembayaran' => $data['metode_pembayaran'],
-                'jumlah_bayar' => $this->rupiahDecimal($jumlah),
+                'jumlah_bayar' => $jumlah,
                 'status' => PembayaranSewaMobil::STATUS_PAID,
                 'paid_at' => $paidAt->toDateTimeString(),
                 'created_by' => $financeUserId,
@@ -263,7 +246,7 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon', 'pembayaran.dompet', 'jurnal.details']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pembayaran.dompet', 'jurnal.details']);
         });
     }
 
@@ -310,7 +293,7 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon', 'pembayaran.dompet']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pembayaran.dompet']);
         });
     }
 
@@ -355,7 +338,7 @@ class SewaMobilService
 
             $this->akuntansiService->recordPengakuanPendapatanSewaMobil($locked->fresh(), $financeUserId);
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon', 'pembayaran.dompet', 'jurnal.details']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pembayaran.dompet', 'jurnal.details']);
         });
     }
 
@@ -373,6 +356,12 @@ class SewaMobilService
                 ]);
             }
 
+            if ($locked->status === SewaMobil::STATUS_DIBATALKAN) {
+                throw ValidationException::withMessages([
+                    'sewa' => 'Sewa Mobil ini sudah dibatalkan/refund.',
+                ]);
+            }
+
             if ($locked->status_pembayaran === SewaMobil::PEMBAYARAN_PAID && $locked->pembayaran) {
                 $this->refundPaidSewa($locked, $locked->pembayaran, $reason, $financeUserId);
             } else {
@@ -384,7 +373,7 @@ class SewaMobilService
                 ]);
             }
 
-            return $locked->fresh(['aset.mobil', 'karyawan', 'pemohon', 'pembayaran.dompet']);
+            return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pembayaran.dompet']);
         });
     }
 
@@ -437,8 +426,8 @@ class SewaMobilService
             ->where('aset_koperasi_id', $sewaMobil->aset_koperasi_id)
             ->whereKeyNot($sewaMobil->id)
             ->blockingSchedule()
-            ->where('mulai_at', '<', $sewaMobil->selesai_at)
-            ->where('selesai_at', '>', $sewaMobil->mulai_at)
+            ->where('tanggal_mulai', '<=', $sewaMobil->tanggal_selesai->toDateString())
+            ->where('tanggal_selesai', '>=', $sewaMobil->tanggal_mulai->toDateString())
             ->lockForUpdate()
             ->exists();
     }
@@ -486,44 +475,18 @@ class SewaMobilService
         return sprintf('SWM-%s-%06d', $periode, $next);
     }
 
-    private function assertEmployeeUser(User $user): void
-    {
-        if ($user->role !== 'karyawan' || ! $user->karyawan_id) {
-            throw ValidationException::withMessages([
-                'user' => 'Pengajuan Sewa Mobil hanya dapat dibuat oleh akun Karyawan.',
-            ]);
-        }
-
-        if (! ($user->is_active ?? true)) {
-            throw ValidationException::withMessages([
-                'user' => 'Akun Karyawan sedang nonaktif.',
-            ]);
-        }
-    }
-
-    private function assertOwner(SewaMobil $sewaMobil, User $user): void
-    {
-        $this->assertEmployeeUser($user);
-
-        if ((int) $sewaMobil->pemohon_user_id !== (int) $user->id) {
-            throw ValidationException::withMessages([
-                'sewa' => 'Anda hanya dapat mengelola pengajuan milik sendiri.',
-            ]);
-        }
-    }
-
     private function assertActiveKaryawan(?Karyawan $karyawan): void
     {
         if (! $karyawan || $karyawan->status_kerja !== Karyawan::STATUS_AKTIF) {
             throw ValidationException::withMessages([
-                'karyawan' => 'Sewa Mobil hanya untuk Karyawan aktif.',
+                'karyawan_id' => 'Sewa Mobil hanya untuk Karyawan aktif.',
             ]);
         }
     }
 
-    private function assertDraftAsset(AsetKoperasi $aset): void
+    private function assertRentableAsset(?AsetKoperasi $aset): void
     {
-        if ($aset->jenis_aset !== AsetKoperasi::JENIS_MOBIL || ! $aset->mobil) {
+        if (! $aset || $aset->jenis_aset !== AsetKoperasi::JENIS_MOBIL || ! $aset->mobil) {
             throw ValidationException::withMessages([
                 'aset_koperasi_id' => 'Aset yang dipilih harus Mobil Koperasi.',
             ]);
@@ -531,14 +494,15 @@ class SewaMobilService
 
         if (in_array($aset->status, [AsetKoperasi::STATUS_NONAKTIF, AsetKoperasi::STATUS_PERAWATAN], true)) {
             throw ValidationException::withMessages([
-                'aset_koperasi_id' => 'Mobil nonaktif atau perawatan tidak dapat diajukan untuk sewa.',
+                'aset_koperasi_id' => 'Mobil nonaktif atau perawatan tidak dapat disewa.',
             ]);
         }
-    }
 
-    private function assertApprovableAsset(AsetKoperasi $aset): void
-    {
-        $this->assertDraftAsset($aset);
+        if ($this->rupiahInt($aset->mobil->tarif_sewa_harian ?? 0) <= 0) {
+            throw ValidationException::withMessages([
+                'aset_koperasi_id' => 'Mobil belum memiliki Tarif Sewa Harian yang valid.',
+            ]);
+        }
     }
 
     private function assertActivePengurus(PengurusKoperasi $pengurus): void
@@ -640,16 +604,23 @@ class SewaMobilService
 
     private function normalizePeriod(mixed $mulai, mixed $selesai): array
     {
-        $start = $this->normalizeDateTime($mulai);
-        $end = $this->normalizeDateTime($selesai);
+        $start = $this->normalizeDate($mulai);
+        $end = $this->normalizeDate($selesai);
 
-        if ($start->greaterThanOrEqualTo($end)) {
+        if ($start->greaterThan($end)) {
             throw ValidationException::withMessages([
-                'selesai_at' => 'Waktu selesai harus setelah waktu mulai.',
+                'tanggal_selesai' => 'Tanggal selesai harus sama dengan atau setelah tanggal mulai.',
             ]);
         }
 
-        return [$start, $end];
+        return [$start, $end, $start->diffInDays($end) + 1];
+    }
+
+    private function normalizeDate(mixed $value): CarbonImmutable
+    {
+        return CarbonImmutable::parse($value, config('app.timezone', 'Asia/Jakarta'))
+            ->setTimezone(config('app.timezone', 'Asia/Jakarta'))
+            ->startOfDay();
     }
 
     private function normalizeDateTime(mixed $value): CarbonImmutable
@@ -672,7 +643,24 @@ class SewaMobilService
 
     private function rupiahInt(mixed $value): int
     {
-        return (int) round((float) $value);
+        if (is_int($value)) {
+            return $value;
+        }
+
+        $text = trim((string) $value);
+
+        if (preg_match('/^-?\d+\.\d+$/', $text) === 1) {
+            [$whole, $fraction] = explode('.', $text, 2);
+            $rounded = (int) $whole;
+
+            if ((int) str_pad(substr($fraction, 0, 2), 2, '0') >= 50) {
+                $rounded += $rounded >= 0 ? 1 : -1;
+            }
+
+            return $rounded;
+        }
+
+        return (int) preg_replace('/[^\d-]/', '', $text);
     }
 
     private function rupiahDecimal(int $value): string

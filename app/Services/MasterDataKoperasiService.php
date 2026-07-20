@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Anggota;
-use App\Models\Akun;
 use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\PengurusKoperasi;
@@ -213,11 +212,19 @@ class MasterDataKoperasiService
             app(PotongGajiBulananService::class)
                 ->releaseReservationsForStoppedAnggota($locked->fresh(), auth()->id());
 
-            app(KeanggotaanLifecycleService::class)->closeActiveCycleForExit(
+            $lifecycle = app(KeanggotaanLifecycleService::class);
+            $cycle = $lifecycle->closeActiveCycleForExit(
                 $locked->fresh(),
                 $locked->tanggal_nonaktif,
                 auth()->id(),
                 'Anggota dinonaktifkan.'
+            );
+            $lifecycle->createPenyelesaianForExit(
+                $locked->fresh(),
+                $cycle,
+                $locked->tanggal_nonaktif,
+                'Penyelesaian otomatis karena Anggota dinonaktifkan.',
+                auth()->id()
             );
 
             $this->syncLegacyIsAnggota($locked->karyawan);
@@ -478,17 +485,9 @@ class MasterDataKoperasiService
         $active = JenisSimpanan::query()
             ->with('akun')
             ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('kategori', JenisSimpanan::KATEGORI_POKOK)
             ->where('aktif', true)
             ->get();
-
-        if ($active->isEmpty()) {
-            $this->bootstrapSimpananPokokMaster();
-            $active = JenisSimpanan::query()
-                ->with('akun')
-                ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
-                ->where('aktif', true)
-                ->get();
-        }
 
         if ($active->count() !== 1) {
             throw ValidationException::withMessages([
@@ -506,27 +505,5 @@ class MasterDataKoperasiService
         }
 
         return $jenis;
-    }
-
-    private function bootstrapSimpananPokokMaster(): void
-    {
-        $accountCode = config('account_map.accounts.simpanan_pokok.kode_akun');
-        $akun = Akun::query()->where('kode_akun', $accountCode)->first();
-
-        if (! $akun) {
-            return;
-        }
-
-        JenisSimpanan::query()->firstOrCreate(
-            ['kode' => JenisSimpanan::KODE_SIMPANAN_POKOK],
-            [
-                'akun_id' => $akun->id,
-                'nama_jenis' => 'Simpanan Pokok',
-                'wajib' => true,
-                'aktif' => true,
-                'nominal_default' => 100000,
-                'keterangan' => 'Setoran awal otomatis saat anggota mulai aktif di koperasi.',
-            ]
-        );
     }
 }

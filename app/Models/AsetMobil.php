@@ -16,6 +16,11 @@ class AsetMobil extends Model
         'plat_nomor',
         'tahun',
         'warna',
+        'tarif_sewa_harian',
+    ];
+
+    protected $casts = [
+        'tarif_sewa_harian' => 'integer',
     ];
 
     public function aset()

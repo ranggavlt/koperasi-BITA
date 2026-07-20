@@ -570,8 +570,7 @@ class PreflightBebanOperasionalCommand extends Command
         }
 
         return AsetKoperasi::query()
-            ->whereHas('sewaPrinterDetails')
-            ->orWhereExists(function ($query): void {
+            ->whereExists(function ($query): void {
                 $query->selectRaw('1')
                     ->from('beban_operasional_detail')
                     ->whereColumn('beban_operasional_detail.aset_koperasi_id', 'aset_koperasi.id');

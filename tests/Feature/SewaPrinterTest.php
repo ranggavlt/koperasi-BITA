@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Akun;
-use App\Models\AsetKoperasi;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\MutasiKas;
@@ -11,7 +10,6 @@ use App\Models\PembayaranSewaPrinter;
 use App\Models\PemakaianPotongGaji;
 use App\Models\SewaPrinter;
 use App\Models\User;
-use App\Services\AsetKoperasiService;
 use App\Services\SewaPrinterService;
 use Database\Seeders\AkunSeeder;
 use Database\Seeders\DatabaseSeeder;
@@ -24,208 +22,356 @@ class SewaPrinterTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_multi_printer_margin_half_up_total_snapshot_dan_kode(): void
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'features.master_printer_enabled' => false,
+            'features.jasa_print_enabled' => false,
+        ]);
+    }
+
+    public function test_vendor_snapshot_detail_dinamis_margin_half_up_total_dan_kode(): void
     {
         $service = app(SewaPrinterService::class);
         $finance = $this->user('admin');
         $pic = Karyawan::factory()->create();
-        $printerA = $this->printer('PRN-A');
-        $printerB = $this->printer('PRN-B');
 
         $sewa = $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $printerA->id, 'harga_dasar' => 1000000],
-            ['aset_koperasi_id' => $printerB->id, 'harga_dasar' => 333],
+            [
+                'jenis_model_printer' => 'Epson EcoTank L3210',
+                'spesifikasi_kebutuhan' => 'Dua unit printer warna',
+                'kuantitas' => 2,
+                'harga_vendor_per_unit' => 1000000,
+            ],
+            [
+                'jenis_model_printer' => 'Canon Mini',
+                'spesifikasi_kebutuhan' => 'Uji pembulatan margin',
+                'kuantitas' => 1,
+                'harga_vendor_per_unit' => 333,
+            ],
+        ], [
+            'vendor_nama' => 'Vendor Snapshot Test',
+            'vendor_kontak' => '0812-3333-4444',
+            'vendor_alamat' => 'Jl. Vendor Snapshot',
         ]), $finance->id);
 
         $this->assertMatchesRegularExpression('/^SWP-\d{6}-\d{6}$/', $sewa->kode_sewa);
-        $this->assertSame('1000333.00', $sewa->total_harga_dasar);
-        $this->assertSame('150050.00', $sewa->total_margin);
-        $this->assertSame('1150383.00', $sewa->grand_total);
-        $this->assertSame('50.00', $sewa->details()->where('aset_koperasi_id', $printerB->id)->first()->margin_nominal);
+        $this->assertSame(2000333, $sewa->total_harga_vendor);
+        $this->assertSame(300050, $sewa->total_margin);
+        $this->assertSame(2300383, $sewa->total_tagihan_perusahaan);
+        $this->assertDatabaseHas('sewa_printer_detail', [
+            'sewa_printer_id' => $sewa->id,
+            'jenis_model_printer' => 'Canon Mini',
+            'kuantitas' => 1,
+            'harga_vendor_per_unit' => 333,
+            'margin_per_unit' => 50,
+            'harga_tagihan_per_unit' => 383,
+            'subtotal_tagihan' => 383,
+        ]);
 
         $confirmed = $service->confirm($sewa, $finance->id);
-        $printerA->update(['model' => 'Model Setelah Kontrak']);
 
-        $this->assertNotSame('Model Setelah Kontrak', $confirmed->details()->where('aset_koperasi_id', $printerA->id)->first()->model_snapshot);
-
-        $this->expectValidation(fn () => $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $printerA->id, 'harga_dasar' => 100000],
-            ['aset_koperasi_id' => $printerA->id, 'harga_dasar' => 100000],
-        ], ['mulai_tanggal' => '2026-09-01', 'selesai_tanggal' => '2026-09-03']), $finance->id));
+        $this->assertSame(SewaPrinter::STATUS_DIKONFIRMASI, $confirmed->status);
+        $this->assertSame('Vendor Snapshot Test', $confirmed->vendor_nama);
+        $this->assertSame($pic->id, $confirmed->karyawan_id);
     }
 
-    public function test_draft_confirm_validation_overlap_dan_confirmed_tidak_bisa_edit(): void
+    public function test_finance_only_master_printer_hidden_direct_url_404_dan_form_awal_satu_row(): void
+    {
+        $finance = $this->user('admin');
+        $kasir = $this->user('kasir');
+        $karyawanUser = User::factory()->create([
+            'role' => 'karyawan',
+            'is_active' => true,
+            'must_change_password' => false,
+        ]);
+        Karyawan::factory()->create(['nama' => 'Pemohon Printer Aktif']);
+
+        $this->get(route('sewa-printer.index'))->assertRedirect(route('login'));
+        $this->actingAs($kasir)->get(route('sewa-printer.index'))->assertForbidden();
+        $this->actingAs($kasir)->get(route('sewa-printer.create'))->assertForbidden();
+        $this->actingAs($karyawanUser)->get(route('sewa-printer.index'))->assertForbidden();
+        $this->actingAs($karyawanUser)->get(route('sewa-printer.create'))->assertForbidden();
+
+        $indexResponse = $this->actingAs($finance)->get(route('sewa-printer.index'));
+        $indexResponse->assertOk()
+            ->assertSee('Filter Sewa Printer')
+            ->assertSee('Daftar Sewa Printer')
+            ->assertSee('+ TAMBAH SEWA PRINTER')
+            ->assertSee('href="' . route('sewa-printer.create') . '"', false)
+            ->assertDontSee('data-sewa-printer-form', false);
+
+        $response = $this->actingAs($finance)->get(route('sewa-printer.create'));
+        $response->assertOk()
+            ->assertSee('Tambah Sewa Printer')
+            ->assertSee('Kembali ke Daftar Sewa Printer')
+            ->assertSee('Pemohon Printer Aktif')
+            ->assertSee('Vendor')
+            ->assertSee('Tambah Printer')
+            ->assertSee('data-sewa-printer-form', false);
+
+        $content = $response->getContent();
+        $this->assertSame(1, substr_count($content, 'name="details[0][jenis_model_printer]"'));
+        $this->assertStringNotContainsString('name="details[1][jenis_model_printer]"', $content);
+
+        $draft = app(SewaPrinterService::class)->createDraft($this->payload(Karyawan::factory()->create(['nama' => 'Pemohon Edit Printer'])), $finance->id);
+        $this->actingAs($finance)
+            ->get(route('sewa-printer.edit', $draft))
+            ->assertOk()
+            ->assertSee('Edit Draft Sewa Printer')
+            ->assertSee('Pemohon Edit Printer')
+            ->assertSee('data-sewa-printer-form', false);
+
+        $this->actingAs($finance)->get('/aset-printer')->assertNotFound();
+        $this->actingAs($finance)
+            ->get(route('pages.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Printer Koperasi')
+            ->assertDontSee('Jasa Print');
+    }
+
+    public function test_filter_sewa_printer_memakai_status_karyawan_overlap_tanggal_dan_pagination_query(): void
+    {
+        $finance = $this->user('admin');
+        $service = app(SewaPrinterService::class);
+        $karyawanA = Karyawan::factory()->create(['nama' => 'Pemohon Printer Filter A']);
+        $karyawanB = Karyawan::factory()->create(['nama' => 'Pemohon Printer Filter B']);
+
+        $draft = $service->createDraft($this->payload($karyawanA, null, [
+            'kebutuhan' => 'Printer Overlap Masuk',
+            'mulai_tanggal' => '2026-08-01',
+            'selesai_tanggal' => '2026-08-03',
+        ]), $finance->id);
+        $confirmed = $service->confirm($service->createDraft($this->payload($karyawanB, null, [
+            'kebutuhan' => 'Printer Di Luar Status',
+            'mulai_tanggal' => '2026-08-20',
+            'selesai_tanggal' => '2026-08-22',
+        ]), $finance->id), $finance->id);
+
+        $this->actingAs($finance)
+            ->get(route('sewa-printer.index', [
+                'status' => SewaPrinter::STATUS_DRAFT,
+                'tanggal_dari' => '2026-08-02',
+                'tanggal_sampai' => '2026-08-05',
+            ]))
+            ->assertOk()
+            ->assertSee($draft->kode_sewa)
+            ->assertSee('Printer Overlap Masuk')
+            ->assertDontSee($confirmed->kode_sewa)
+            ->assertDontSee('Printer Di Luar Status');
+
+        $this->actingAs($finance)
+            ->get(route('sewa-printer.index', [
+                'status' => SewaPrinter::STATUS_DIKONFIRMASI,
+                'karyawan_id' => $karyawanB->id,
+            ]))
+            ->assertOk()
+            ->assertSee($confirmed->kode_sewa)
+            ->assertDontSee($draft->kode_sewa);
+
+        $this->actingAs($finance)
+            ->get(route('sewa-printer.index', [
+                'tanggal_dari' => '2026-08-10',
+                'tanggal_sampai' => '2026-08-01',
+            ]))
+            ->assertSessionHasErrors('tanggal_sampai');
+
+        for ($i = 1; $i <= 11; $i++) {
+            $service->createDraft($this->payload($karyawanA, null, [
+                'kebutuhan' => 'Printer Pagination ' . $i,
+                'mulai_tanggal' => '2026-09-01',
+                'selesai_tanggal' => '2026-09-02',
+            ]), $finance->id);
+        }
+
+        $this->actingAs($finance)
+            ->get(route('sewa-printer.index', [
+                'status' => SewaPrinter::STATUS_DRAFT,
+                'karyawan_id' => $karyawanA->id,
+                'tanggal_dari' => '2026-09-01',
+                'tanggal_sampai' => '2026-09-30',
+            ]))
+            ->assertOk()
+            ->assertSee('status=' . SewaPrinter::STATUS_DRAFT, false)
+            ->assertSee('karyawan_id=' . $karyawanA->id, false)
+            ->assertSee('tanggal_dari=2026-09-01', false)
+            ->assertSee('tanggal_sampai=2026-09-30', false);
+    }
+
+    public function test_validasi_tidak_membutuhkan_aset_printer_dan_menolak_karyawan_nonaktif(): void
     {
         $service = app(SewaPrinterService::class);
         $finance = $this->user('admin');
-        $pic = Karyawan::factory()->create();
-        $printerA = $this->printer('PRN-C');
-        $printerB = $this->printer('PRN-D');
-        $mobil = $this->mobil();
+        $active = Karyawan::factory()->create();
+        $inactive = Karyawan::factory()->create([
+            'status_kerja' => Karyawan::STATUS_BERHENTI,
+            'tanggal_berhenti' => '2026-07-01',
+        ]);
 
-        $this->expectValidation(fn () => $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $mobil->id, 'harga_dasar' => 100000],
+        $this->expectValidation(fn () => $service->createDraft($this->payload($active, []), $finance->id));
+        $this->expectValidation(fn () => $service->createDraft($this->payload($inactive), $finance->id));
+        $this->expectValidation(fn () => $service->createDraft($this->payload($active, [[
+            'jenis_model_printer' => 'HP',
+            'kuantitas' => 1,
+            'harga_vendor_per_unit' => 100000,
+        ]], [
+            'selesai_tanggal' => '2026-07-31',
         ]), $finance->id));
 
-        $printerB->update(['status' => AsetKoperasi::STATUS_PERAWATAN]);
-        $this->expectValidation(fn () => $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $printerB->id, 'harga_dasar' => 100000],
-        ]), $finance->id));
-        $printerB->update(['status' => AsetKoperasi::STATUS_TERSEDIA]);
+        $sewa = $service->createDraft($this->payload($active), $finance->id);
 
-        $first = $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $printerA->id, 'harga_dasar' => 500000],
-        ]), $finance->id);
-        $service->confirm($first, $finance->id);
-
-        $overlap = $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $printerA->id, 'harga_dasar' => 400000],
-            ['aset_koperasi_id' => $printerB->id, 'harga_dasar' => 300000],
-        ], ['mulai_tanggal' => '2026-08-03', 'selesai_tanggal' => '2026-08-05']), $finance->id);
-
-        $this->expectValidation(fn () => $service->confirm($overlap, $finance->id));
-        $this->assertSame(SewaPrinter::STATUS_DRAFT, $overlap->fresh()->status);
-
-        $this->expectValidation(fn () => $service->updateDraft($first->fresh(), $this->payload($pic, [
-            ['aset_koperasi_id' => $printerB->id, 'harga_dasar' => 300000],
-        ], ['mulai_tanggal' => '2026-09-01', 'selesai_tanggal' => '2026-09-02']), $finance->id));
+        $this->assertDatabaseHas('sewa_printer', ['id' => $sewa->id, 'karyawan_id' => $active->id]);
+        $this->assertDatabaseCount('aset_printer', 0);
     }
 
-    public function test_pembayaran_full_dompet_mutasi_jurnal_dimuka_dan_tanpa_ledger_payroll(): void
+    public function test_pelunasan_dua_dompet_membuat_mutasi_masuk_keluar_jurnal_split_dan_tanpa_ledger_payroll(): void
     {
         $service = app(SewaPrinterService::class);
         $finance = $this->user('admin');
         $sewa = $this->confirmedSewa($service, $finance);
-        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
-        $bank = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
+        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
+        $bank = $this->dompet(DompetKoperasi::JENIS_BANK, 2000000);
 
         $this->expectValidation(fn () => $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaPrinter::METODE_TUNAI,
-            'dompet_id' => $bank->id,
-            'jumlah_bayar' => 1150000,
+            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_penerimaan_id' => $bank->id,
+            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_vendor_id' => $kas->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
             'paid_at' => '2026-07-31 08:00',
         ], $finance->id));
 
         $this->expectValidation(fn () => $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaPrinter::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => 1149999,
+            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_penerimaan_id' => $kas->id,
+            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_vendor_id' => $kas->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan - 1,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
             'paid_at' => '2026-07-31 08:00',
-        ], $finance->id));
-
-        $this->expectValidation(fn () => $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaPrinter::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => 1150000,
-            'paid_at' => '2026-08-01 08:00',
         ], $finance->id));
 
         $paid = $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaPrinter::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => 1150000,
+            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_penerimaan_id' => $kas->id,
+            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TRANSFER_BANK,
+            'dompet_vendor_id' => $bank->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
             'paid_at' => '2026-07-31 08:00',
         ], $finance->id);
 
-        $this->assertSame('2150000.00', $kas->fresh()->saldo);
+        $this->assertSame('3150000.00', $kas->fresh()->saldo);
+        $this->assertSame('1000000.00', $bank->fresh()->saldo);
         $this->assertSame(SewaPrinter::PEMBAYARAN_PAID, $paid->status_pembayaran);
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PembayaranSewaPrinter::class)->where('tipe', 'masuk')->count());
-        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '207', 'kredit' => '1150000.00']);
+        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PembayaranSewaPrinter::class)->where('tipe', 'keluar')->count());
+        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '101', 'debit' => '1150000.00']);
+        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '208', 'kredit' => '1000000.00']);
+        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '207', 'kredit' => '150000.00']);
+        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '208', 'debit' => '1000000.00']);
+        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '102', 'kredit' => '1000000.00']);
         $this->assertDatabaseMissing('jurnal_umum_detail', ['akun_kode' => '405', 'kredit' => '1000000.00']);
         $this->assertSame(0, PemakaianPotongGaji::query()->count());
+
+        $this->expectValidation(fn () => $service->pay($paid->fresh(), [
+            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_penerimaan_id' => $kas->id,
+            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TRANSFER_BANK,
+            'dompet_vendor_id' => $bank->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
+        ], $finance->id));
+        $this->assertSame(2, MutasiKas::query()->where('referensi_tipe', PembayaranSewaPrinter::class)->count());
     }
 
-    public function test_lifecycle_start_complete_aset_dan_jurnal_split_idempotent(): void
+    public function test_lifecycle_start_complete_hanya_margin_menjadi_pendapatan_dan_idempotent(): void
     {
         $service = app(SewaPrinterService::class);
         $finance = $this->user('admin');
         $sewa = $this->confirmedSewa($service, $finance);
-        $kas = $this->dompet(DompetKoperasi::JENIS_KAS);
+        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
 
         $this->expectValidation(fn () => $service->start($sewa, $finance->id));
 
         $paid = $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaPrinter::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => 1150000,
+            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_penerimaan_id' => $kas->id,
+            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_vendor_id' => $kas->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
             'paid_at' => '2026-07-31 08:00',
         ], $finance->id);
 
         $running = $service->start($paid, $finance->id);
         $this->assertSame(SewaPrinter::STATUS_BERJALAN, $running->status);
-        $this->assertTrue($running->details->every(fn ($detail) => $detail->aset->fresh()->status === AsetKoperasi::STATUS_DIGUNAKAN_DISEWA));
 
         $completed = $service->complete($running, $finance->id);
         $completedAgain = $service->complete($completed, $finance->id);
 
         $this->assertSame(SewaPrinter::STATUS_SELESAI, $completedAgain->status);
-        $this->assertTrue($completedAgain->details->every(fn ($detail) => $detail->aset->fresh()->status === AsetKoperasi::STATUS_TERSEDIA));
         $this->assertSame(1, DB::table('jurnal_umum')->where('idempotency_key', 'like', 'sewa-printer:pengakuan-pendapatan:jurnal:%')->count());
-        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '207', 'debit' => '1150000.00']);
-        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '405', 'kredit' => '1000000.00']);
+        $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '207', 'debit' => '150000.00']);
         $this->assertDatabaseHas('jurnal_umum_detail', ['akun_kode' => '406', 'kredit' => '150000.00']);
+        $this->assertDatabaseMissing('jurnal_umum_detail', ['akun_kode' => '405', 'kredit' => '1000000.00']);
     }
 
-    public function test_cancel_refund_penuh_dan_berjalan_tidak_bisa_dibatalkan(): void
+    public function test_cancel_sebelum_paid_boleh_dan_setelah_paid_ditolak_tanpa_refund_otomatis(): void
     {
         $service = app(SewaPrinterService::class);
         $finance = $this->user('admin');
-        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
 
-        $draft = $service->createDraft($this->payload(Karyawan::factory()->create(), [
-            ['aset_koperasi_id' => $this->printer('PRN-F')->id, 'harga_dasar' => 100000],
-        ], ['mulai_tanggal' => '2026-09-01', 'selesai_tanggal' => '2026-09-02']), $finance->id);
-        $service->cancelByFinance($draft, 'Batal draft', $finance->id);
+        $draft = $service->createDraft($this->payload(Karyawan::factory()->create()), $finance->id);
+        $cancelledDraft = $service->cancelByFinance($draft, 'Batal draft', $finance->id);
+        $this->assertSame(SewaPrinter::STATUS_DIBATALKAN, $cancelledDraft->status);
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', PembayaranSewaPrinter::class)->count());
 
-        $paid = $this->paidSewa($service, $finance, $kas);
-        $cancelled = $service->cancelByFinance($paid, 'Refund sebelum berjalan', $finance->id);
+        $confirmed = $service->confirm($service->createDraft($this->payload(Karyawan::factory()->create(), null, [
+            'mulai_tanggal' => '2026-09-01',
+            'selesai_tanggal' => '2026-09-02',
+        ]), $finance->id), $finance->id);
+        $cancelledConfirmed = $service->cancelByFinance($confirmed, 'Batal sebelum paid', $finance->id);
+        $this->assertSame(SewaPrinter::STATUS_DIBATALKAN, $cancelledConfirmed->status);
+        $this->assertSame(SewaPrinter::PEMBAYARAN_BELUM_BAYAR, $cancelledConfirmed->status_pembayaran);
 
-        $this->assertSame(SewaPrinter::STATUS_DIBATALKAN, $cancelled->status);
-        $this->assertSame(SewaPrinter::PEMBAYARAN_REFUNDED, $cancelled->status_pembayaran);
-        $this->assertSame('2000000.00', $kas->fresh()->saldo);
-        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PembayaranSewaPrinter::class)->where('tipe', 'keluar')->count());
-        $this->expectValidation(fn () => $service->cancelByFinance($cancelled->fresh(), 'Refund ganda', $finance->id));
-
-        $running = $this->paidSewa($service, $finance, $this->dompet(DompetKoperasi::JENIS_KAS, 2000000), '2026-10-01', '2026-10-02');
-        $running = $service->start($running, $finance->id);
-        $this->expectValidation(fn () => $service->cancelByFinance($running, 'Tidak boleh', $finance->id));
+        $paid = $this->paidSewa($service, $finance, $this->dompet(DompetKoperasi::JENIS_KAS, 2000000));
+        $this->expectValidation(fn () => $service->cancelByFinance($paid, 'Refund otomatis tidak boleh', $finance->id));
+        $this->assertSame(SewaPrinter::STATUS_DIKONFIRMASI, $paid->fresh()->status);
+        $this->assertSame(SewaPrinter::PEMBAYARAN_PAID, $paid->fresh()->status_pembayaran);
     }
 
-    public function test_authorization_request_manipulation_preflight_dan_seeder(): void
+    public function test_get_halaman_read_only_dan_preflight_mendeteksi_konflik_schema_final(): void
     {
         $finance = $this->user('admin');
-        $kasir = $this->user('kasir');
-        $karyawanUser = User::factory()->create(['role' => 'karyawan', 'is_active' => true, 'must_change_password' => false]);
+        $service = app(SewaPrinterService::class);
+        $sewa = $this->confirmedSewa($service, $finance);
+        $countBefore = SewaPrinter::query()->count();
+        $mutasiBefore = MutasiKas::query()->count();
 
-        $this->get(route('sewa-printer.index'))->assertRedirect(route('login'));
-        $this->actingAs($kasir)->get(route('sewa-printer.index'))->assertForbidden();
-        $this->actingAs($karyawanUser)->get(route('sewa-printer.index'))->assertForbidden();
-        $this->actingAs($finance)->get(route('sewa-printer.index'))->assertOk();
+        $this->actingAs($finance)
+            ->get(route('sewa-printer.index'))
+            ->assertOk();
 
-        $this->actingAs($finance)->post(route('sewa-printer.store'), [
-            'karyawan_pic_id' => Karyawan::factory()->create()->id,
-            'mulai_tanggal' => '2026-08-01',
-            'selesai_tanggal' => '2026-08-02',
-            'details' => [
-                ['aset_koperasi_id' => $this->printer('PRN-G')->id, 'harga_dasar' => 100000],
-            ],
-            'grand_total' => 1,
-        ])->assertSessionHasErrors('grand_total');
-
+        $this->assertSame($countBefore, SewaPrinter::query()->count());
+        $this->assertSame($mutasiBefore, MutasiKas::query()->count());
         $this->artisan('koperasi:preflight-sewa-printer')->assertExitCode(0);
 
         DB::table('sewa_printer_detail')->insert([
-            'sewa_printer_id' => $this->confirmedSewa(app(SewaPrinterService::class), $finance, '2026-11-01', '2026-11-02')->id,
-            'aset_koperasi_id' => $this->printer('PRN-H')->id,
-            'kode_aset_snapshot' => 'BROKEN',
-            'nomor_seri_snapshot' => 'BROKEN',
-            'merek_snapshot' => 'Broken',
-            'model_snapshot' => 'Broken',
-            'harga_dasar' => 100000,
+            'sewa_printer_id' => $sewa->id,
+            'jenis_model_printer' => 'BROKEN',
+            'spesifikasi_kebutuhan' => null,
+            'kuantitas' => 1,
+            'harga_vendor_per_unit' => 100000,
             'margin_persen_snapshot' => 15,
-            'margin_nominal' => 1,
-            'total_harga' => 100001,
+            'margin_per_unit' => 1,
+            'harga_tagihan_per_unit' => 100001,
+            'subtotal_harga_vendor' => 100000,
+            'subtotal_margin' => 1,
+            'subtotal_tagihan' => 100001,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -233,28 +379,38 @@ class SewaPrinterTest extends TestCase
         $this->artisan('koperasi:preflight-sewa-printer')->assertExitCode(1);
     }
 
-    public function test_seeder_menghasilkan_contoh_sewa_printer_valid(): void
+    public function test_seeder_menghasilkan_contoh_sewa_printer_vendor_based_valid(): void
     {
         $this->seed(DatabaseSeeder::class);
 
+        $this->assertDatabaseCount('aset_printer', 0);
         $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_DRAFT]);
-        $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_DIKONFIRMASI, 'status_pembayaran' => SewaPrinter::PEMBAYARAN_BELUM_BAYAR]);
-        $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_DIKONFIRMASI, 'status_pembayaran' => SewaPrinter::PEMBAYARAN_PAID]);
+        $this->assertDatabaseHas('sewa_printer', [
+            'status' => SewaPrinter::STATUS_DIKONFIRMASI,
+            'status_pembayaran' => SewaPrinter::PEMBAYARAN_BELUM_BAYAR,
+        ]);
+        $this->assertDatabaseHas('sewa_printer', [
+            'status' => SewaPrinter::STATUS_DIKONFIRMASI,
+            'status_pembayaran' => SewaPrinter::PEMBAYARAN_PAID,
+        ]);
         $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_BERJALAN]);
         $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_SELESAI]);
-        $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_DIBATALKAN, 'status_pembayaran' => SewaPrinter::PEMBAYARAN_REFUNDED]);
-        $this->assertTrue(SewaPrinter::query()->whereHas('details', fn ($q) => $q->select('sewa_printer_id')->groupBy('sewa_printer_id')->havingRaw('COUNT(*) > 1'))->exists());
+        $this->assertDatabaseHas('sewa_printer', [
+            'status' => SewaPrinter::STATUS_DIBATALKAN,
+            'status_pembayaran' => SewaPrinter::PEMBAYARAN_BELUM_BAYAR,
+        ]);
+        $this->assertTrue(DB::table('sewa_printer_detail')->where('kuantitas', '>', 1)->exists());
+        $this->assertSame(0, DB::table('jurnal_umum_detail')->where('akun_kode', '405')->where('kredit', '>', 0)->count());
         $this->assertSame(0, PemakaianPotongGaji::query()->whereIn('source_type', [SewaPrinter::class, PembayaranSewaPrinter::class])->count());
         $this->artisan('koperasi:preflight-sewa-printer')->assertExitCode(0);
     }
 
     private function confirmedSewa(SewaPrinterService $service, User $finance, string $mulai = '2026-08-01', string $selesai = '2026-08-03'): SewaPrinter
     {
-        $pic = Karyawan::factory()->create();
-        $printer = $this->printer('PRN-' . fake()->unique()->numberBetween(1000, 9999));
-        $draft = $service->createDraft($this->payload($pic, [
-            ['aset_koperasi_id' => $printer->id, 'harga_dasar' => 1000000],
-        ], ['mulai_tanggal' => $mulai, 'selesai_tanggal' => $selesai]), $finance->id);
+        $draft = $service->createDraft($this->payload(Karyawan::factory()->create(), null, [
+            'mulai_tanggal' => $mulai,
+            'selesai_tanggal' => $selesai,
+        ]), $finance->id);
 
         return $service->confirm($draft, $finance->id);
     }
@@ -264,45 +420,36 @@ class SewaPrinterTest extends TestCase
         $sewa = $this->confirmedSewa($service, $finance, $mulai, $selesai);
 
         return $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaPrinter::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => 1150000,
+            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_penerimaan_id' => $kas->id,
+            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TUNAI,
+            'dompet_vendor_id' => $kas->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
             'paid_at' => '2026-07-31 08:00',
         ], $finance->id);
     }
 
-    private function payload(Karyawan $pic, array $details, array $overrides = []): array
+    private function payload(Karyawan $pic, ?array $details = null, array $overrides = []): array
     {
         return array_merge([
-            'karyawan_pic_id' => $pic->id,
+            'karyawan_id' => $pic->id,
             'mulai_tanggal' => '2026-08-01',
             'selesai_tanggal' => '2026-08-03',
-            'details' => $details,
+            'kebutuhan' => 'Unit test kebutuhan printer vendor',
+            'vendor_nama' => 'Vendor Printer Test',
+            'vendor_kontak' => '0812-0000-1234',
+            'vendor_alamat' => 'Jl. Vendor Test No. 1',
+            'details' => $details ?? [
+                [
+                    'jenis_model_printer' => 'Epson EcoTank L3210',
+                    'spesifikasi_kebutuhan' => 'Printer warna A4',
+                    'kuantitas' => 1,
+                    'harga_vendor_per_unit' => 1000000,
+                ],
+            ],
             'keterangan' => 'Unit test sewa printer',
         ], $overrides);
-    }
-
-    private function printer(string $serial): AsetKoperasi
-    {
-        return app(AsetKoperasiService::class)->createPrinter([
-            'nomor_seri' => $serial . '-' . fake()->unique()->numberBetween(1000, 9999),
-            'merek' => 'Epson',
-            'model' => 'L3210',
-            'lokasi' => 'Kantor',
-            'keterangan' => 'Unit test printer',
-        ], $this->user('admin')->id);
-    }
-
-    private function mobil(): AsetKoperasi
-    {
-        return app(AsetKoperasiService::class)->createMobil([
-            'plat_nomor' => 'B ' . fake()->unique()->numberBetween(1000, 9999) . ' KBS',
-            'merek' => 'Toyota',
-            'model' => 'Avanza',
-            'tahun' => 2022,
-            'warna' => 'Hitam',
-            'keterangan' => 'Unit test mobil',
-        ], $this->user('admin')->id);
     }
 
     private function dompet(string $jenis, int $saldo = 0): DompetKoperasi

@@ -151,12 +151,14 @@ class MutasiKasBankReportTest extends TestCase
         config([
             'features.shu_enabled' => false,
             'features.jasa_print_enabled' => false,
+            'features.master_printer_enabled' => false,
         ]);
 
         $modules = collect(config('navigation.modules', []))->keyBy('route');
 
         $this->assertSame('Master Data', $modules['aset-mobil.index']['section']);
         $this->assertSame('Master Data', $modules['aset-printer.index']['section']);
+        $this->assertSame('master_printer_enabled', $modules['aset-printer.index']['feature']);
         $this->assertSame('Kas & Bank', $modules['dompet-koperasi.index']['section']);
         $this->assertSame('Kas & Bank', $modules['mutasi-kas.index']['section']);
         $this->assertSame('Mutasi Kas & Bank', $modules['mutasi-kas.index']['label']);
@@ -176,7 +178,6 @@ class MutasiKasBankReportTest extends TestCase
                 'Jenis Pinjaman',
                 'COA',
                 'Mobil Koperasi',
-                'Printer Koperasi',
                 'KAS & BANK',
                 'Dompet Koperasi',
                 'Mutasi Kas & Bank',
@@ -192,6 +193,7 @@ class MutasiKasBankReportTest extends TestCase
                 'Beban Operasional',
                 'LAPORAN AKUNTANSI',
             ], false)
+            ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Jasa Print');
     }

@@ -7,11 +7,12 @@ use App\Http\Requests\ReverseBebanOperasionalRequest;
 use App\Http\Requests\StoreBebanOperasionalRequest;
 use App\Http\Requests\UpdateBebanOperasionalRequest;
 use App\Models\Akun;
-use App\Models\AsetKoperasi;
 use App\Models\BebanOperasional;
 use App\Models\DompetKoperasi;
 use App\Services\BebanOperasionalService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FinanceBebanOperasionalController extends Controller
 {
@@ -21,10 +22,24 @@ class FinanceBebanOperasionalController extends Controller
 
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::in(BebanOperasional::statuses())],
+            'dompet_id' => ['nullable', 'integer', 'exists:dompet_koperasi,id'],
+            'akun_id' => ['nullable', 'integer', 'exists:akun,id'],
+            'tanggal_dari' => ['nullable', 'date'],
+            'tanggal_sampai' => ['nullable', 'date'],
+        ]);
+
+        if ($request->filled('tanggal_dari') && $request->filled('tanggal_sampai')
+            && $request->date('tanggal_sampai')->lt($request->date('tanggal_dari'))) {
+            throw ValidationException::withMessages([
+                'tanggal_sampai' => 'Tanggal sampai tidak boleh sebelum tanggal mulai.',
+            ]);
+        }
+
         $query = BebanOperasional::query()
             ->with([
                 'details.akun',
-                'details.aset',
                 'dompet.akun',
                 'creator',
                 'postedBy',
@@ -34,28 +49,24 @@ class FinanceBebanOperasionalController extends Controller
                 'jurnal.details',
             ]);
 
-        if ($request->filled('status') && in_array($request->string('status')->toString(), BebanOperasional::statuses(), true)) {
-            $query->where('status', $request->string('status')->toString());
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        if ($request->filled('dompet_id')) {
-            $query->where('dompet_id', $request->integer('dompet_id'));
+        if (! empty($filters['dompet_id'])) {
+            $query->where('dompet_id', $filters['dompet_id']);
         }
 
-        if ($request->filled('akun_id')) {
-            $query->whereHas('details', fn ($detail) => $detail->where('akun_id', $request->integer('akun_id')));
+        if (! empty($filters['akun_id'])) {
+            $query->whereHas('details', fn ($detail) => $detail->where('akun_id', $filters['akun_id']));
         }
 
-        if ($request->filled('aset_koperasi_id')) {
-            $query->whereHas('details', fn ($detail) => $detail->where('aset_koperasi_id', $request->integer('aset_koperasi_id')));
+        if (! empty($filters['tanggal_dari'])) {
+            $query->whereDate('tanggal_beban', '>=', $filters['tanggal_dari']);
         }
 
-        if ($request->filled('tanggal_dari')) {
-            $query->whereDate('tanggal_beban', '>=', $request->date('tanggal_dari')->toDateString());
-        }
-
-        if ($request->filled('tanggal_sampai')) {
-            $query->whereDate('tanggal_beban', '<=', $request->date('tanggal_sampai')->toDateString());
+        if (! empty($filters['tanggal_sampai'])) {
+            $query->whereDate('tanggal_beban', '<=', $filters['tanggal_sampai']);
         }
 
         $bebanOperasional = $query
@@ -66,6 +77,12 @@ class FinanceBebanOperasionalController extends Controller
 
         return view('pages.beban-operasional.index', $this->viewData([
             'bebanOperasional' => $bebanOperasional,
+        ]));
+    }
+
+    public function create()
+    {
+        return view('pages.beban-operasional.form', $this->viewData([
             'editData' => null,
         ]));
     }
@@ -82,15 +99,8 @@ class FinanceBebanOperasionalController extends Controller
     {
         abort_unless($bebanOperasional->status === BebanOperasional::STATUS_DRAFT, 404);
 
-        $bebanOperasionalList = BebanOperasional::query()
-            ->with(['details.akun', 'details.aset', 'dompet.akun', 'creator', 'postedBy', 'reversedBy', 'reversal', 'mutasiKas', 'jurnal.details'])
-            ->latest('tanggal_beban')
-            ->latest('id')
-            ->paginate(10);
-
-        return view('pages.beban-operasional.index', $this->viewData([
-            'bebanOperasional' => $bebanOperasionalList,
-            'editData' => $bebanOperasional->load('details'),
+        return view('pages.beban-operasional.form', $this->viewData([
+            'editData' => $bebanOperasional->load(['details.akun', 'dompet.akun']),
         ]));
     }
 
@@ -104,7 +114,9 @@ class FinanceBebanOperasionalController extends Controller
 
     public function post(PostBebanOperasionalRequest $request, BebanOperasional $bebanOperasional)
     {
-        $this->service->post($bebanOperasional, (int) $request->validated('dompet_id'), $request->user()->id);
+        $validated = $request->validated();
+
+        $this->service->post($bebanOperasional, isset($validated['dompet_id']) ? (int) $validated['dompet_id'] : null, $request->user()->id);
 
         return redirect()->route('beban-operasional.index')
             ->with('success', 'Beban Operasional berhasil diposting, saldo Dompet berkurang, Mutasi Kas dan Jurnal dibuat.');
@@ -136,15 +148,16 @@ class FinanceBebanOperasionalController extends Controller
                 ->where('kategori', 'beban')
                 ->where('posisi_saldo', 'debit')
                 ->where('is_beban_operasional', true)
+                ->when(config('account_map.accounts.harga_pokok_penjualan.kode_akun'), fn ($query, $kode) => $query->where('kode_akun', '!=', $kode))
                 ->orderBy('kode_akun')
-                ->get(),
-            'asetOptions' => AsetKoperasi::query()
-                ->with(['mobil', 'printer'])
-                ->orderBy('kode_aset')
                 ->get(),
             'dompetOptions' => DompetKoperasi::query()
                 ->with('akun')
                 ->whereIn('jenis_dompet', [DompetKoperasi::JENIS_KAS, DompetKoperasi::JENIS_BANK])
+                ->whereHas('akun', fn ($query) => $query
+                    ->where('is_aktif', true)
+                    ->where('kategori', 'aset')
+                    ->where('posisi_saldo', 'debit'))
                 ->orderBy('nama_dompet')
                 ->get(),
             'statuses' => BebanOperasional::statusLabels(),

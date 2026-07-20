@@ -130,12 +130,15 @@ class AsetKoperasiTest extends TestCase
             'aset_koperasi_id' => $mobil->id,
             'karyawan_id' => $karyawan->id,
             'pemohon_user_id' => $pemohon->id,
+            'recorded_by' => $keuangan->id,
             'nama_perusahaan_snapshot' => 'Bita Enarcon Engineering',
             'nama_kegiatan' => 'Unit Test Sewa',
             'lokasi_kegiatan' => 'Kantor Proyek',
-            'mulai_at' => now()->addDay(),
-            'selesai_at' => now()->addDays(2),
-            'tarif_total' => 0,
+            'tanggal_mulai' => now()->addDay()->toDateString(),
+            'tanggal_selesai' => now()->addDays(2)->toDateString(),
+            'jumlah_hari' => 2,
+            'tarif_harian_snapshot' => 300000,
+            'total_sewa' => 600000,
             'status' => 'draft',
             'status_pembayaran' => 'belum_bayar',
             'idempotency_key' => 'aset-test-sewa-1',
@@ -165,7 +168,7 @@ class AsetKoperasiTest extends TestCase
             ->post(route('aset-mobil.store'), $this->mobilPayload(['plat_nomor' => 'B 6001 KBS']))
             ->assertRedirect(route('aset-mobil.index'));
 
-        $this->actingAs($kasir)->get(route('aset-printer.index'))->assertForbidden();
+        $this->actingAs($keuangan)->get('/aset-printer')->assertNotFound();
     }
 
     public function test_preflight_aset_mendeteksi_konflik_dan_tetap_read_only(): void
@@ -190,13 +193,12 @@ class AsetKoperasiTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertSame(4, AsetKoperasi::query()->mobil()->count());
-        $this->assertSame(3, AsetKoperasi::query()->printer()->count());
+        $this->assertSame(0, AsetKoperasi::query()->printer()->count());
         $this->assertSame(4, AsetMobil::query()->count());
-        $this->assertSame(3, AsetPrinter::query()->count());
+        $this->assertSame(0, AsetPrinter::query()->count());
         $this->assertDatabaseHas('aset_koperasi', ['kode_aset' => 'MBL-0001', 'status' => AsetKoperasi::STATUS_DIGUNAKAN_DISEWA]);
-        $this->assertDatabaseHas('aset_koperasi', ['kode_aset' => 'PRT-0001', 'status' => AsetKoperasi::STATUS_TERSEDIA]);
         $this->assertDatabaseHas('nomor_urut_aset', ['jenis_aset' => AsetKoperasi::JENIS_MOBIL, 'last_number' => 4]);
-        $this->assertDatabaseHas('nomor_urut_aset', ['jenis_aset' => AsetKoperasi::JENIS_PRINTER, 'last_number' => 3]);
+        $this->assertDatabaseMissing('nomor_urut_aset', ['jenis_aset' => AsetKoperasi::JENIS_PRINTER]);
     }
 
     private function user(string $role): User
@@ -212,6 +214,7 @@ class AsetKoperasiTest extends TestCase
             'model' => 'Avanza',
             'tahun' => 2022,
             'warna' => 'Hitam',
+            'tarif_sewa_harian' => 300000,
             'keterangan' => 'Unit test mobil koperasi',
         ], $overrides);
     }

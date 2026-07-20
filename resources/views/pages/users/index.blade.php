@@ -133,10 +133,6 @@
                       {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                     </button>
                   </form>
-                  <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus akun ini secara permanen?');">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="rounded-lg px-3 py-2 text-xs font-bold text-white" style="background-color: #ef4444;">Hapus</button>
-                  </form>
                 </div>
               </td>
             </tr>

@@ -92,10 +92,17 @@ return [
         ],
         'pendapatan_diterima_dimuka_sewa_printer' => [
             'kode_akun' => '207',
-            'nama_akun' => 'Pendapatan Diterima Dimuka Sewa Printer',
+            'nama_akun' => 'Pendapatan Diterima Dimuka Margin Sewa Printer',
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Penerimaan sewa printer sebelum kontrak selesai.',
+            'keterangan' => 'Margin sewa printer yang diterima sebelum kontrak selesai.',
+        ],
+        'utang_vendor_sewa_printer' => [
+            'kode_akun' => '208',
+            'nama_akun' => 'Utang Vendor Sewa Printer',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa printer.',
         ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
@@ -294,12 +301,16 @@ return [
             'pendapatan' => 'pendapatan_sewa_mobil',
         ],
         'sewa_printer' => [
+            'utang_vendor' => 'utang_vendor_sewa_printer',
+            'pendapatan_diterima_dimuka_margin' => 'pendapatan_diterima_dimuka_sewa_printer',
             'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_printer',
             'pendapatan_dasar' => 'pendapatan_sewa_printer_dasar',
             'pendapatan_margin' => 'pendapatan_margin_sewa_printer',
         ],
         'keanggotaan' => [
             'simpanan_pokok' => 'simpanan_pokok',
+            'simpanan_wajib' => 'simpanan_wajib',
+            'simpanan_sukarela' => 'simpanan_sukarela',
             'utang_refund_anggota' => 'utang_refund_anggota',
             'piutang_pinjaman' => 'piutang_pinjaman',
             'piutang_anggota' => 'piutang_anggota',

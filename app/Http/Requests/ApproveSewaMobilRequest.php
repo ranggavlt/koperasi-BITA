@@ -14,7 +14,6 @@ class ApproveSewaMobilRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tarif_total' => ['required', 'integer', 'min:1'],
             'pengurus_penyetuju_id' => ['required', 'exists:pengurus_koperasi,id'],
         ];
     }
@@ -22,8 +21,6 @@ class ApproveSewaMobilRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tarif_total.required' => 'Tarif sewa wajib diisi sebelum approval.',
-            'tarif_total.min' => 'Tarif sewa wajib lebih besar dari nol.',
             'pengurus_penyetuju_id.required' => 'Pengurus penyetuju wajib dipilih.',
         ];
     }

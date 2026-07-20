@@ -6,12 +6,13 @@ use App\Http\Requests\CancelSewaPrinterRequest;
 use App\Http\Requests\PaySewaPrinterRequest;
 use App\Http\Requests\StoreSewaPrinterRequest;
 use App\Http\Requests\UpdateSewaPrinterRequest;
-use App\Models\AsetKoperasi;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\SewaPrinter;
 use App\Services\SewaPrinterService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FinanceSewaPrinterController extends Controller
 {
@@ -21,40 +22,59 @@ class FinanceSewaPrinterController extends Controller
 
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::in(SewaPrinter::statuses())],
+            'karyawan_id' => ['nullable', 'integer', 'exists:karyawan,id'],
+            'tanggal_dari' => ['nullable', 'date'],
+            'tanggal_sampai' => ['nullable', 'date'],
+        ]);
+
+        if ($request->filled('tanggal_dari') && $request->filled('tanggal_sampai')
+            && $request->date('tanggal_sampai')->lt($request->date('tanggal_dari'))) {
+            throw ValidationException::withMessages([
+                'tanggal_sampai' => 'Tanggal sampai tidak boleh sebelum tanggal mulai.',
+            ]);
+        }
+
         $query = SewaPrinter::query()
             ->with([
-                'details.aset.printer',
+                'details',
                 'karyawanPic',
-                'pembayaran.dompet.akun',
+                'recorder',
+                'pembayaran.dompetPenerimaan.akun',
+                'pembayaran.dompetVendor.akun',
                 'jurnal.details',
             ]);
 
-        if ($request->filled('status') && in_array($request->string('status')->toString(), SewaPrinter::statuses(), true)) {
-            $query->where('status', $request->string('status')->toString());
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        if ($request->filled('karyawan_pic_id')) {
-            $query->where('karyawan_pic_id', $request->integer('karyawan_pic_id'));
+        if (! empty($filters['karyawan_id'])) {
+            $query->where('karyawan_id', $filters['karyawan_id']);
         }
 
-        if ($request->filled('periode')) {
-            $periode = $request->date('periode');
-            $query->whereBetween('mulai_tanggal', [
-                $periode->copy()->startOfMonth()->toDateString(),
-                $periode->copy()->endOfMonth()->toDateString(),
-            ]);
+        if (! empty($filters['tanggal_dari'])) {
+            $query->whereDate('selesai_tanggal', '>=', $filters['tanggal_dari']);
+        }
+
+        if (! empty($filters['tanggal_sampai'])) {
+            $query->whereDate('mulai_tanggal', '<=', $filters['tanggal_sampai']);
         }
 
         $sewaPrinter = $query->latest()->paginate(10)->withQueryString();
 
         return view('pages.sewa-printer.index', [
             'sewaPrinter' => $sewaPrinter,
-            'printerOptions' => AsetKoperasi::query()->printer()->with('printer')->orderBy('kode_aset')->get(),
             'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
             'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
             'statuses' => SewaPrinter::statusLabels(),
-            'editData' => null,
         ]);
+    }
+
+    public function create()
+    {
+        return view('pages.sewa-printer.form', $this->formOptions());
     }
 
     public function store(StoreSewaPrinterRequest $request)
@@ -69,19 +89,7 @@ class FinanceSewaPrinterController extends Controller
     {
         abort_unless($sewaPrinter->status === SewaPrinter::STATUS_DRAFT, 404);
 
-        $sewaPrinterList = SewaPrinter::query()
-            ->with(['details.aset.printer', 'karyawanPic', 'pembayaran.dompet.akun', 'jurnal.details'])
-            ->latest()
-            ->paginate(10);
-
-        return view('pages.sewa-printer.index', [
-            'sewaPrinter' => $sewaPrinterList,
-            'printerOptions' => AsetKoperasi::query()->printer()->with('printer')->orderBy('kode_aset')->get(),
-            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
-            'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
-            'statuses' => SewaPrinter::statusLabels(),
-            'editData' => $sewaPrinter->load('details'),
-        ]);
+        return view('pages.sewa-printer.form', $this->formOptions($sewaPrinter->load('details')));
     }
 
     public function update(UpdateSewaPrinterRequest $request, SewaPrinter $sewaPrinter)
@@ -117,7 +125,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->start($sewaPrinter, $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer dimulai dan seluruh Printer berubah menjadi digunakan/disewa.');
+            ->with('success', 'Kontrak Sewa Printer dimulai.');
     }
 
     public function complete(Request $request, SewaPrinter $sewaPrinter)
@@ -127,7 +135,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->complete($sewaPrinter, $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer selesai dan pendapatan dasar/margin diakui.');
+            ->with('success', 'Kontrak Sewa Printer selesai dan margin koperasi diakui.');
     }
 
     public function cancel(CancelSewaPrinterRequest $request, SewaPrinter $sewaPrinter)
@@ -135,6 +143,15 @@ class FinanceSewaPrinterController extends Controller
         $this->service->cancelByFinance($sewaPrinter, $request->validated('alasan'), $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer berhasil dibatalkan/refund sesuai eligibility.');
+            ->with('success', 'Kontrak Sewa Printer berhasil dibatalkan sebelum pembayaran.');
+    }
+
+    private function formOptions(?SewaPrinter $editData = null): array
+    {
+        return [
+            'editData' => $editData,
+            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
+            'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
+        ];
     }
 }
