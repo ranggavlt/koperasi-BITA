@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdatepinjamanRequest extends FormRequest
+class UpdatePinjamanRequest extends FormRequest
 {
     public function authorize(): bool
     {

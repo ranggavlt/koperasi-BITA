@@ -18,6 +18,8 @@ class JadwalCicilanPinjaman extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_REVERSED = 'reversed';
+
     public const METODE_POTONG_GAJI = 'potong_gaji';
 
     public const METODE_TUNAI = 'tunai';
@@ -74,5 +76,11 @@ class JadwalCicilanPinjaman extends Model
     public function cicilanPembayaran()
     {
         return $this->hasOne(CicilanPinjaman::class, 'jadwal_cicilan_pinjaman_id');
+    }
+
+    public function payrollLedgers()
+    {
+        return $this->hasMany(PemakaianPotongGaji::class, 'source_id')
+            ->where('source_type', self::class);
     }
 }

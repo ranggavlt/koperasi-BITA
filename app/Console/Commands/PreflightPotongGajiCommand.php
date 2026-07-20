@@ -6,6 +6,7 @@ use App\Models\PembayaranSewaMobil;
 use App\Models\PembayaranSewaPrinter;
 use App\Models\SewaMobil;
 use App\Models\SewaPrinter;
+use App\Services\PotongGajiReportService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
@@ -103,6 +104,8 @@ class PreflightPotongGajiCommand extends Command
             $this->check('cicilan_reversed_jadwal_paid', 'Cicilan direversal tetapi jadwal masih paid', $this->cicilanReversedJadwalPaid()),
             $this->check('mutasi_refund_ganda', 'Mutasi refund ganda', $this->mutasiRefundGanda()),
             $this->check('jurnal_reversal_tidak_seimbang', 'Jurnal reversal tidak seimbang', $this->jurnalReversalTidakSeimbang()),
+            $this->check('account_map_report_hilang', 'Account map report payroll belum lengkap', $this->reportAccountMapMissing()),
+            $this->check('rekonsiliasi_payroll_selisih', 'Selisih rekonsiliasi payroll periode berjalan', $this->payrollReconciliationMismatch()),
             $this->check('hardcoded_limit_2jt', 'Hard-coded limit Rp2.000.000 masih aktif di kode', $this->hardcodedLimitTwoMillion(), false),
             $this->check('route_hard_delete_edit_keuangan', 'Route hard delete/edit transaksi keuangan masih tersedia', $this->routeHardDeleteEditTransaksi()),
             $this->check('transaksi_nonaktif', 'Karyawan/Anggota nonaktif yang memiliki transaksi baru', $this->transaksiSetelahNonaktif()),
@@ -1688,6 +1691,60 @@ class PreflightPotongGajiCommand extends Command
         ];
 
         return collect($forbidden)->filter(fn (string $name) => Route::has($name))->count();
+    }
+
+    private function reportAccountMapMissing(): int
+    {
+        $requiredAccounts = ['bank'];
+        $requiredPostings = [
+            'refund.piutang_potong_gaji',
+            'refund.piutang_pinjaman',
+        ];
+
+        $missing = 0;
+
+        foreach ($requiredAccounts as $key) {
+            $definition = config("account_map.accounts.{$key}");
+            if (! is_array($definition) || empty($definition['kode_akun'])) {
+                $missing++;
+            }
+        }
+
+        foreach ($requiredPostings as $path) {
+            $accountKey = config("account_map.postings.{$path}");
+            $definition = is_string($accountKey) ? config("account_map.accounts.{$accountKey}") : null;
+
+            if (! is_string($accountKey) || ! is_array($definition) || empty($definition['kode_akun'])) {
+                $missing++;
+            }
+        }
+
+        return $missing;
+    }
+
+    private function payrollReconciliationMismatch(): int
+    {
+        if (! $this->hasTables([
+            'periode_potong_gaji',
+            'limit_potong_gaji_anggota',
+            'pemakaian_potong_gaji',
+            'mutasi_kas',
+            'jurnal_umum',
+            'jurnal_umum_detail',
+        ])) {
+            return 0;
+        }
+
+        try {
+            $periode = now(config('app.timezone'))->format('Y-m');
+            $report = app(PotongGajiReportService::class)->reconciliation($periode);
+
+            return collect($report['differences'] ?? [])
+                ->filter(fn ($diff) => abs((float) $diff) >= 0.01)
+                ->count();
+        } catch (\Throwable) {
+            return 1;
+        }
     }
 
     private function referenceIssues(string $table): int

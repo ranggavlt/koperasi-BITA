@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StorepinjamanRequest;
-use App\Http\Requests\UpdatepinjamanRequest;
+use App\Http\Requests\StorePinjamanRequest;
+use App\Http\Requests\UpdatePinjamanRequest;
 use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\Pinjaman;
 use App\Services\PinjamanKoperasiService;
+use App\Services\PinjamanReportService;
 use App\Services\PotongGajiBulananService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -53,7 +54,7 @@ class PinjamanController extends Controller
         ]);
     }
 
-    public function store(StorepinjamanRequest $request, PinjamanKoperasiService $service)
+    public function store(StorePinjamanRequest $request, PinjamanKoperasiService $service)
     {
         $pinjaman = $service->createDraft($request->validated(), $request->user()->id);
 
@@ -76,7 +77,7 @@ class PinjamanController extends Controller
         ]);
     }
 
-    public function update(UpdatepinjamanRequest $request, Pinjaman $pinjaman, PinjamanKoperasiService $service)
+    public function update(UpdatePinjamanRequest $request, Pinjaman $pinjaman, PinjamanKoperasiService $service)
     {
         $pinjaman = $service->updateDraft($pinjaman, $request->validated(), $request->user()->id);
 
@@ -85,13 +86,18 @@ class PinjamanController extends Controller
             ->with('success', 'Draft pengajuan Pinjaman berhasil diperbarui.');
     }
 
-    public function show(Pinjaman $pinjaman, PinjamanKoperasiService $service)
+    public function show(Pinjaman $pinjaman, PinjamanKoperasiService $service, PinjamanReportService $reportService)
     {
         $pinjaman->load([
             'anggota.karyawan',
+            'anggota.siklusAktif',
+            'siklusKeanggotaan',
             'dompet.akun',
+            'jadwalCicilan.payrollLedgers.limit.periodePotongGaji',
             'jadwalCicilan.cicilanPembayaran.dompet',
             'cicilan.dompet',
+            'cicilan.mutasiKas.dompet',
+            'cicilan.jurnal.details',
             'mutasiKas',
             'jurnal.details',
         ]);
@@ -116,7 +122,9 @@ class PinjamanController extends Controller
             );
         }
 
-        return view('pages.pinjaman.show', compact('pinjaman', 'dompet', 'dompetKas', 'preview'));
+        $detailReport = $reportService->pinjamanDetail($pinjaman);
+
+        return view('pages.pinjaman.show', compact('pinjaman', 'dompet', 'dompetKas', 'preview', 'detailReport'));
     }
 
     public function submit(Request $request, Pinjaman $pinjaman, PinjamanKoperasiService $service)

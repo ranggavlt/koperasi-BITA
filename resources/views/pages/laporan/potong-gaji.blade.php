@@ -1,19 +1,41 @@
 @extends('layout.main')
 
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
-  <div class="mb-6 rounded-2xl bg-white p-6 shadow-soft-xl">
-    <h6 class="text-slate-700">Laporan Potong Gaji Bulanan</h6>
-    <p class="text-sm text-slate-400">Read model dari periode, limit, ledger pemakaian, kredit refund, pembayaran, reversal, Mutasi Kas, dan Jurnal.</p>
+@php
+  $money = fn ($value) => 'Rp ' . number_format((float) $value, 0, ',', '.');
+  $cards = [
+    ['label' => 'Total Potongan Tercatat', 'value' => $summary['gross_payroll'], 'accent' => 'green'],
+    ['label' => 'Kredit/Refund', 'value' => $summary['kredit_refund'], 'accent' => 'gold'],
+    ['label' => 'Nilai Bersih Payroll', 'value' => $summary['net_payroll'], 'accent' => 'navy'],
+    ['label' => 'Diterima Bank', 'value' => $summary['total_diterima_bank'], 'accent' => 'green'],
+    ['label' => 'Belum Diselesaikan', 'value' => $summary['total_outstanding'], 'accent' => 'red'],
+    ['label' => 'Dilepas/Dikoreksi', 'value' => $summary['total_released_reversed'], 'accent' => 'gold'],
+  ];
+@endphp
 
-    <form class="mt-4 flex flex-wrap items-end gap-3" method="GET" action="{{ route('laporan.potong-gaji') }}">
-      <div>
-        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Periode</label>
-        <input type="month" name="periode" value="{{ $periode }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+<div class="kbsm-business-page">
+  <div class="kbsm-business-header">
+    <div>
+      <p class="kbsm-business-eyebrow">Laporan Finance</p>
+      <h1 class="kbsm-business-title">Laporan Potong Gaji Bulanan</h1>
+      <p class="kbsm-business-subtitle">Read model dari periode, limit, ledger pemakaian, kredit refund, pembayaran, Mutasi Kas, dan Jurnal. Pinjaman baru tidak dihitung; hanya Cicilan yang sudah menjadi kewajiban.</p>
+    </div>
+    <a href="{{ route('rekonsiliasi-potong-gaji.index', ['periode' => $periode]) }}" class="kbsm-business-back-link">Rekonsiliasi</a>
+  </div>
+
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Filter Laporan</h2>
+      <p class="kbsm-business-panel__copy">Filter mempertahankan query saat berpindah halaman.</p>
+    </div>
+    <form method="GET" action="{{ route('laporan.potong-gaji') }}" class="kbsm-business-filter kbsm-business-filter--wajib">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Periode</label>
+        <input type="month" name="periode" value="{{ $periode }}" class="kbsm-business-control">
       </div>
-      <div>
-        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Anggota</label>
-        <select name="anggota_id" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Anggota</label>
+        <select name="anggota_id" class="kbsm-business-control">
           <option value="">Semua</option>
           @foreach($anggotaOptions as $anggota)
             <option value="{{ $anggota->id }}" @selected(request('anggota_id') == $anggota->id)>
@@ -22,129 +44,132 @@
           @endforeach
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Status</label>
-        <select name="status" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Status</label>
+        <select name="status" class="kbsm-business-control">
           <option value="">Semua</option>
           @foreach(['draft','active','closed_pending_confirmation','confirmed','cancelled'] as $status)
             <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
           @endforeach
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs font-bold uppercase text-slate-700">Kategori</label>
-        <select name="kategori" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+      <div class="kbsm-business-field">
+        <label class="kbsm-business-label">Kategori</label>
+        <select name="kategori" class="kbsm-business-control">
           <option value="">Semua</option>
           @foreach($kategoriOptions as $key => $label)
             <option value="{{ $key }}" @selected(request('kategori') === $key)>{{ $label }}</option>
           @endforeach
         </select>
       </div>
-      <button class="rounded-lg bg-gradient-to-tl from-emerald-600 to-slate-800 px-6 py-3 text-xs font-bold uppercase text-white">Tampilkan</button>
-      <a href="{{ route('rekonsiliasi-potong-gaji.index', ['periode' => $periode]) }}" class="rounded-lg border border-emerald-600 px-6 py-3 text-xs font-bold uppercase text-emerald-700">Rekonsiliasi</a>
-    </form>
-  </div>
-
-  @php
-    $cards = [
-      ['label' => 'Gross Payroll', 'value' => $summary['gross_payroll']],
-      ['label' => 'Kredit Refund', 'value' => $summary['kredit_refund']],
-      ['label' => 'Net Payroll', 'value' => $summary['net_payroll']],
-      ['label' => 'Diterima Bank', 'value' => $summary['total_diterima_bank']],
-      ['label' => 'Outstanding', 'value' => $summary['total_outstanding']],
-      ['label' => 'Released/Reversed', 'value' => $summary['total_released_reversed']],
-    ];
-  @endphp
-
-  <div class="mb-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-    @foreach($cards as $card)
-      <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
-        <p class="mb-1 text-xs font-bold uppercase text-slate-400">{{ $card['label'] }}</p>
-        <h5 class="mb-0 text-slate-700">Rp {{ number_format($card['value'], 0, ',', '.') }}</h5>
+      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split">
+        <button class="kbsm-btn kbsm-btn--navy">Filter</button>
+        <a href="{{ route('laporan.potong-gaji') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
       </div>
-    @endforeach
-  </div>
+    </form>
+  </section>
 
-  <div class="mb-6 rounded-2xl bg-white shadow-soft-xl">
-    <div class="p-6 pb-0">
-      <h6 class="text-slate-700">Ringkasan per Anggota</h6>
-      <p class="text-sm text-slate-400">Pinjaman baru tidak dihitung sebagai penggunaan limit; hanya Cicilan yang masuk payroll.</p>
+  <section class="kbsm-business-summary kbsm-business-summary--wajib">
+    @foreach($cards as $card)
+      <article class="kbsm-business-summary-card kbsm-business-summary-card--{{ $card['accent'] }}">
+        <span class="kbsm-business-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4V7Zm2 2v6h12V9H6Zm2 1h3v2H8v-2Z"/></svg></span>
+        <p class="kbsm-business-summary-label">{{ $card['label'] }}</p>
+        <p class="kbsm-business-summary-value">{{ $money($card['value']) }}</p>
+      </article>
+    @endforeach
+  </section>
+
+  @if(($summary['cicilan_due_belum_dialokasikan'] ?? 0) > 0)
+    <div class="kbsm-business-alert kbsm-business-alert--danger">
+      Ada Cicilan jatuh tempo sebesar {{ $money($summary['cicilan_due_belum_dialokasikan']) }} yang belum mempunyai ledger payroll. Ini warning laporan; sistem tidak memperbaiki otomatis.
     </div>
-    <div style="overflow-x: auto;" class="p-0">
-      <table class="mb-0 w-full text-sm text-slate-600">
+  @endif
+
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Ringkasan per Anggota</h2>
+      <p class="kbsm-business-panel__copy">Cicilan siklus lama tidak muncul pada payroll siklus baru; due tanpa ledger tampil sebagai warning.</p>
+    </div>
+    <div class="kbsm-business-table-wrap">
+      <table class="kbsm-business-table">
         <thead>
-          <tr class="text-left text-xxs uppercase text-slate-400">
-            <th class="px-6 py-3">Anggota</th>
-            <th class="px-6 py-3">Limit</th>
-            <th class="px-6 py-3">Cicilan</th>
-            <th class="px-6 py-3">Simpanan Pokok</th>
-            <th class="px-6 py-3">Simpanan Wajib</th>
-            <th class="px-6 py-3">POS</th>
-            <th class="px-6 py-3">Kredit</th>
-            <th class="px-6 py-3">Net</th>
-            <th class="px-6 py-3">Sisa Kapasitas</th>
-            <th class="px-6 py-3">Status</th>
+          <tr>
+            <th>Anggota</th>
+            <th class="kbsm-business-table__right">Limit</th>
+            <th class="kbsm-business-table__right">Cicilan</th>
+            <th class="kbsm-business-table__right">Reserved</th>
+            <th class="kbsm-business-table__right">Settled</th>
+            <th class="kbsm-business-table__right">Belum Dialokasikan</th>
+            <th class="kbsm-business-table__right">Simpanan Pokok</th>
+            <th class="kbsm-business-table__right">Simpanan Wajib</th>
+            <th class="kbsm-business-table__right">POS</th>
+            <th class="kbsm-business-table__right">Kredit</th>
+            <th class="kbsm-business-table__right">Net</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           @forelse($laporan as $row)
             <tr>
-              <td class="border-b px-6 py-3">
-                <div class="font-semibold text-slate-700">{{ $row->nomor_anggota }}</div>
-                <div class="text-xs text-slate-400">{{ $row->nama }}</div>
+              <td>
+                <span class="kbsm-business-strong">{{ $row->nomor_anggota }}</span>
+                <div class="kbsm-business-muted">{{ $row->nama }}</div>
               </td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->limit_nominal, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->cicilan, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->simpanan_pokok, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->simpanan_wajib ?? 0, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->pos, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->kredit_refund, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3 font-bold text-emerald-700">Rp {{ number_format($row->net_payroll, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($row->sisa_kapasitas, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">{{ $row->status_limit }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->limit_nominal) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->cicilan) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->cicilan_reserved) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->cicilan_settled) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->cicilan_belum_dialokasikan) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->simpanan_pokok) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->simpanan_wajib ?? 0) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->pos) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->kredit_refund) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->net_payroll) }}</td>
+              <td><span class="kbsm-status kbsm-status--navy">{{ $row->status_limit }}</span></td>
             </tr>
           @empty
-            <tr><td colspan="10" class="p-6 text-center text-slate-400">Belum ada limit/ledger untuk periode ini.</td></tr>
+            <tr><td colspan="12" class="kbsm-business-empty">Belum ada limit/ledger untuk periode ini.</td></tr>
           @endforelse
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
 
-  <div class="rounded-2xl bg-white shadow-soft-xl">
-    <div class="p-6 pb-0">
-      <h6 class="text-slate-700">Detail Ledger</h6>
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Detail Ledger</h2>
+      <p class="kbsm-business-panel__copy">Status internal ditampilkan sebagai istilah operasional yang mudah dipahami.</p>
     </div>
-    <div style="overflow-x: auto;" class="p-0">
-      <table class="mb-0 w-full text-sm text-slate-600">
+    <div class="kbsm-business-table-wrap">
+      <table class="kbsm-business-table">
         <thead>
-          <tr class="text-left text-xxs uppercase text-slate-400">
-            <th class="px-6 py-3">Anggota</th>
-            <th class="px-6 py-3">Kategori</th>
-            <th class="px-6 py-3">Sumber</th>
-            <th class="px-6 py-3">Tanggal</th>
-            <th class="px-6 py-3">Nominal</th>
-            <th class="px-6 py-3">Status</th>
-            <th class="px-6 py-3">Reversal</th>
+          <tr>
+            <th>Anggota</th>
+            <th>Kategori</th>
+            <th>Sumber</th>
+            <th>Tanggal</th>
+            <th class="kbsm-business-table__right">Nominal</th>
+            <th>Status</th>
+            <th>Koreksi Transaksi</th>
           </tr>
         </thead>
         <tbody>
           @forelse($details as $detail)
             <tr>
-              <td class="border-b px-6 py-3">{{ $detail->anggota?->nomor_anggota }} - {{ $detail->anggota?->karyawan?->nama }}</td>
-              <td class="border-b px-6 py-3">{{ $detail->kategori }}</td>
-              <td class="border-b px-6 py-3">{{ $detail->kode_sumber }}</td>
-              <td class="border-b px-6 py-3">{{ optional($detail->tanggal)->format('d/m/Y H:i') }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($detail->nominal, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">{{ $detail->status }}</td>
-              <td class="border-b px-6 py-3">{{ $detail->reversal?->kode_reversal ?? '-' }}</td>
+              <td>{{ $detail->anggota?->nomor_anggota }} - {{ $detail->anggota?->karyawan?->nama }}</td>
+              <td>{{ $detail->kategori_label }}</td>
+              <td><span class="kbsm-business-code">{{ $detail->kode_sumber }}</span></td>
+              <td>{{ optional($detail->tanggal)->format('d/m/Y H:i') }}</td>
+              <td class="kbsm-business-amount">{{ $money($detail->nominal) }}</td>
+              <td>{{ $detail->status_label }}</td>
+              <td>{{ $detail->reversal?->kode_reversal ?? '-' }}</td>
             </tr>
           @empty
-            <tr><td colspan="7" class="p-6 text-center text-slate-400">Tidak ada ledger sesuai filter.</td></tr>
+            <tr><td colspan="7" class="kbsm-business-empty">Tidak ada ledger sesuai filter.</td></tr>
           @endforelse
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
 </div>
 @endsection

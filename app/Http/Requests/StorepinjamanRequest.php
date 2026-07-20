@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StorepinjamanRequest extends FormRequest
+class StorePinjamanRequest extends FormRequest
 {
     public function authorize(): bool
     {

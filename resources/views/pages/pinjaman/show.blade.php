@@ -3,6 +3,9 @@
 @section('content')
 @php
   $money = fn ($value) => 'Rp ' . number_format((float) $value, 0, ',', '.');
+  $jadwalRows = collect($detailReport['jadwalRows'] ?? []);
+  $payments = collect($detailReport['payments'] ?? []);
+  $detailSummary = $detailReport['summary'] ?? [];
   $statusClass = [
     \App\Models\Pinjaman::STATUS_DRAFT => 'kbsm-status--slate',
     \App\Models\Pinjaman::STATUS_DIAJUKAN => 'kbsm-status--amber',
@@ -42,11 +45,16 @@
       <p class="mt-1 text-sm text-slate-400">
         {{ $pinjaman->anggota->nomor_anggota ?? '-' }} - {{ $pinjaman->anggota->karyawan->nama ?? '-' }}
       </p>
+      @if($detailSummary['old_cycle'] ?? false)
+        <div class="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-bold uppercase text-amber-700">
+          Kewajiban Siklus Lama — pembayaran tunai
+        </div>
+      @endif
     </div>
     <a href="{{ route('pinjaman.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Kembali</a>
   </div>
 
-  <div class="mb-6 grid gap-4 md:grid-cols-4">
+  <div class="mb-6 grid gap-4 md:grid-cols-6">
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
       <p class="mb-1 text-xs font-bold uppercase text-slate-400">Nominal</p>
       <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($pinjaman->jumlah_pinjaman) }}</p>
@@ -54,6 +62,14 @@
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
       <p class="mb-1 text-xs font-bold uppercase text-slate-400">Sisa</p>
       <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($pinjaman->sisa_pinjaman) }}</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-soft-xl">
+      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Total Offset</p>
+      <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($detailSummary['total_offset'] ?? 0) }}</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-soft-xl">
+      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Total Pembayaran</p>
+      <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($detailSummary['total_pembayaran'] ?? 0) }}</p>
     </div>
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
       <p class="mb-1 text-xs font-bold uppercase text-slate-400">Status</p>
@@ -69,6 +85,15 @@
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl lg:col-span-2">
       <h2 class="mb-4 text-base font-bold text-slate-700">Informasi Pengajuan</h2>
       <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Siklus Keanggotaan</p>
+          <p class="text-sm text-slate-700">
+            Siklus {{ $pinjaman->siklusKeanggotaan?->siklus_ke ?? '-' }}
+            @if($pinjaman->siklusKeanggotaan?->status)
+              · {{ ucfirst($pinjaman->siklusKeanggotaan->status) }}
+            @endif
+          </p>
+        </div>
         <div>
           <p class="mb-1 text-xs font-bold uppercase text-slate-400">Tanggal Pengajuan</p>
           <p class="text-sm text-slate-700">{{ optional($pinjaman->tanggal_pengajuan)->format('d/m/Y') ?? '-' }}</p>
@@ -214,51 +239,108 @@
     </div>
   @endif
 
-  <div class="relative flex flex-col min-w-0 mb-6 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-    <div class="p-6 pb-0 mb-0 bg-white rounded-t-2xl">
-      <h2 class="text-base font-bold text-slate-700">Jadwal Cicilan</h2>
-      <p class="text-sm text-slate-400">Jadwal otomatis read-only; baru dibuat saat Pinjaman dicairkan.</p>
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header">
+      <h2 class="kbsm-business-panel__title">Jadwal Cicilan</h2>
+      <p class="kbsm-business-panel__copy">Jadwal otomatis read-only; status payroll dibaca dari ledger pemakaian potong gaji.</p>
     </div>
-
-    <div class="flex-auto px-0 pt-0 pb-2">
-      <div style="overflow-x: auto;" class="p-0">
-        <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-          <thead class="align-bottom">
+    <div class="kbsm-business-table-wrap">
+      <table class="kbsm-business-table">
+        <thead>
+          <tr>
+            <th>Angsuran</th>
+            <th>Periode</th>
+            <th class="kbsm-business-table__right">Pokok Awal</th>
+            <th class="kbsm-business-table__right">Offset</th>
+            <th class="kbsm-business-table__right">Sisa Tagihan</th>
+            <th>Status Cicilan</th>
+            <th>Status Payroll</th>
+            <th>Pembayaran</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($jadwalRows as $row)
             <tr>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Angsuran Ke</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Periode</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Nominal</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Metode</th>
-              <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Pembayaran</th>
+              <td>Ke-{{ $row->jadwal->angsuran_ke }}</td>
+              <td>{{ optional($row->periode)->format('Y-m') ?? '-' }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->nominal_pokok) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->nominal_offset) }}</td>
+              <td class="kbsm-business-amount">{{ $money($row->nominal_sisa) }}</td>
+              <td><span class="{{ $row->status_class }}">{{ $row->status_label }}</span></td>
+              <td>
+                <span class="{{ $row->payroll_status_class }}">{{ $row->payroll_status_label }}</span>
+                @if($row->payroll_nominal > 0)
+                  <div class="kbsm-business-muted">{{ $money($row->payroll_nominal) }}</div>
+                @endif
+              </td>
+              <td>
+                @if($row->payment)
+                  <span class="kbsm-business-code">CIC-{{ $row->payment->id }}</span>
+                  <div class="kbsm-business-muted">{{ $row->metode_pembayaran_label }} · {{ optional($row->tanggal_pembayaran)->format('d/m/Y') ?? '-' }}</div>
+                @else
+                  <span class="kbsm-business-muted">Belum ada pembayaran</span>
+                @endif
+              </td>
             </tr>
-          </thead>
+          @empty
+            <tr>
+              <td colspan="8" class="kbsm-business-empty">Belum ada jadwal cicilan.</td>
+            </tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <section class="kbsm-business-panel">
+      <div class="kbsm-business-panel__header">
+        <h2 class="kbsm-business-panel__title">Histori Pembayaran</h2>
+        <p class="kbsm-business-panel__copy">Bukti pembayaran tunai/payroll; koreksi ditampilkan sebagai status Dikoreksi.</p>
+      </div>
+      <div class="kbsm-business-table-wrap">
+        <table class="kbsm-business-detail-table">
+          <thead><tr><th>Kode</th><th>Tanggal</th><th>Metode</th><th>Nominal</th><th>Status</th></tr></thead>
           <tbody>
-            @forelse($pinjaman->jadwalCicilan as $jadwal)
+            @forelse($payments as $payment)
               <tr>
-                <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">{{ $jadwal->angsuran_ke }}</td>
-                <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">{{ $jadwal->periode->format('Y-m') }}</td>
-                <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">{{ $money($jadwal->nominal_pokok) }}</td>
-                <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent"><span class="kbsm-status kbsm-status--slate">{{ $jadwal->status }}</span></td>
-                <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">{{ $jadwal->metode_penyelesaian ?: '-' }}</td>
-                <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                  @if($jadwal->cicilanPembayaran)
-                    <p class="mb-0 text-xs font-bold text-slate-600">CIC-{{ $jadwal->cicilanPembayaran->id }}</p>
-                    <p class="mb-0 text-xs text-slate-400">{{ optional($jadwal->cicilanPembayaran->tanggal_bayar)->format('Y-m-d') }}</p>
-                  @else
-                    -
-                  @endif
-                </td>
+                <td>CIC-{{ $payment->id }}</td>
+                <td>{{ optional($payment->tanggal_bayar)->format('d/m/Y') ?? '-' }}</td>
+                <td>{{ $payment->metode_pembayaran === 'potong_gaji' ? 'Potong Gaji' : 'Tunai' }}</td>
+                <td class="kbsm-business-amount">{{ $money($payment->jumlah_cicilan) }}</td>
+                <td>{{ $payment->status === 'reversed' ? 'Dikoreksi' : ($payment->status === 'sudah_bayar' ? 'Sudah Dibayar' : ucfirst($payment->status)) }}</td>
               </tr>
             @empty
-              <tr>
-                <td colspan="6" class="p-4 text-center text-sm text-slate-400">Belum ada jadwal cicilan.</td>
-              </tr>
+              <tr><td colspan="5" class="kbsm-business-empty">Belum ada pembayaran cicilan.</td></tr>
             @endforelse
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
+
+    <section class="kbsm-business-panel">
+      <div class="kbsm-business-panel__header">
+        <h2 class="kbsm-business-panel__title">Mutasi dan Jurnal Terkait</h2>
+        <p class="kbsm-business-panel__copy">Ringkasan pencairan dan pembayaran yang sudah diposting.</p>
+      </div>
+      <div class="p-5">
+        <div class="mb-4 rounded-xl border border-slate-100 p-4">
+          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Mutasi Pencairan</p>
+          <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->mutasiKas?->tanggal ?? '-' }} · {{ $pinjaman->mutasiKas?->dompet?->nama_dompet ?? $pinjaman->dompet?->nama_dompet ?? '-' }} · {{ $pinjaman->mutasiKas ? $money($pinjaman->mutasiKas->jumlah) : '-' }}</p>
+        </div>
+        <div class="mb-4 rounded-xl border border-slate-100 p-4">
+          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Jurnal Pencairan</p>
+          <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->jurnal?->nomor_bukti ?? 'Belum ada' }}</p>
+          @if($pinjaman->jurnal)
+            <p class="mt-1 text-xs text-slate-400">Debit {{ $money($pinjaman->jurnal->details->sum('debit')) }} · Kredit {{ $money($pinjaman->jurnal->details->sum('kredit')) }}</p>
+          @endif
+        </div>
+        <div class="rounded-xl border border-slate-100 p-4">
+          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Posting Pembayaran Cicilan</p>
+          <p class="mb-0 text-sm text-slate-700">{{ $payments->where('status', 'sudah_bayar')->count() }} pembayaran · {{ $money($payments->where('status', 'sudah_bayar')->sum(fn ($row) => (float) $row->jumlah_cicilan)) }}</p>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 @endsection

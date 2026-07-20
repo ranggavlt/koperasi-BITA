@@ -42,6 +42,7 @@ class LaporanPotongGajiController extends Controller
             'laporan' => $report['rows'],
             'details' => $report['details'],
             'summary' => $report['summary'],
+            'warnings' => $report['warnings'],
             'anggotaOptions' => Anggota::query()->with('karyawan')->orderBy('nomor_anggota')->get(),
             'kategoriOptions' => $kategoriOptions,
         ]);
