@@ -16,6 +16,8 @@ class JadwalSimpananWajib extends Model
 
     public const STATUS_SETTLED = 'settled';
 
+    public const STATUS_CANCELLED_EXIT = 'cancelled_exit';
+
     protected $table = 'jadwal_simpanan_wajib';
 
     protected $fillable = [
@@ -33,6 +35,11 @@ class JadwalSimpananWajib extends Model
         'settled_at',
         'created_by',
         'settled_by',
+        'penyelesaian_keanggotaan_id',
+        'cancellation_reversal_id',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
     ];
 
     protected $casts = [
@@ -41,6 +48,7 @@ class JadwalSimpananWajib extends Model
         'interval_bulan_snapshot' => 'integer',
         'reserved_at' => 'datetime',
         'settled_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -89,6 +97,16 @@ class JadwalSimpananWajib extends Model
             ]);
     }
 
+    public function penyelesaianKeanggotaan()
+    {
+        return $this->belongsTo(PenyelesaianKeanggotaan::class, 'penyelesaian_keanggotaan_id');
+    }
+
+    public function cancellationReversal()
+    {
+        return $this->belongsTo(ReversalTransaksi::class, 'cancellation_reversal_id');
+    }
+
     public function scopeOutstanding($query)
     {
         return $query->where('status', self::STATUS_OUTSTANDING);
@@ -100,6 +118,7 @@ class JadwalSimpananWajib extends Model
             self::STATUS_OUTSTANDING => 'Tunggakan/Belum Dialokasikan',
             self::STATUS_RESERVED => 'Sudah Dialokasikan',
             self::STATUS_SETTLED => 'Sudah Dibayar Payroll',
+            self::STATUS_CANCELLED_EXIT => 'Dibatalkan karena Keanggotaan Berakhir',
             default => str_replace('_', ' ', (string) $this->status),
         };
     }

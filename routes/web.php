@@ -197,6 +197,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/penyelesaian-keanggotaan', [PenyelesaianKeanggotaanController::class, 'index'])
         ->name('penyelesaian-keanggotaan.index');
+    Route::get('/penyelesaian-keanggotaan/{penyelesaian}', [PenyelesaianKeanggotaanController::class, 'show'])
+        ->name('penyelesaian-keanggotaan.show');
     Route::post('/penyelesaian-keanggotaan/{penyelesaian}/refresh', [PenyelesaianKeanggotaanController::class, 'refresh'])
         ->name('penyelesaian-keanggotaan.refresh');
     Route::post('/penyelesaian-keanggotaan/{penyelesaian}/process-offset', [PenyelesaianKeanggotaanController::class, 'processOffset'])

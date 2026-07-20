@@ -17,10 +17,13 @@ class SaldoSimpananSukarela extends Model
         'siklus_keanggotaan_id',
         'jenis_simpanan_id',
         'saldo',
+        'penyelesaian_keanggotaan_id',
+        'frozen_at',
     ];
 
     protected $casts = [
         'saldo' => 'decimal:2',
+        'frozen_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -49,5 +52,10 @@ class SaldoSimpananSukarela extends Model
     public function jenisSimpanan()
     {
         return $this->belongsTo(JenisSimpanan::class, 'jenis_simpanan_id');
+    }
+
+    public function penyelesaianKeanggotaan()
+    {
+        return $this->belongsTo(PenyelesaianKeanggotaan::class, 'penyelesaian_keanggotaan_id');
     }
 }

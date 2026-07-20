@@ -309,6 +309,8 @@ return [
         ],
         'keanggotaan' => [
             'simpanan_pokok' => 'simpanan_pokok',
+            'simpanan_wajib' => 'simpanan_wajib',
+            'simpanan_sukarela' => 'simpanan_sukarela',
             'utang_refund_anggota' => 'utang_refund_anggota',
             'piutang_pinjaman' => 'piutang_pinjaman',
             'piutang_anggota' => 'piutang_anggota',

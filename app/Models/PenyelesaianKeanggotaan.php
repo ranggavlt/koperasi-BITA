@@ -88,6 +88,18 @@ class PenyelesaianKeanggotaan extends Model
         ];
     }
 
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING_REVIEW => 'Menunggu Penyelesaian',
+            self::STATUS_WAITING_SETTLEMENT => 'Sebagian Diselesaikan',
+            self::STATUS_READY_TO_COMPLETE => 'Siap Diselesaikan',
+            self::STATUS_COMPLETED => 'Selesai',
+            self::STATUS_CANCELLED => 'Dibatalkan',
+            default => str_replace('_', ' ', (string) $this->status),
+        };
+    }
+
     public function anggota()
     {
         return $this->belongsTo(Anggota::class, 'anggota_id');

@@ -13,6 +13,7 @@ use App\Models\PembayaranSewaPrinter;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\PenyelesaianKeanggotaan;
+use App\Models\PenyelesaianKeanggotaanDetail;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
 use App\Models\SewaMobil;
@@ -1133,6 +1134,43 @@ class AkuntansiService
         ]);
     }
 
+    public function recordSimpananWajibExitCancellation(Simpanan $simpanan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Wajib tidak valid untuk pembatalan tagihan keluar.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Pembatalan tagihan Simpanan Wajib karena Keanggotaan Berakhir #' . $simpanan->id,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunSimpanan, 'debit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('refund.piutang_potong_gaji'),
+                'kredit',
+                $jumlah
+            ),
+        ]);
+    }
+
     public function recordCicilanReversalToCredit(CicilanPinjaman $cicilan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
     {
         return $this->recordCicilanReversal($cicilan, $reversal, $this->akunResolver->posting('refund.utang_anggota'), $userId);
@@ -1283,6 +1321,79 @@ class AkuntansiService
         ], $lines);
     }
 
+    public function recordPenyelesaianKeanggotaanOffsetFromDetails(PenyelesaianKeanggotaan $penyelesaian, ?int $userId = null): ?JurnalUmum
+    {
+        $idempotencyKey = 'keanggotaan:offset:jurnal:' . $penyelesaian->id;
+        $existing = JurnalUmum::query()->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $hakDetails = PenyelesaianKeanggotaanDetail::query()
+            ->with('akun')
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->whereRaw('CAST(nominal_dipakai_offset AS DECIMAL(15,2)) > 0')
+            ->orderBy('urutan_alokasi')
+            ->get();
+
+        $kewajibanDetails = PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN)
+            ->whereRaw('CAST(nominal_offset AS DECIMAL(15,2)) > 0')
+            ->orderBy('urutan_alokasi')
+            ->get();
+
+        if ($hakDetails->isEmpty() || $kewajibanDetails->isEmpty()) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($hakDetails as $detail) {
+            $akun = $detail->akun;
+            if (! $akun || ! $akun->is_aktif || ! in_array($akun->kategori, ['kewajiban', 'ekuitas'], true) || $akun->posisi_saldo !== 'kredit') {
+                throw new RuntimeException('Akun hak Anggota pada detail penyelesaian tidak valid.');
+            }
+
+            $lines[] = $this->akunResolver->line($akun, 'debit', $detail->nominal_dipakai_offset);
+        }
+
+        $pinjamanSettled = $kewajibanDetails
+            ->where('kategori_sumber', PenyelesaianKeanggotaanDetail::KATEGORI_PINJAMAN)
+            ->sum(fn (PenyelesaianKeanggotaanDetail $detail): float => (float) $detail->nominal_offset);
+        $piutangAnggotaSettled = $kewajibanDetails
+            ->where('kategori_sumber', '!=', PenyelesaianKeanggotaanDetail::KATEGORI_PINJAMAN)
+            ->sum(fn (PenyelesaianKeanggotaanDetail $detail): float => (float) $detail->nominal_offset);
+
+        if ($pinjamanSettled > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('keanggotaan.piutang_pinjaman'),
+                'kredit',
+                $pinjamanSettled
+            );
+        }
+
+        if ($piutangAnggotaSettled > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('keanggotaan.piutang_anggota'),
+                'kredit',
+                $piutangAnggotaSettled
+            );
+        }
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $penyelesaian->kode_penyelesaian,
+            'keterangan' => 'Offset hak Anggota terhadap kewajiban keluar ' . $penyelesaian->kode_penyelesaian,
+            'referensi_tipe' => PenyelesaianKeanggotaan::class,
+            'referensi_id' => $penyelesaian->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
     public function recordPenyelesaianKeanggotaanRefund(
         PenyelesaianKeanggotaan $penyelesaian,
         Akun $akunDompet,
@@ -1332,6 +1443,57 @@ class AkuntansiService
         return $this->record([
             'idempotency_key' => $idempotencyKey,
             'tanggal' => now()->toDateString(),
+            'nomor_bukti' => $penyelesaian->kode_penyelesaian,
+            'keterangan' => 'Refund hak Anggota keluar ' . $penyelesaian->kode_penyelesaian,
+            'referensi_tipe' => PenyelesaianKeanggotaan::class,
+            'referensi_id' => $penyelesaian->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordPenyelesaianKeanggotaanRefundFromDetails(PenyelesaianKeanggotaan $penyelesaian, Akun $akunDompet, ?int $userId = null): ?JurnalUmum
+    {
+        $idempotencyKey = 'keanggotaan:refund:jurnal:' . $penyelesaian->id;
+        $existing = JurnalUmum::query()->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund penyelesaian keanggotaan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $hakDetails = PenyelesaianKeanggotaanDetail::query()
+            ->with('akun')
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->whereRaw('CAST(nominal_direfund AS DECIMAL(15,2)) > 0')
+            ->orderBy('urutan_alokasi')
+            ->get();
+
+        if ($hakDetails->isEmpty()) {
+            return null;
+        }
+
+        $lines = [];
+        $total = 0.0;
+
+        foreach ($hakDetails as $detail) {
+            $akun = $detail->akun;
+            if (! $akun || ! $akun->is_aktif || ! in_array($akun->kategori, ['kewajiban', 'ekuitas'], true) || $akun->posisi_saldo !== 'kredit') {
+                throw new RuntimeException('Akun hak Anggota pada detail refund tidak valid.');
+            }
+
+            $total += (float) $detail->nominal_direfund;
+            $lines[] = $this->akunResolver->line($akun, 'debit', $detail->nominal_direfund);
+        }
+
+        $lines[] = $this->akunResolver->line($akunDompet, 'kredit', $total);
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
             'nomor_bukti' => $penyelesaian->kode_penyelesaian,
             'keterangan' => 'Refund hak Anggota keluar ' . $penyelesaian->kode_penyelesaian,
             'referensi_tipe' => PenyelesaianKeanggotaan::class,

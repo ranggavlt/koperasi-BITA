@@ -212,11 +212,19 @@ class MasterDataKoperasiService
             app(PotongGajiBulananService::class)
                 ->releaseReservationsForStoppedAnggota($locked->fresh(), auth()->id());
 
-            app(KeanggotaanLifecycleService::class)->closeActiveCycleForExit(
+            $lifecycle = app(KeanggotaanLifecycleService::class);
+            $cycle = $lifecycle->closeActiveCycleForExit(
                 $locked->fresh(),
                 $locked->tanggal_nonaktif,
                 auth()->id(),
                 'Anggota dinonaktifkan.'
+            );
+            $lifecycle->createPenyelesaianForExit(
+                $locked->fresh(),
+                $cycle,
+                $locked->tanggal_nonaktif,
+                'Penyelesaian otomatis karena Anggota dinonaktifkan.',
+                auth()->id()
             );
 
             $this->syncLegacyIsAnggota($locked->karyawan);

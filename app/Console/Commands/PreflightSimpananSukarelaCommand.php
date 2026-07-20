@@ -6,6 +6,7 @@ use App\Models\JenisSimpanan;
 use App\Models\JurnalUmum;
 use App\Models\MutasiKas;
 use App\Models\ReversalTransaksi;
+use App\Models\SaldoSimpananSukarela;
 use App\Models\Simpanan;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -137,9 +138,25 @@ class PreflightSimpananSukarelaCommand extends Command
                             : $saldo - (float) $simpanan->jumlah;
                     }, 0.0);
 
-                return abs($calculated - (float) $row->saldo) > 0.01;
+                $settlementUsed = $this->settlementAllocationForSaldo((int) $row->id);
+
+                return abs(($calculated - $settlementUsed) - (float) $row->saldo) > 0.01;
             })
             ->count();
+    }
+
+    private function settlementAllocationForSaldo(int $saldoId): float
+    {
+        if (! Schema::hasTable('penyelesaian_keanggotaan_detail')
+            || ! Schema::hasColumn('penyelesaian_keanggotaan_detail', 'nominal_dipakai_offset')
+            || ! Schema::hasColumn('penyelesaian_keanggotaan_detail', 'nominal_direfund')) {
+            return 0.0;
+        }
+
+        return (float) DB::table('penyelesaian_keanggotaan_detail')
+            ->where('source_type', SaldoSimpananSukarela::class)
+            ->where('source_id', $saldoId)
+            ->sum(DB::raw('CAST(nominal_dipakai_offset AS DECIMAL(15,2)) + CAST(nominal_direfund AS DECIMAL(15,2))'));
     }
 
     private function invalidReferences(): int

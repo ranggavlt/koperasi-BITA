@@ -147,6 +147,16 @@ class KoperasiDummySeeder extends Seeder
                     'koreksi' => true,
                     'alasan_koreksi' => 'Dummy koreksi setoran Sukarela salah input.',
                 ],
+                [
+                    'anggota' => 'nina',
+                    'jenis' => 'sukarela',
+                    'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+                    'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
+                    'jumlah' => 125000,
+                    'tanggal' => $awalBulanLalu->copy()->addDays(9),
+                    'dompet' => 'bank_bca',
+                    'keterangan' => 'Saldo Sukarela untuk contoh refund penyelesaian keanggotaan SP-4 [dummy-koperasi-bita]',
+                ],
             ]);
 
             $pinjaman = $this->seedPinjaman($pinjamanService, $karyawan, $dompet, $keuangan, [
@@ -180,6 +190,15 @@ class KoperasiDummySeeder extends Seeder
             ]);
 
             $simpananWajibService->generateUntil($awalBulanIni->copy()->subMonth(), null, $keuangan->id);
+
+            $this->confirmDummyPayrollLimit(
+                $potongGajiService,
+                $karyawan['agus']->anggota()->firstOrFail(),
+                Carbon::parse('2026-01-01'),
+                200000,
+                $keuangan,
+                'Limit dummy untuk Pokok dan Wajib Januari paid sebelum Agus keluar.'
+            );
 
             $masterDataService->updateKaryawan($karyawan['agus'], [
                 'nama' => $karyawan['agus']->nama,
@@ -298,7 +317,15 @@ class KoperasiDummySeeder extends Seeder
             $this->seedSewaMobil($sewaMobilService, $karyawan, $dompet, $keuangan, $awalBulanIni);
             $this->seedSewaPrinter($sewaPrinterService, $karyawan, $dompet, $keuangan, $awalBulanIni);
             $this->seedBebanOperasional($bebanOperasionalService, $dompet, $keuangan, $awalBulanIni);
-            $this->seedStage3FExamples($keanggotaanLifecycleService, $karyawan, $keuangan);
+            $this->seedStage3FExamples(
+                $keanggotaanLifecycleService,
+                $masterDataService,
+                $potongGajiService,
+                $karyawan,
+                $dompet,
+                $keuangan,
+                $awalBulanIni
+            );
         });
     }
 
@@ -375,6 +402,12 @@ class KoperasiDummySeeder extends Seeder
                 'telepon' => '081230000109',
                 'jabatan' => 'Staf Umum',
             ],
+            'nina' => [
+                'nama' => 'Nina Kusumawati',
+                'email' => 'nina.kusumawati@bita.test',
+                'telepon' => '081230000110',
+                'jabatan' => 'Staf Administrasi',
+            ],
         ];
 
         $result = [];
@@ -404,6 +437,7 @@ class KoperasiDummySeeder extends Seeder
             'dewi' => ['tanggal_bergabung' => '2026-01-10', 'alamat' => 'Jl. Dummy Mawar No. 6', 'plafon_pinjaman' => 5000000],
             'fitri' => ['tanggal_bergabung' => '2026-01-11', 'alamat' => 'Jl. Dummy Anggrek No. 7', 'plafon_pinjaman' => 2500000],
             'lilis' => ['tanggal_bergabung' => '2026-01-12', 'alamat' => 'Jl. Dummy Anggrek No. 8', 'plafon_pinjaman' => 3500000],
+            'nina' => ['tanggal_bergabung' => '2026-01-13', 'alamat' => 'Jl. Dummy Cendana No. 9', 'plafon_pinjaman' => 1500000],
         ];
 
         $result = [];
@@ -1766,30 +1800,127 @@ class KoperasiDummySeeder extends Seeder
         }
     }
 
+    private function confirmDummyPayrollLimit(
+        PotongGajiBulananService $service,
+        Anggota $anggota,
+        Carbon $periode,
+        int $nominal,
+        User $keuangan,
+        string $alasan
+    ): void {
+        $limit = $service->findLimitFor($anggota, $periode);
+
+        if (! $limit) {
+            $limit = $service->createLimit($anggota, $periode, $nominal, $keuangan->id, $alasan);
+        }
+
+        if ($limit->status === \App\Models\LimitPotongGajiAnggota::STATUS_DRAFT) {
+            $limit = $service->activateLimit($limit, $keuangan->id);
+        }
+
+        if ($limit->status === \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE) {
+            $limit = $service->closeLimit($limit, $keuangan->id);
+        }
+
+        if ($limit->status === \App\Models\LimitPotongGajiAnggota::STATUS_CLOSED_PENDING_CONFIRMATION) {
+            $service->confirmLimit($limit, $keuangan->id);
+        }
+    }
+
     private function seedStage3FExamples(
         KeanggotaanLifecycleService $service,
+        MasterDataKoperasiService $masterDataService,
+        PotongGajiBulananService $potongGajiService,
         array $karyawan,
-        User $keuangan
+        array $dompet,
+        User $keuangan,
+        Carbon $awalBulanIni
     ): void {
         $agus = $karyawan['agus']->anggota()->with('siklusKeanggotaan.penyelesaian')->first();
 
-        if (! $agus) {
+        if ($agus) {
+            $penyelesaian = $agus->penyelesaianKeanggotaan()
+                ->where('status', '!=', \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED)
+                ->latest('id')
+                ->first();
+
+            if ($penyelesaian) {
+                $penyelesaian = $service->refreshSnapshot($penyelesaian);
+
+                if ((float) $penyelesaian->total_offset <= 0 && (float) $penyelesaian->total_hak_anggota > 0) {
+                    $service->processOffset($penyelesaian, $keuangan->id);
+                }
+            }
+        }
+
+        $nina = $karyawan['nina']->anggota()->with('siklusKeanggotaan.penyelesaian')->first();
+        if (! $nina) {
             return;
         }
 
-        $penyelesaian = $agus->penyelesaianKeanggotaan()
+        if ($nina->status === Anggota::STATUS_AKTIF) {
+            $this->confirmDummyPayrollLimit(
+                $potongGajiService,
+                $nina,
+                Carbon::parse('2026-01-01'),
+                250000,
+                $keuangan,
+                'Limit dummy untuk Pokok dan Wajib paid sebelum Nina keluar.'
+            );
+
+            $masterDataService->updateKaryawan($karyawan['nina']->fresh(), [
+                'nama' => $karyawan['nina']->nama,
+                'email' => $karyawan['nina']->email,
+                'telepon' => $karyawan['nina']->telepon,
+                'jabatan' => $karyawan['nina']->jabatan,
+                'status_kerja' => Karyawan::STATUS_BERHENTI,
+                'tanggal_berhenti' => $awalBulanIni->copy()->subDays(5)->toDateString(),
+            ]);
+        }
+
+        $nina = $karyawan['nina']->fresh()->anggota()->first();
+        $penyelesaianNina = $nina?->penyelesaianKeanggotaan()
             ->where('status', '!=', \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED)
             ->latest('id')
             ->first();
 
-        if (! $penyelesaian) {
+        if (! $penyelesaianNina) {
             return;
         }
 
-        $penyelesaian = $service->refreshSnapshot($penyelesaian);
+        $penyelesaianNina = $service->refreshSnapshot($penyelesaianNina);
 
-        if ((float) $penyelesaian->total_offset <= 0 && (float) $penyelesaian->total_hak_anggota > 0) {
-            $service->processOffset($penyelesaian, $keuangan->id);
+        if ((float) $penyelesaianNina->total_offset <= 0) {
+            $penyelesaianNina = $service->processOffset($penyelesaianNina, $keuangan->id);
+        }
+
+        if ((float) $penyelesaianNina->sisa_kewajiban <= 0 && (float) $penyelesaianNina->total_refund > 0 && ! $penyelesaianNina->mutasiKas()->exists()) {
+            $penyelesaianNina = $service->processRefund(
+                $penyelesaianNina,
+                $dompet['kas_operasional'],
+                $keuangan->id,
+                \App\Models\PenyelesaianKeanggotaan::METODE_TUNAI
+            );
+        }
+
+        if ($penyelesaianNina->fresh()->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED) {
+            $service->complete($penyelesaianNina->fresh(), $keuangan->id);
+        }
+
+        if ($karyawan['nina']->fresh()->status_kerja === Karyawan::STATUS_BERHENTI) {
+            $masterDataService->updateKaryawan($karyawan['nina']->fresh(), [
+                'nama' => $karyawan['nina']->nama,
+                'email' => $karyawan['nina']->email,
+                'telepon' => $karyawan['nina']->telepon,
+                'jabatan' => $karyawan['nina']->jabatan,
+                'status_kerja' => Karyawan::STATUS_AKTIF,
+                'tanggal_berhenti' => null,
+            ]);
+        }
+
+        $nina = $karyawan['nina']->fresh()->anggota()->first();
+        if ($nina && $nina->status === Anggota::STATUS_NONAKTIF) {
+            $masterDataService->activateAnggota($nina);
         }
     }
 
