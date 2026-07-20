@@ -154,7 +154,6 @@ class PreflightAccessCommand extends Command
             'penjualan.destroy',
             'simpanan.edit',
             'simpanan.destroy',
-            'pinjaman.edit',
             'pinjaman.destroy',
             'cicilan-pinjaman.edit',
             'cicilan-pinjaman.destroy',

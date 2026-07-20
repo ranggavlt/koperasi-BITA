@@ -188,6 +188,7 @@ class KoperasiDummySeeder extends Seeder
                     'keterangan' => 'Pinjaman lama sebelum karyawan berhenti [dummy-koperasi-bita]',
                 ],
             ]);
+            $this->seedPinjamanLifecycleSp5($pinjamanService, $karyawan, $dompet, $keuangan, $awalBulanIni);
 
             $simpananWajibService->generateUntil($awalBulanIni->copy()->subMonth(), null, $keuangan->id);
 
@@ -408,6 +409,42 @@ class KoperasiDummySeeder extends Seeder
                 'telepon' => '081230000110',
                 'jabatan' => 'Staf Administrasi',
             ],
+            'wawan_sp5_draft' => [
+                'nama' => 'Wawan Prasetyo',
+                'email' => 'wawan.prasetyo@bita.test',
+                'telepon' => '081230000111',
+                'jabatan' => 'Staf Gudang',
+            ],
+            'yuni_sp5_diajukan' => [
+                'nama' => 'Yuni Kartika',
+                'email' => 'yuni.kartika@bita.test',
+                'telepon' => '081230000112',
+                'jabatan' => 'Staf Finance',
+            ],
+            'farhan_sp5_disetujui' => [
+                'nama' => 'Farhan Maulana',
+                'email' => 'farhan.maulana@bita.test',
+                'telepon' => '081230000113',
+                'jabatan' => 'Staf Operasional',
+            ],
+            'lina_sp5_ditolak' => [
+                'nama' => 'Lina Permatasari',
+                'email' => 'lina.permatasari@bita.test',
+                'telepon' => '081230000114',
+                'jabatan' => 'Staf HR',
+            ],
+            'toni_sp5_dibatalkan' => [
+                'nama' => 'Toni Wijaya',
+                'email' => 'toni.wijaya@bita.test',
+                'telepon' => '081230000115',
+                'jabatan' => 'Staf Produksi',
+            ],
+            'vera_sp5_aktif' => [
+                'nama' => 'Vera Oktaviani',
+                'email' => 'vera.oktaviani@bita.test',
+                'telepon' => '081230000116',
+                'jabatan' => 'Staf Procurement',
+            ],
         ];
 
         $result = [];
@@ -438,6 +475,12 @@ class KoperasiDummySeeder extends Seeder
             'fitri' => ['tanggal_bergabung' => '2026-01-11', 'alamat' => 'Jl. Dummy Anggrek No. 7', 'plafon_pinjaman' => 2500000],
             'lilis' => ['tanggal_bergabung' => '2026-01-12', 'alamat' => 'Jl. Dummy Anggrek No. 8', 'plafon_pinjaman' => 3500000],
             'nina' => ['tanggal_bergabung' => '2026-01-13', 'alamat' => 'Jl. Dummy Cendana No. 9', 'plafon_pinjaman' => 1500000],
+            'wawan_sp5_draft' => ['tanggal_bergabung' => '2026-01-14', 'alamat' => 'Jl. Dummy SP5 No. 1', 'plafon_pinjaman' => 2500000],
+            'yuni_sp5_diajukan' => ['tanggal_bergabung' => '2026-01-15', 'alamat' => 'Jl. Dummy SP5 No. 2', 'plafon_pinjaman' => 3000000],
+            'farhan_sp5_disetujui' => ['tanggal_bergabung' => '2026-01-16', 'alamat' => 'Jl. Dummy SP5 No. 3', 'plafon_pinjaman' => 3500000],
+            'lina_sp5_ditolak' => ['tanggal_bergabung' => '2026-01-17', 'alamat' => 'Jl. Dummy SP5 No. 4', 'plafon_pinjaman' => 2500000],
+            'toni_sp5_dibatalkan' => ['tanggal_bergabung' => '2026-01-18', 'alamat' => 'Jl. Dummy SP5 No. 5', 'plafon_pinjaman' => 2500000],
+            'vera_sp5_aktif' => ['tanggal_bergabung' => '2026-01-19', 'alamat' => 'Jl. Dummy SP5 No. 6', 'plafon_pinjaman' => 4000000],
         ];
 
         $result = [];
@@ -1536,6 +1579,117 @@ class KoperasiDummySeeder extends Seeder
         }
 
         return $result;
+    }
+
+    private function seedPinjamanLifecycleSp5(
+        PinjamanKoperasiService $pinjamanService,
+        array $karyawan,
+        array $dompet,
+        User $keuangan,
+        Carbon $awalBulanIni
+    ): void {
+        $rows = [
+            'wawan_sp5_draft' => [
+                'jumlah_pinjaman' => 750000,
+                'tenor_bulan' => 5,
+                'tanggal_pengajuan' => $awalBulanIni->copy()->addDays(2),
+                'keterangan' => 'Draft pengajuan Pinjaman SP-5 [dummy-koperasi-bita]',
+                'action' => 'draft',
+            ],
+            'yuni_sp5_diajukan' => [
+                'jumlah_pinjaman' => 1200000,
+                'tenor_bulan' => 6,
+                'tanggal_pengajuan' => $awalBulanIni->copy()->addDays(3),
+                'keterangan' => 'Pengajuan Pinjaman SP-5 berstatus diajukan [dummy-koperasi-bita]',
+                'action' => 'submitted',
+            ],
+            'farhan_sp5_disetujui' => [
+                'jumlah_pinjaman' => 1500000,
+                'tenor_bulan' => 8,
+                'tanggal_pengajuan' => $awalBulanIni->copy()->addDays(4),
+                'keterangan' => 'Pengajuan Pinjaman SP-5 sudah disetujui dan menunggu pencairan [dummy-koperasi-bita]',
+                'action' => 'approved',
+            ],
+            'lina_sp5_ditolak' => [
+                'jumlah_pinjaman' => 900000,
+                'tenor_bulan' => 4,
+                'tanggal_pengajuan' => $awalBulanIni->copy()->addDays(5),
+                'keterangan' => 'Pengajuan Pinjaman SP-5 contoh ditolak [dummy-koperasi-bita]',
+                'action' => 'rejected',
+            ],
+            'toni_sp5_dibatalkan' => [
+                'jumlah_pinjaman' => 850000,
+                'tenor_bulan' => 5,
+                'tanggal_pengajuan' => $awalBulanIni->copy()->addDays(6),
+                'keterangan' => 'Pengajuan Pinjaman SP-5 contoh dibatalkan [dummy-koperasi-bita]',
+                'action' => 'cancelled',
+            ],
+            'vera_sp5_aktif' => [
+                'jumlah_pinjaman' => 2000000,
+                'tenor_bulan' => 10,
+                'tanggal_pengajuan' => $awalBulanIni->copy()->addDays(7),
+                'tanggal_pencairan' => $awalBulanIni->copy()->addDays(8),
+                'keterangan' => 'Pengajuan Pinjaman SP-5 sudah dicairkan [dummy-koperasi-bita]',
+                'action' => 'active',
+            ],
+        ];
+
+        foreach ($rows as $anggotaKey => $row) {
+            $anggota = $karyawan[$anggotaKey]->anggota()->firstOrFail();
+
+            if (Pinjaman::query()->where('anggota_id', $anggota->id)->exists()) {
+                continue;
+            }
+
+            $pinjaman = $pinjamanService->createDraft([
+                'anggota_id' => $anggota->id,
+                'jumlah_pinjaman' => $row['jumlah_pinjaman'],
+                'tenor_bulan' => $row['tenor_bulan'],
+                'tanggal_pengajuan' => $row['tanggal_pengajuan'],
+                'keterangan' => $row['keterangan'],
+            ], $keuangan->id);
+
+            $this->setTimestamp('pinjaman', $pinjaman->id, $row['tanggal_pengajuan']);
+
+            if ($row['action'] === 'submitted') {
+                $pinjamanService->submit($pinjaman, $keuangan->id);
+            }
+
+            if (in_array($row['action'], ['approved', 'active'], true)) {
+                $pinjaman = $pinjamanService->submit($pinjaman, $keuangan->id);
+                $pinjaman = $pinjamanService->approve($pinjaman, $keuangan->id);
+            }
+
+            if ($row['action'] === 'rejected') {
+                $pinjaman = $pinjamanService->submit($pinjaman, $keuangan->id);
+                $pinjamanService->reject($pinjaman, 'Dokumen pendukung dummy tidak lengkap untuk contoh penolakan SP-5.', $keuangan->id);
+            }
+
+            if ($row['action'] === 'cancelled') {
+                $pinjamanService->cancel($pinjaman, 'Pengajuan dummy dibatalkan sebelum proses pencairan SP-5.', $keuangan->id);
+            }
+
+            if ($row['action'] === 'active') {
+                $pinjaman = $pinjamanService->disburse($pinjaman, [
+                    'dompet_id' => $dompet['kas_operasional']->id,
+                    'tanggal_pencairan' => $row['tanggal_pencairan'],
+                ], $keuangan->id);
+
+                $this->setTimestamp('pinjaman', $pinjaman->id, $row['tanggal_pencairan']);
+                $pinjaman->jadwalCicilan()->get()->each(function ($jadwal) use ($row): void {
+                    $this->setTimestamp('jadwal_cicilan_pinjaman', $jadwal->id, $row['tanggal_pencairan']);
+                });
+                if ($pinjaman->mutasiKas) {
+                    $this->setTimestamp('mutasi_kas', $pinjaman->mutasiKas->id, $row['tanggal_pencairan']);
+                }
+                if ($pinjaman->jurnal) {
+                    $this->setTimestamp('jurnal_umum', $pinjaman->jurnal->id, $row['tanggal_pencairan']);
+                    $pinjaman->jurnal->details()->get()->each(function ($detail) use ($row): void {
+                        $this->setTimestamp('jurnal_umum_detail', $detail->id, $row['tanggal_pencairan']);
+                    });
+                }
+            }
+        }
     }
 
     private function seedPotongGaji2C(

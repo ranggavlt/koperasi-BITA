@@ -27,21 +27,20 @@ class PinjamanKoperasiService
     ) {
     }
 
+    /**
+     * Compatibility path for existing services/tests/seeder: create an already-approved
+     * Pinjaman and disburse it atomically in one transaction.
+     */
     public function create(array $data, ?int $userId = null): Pinjaman
     {
         try {
             return DB::transaction(function () use ($data, $userId): Pinjaman {
-                $anggota = Anggota::query()
-                    ->with('karyawan')
-                    ->lockForUpdate()
-                    ->findOrFail((int) $data['anggota_id']);
-
+                $anggota = $this->lockedAnggota((int) $data['anggota_id']);
                 $this->assertEligibleAnggota($anggota);
-                $this->assertNoActiveLoan($anggota);
+                $this->assertNoOpenLoan($anggota);
 
                 $jumlahRupiah = $this->rupiahInt($data['jumlah_pinjaman']);
                 $tenor = (int) $data['tenor_bulan'];
-
                 $this->assertJumlahValid($jumlahRupiah, $anggota);
                 $this->assertTenorValid($tenor);
                 $this->assertJumlahCukupUntukTenor($jumlahRupiah, $tenor);
@@ -50,13 +49,13 @@ class PinjamanKoperasiService
                     ->with('akun')
                     ->lockForUpdate()
                     ->findOrFail((int) $data['dompet_id']);
-
                 $akunDompet = $this->assertUsableDompet($dompet);
                 $this->assertSaldoCukup($dompet, $jumlahRupiah);
 
-                $tanggalPinjaman = $this->normalizeTanggal($data['tanggal_pinjaman']);
+                $tanggalPinjaman = $this->normalizeTanggal($data['tanggal_pinjaman'] ?? $data['tanggal_pengajuan'] ?? now(config('app.timezone')));
                 $kodePinjaman = $this->nextKodePinjaman($tanggalPinjaman);
                 $jumlahDecimal = $this->rupiahDecimal($jumlahRupiah);
+                $now = now();
 
                 $pinjaman = Pinjaman::query()->create([
                     'kode_pinjaman' => $kodePinjaman,
@@ -69,9 +68,16 @@ class PinjamanKoperasiService
                     'tenor_bulan' => $tenor,
                     'sisa_pinjaman' => $jumlahDecimal,
                     'status' => Pinjaman::STATUS_AKTIF,
+                    'tanggal_pengajuan' => $tanggalPinjaman->toDateString(),
                     'tanggal_pinjaman' => $tanggalPinjaman->toDateString(),
                     'keterangan' => $data['keterangan'] ?? null,
                     'created_by' => $userId,
+                    'submitted_by' => $userId,
+                    'submitted_at' => $now,
+                    'approved_by' => $userId,
+                    'approved_at' => $now,
+                    'disbursed_by' => $userId,
+                    'disbursed_at' => $now,
                 ]);
 
                 $this->createJadwal($pinjaman, $jumlahRupiah, $tenor, $tanggalPinjaman);
@@ -81,9 +87,249 @@ class PinjamanKoperasiService
 
                 return $pinjaman->fresh(['anggota.karyawan', 'dompet.akun', 'jadwalCicilan', 'mutasiKas', 'jurnal.details']);
             });
-        } catch (UniqueConstraintViolationException $exception) {
+        } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
-                'anggota_id' => 'Anggota ini sudah mempunyai Pinjaman aktif atau kode Pinjaman bertabrakan. Muat ulang halaman lalu coba kembali.',
+                'anggota_id' => 'Anggota ini sudah mempunyai proses Pinjaman terbuka atau Pinjaman aktif.',
+            ]);
+        }
+    }
+
+    public function createDraft(array $data, ?int $userId = null): Pinjaman
+    {
+        try {
+            return DB::transaction(function () use ($data, $userId): Pinjaman {
+                $anggota = $this->lockedAnggota((int) $data['anggota_id']);
+                $this->assertEligibleAnggota($anggota);
+                $this->assertNoOpenLoan($anggota);
+
+                $jumlahRupiah = $this->rupiahInt($data['jumlah_pinjaman']);
+                $tenor = (int) $data['tenor_bulan'];
+                $this->assertJumlahValid($jumlahRupiah, $anggota);
+                $this->assertTenorValid($tenor);
+                $this->assertJumlahCukupUntukTenor($jumlahRupiah, $tenor);
+
+                $tanggalPengajuan = $this->normalizeTanggal($data['tanggal_pengajuan'] ?? $data['tanggal_pinjaman'] ?? now(config('app.timezone')));
+                $jumlahDecimal = $this->rupiahDecimal($jumlahRupiah);
+
+                $pinjaman = Pinjaman::query()->create([
+                    'kode_pinjaman' => $this->nextKodePinjaman($tanggalPengajuan),
+                    'anggota_id' => $anggota->id,
+                    'karyawan_id' => $anggota->karyawan_id,
+                    'dompet_id' => null,
+                    'jumlah_pinjaman' => $jumlahDecimal,
+                    'plafon_pinjaman_snapshot' => $this->rupiahDecimal($this->rupiahInt($anggota->plafon_pinjaman)),
+                    'bunga_persen' => '0.00',
+                    'tenor_bulan' => $tenor,
+                    'sisa_pinjaman' => $jumlahDecimal,
+                    'status' => Pinjaman::STATUS_DRAFT,
+                    'tanggal_pengajuan' => $tanggalPengajuan->toDateString(),
+                    'tanggal_pinjaman' => $tanggalPengajuan->toDateString(),
+                    'keterangan' => $data['keterangan'] ?? null,
+                    'created_by' => $userId,
+                ]);
+
+                return $pinjaman->fresh(['anggota.karyawan']);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'anggota_id' => 'Anggota ini sudah mempunyai proses Pinjaman terbuka atau Pinjaman aktif.',
+            ]);
+        }
+    }
+
+    public function updateDraft(Pinjaman $pinjaman, array $data, ?int $userId = null): Pinjaman
+    {
+        try {
+            return DB::transaction(function () use ($pinjaman, $data): Pinjaman {
+                $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
+
+                if ($locked->status !== Pinjaman::STATUS_DRAFT) {
+                    throw ValidationException::withMessages([
+                        'pinjaman' => 'Hanya draft Pinjaman yang dapat diedit.',
+                    ]);
+                }
+
+                $anggota = $this->lockedAnggota((int) $data['anggota_id']);
+                $this->assertEligibleAnggota($anggota);
+                $this->assertNoOpenLoan($anggota, $locked->id);
+
+                $jumlahRupiah = $this->rupiahInt($data['jumlah_pinjaman']);
+                $tenor = (int) $data['tenor_bulan'];
+                $this->assertJumlahValid($jumlahRupiah, $anggota);
+                $this->assertTenorValid($tenor);
+                $this->assertJumlahCukupUntukTenor($jumlahRupiah, $tenor);
+
+                $tanggalPengajuan = $this->normalizeTanggal($data['tanggal_pengajuan'] ?? $locked->tanggal_pengajuan ?? $locked->tanggal_pinjaman);
+                $jumlahDecimal = $this->rupiahDecimal($jumlahRupiah);
+
+                $locked->update([
+                    'anggota_id' => $anggota->id,
+                    'karyawan_id' => $anggota->karyawan_id,
+                    'jumlah_pinjaman' => $jumlahDecimal,
+                    'plafon_pinjaman_snapshot' => $this->rupiahDecimal($this->rupiahInt($anggota->plafon_pinjaman)),
+                    'bunga_persen' => '0.00',
+                    'tenor_bulan' => $tenor,
+                    'sisa_pinjaman' => $jumlahDecimal,
+                    'tanggal_pengajuan' => $tanggalPengajuan->toDateString(),
+                    'tanggal_pinjaman' => $tanggalPengajuan->toDateString(),
+                    'keterangan' => $data['keterangan'] ?? null,
+                ]);
+
+                return $locked->fresh(['anggota.karyawan']);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'anggota_id' => 'Anggota ini sudah mempunyai proses Pinjaman terbuka atau Pinjaman aktif.',
+            ]);
+        }
+    }
+
+    public function submit(Pinjaman $pinjaman, ?int $userId = null): Pinjaman
+    {
+        return DB::transaction(function () use ($pinjaman, $userId): Pinjaman {
+            $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
+            $this->assertStatus($locked, [Pinjaman::STATUS_DRAFT], 'Hanya draft Pinjaman yang dapat diajukan.');
+            $this->assertNoPostingBeforeDisbursement($locked);
+
+            $anggota = $this->lockedAnggota((int) $locked->anggota_id);
+            $this->assertEligibleAnggota($anggota);
+            $this->assertNoOpenLoan($anggota, $locked->id);
+            $this->assertJumlahValid($this->rupiahInt($locked->jumlah_pinjaman), $anggota);
+            $this->assertTenorValid((int) $locked->tenor_bulan);
+
+            $locked->update([
+                'status' => Pinjaman::STATUS_DIAJUKAN,
+                'submitted_by' => $userId,
+                'submitted_at' => now(),
+            ]);
+
+            return $locked->fresh(['anggota.karyawan']);
+        });
+    }
+
+    public function approve(Pinjaman $pinjaman, ?int $userId = null): Pinjaman
+    {
+        return DB::transaction(function () use ($pinjaman, $userId): Pinjaman {
+            $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
+            $this->assertStatus($locked, [Pinjaman::STATUS_DIAJUKAN], 'Hanya Pinjaman berstatus diajukan yang dapat disetujui.');
+            $this->assertNoPostingBeforeDisbursement($locked);
+
+            $anggota = $this->lockedAnggota((int) $locked->anggota_id);
+            $this->assertEligibleAnggota($anggota);
+            $this->assertNoOpenLoan($anggota, $locked->id);
+
+            $jumlahRupiah = $this->rupiahInt($locked->jumlah_pinjaman);
+            $this->assertJumlahValid($jumlahRupiah, $anggota);
+            $this->assertTenorValid((int) $locked->tenor_bulan);
+
+            $locked->update([
+                'status' => Pinjaman::STATUS_DISETUJUI,
+                'plafon_pinjaman_snapshot' => $this->rupiahDecimal($this->rupiahInt($anggota->plafon_pinjaman)),
+                'bunga_persen' => '0.00',
+                'approved_by' => $userId,
+                'approved_at' => now(),
+            ]);
+
+            return $locked->fresh(['anggota.karyawan']);
+        });
+    }
+
+    public function reject(Pinjaman $pinjaman, string $reason, ?int $userId = null): Pinjaman
+    {
+        return DB::transaction(function () use ($pinjaman, $reason, $userId): Pinjaman {
+            $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
+            $this->assertStatus($locked, [Pinjaman::STATUS_DIAJUKAN], 'Hanya Pinjaman berstatus diajukan yang dapat ditolak.');
+            $this->assertNoPostingBeforeDisbursement($locked);
+
+            $locked->update([
+                'status' => Pinjaman::STATUS_DITOLAK,
+                'rejected_by' => $userId,
+                'rejected_at' => now(),
+                'rejection_reason' => trim($reason),
+            ]);
+
+            return $locked->fresh(['anggota.karyawan']);
+        });
+    }
+
+    public function cancel(Pinjaman $pinjaman, string $reason, ?int $userId = null): Pinjaman
+    {
+        return DB::transaction(function () use ($pinjaman, $reason, $userId): Pinjaman {
+            $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
+            $this->assertStatus(
+                $locked,
+                [Pinjaman::STATUS_DRAFT, Pinjaman::STATUS_DIAJUKAN, Pinjaman::STATUS_DISETUJUI],
+                'Pinjaman hanya dapat dibatalkan sebelum dicairkan.'
+            );
+            $this->assertNoPostingBeforeDisbursement($locked);
+
+            $locked->update([
+                'status' => Pinjaman::STATUS_DIBATALKAN,
+                'cancelled_by' => $userId,
+                'cancelled_at' => now(),
+                'cancellation_reason' => trim($reason),
+            ]);
+
+            return $locked->fresh(['anggota.karyawan']);
+        });
+    }
+
+    public function disburse(Pinjaman $pinjaman, array $data, ?int $userId = null): Pinjaman
+    {
+        try {
+            return DB::transaction(function () use ($pinjaman, $data, $userId): Pinjaman {
+                $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
+
+                if ($locked->status === Pinjaman::STATUS_AKTIF && $locked->disbursed_at) {
+                    return $locked->fresh(['anggota.karyawan', 'dompet.akun', 'jadwalCicilan', 'mutasiKas', 'jurnal.details']);
+                }
+
+                $this->assertStatus($locked, [Pinjaman::STATUS_DISETUJUI], 'Pinjaman hanya dapat dicairkan setelah disetujui.');
+                $this->assertNoPostingBeforeDisbursement($locked);
+
+                $anggota = $this->lockedAnggota((int) $locked->anggota_id);
+                $this->assertEligibleAnggota($anggota);
+                $this->assertNoOpenLoan($anggota, $locked->id);
+
+                $jumlahRupiah = $this->rupiahInt($locked->jumlah_pinjaman);
+                $tenor = (int) $locked->tenor_bulan;
+                $this->assertJumlahValidAgainstSnapshot($jumlahRupiah, $locked);
+                $this->assertTenorValid($tenor);
+                $this->assertJumlahCukupUntukTenor($jumlahRupiah, $tenor);
+
+                $dompet = DompetKoperasi::query()
+                    ->with('akun')
+                    ->lockForUpdate()
+                    ->findOrFail((int) $data['dompet_id']);
+                $akunDompet = $this->assertUsableDompet($dompet);
+                $this->assertSaldoCukup($dompet, $jumlahRupiah);
+
+                $tanggalPencairan = $this->normalizeTanggal($data['tanggal_pencairan'] ?? $data['tanggal_pinjaman'] ?? now(config('app.timezone')));
+
+                $locked->update([
+                    'dompet_id' => $dompet->id,
+                    'tanggal_pinjaman' => $tanggalPencairan->toDateString(),
+                    'sisa_pinjaman' => $this->rupiahDecimal($jumlahRupiah),
+                    'bunga_persen' => '0.00',
+                    'status' => Pinjaman::STATUS_AKTIF,
+                    'disbursed_by' => $userId,
+                    'disbursed_at' => now(),
+                ]);
+
+                $this->createJadwal($locked, $jumlahRupiah, $tenor, $tanggalPencairan);
+                $mutasi = $this->recordMutasiPencairan($locked, $dompet, $jumlahRupiah);
+
+                if ($mutasi->wasRecentlyCreated) {
+                    $this->decreaseSaldoDompet($dompet, $jumlahRupiah);
+                }
+
+                $this->akuntansiService->recordPencairanPinjaman($locked, $akunDompet, $userId);
+
+                return $locked->fresh(['anggota.karyawan', 'dompet.akun', 'jadwalCicilan', 'mutasiKas', 'jurnal.details']);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'pinjaman' => 'Pencairan sudah diproses atau terdapat proses Pinjaman lain untuk Anggota ini.',
             ]);
         }
     }
@@ -115,8 +361,19 @@ class PinjamanKoperasiService
         return $rows;
     }
 
+    public function pencairanIdempotencyKey(Pinjaman $pinjaman, string $jenis): string
+    {
+        return "pinjaman:pencairan:{$jenis}:{$pinjaman->id}";
+    }
+
     private function createJadwal(Pinjaman $pinjaman, int $jumlahRupiah, int $tenor, CarbonImmutable $tanggalPinjaman): void
     {
+        if ($pinjaman->jadwalCicilan()->exists()) {
+            throw ValidationException::withMessages([
+                'pinjaman' => 'Jadwal cicilan Pinjaman ini sudah pernah dibuat.',
+            ]);
+        }
+
         $rows = collect($this->buildJadwalPreview($jumlahRupiah, $tenor, $tanggalPinjaman))
             ->map(fn (array $row) => $row + [
                 'pinjaman_id' => $pinjaman->id,
@@ -135,16 +392,18 @@ class PinjamanKoperasiService
 
     private function recordMutasiPencairan(Pinjaman $pinjaman, DompetKoperasi $dompet, int $jumlahRupiah): MutasiKas
     {
-        return MutasiKas::query()->create([
-            'idempotency_key' => $this->pencairanIdempotencyKey($pinjaman, 'mutasi'),
-            'dompet_id' => $dompet->id,
-            'tipe' => 'keluar',
-            'jumlah' => $this->rupiahDecimal($jumlahRupiah),
-            'keterangan' => 'Pencairan pinjaman ' . $pinjaman->kode_pinjaman,
-            'referensi_tipe' => Pinjaman::class,
-            'referensi_id' => $pinjaman->id,
-            'tanggal' => $pinjaman->tanggal_pinjaman,
-        ]);
+        return MutasiKas::query()->firstOrCreate(
+            ['idempotency_key' => $this->pencairanIdempotencyKey($pinjaman, 'mutasi')],
+            [
+                'dompet_id' => $dompet->id,
+                'tipe' => 'keluar',
+                'jumlah' => $this->rupiahDecimal($jumlahRupiah),
+                'keterangan' => 'Pencairan pinjaman ' . $pinjaman->kode_pinjaman,
+                'referensi_tipe' => Pinjaman::class,
+                'referensi_id' => $pinjaman->id,
+                'tanggal' => $pinjaman->tanggal_pinjaman,
+            ]
+        );
     }
 
     private function decreaseSaldoDompet(DompetKoperasi $dompet, int $jumlahRupiah): void
@@ -156,9 +415,12 @@ class PinjamanKoperasiService
         ]);
     }
 
-    public function pencairanIdempotencyKey(Pinjaman $pinjaman, string $jenis): string
+    private function lockedAnggota(int $anggotaId): Anggota
     {
-        return "pinjaman:pencairan:{$jenis}:{$pinjaman->id}";
+        return Anggota::query()
+            ->with('karyawan')
+            ->lockForUpdate()
+            ->findOrFail($anggotaId);
     }
 
     private function assertEligibleAnggota(Anggota $anggota): void
@@ -176,11 +438,19 @@ class PinjamanKoperasiService
         }
     }
 
-    private function assertNoActiveLoan(Anggota $anggota): void
+    private function assertNoOpenLoan(Anggota $anggota, ?int $exceptPinjamanId = null): void
     {
-        if (Pinjaman::query()->where('anggota_id', $anggota->id)->where('status', Pinjaman::STATUS_AKTIF)->exists()) {
+        $query = Pinjaman::query()
+            ->where('anggota_id', $anggota->id)
+            ->whereIn('status', Pinjaman::openStatuses());
+
+        if ($exceptPinjamanId) {
+            $query->whereKeyNot($exceptPinjamanId);
+        }
+
+        if ($query->lockForUpdate()->exists()) {
             throw ValidationException::withMessages([
-                'anggota_id' => 'Anggota ini masih mempunyai Pinjaman aktif.',
+                'anggota_id' => 'Anggota ini masih mempunyai proses Pinjaman terbuka atau Pinjaman aktif.',
             ]);
         }
     }
@@ -204,6 +474,27 @@ class PinjamanKoperasiService
         if ($jumlahRupiah > $plafon) {
             throw ValidationException::withMessages([
                 'jumlah_pinjaman' => 'Jumlah pinjaman melebihi plafon Anggota.',
+            ]);
+        }
+    }
+
+    private function assertJumlahValidAgainstSnapshot(int $jumlahRupiah, Pinjaman $pinjaman): void
+    {
+        if ($jumlahRupiah <= 0) {
+            throw ValidationException::withMessages([
+                'jumlah_pinjaman' => 'Jumlah pinjaman harus lebih besar dari nol.',
+            ]);
+        }
+
+        if ($jumlahRupiah > self::MAX_PINJAMAN) {
+            throw ValidationException::withMessages([
+                'jumlah_pinjaman' => 'Jumlah pinjaman maksimal Rp5.000.000.',
+            ]);
+        }
+
+        if ($jumlahRupiah > $this->rupiahInt($pinjaman->plafon_pinjaman_snapshot)) {
+            throw ValidationException::withMessages([
+                'jumlah_pinjaman' => 'Jumlah pinjaman melebihi plafon snapshot saat persetujuan.',
             ]);
         }
     }
@@ -252,6 +543,31 @@ class PinjamanKoperasiService
         if ($this->rupiahInt($dompet->saldo) < $jumlahRupiah) {
             throw ValidationException::withMessages([
                 'dompet_id' => 'Saldo Dompet tidak mencukupi untuk pencairan Pinjaman.',
+            ]);
+        }
+    }
+
+    /**
+     * @param array<int, string> $allowed
+     */
+    private function assertStatus(Pinjaman $pinjaman, array $allowed, string $message): void
+    {
+        if (! in_array($pinjaman->status, $allowed, true)) {
+            throw ValidationException::withMessages([
+                'pinjaman' => $message,
+            ]);
+        }
+    }
+
+    private function assertNoPostingBeforeDisbursement(Pinjaman $pinjaman): void
+    {
+        if (
+            $pinjaman->jadwalCicilan()->exists()
+            || $pinjaman->mutasiKas()->exists()
+            || $pinjaman->jurnal()->exists()
+        ) {
+            throw ValidationException::withMessages([
+                'pinjaman' => 'Pinjaman yang belum dicairkan tidak boleh memiliki Jadwal, Mutasi Kas, atau Jurnal.',
             ]);
         }
     }
@@ -306,8 +622,12 @@ class PinjamanKoperasiService
         return CarbonImmutable::parse((string) $tanggal, $timezone)->setTimezone($timezone)->startOfDay();
     }
 
-    private function rupiahInt(int|string $value): int
+    private function rupiahInt(mixed $value): int
     {
+        if (is_int($value)) {
+            return $value;
+        }
+
         $normalized = trim((string) $value);
         $negative = str_starts_with($normalized, '-');
         $normalized = ltrim($normalized, '+-');

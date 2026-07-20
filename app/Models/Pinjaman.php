@@ -11,9 +11,19 @@ class Pinjaman extends Model
 {
     use HasFactory;
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_DIAJUKAN = 'diajukan';
+
+    public const STATUS_DISETUJUI = 'disetujui';
+
     public const STATUS_AKTIF = 'aktif';
 
     public const STATUS_LUNAS = 'lunas';
+
+    public const STATUS_DITOLAK = 'ditolak';
+
+    public const STATUS_DIBATALKAN = 'dibatalkan';
 
     protected $table = 'pinjaman';
 
@@ -21,6 +31,7 @@ class Pinjaman extends Model
         'kode_pinjaman',
         'karyawan_id',
         'anggota_id',
+        'anggota_pinjaman_terbuka_id',
         'dompet_id',
         'jumlah_pinjaman',
         'plafon_pinjaman_snapshot',
@@ -29,8 +40,21 @@ class Pinjaman extends Model
         'sisa_pinjaman',
         'status',
         'tanggal_pinjaman',
+        'tanggal_pengajuan',
         'keterangan',
         'created_by',
+        'submitted_by',
+        'submitted_at',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason',
+        'disbursed_by',
+        'disbursed_at',
     ];
 
     protected $casts = [
@@ -39,6 +63,12 @@ class Pinjaman extends Model
         'bunga_persen' => 'decimal:2',
         'sisa_pinjaman' => 'decimal:2',
         'tanggal_pinjaman' => 'date',
+        'tanggal_pengajuan' => 'date',
+        'submitted_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'disbursed_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -46,6 +76,10 @@ class Pinjaman extends Model
         static::saving(function (Pinjaman $pinjaman): void {
             if (DB::connection()->getDriverName() !== 'mysql') {
                 $pinjaman->anggota_aktif_id = $pinjaman->status === self::STATUS_AKTIF
+                    ? $pinjaman->anggota_id
+                    : null;
+
+                $pinjaman->anggota_pinjaman_terbuka_id = self::isOpenStatus((string) $pinjaman->status)
                     ? $pinjaman->anggota_id
                     : null;
             }
@@ -91,5 +125,44 @@ class Pinjaman extends Model
     {
         return $this->hasOne(JurnalUmum::class, 'referensi_id')
             ->where('referensi_tipe', self::class);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function openStatuses(): array
+    {
+        return [
+            self::STATUS_DRAFT,
+            self::STATUS_DIAJUKAN,
+            self::STATUS_DISETUJUI,
+            self::STATUS_AKTIF,
+        ];
+    }
+
+    public static function isOpenStatus(string $status): bool
+    {
+        return in_array($status, self::openStatuses(), true);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function statusLabels(): array
+    {
+        return [
+            self::STATUS_DRAFT => 'Draft',
+            self::STATUS_DIAJUKAN => 'Diajukan',
+            self::STATUS_DISETUJUI => 'Disetujui',
+            self::STATUS_AKTIF => 'Aktif',
+            self::STATUS_LUNAS => 'Lunas',
+            self::STATUS_DITOLAK => 'Ditolak',
+            self::STATUS_DIBATALKAN => 'Dibatalkan',
+        ];
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::statusLabels()[$this->status] ?? ucfirst((string) $this->status);
     }
 }

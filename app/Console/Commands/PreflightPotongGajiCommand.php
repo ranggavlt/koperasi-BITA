@@ -297,6 +297,7 @@ class PreflightPotongGajiCommand extends Command
 
         return DB::table('pinjaman as p')
             ->leftJoin('jadwal_cicilan_pinjaman as j', 'j.pinjaman_id', '=', 'p.id')
+            ->whereIn('p.status', ['aktif', 'lunas'])
             ->whereNull('j.id')
             ->count('p.id');
     }
@@ -309,6 +310,7 @@ class PreflightPotongGajiCommand extends Command
 
         return DB::table('pinjaman as p')
             ->leftJoin('jadwal_cicilan_pinjaman as j', 'j.pinjaman_id', '=', 'p.id')
+            ->whereIn('p.status', ['aktif', 'lunas'])
             ->select('p.id', 'p.tenor_bulan', DB::raw('COUNT(j.id) as total_jadwal'))
             ->groupBy('p.id', 'p.tenor_bulan')
             ->get()
@@ -324,6 +326,7 @@ class PreflightPotongGajiCommand extends Command
 
         return DB::table('pinjaman as p')
             ->leftJoin('jadwal_cicilan_pinjaman as j', 'j.pinjaman_id', '=', 'p.id')
+            ->whereIn('p.status', ['aktif', 'lunas'])
             ->select('p.id', 'p.jumlah_pinjaman', DB::raw('COALESCE(SUM(j.nominal_pokok), 0) as total_jadwal'))
             ->groupBy('p.id', 'p.jumlah_pinjaman')
             ->get()
@@ -356,6 +359,7 @@ class PreflightPotongGajiCommand extends Command
                 $join->on('j.pinjaman_id', '=', 'p.id')
                     ->where('j.angsuran_ke', '=', 1);
             })
+            ->whereIn('p.status', ['aktif', 'lunas'])
             ->get(['p.tanggal_pinjaman', 'j.periode'])
             ->filter(function ($row): bool {
                 $expected = Carbon::parse($row->tanggal_pinjaman, config('app.timezone'))
@@ -569,6 +573,7 @@ class PreflightPotongGajiCommand extends Command
                 $join->on('j.pinjaman_id', '=', 'p.id')
                     ->where('j.status', '!=', 'paid');
             })
+            ->whereIn('p.status', ['aktif', 'lunas'])
             ->select('p.id', 'p.sisa_pinjaman', DB::raw('COALESCE(SUM(COALESCE(j.nominal_sisa, j.nominal_pokok)), 0) as total_unpaid'))
             ->groupBy('p.id', 'p.sisa_pinjaman')
             ->get()
@@ -1106,6 +1111,7 @@ class PreflightPotongGajiCommand extends Command
                 $join->on('r.referensi_id', '=', 'p.id')
                     ->where('r.referensi_tipe', '=', 'App\\Models\\Pinjaman');
             })
+            ->whereIn('p.status', ['aktif', 'lunas'])
             ->select('p.id', DB::raw('COUNT(r.id) as total_posting'))
             ->groupBy('p.id')
             ->get()
@@ -1507,7 +1513,6 @@ class PreflightPotongGajiCommand extends Command
             'penjualan.destroy',
             'simpanan.edit',
             'simpanan.destroy',
-            'pinjaman.edit',
             'pinjaman.destroy',
             'cicilan-pinjaman.edit',
             'cicilan-pinjaman.destroy',
