@@ -31,6 +31,7 @@ class Pinjaman extends Model
         'kode_pinjaman',
         'karyawan_id',
         'anggota_id',
+        'siklus_keanggotaan_id',
         'anggota_pinjaman_terbuka_id',
         'dompet_id',
         'jumlah_pinjaman',
@@ -98,6 +99,11 @@ class Pinjaman extends Model
     public function anggota()
     {
         return $this->belongsTo(Anggota::class);
+    }
+
+    public function siklusKeanggotaan()
+    {
+        return $this->belongsTo(SiklusKeanggotaan::class, 'siklus_keanggotaan_id');
     }
 
     public function dompet()

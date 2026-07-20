@@ -722,6 +722,10 @@ class KeanggotaanLifecycleService
             $reasons[] = 'Masih ada reservasi/pemakaian payroll aktif dari siklus lama.';
         }
 
+        if ($anggota && $this->hasUnpaidOldPinjaman($anggota->id, $penyelesaian->siklus_keanggotaan_id)) {
+            $reasons[] = 'Masih ada Pinjaman lama yang belum lunas. Lunasi kewajiban Pinjaman sebelum daftar ulang.';
+        }
+
         if ($tanggalBergabung && $tanggalBergabung->greaterThan(CarbonImmutable::now($this->timezone())->startOfDay())) {
             $reasons[] = 'Tanggal bergabung baru tidak boleh melebihi hari ini.';
         }
@@ -1317,7 +1321,30 @@ class KeanggotaanLifecycleService
                                 ->where('simpanan.anggota_id', $anggotaId)
                                 ->where('simpanan.siklus_keanggotaan_id', $siklusId);
                         });
+                })->orWhere(function ($cicilan) use ($anggotaId, $siklusId): void {
+                    $cicilan->where('source_type', JadwalCicilanPinjaman::class)
+                        ->whereExists(function ($exists) use ($anggotaId, $siklusId): void {
+                            $exists->selectRaw('1')
+                                ->from('jadwal_cicilan_pinjaman')
+                                ->join('pinjaman', 'pinjaman.id', '=', 'jadwal_cicilan_pinjaman.pinjaman_id')
+                                ->whereColumn('jadwal_cicilan_pinjaman.id', 'pemakaian_potong_gaji.source_id')
+                                ->where('pinjaman.anggota_id', $anggotaId)
+                                ->where('pinjaman.siklus_keanggotaan_id', $siklusId);
+                        });
                 });
+            })
+            ->exists();
+    }
+
+    private function hasUnpaidOldPinjaman(int $anggotaId, int $siklusId): bool
+    {
+        return Pinjaman::query()
+            ->where('anggota_id', $anggotaId)
+            ->where('status', Pinjaman::STATUS_AKTIF)
+            ->whereRaw('CAST(sisa_pinjaman AS DECIMAL(15,2)) > 0')
+            ->where(function ($query) use ($siklusId): void {
+                $query->where('siklus_keanggotaan_id', $siklusId)
+                    ->orWhereNull('siklus_keanggotaan_id');
             })
             ->exists();
     }
@@ -1326,11 +1353,13 @@ class KeanggotaanLifecycleService
     {
         if ($detail->source_type === Pinjaman::class) {
             $pinjaman = Pinjaman::query()->with('jadwalCicilan')->lockForUpdate()->findOrFail($detail->source_id);
-            $pinjaman->update([
-                'sisa_pinjaman' => $this->decimalFromCents(max(0, $this->decimalToCents($pinjaman->sisa_pinjaman) - $offsetCents)),
-                'status' => $remainingCents === 0 ? Pinjaman::STATUS_LUNAS : Pinjaman::STATUS_AKTIF,
-            ]);
             $this->applyOffsetToSchedules($pinjaman, $offsetCents);
+            $remainingScheduleCents = $this->remainingPinjamanScheduleCents($pinjaman);
+
+            $pinjaman->update([
+                'sisa_pinjaman' => $this->decimalFromCents($remainingScheduleCents),
+                'status' => $remainingScheduleCents === 0 ? Pinjaman::STATUS_LUNAS : Pinjaman::STATUS_AKTIF,
+            ]);
             return;
         }
 
@@ -1362,12 +1391,18 @@ class KeanggotaanLifecycleService
                 break;
             }
 
+            if ($this->hasActivePayrollLedgerForJadwal($jadwal)) {
+                throw ValidationException::withMessages([
+                    'pinjaman' => 'Offset Pinjaman ditolak karena masih ada reservasi payroll aktif pada jadwal cicilan.',
+                ]);
+            }
+
             $currentOffset = $this->decimalToCents($jadwal->nominal_offset ?? '0.00');
             $nominal = $this->decimalToCents($jadwal->nominal_pokok);
-            $sisa = max(0, $nominal - $currentOffset);
+            $sisa = $this->decimalToCents($jadwal->nominal_sisa ?? max(0, $nominal - $currentOffset));
             $applied = min($remaining, $sisa);
             $newOffset = $currentOffset + $applied;
-            $newSisa = max(0, $nominal - $newOffset);
+            $newSisa = max(0, $sisa - $applied);
 
             $jadwal->update([
                 'nominal_offset' => $this->decimalFromCents($newOffset),
@@ -1379,6 +1414,31 @@ class KeanggotaanLifecycleService
 
             $remaining -= $applied;
         }
+    }
+
+    private function hasActivePayrollLedgerForJadwal(JadwalCicilanPinjaman $jadwal): bool
+    {
+        return PemakaianPotongGaji::query()
+            ->where('kategori', PemakaianPotongGaji::KATEGORI_CICILAN)
+            ->where('source_type', JadwalCicilanPinjaman::class)
+            ->where('source_id', $jadwal->id)
+            ->whereIn('status', [
+                PemakaianPotongGaji::STATUS_RESERVED,
+                PemakaianPotongGaji::STATUS_CONSUMED,
+            ])
+            ->lockForUpdate()
+            ->exists();
+    }
+
+    private function remainingPinjamanScheduleCents(Pinjaman $pinjaman): int
+    {
+        $total = JadwalCicilanPinjaman::query()
+            ->where('pinjaman_id', $pinjaman->id)
+            ->where('status', '!=', JadwalCicilanPinjaman::STATUS_CANCELLED)
+            ->selectRaw('COALESCE(SUM(COALESCE(nominal_sisa, nominal_pokok)), 0) as total')
+            ->value('total');
+
+        return $this->decimalToCents((string) $total);
     }
 
     private function consumeCredits(Anggota $anggota, int $nominalCents): void

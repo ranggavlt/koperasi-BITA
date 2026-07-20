@@ -7,8 +7,11 @@ use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\JadwalCicilanPinjaman;
 use App\Models\Karyawan;
+use App\Models\LimitPotongGajiAnggota;
 use App\Models\MutasiKas;
+use App\Models\PeriodePotongGaji;
 use App\Models\Pinjaman;
+use App\Models\SiklusKeanggotaan;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
@@ -38,6 +41,7 @@ class PinjamanKoperasiService
                 $anggota = $this->lockedAnggota((int) $data['anggota_id']);
                 $this->assertEligibleAnggota($anggota);
                 $this->assertNoOpenLoan($anggota);
+                $siklus = $this->activeCycleForAnggota($anggota, $userId);
 
                 $jumlahRupiah = $this->rupiahInt($data['jumlah_pinjaman']);
                 $tenor = (int) $data['tenor_bulan'];
@@ -60,6 +64,7 @@ class PinjamanKoperasiService
                 $pinjaman = Pinjaman::query()->create([
                     'kode_pinjaman' => $kodePinjaman,
                     'anggota_id' => $anggota->id,
+                    'siklus_keanggotaan_id' => $siklus->id,
                     'karyawan_id' => $anggota->karyawan_id,
                     'dompet_id' => $dompet->id,
                     'jumlah_pinjaman' => $jumlahDecimal,
@@ -81,6 +86,7 @@ class PinjamanKoperasiService
                 ]);
 
                 $this->createJadwal($pinjaman, $jumlahRupiah, $tenor, $tanggalPinjaman);
+                $this->reserveFirstInstallmentIfActiveLimit($pinjaman, $userId);
                 $this->recordMutasiPencairan($pinjaman, $dompet, $jumlahRupiah);
                 $this->decreaseSaldoDompet($dompet, $jumlahRupiah);
                 $this->akuntansiService->recordPencairanPinjaman($pinjaman, $akunDompet, $userId);
@@ -101,6 +107,7 @@ class PinjamanKoperasiService
                 $anggota = $this->lockedAnggota((int) $data['anggota_id']);
                 $this->assertEligibleAnggota($anggota);
                 $this->assertNoOpenLoan($anggota);
+                $siklus = $this->activeCycleForAnggota($anggota, $userId);
 
                 $jumlahRupiah = $this->rupiahInt($data['jumlah_pinjaman']);
                 $tenor = (int) $data['tenor_bulan'];
@@ -114,6 +121,7 @@ class PinjamanKoperasiService
                 $pinjaman = Pinjaman::query()->create([
                     'kode_pinjaman' => $this->nextKodePinjaman($tanggalPengajuan),
                     'anggota_id' => $anggota->id,
+                    'siklus_keanggotaan_id' => $siklus->id,
                     'karyawan_id' => $anggota->karyawan_id,
                     'dompet_id' => null,
                     'jumlah_pinjaman' => $jumlahDecimal,
@@ -140,7 +148,7 @@ class PinjamanKoperasiService
     public function updateDraft(Pinjaman $pinjaman, array $data, ?int $userId = null): Pinjaman
     {
         try {
-            return DB::transaction(function () use ($pinjaman, $data): Pinjaman {
+            return DB::transaction(function () use ($pinjaman, $data, $userId): Pinjaman {
                 $locked = Pinjaman::query()->lockForUpdate()->findOrFail($pinjaman->id);
 
                 if ($locked->status !== Pinjaman::STATUS_DRAFT) {
@@ -152,6 +160,7 @@ class PinjamanKoperasiService
                 $anggota = $this->lockedAnggota((int) $data['anggota_id']);
                 $this->assertEligibleAnggota($anggota);
                 $this->assertNoOpenLoan($anggota, $locked->id);
+                $siklus = $this->activeCycleForAnggota($anggota, $userId);
 
                 $jumlahRupiah = $this->rupiahInt($data['jumlah_pinjaman']);
                 $tenor = (int) $data['tenor_bulan'];
@@ -164,6 +173,7 @@ class PinjamanKoperasiService
 
                 $locked->update([
                     'anggota_id' => $anggota->id,
+                    'siklus_keanggotaan_id' => $siklus->id,
                     'karyawan_id' => $anggota->karyawan_id,
                     'jumlah_pinjaman' => $jumlahDecimal,
                     'plafon_pinjaman_snapshot' => $this->rupiahDecimal($this->rupiahInt($anggota->plafon_pinjaman)),
@@ -193,6 +203,7 @@ class PinjamanKoperasiService
 
             $anggota = $this->lockedAnggota((int) $locked->anggota_id);
             $this->assertEligibleAnggota($anggota);
+            $this->assertPinjamanOnCurrentCycle($locked, $anggota);
             $this->assertNoOpenLoan($anggota, $locked->id);
             $this->assertJumlahValid($this->rupiahInt($locked->jumlah_pinjaman), $anggota);
             $this->assertTenorValid((int) $locked->tenor_bulan);
@@ -216,6 +227,7 @@ class PinjamanKoperasiService
 
             $anggota = $this->lockedAnggota((int) $locked->anggota_id);
             $this->assertEligibleAnggota($anggota);
+            $this->assertPinjamanOnCurrentCycle($locked, $anggota);
             $this->assertNoOpenLoan($anggota, $locked->id);
 
             $jumlahRupiah = $this->rupiahInt($locked->jumlah_pinjaman);
@@ -289,6 +301,7 @@ class PinjamanKoperasiService
 
                 $anggota = $this->lockedAnggota((int) $locked->anggota_id);
                 $this->assertEligibleAnggota($anggota);
+                $this->assertPinjamanOnCurrentCycle($locked, $anggota);
                 $this->assertNoOpenLoan($anggota, $locked->id);
 
                 $jumlahRupiah = $this->rupiahInt($locked->jumlah_pinjaman);
@@ -317,6 +330,7 @@ class PinjamanKoperasiService
                 ]);
 
                 $this->createJadwal($locked, $jumlahRupiah, $tenor, $tanggalPencairan);
+                $this->reserveFirstInstallmentIfActiveLimit($locked, $userId);
                 $mutasi = $this->recordMutasiPencairan($locked, $dompet, $jumlahRupiah);
 
                 if ($mutasi->wasRecentlyCreated) {
@@ -421,6 +435,84 @@ class PinjamanKoperasiService
             ->with('karyawan')
             ->lockForUpdate()
             ->findOrFail($anggotaId);
+    }
+
+    private function activeCycleForAnggota(Anggota $anggota, ?int $userId = null): SiklusKeanggotaan
+    {
+        $cycle = SiklusKeanggotaan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('status', SiklusKeanggotaan::STATUS_ACTIVE)
+            ->lockForUpdate()
+            ->first();
+
+        if ($cycle) {
+            return $cycle;
+        }
+
+        $cycle = app(KeanggotaanLifecycleService::class)->ensureActiveCycle($anggota, $userId);
+
+        return SiklusKeanggotaan::query()
+            ->whereKey($cycle->id)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function assertPinjamanOnCurrentCycle(Pinjaman $pinjaman, Anggota $anggota): void
+    {
+        $cycle = $this->activeCycleForAnggota($anggota);
+
+        if ((int) $pinjaman->siklus_keanggotaan_id !== (int) $cycle->id) {
+            throw ValidationException::withMessages([
+                'siklus' => 'Pinjaman tidak lagi merujuk siklus keanggotaan aktif yang sama.',
+            ]);
+        }
+    }
+
+    private function reserveFirstInstallmentIfActiveLimit(Pinjaman $pinjaman, ?int $userId = null): void
+    {
+        $firstSchedule = $pinjaman->jadwalCicilan()
+            ->orderBy('angsuran_ke')
+            ->lockForUpdate()
+            ->first();
+
+        if (! $firstSchedule) {
+            return;
+        }
+
+        $periode = PeriodePotongGaji::query()
+            ->whereDate('periode', $firstSchedule->periode->toDateString())
+            ->lockForUpdate()
+            ->first();
+
+        if (! $periode) {
+            return;
+        }
+
+        $limit = LimitPotongGajiAnggota::query()
+            ->where('periode_potong_gaji_id', $periode->id)
+            ->where('anggota_id', $pinjaman->anggota_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $limit || $limit->status === LimitPotongGajiAnggota::STATUS_DRAFT) {
+            return;
+        }
+
+        if ($limit->status === LimitPotongGajiAnggota::STATUS_ACTIVE) {
+            try {
+                app(PotongGajiBulananService::class)->reserveDueInstallmentsForActiveLimit($limit, (int) $userId);
+            } catch (ValidationException $exception) {
+                throw ValidationException::withMessages([
+                    'limit_potong_gaji' => 'Pencairan dibatalkan karena limit payroll Cicilan pertama tidak mencukupi. Finance perlu menyesuaikan limit terlebih dahulu.',
+                ]);
+            }
+
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'limit_potong_gaji' => 'Pencairan dibatalkan karena periode payroll Cicilan pertama sudah terminal dan tidak dapat menerima reservasi Cicilan baru.',
+        ]);
     }
 
     private function assertEligibleAnggota(Anggota $anggota): void

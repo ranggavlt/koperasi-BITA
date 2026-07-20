@@ -57,6 +57,7 @@ class PreflightKeanggotaanCommand extends Command
         $this->check('penonaktifan_batal_sukarela_frozen', 'Penonaktifan dibatalkan tetapi saldo Sukarela masih frozen', $this->cancelledDeactivationFrozenSukarela());
         $this->check('penonaktifan_batal_wajib_cancelled', 'Penonaktifan dibatalkan tetapi tagihan Wajib exit masih cancelled', $this->cancelledDeactivationWajibStillCancelled());
         $this->check('daftar_ulang_siklus_lama', 'Pendaftaran kembali memakai ulang siklus lama', $this->reRegistrationUsesOldCycle());
+        $this->check('daftar_ulang_pinjaman_lama_aktif', 'Pendaftaran kembali terjadi saat Pinjaman siklus lama belum lunas', $this->reRegisteredWithOldActiveLoan());
         $this->check('daftar_ulang_sukarela_tidak_nol', 'Saldo Sukarela siklus daftar ulang tidak nol saat dibuat', $this->reRegisteredSukarelaNotZero());
         $this->check('detail_source_orphan', 'Detail settlement mengarah ke source umum yang hilang', $this->orphanSettlementDetails());
         $this->check('idempotency_ganda', 'Idempotency key duplicate pada tabel lifecycle/akuntansi utama', $this->duplicateIdempotencyKeys());
@@ -610,6 +611,25 @@ class PreflightKeanggotaanCommand extends Command
             ->whereNotNull('re_registered_cycle_id')
             ->whereColumn('re_registered_cycle_id', 'siklus_keanggotaan_id')
             ->count();
+    }
+
+    private function reRegisteredWithOldActiveLoan(): int
+    {
+        if (! $this->hasTables(['penyelesaian_keanggotaan', 'pinjaman'])
+            || ! Schema::hasColumn('penyelesaian_keanggotaan', 're_registered_cycle_id')
+            || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan as p')
+            ->join('pinjaman as loan', function ($join): void {
+                $join->on('loan.anggota_id', '=', 'p.anggota_id')
+                    ->on('loan.siklus_keanggotaan_id', '=', 'p.siklus_keanggotaan_id');
+            })
+            ->whereNotNull('p.re_registered_cycle_id')
+            ->where('loan.status', 'aktif')
+            ->whereRaw('CAST(loan.sisa_pinjaman AS DECIMAL(15,2)) > 0')
+            ->count('loan.id');
     }
 
     private function reRegisteredSukarelaNotZero(): int

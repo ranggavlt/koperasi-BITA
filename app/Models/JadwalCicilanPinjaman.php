@@ -56,7 +56,7 @@ class JadwalCicilanPinjaman extends Model
             if ($jadwal->getOriginal('status') === self::STATUS_PAID && $jadwal->isDirty()) {
                 $dirty = array_keys($jadwal->getDirty());
                 sort($dirty);
-                $allowed = ['metode_penyelesaian', 'paid_at', 'status', 'updated_at'];
+                $allowed = ['metode_penyelesaian', 'nominal_sisa', 'paid_at', 'status', 'updated_at'];
                 sort($allowed);
 
                 if ($dirty !== array_intersect($dirty, $allowed) || $jadwal->status !== self::STATUS_SCHEDULED) {

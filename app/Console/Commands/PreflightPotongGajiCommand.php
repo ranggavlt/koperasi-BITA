@@ -26,6 +26,8 @@ class PreflightPotongGajiCommand extends Command
             $this->check('pembayaran_ganda', 'Pembayaran ganda untuk satu Penjualan', $this->pembayaranGanda()),
             $this->check('simpanan_tanpa_anggota', 'Simpanan tanpa mapping Anggota', $this->memberTableWithoutAnggota('simpanan')),
             $this->check('pinjaman_tanpa_anggota', 'Pinjaman tanpa mapping Anggota', $this->memberTableWithoutAnggota('pinjaman')),
+            $this->check('pinjaman_aktif_tanpa_siklus', 'Pinjaman aktif tanpa siklus keanggotaan', $this->pinjamanAktifTanpaSiklus()),
+            $this->check('pinjaman_siklus_anggota_mismatch', 'Pinjaman merujuk siklus milik Anggota lain', $this->pinjamanSiklusAnggotaMismatch()),
             $this->check('pinjaman_nonaktif', 'Pinjaman milik Anggota/Karyawan nonaktif', $this->pinjamanNonaktif()),
             $this->check('shu_tanpa_anggota', 'SHU Anggota tanpa mapping Anggota', $this->memberTableWithoutAnggota('shu_anggota')),
             $this->check('pinjaman_aktif_ganda', 'Lebih dari satu Pinjaman aktif per Anggota', $this->pinjamanAktifGanda()),
@@ -47,19 +49,25 @@ class PreflightPotongGajiCommand extends Command
             $this->check('mutasi_pencairan_pinjaman', 'Mutasi pencairan Pinjaman ganda/hilang', $this->pinjamanPostingIssues('mutasi_kas')),
             $this->check('jurnal_pencairan_pinjaman', 'Jurnal pencairan Pinjaman ganda/hilang', $this->pinjamanPostingIssues('jurnal_umum')),
             $this->check('reservasi_tanpa_limit', 'Reservasi Cicilan tanpa limit', $this->reservasiTanpaLimit()),
-            $this->check('reservasi_nominal_mismatch', 'Reservasi Cicilan tidak sama dengan nominal jadwal', $this->reservasiNominalMismatch()),
+            $this->check('reservasi_nominal_mismatch', 'Reservasi Cicilan tidak sama dengan nominal sisa jadwal', $this->reservasiNominalMismatch()),
             $this->check('reservasi_ganda', 'Reservasi Cicilan ganda', $this->reservasiGanda()),
+            $this->check('cicilan_due_tanpa_ledger', 'Cicilan jatuh tempo/tunggakan pada limit active belum terreservasi', $this->cicilanDueTanpaLedgerPadaLimitActive()),
+            $this->check('pos_payroll_cicilan_unreserved', 'POS payroll tercatat saat Cicilan prioritas belum terreservasi', $this->posPayrollSaatCicilanUnreserved()),
             $this->check('jadwal_reserved_tanpa_ledger', 'Jadwal reserved tanpa ledger reserved', $this->jadwalReservedTanpaLedger()),
             $this->check('ledger_settled_tanpa_pembayaran', 'Ledger settled tanpa pembayaran', $this->ledgerSettledTanpaPembayaran()),
+            $this->check('ledger_settled_jadwal_belum_paid', 'Ledger settled tetapi jadwal belum paid', $this->ledgerSettledJadwalBelumPaid()),
             $this->check('pembayaran_tanpa_jadwal', 'Pembayaran Cicilan tanpa jadwal', $this->pembayaranTanpaJadwal()),
             $this->check('pembayaran_ganda_jadwal', 'Pembayaran ganda untuk satu jadwal', $this->pembayaranGandaJadwal()),
             $this->check('jadwal_paid_tanpa_pembayaran', 'Jadwal paid tanpa pembayaran', $this->jadwalPaidTanpaPembayaran()),
+            $this->check('jadwal_paid_nominal_sisa', 'Jadwal paid masih memiliki nominal_sisa', $this->jadwalPaidNominalSisaNonZero()),
+            $this->check('jadwal_unpaid_nominal_sisa_nol', 'Jadwal unpaid masih berstatus terbuka tetapi nominal_sisa nol', $this->jadwalUnpaidNominalSisaZero()),
             $this->check('sisa_pinjaman_mismatch', 'Sisa Pinjaman tidak sama dengan total jadwal unpaid', $this->sisaPinjamanMismatch()),
             $this->check('pinjaman_lunas_jadwal_unpaid', 'Pinjaman lunas masih mempunyai jadwal unpaid', $this->pinjamanLunasJadwalUnpaid()),
             $this->check('mutasi_pembayaran_cicilan', 'Mutasi pembayaran Cicilan ganda/hilang', $this->cicilanPostingIssues('mutasi_kas')),
             $this->check('jurnal_pembayaran_cicilan', 'Jurnal pembayaran Cicilan ganda/hilang', $this->cicilanPostingIssues('jurnal_umum')),
             $this->check('payroll_dompet_salah', 'Pembayaran payroll masuk ke Dompet selain Bank snapshot', $this->payrollDompetSalah()),
             $this->check('tunai_karyawan_aktif', 'Pembayaran tunai milik Karyawan aktif', $this->pembayaranTunaiKaryawanAktif()),
+            $this->check('tunai_dengan_ledger_aktif', 'Pembayaran tunai terjadi saat ledger payroll Cicilan masih aktif', $this->pembayaranTunaiDenganLedgerAktif()),
             $this->check('limit_confirmed_reserved', 'Limit confirmed masih mempunyai ledger reserved', $this->limitStatusMasihReserved('confirmed')),
             $this->check('limit_confirmed_consumed', 'Limit confirmed masih mempunyai ledger consumed', $this->limitStatusMasihConsumed('confirmed')),
             $this->check('limit_cancelled_reserved', 'Limit cancelled masih mempunyai reservasi aktif', $this->limitStatusMasihReserved('cancelled')),
@@ -231,6 +239,32 @@ class PreflightPotongGajiCommand extends Command
             ->get()
             ->filter(fn ($row) => $row->status_anggota === null || $this->isAfterInactiveDate($row))
             ->count();
+    }
+
+    private function pinjamanAktifTanpaSiklus(): int
+    {
+        if (! Schema::hasTable('pinjaman') || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('pinjaman')
+            ->where('status', 'aktif')
+            ->whereRaw('CAST(sisa_pinjaman AS DECIMAL(15,2)) > 0')
+            ->whereNull('siklus_keanggotaan_id')
+            ->count();
+    }
+
+    private function pinjamanSiklusAnggotaMismatch(): int
+    {
+        if (! $this->hasTables(['pinjaman', 'siklus_keanggotaan']) || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('pinjaman as p')
+            ->join('siklus_keanggotaan as s', 's.id', '=', 'p.siklus_keanggotaan_id')
+            ->whereNotNull('p.siklus_keanggotaan_id')
+            ->whereColumn('s.anggota_id', '!=', 'p.anggota_id')
+            ->count('p.id');
     }
 
     private function cicilanGanda(): int
@@ -461,8 +495,79 @@ class PreflightPotongGajiCommand extends Command
             ->where('p.kategori', 'cicilan')
             ->where('p.source_type', 'App\\Models\\JadwalCicilanPinjaman')
             ->where('p.status', 'reserved')
-            ->whereColumn('p.nominal', '!=', 'j.nominal_pokok')
+            ->whereRaw('ABS(CAST(p.nominal AS DECIMAL(15,2)) - CAST(COALESCE(j.nominal_sisa, j.nominal_pokok) AS DECIMAL(15,2))) > 0.01')
             ->count('p.id');
+    }
+
+    private function cicilanDueTanpaLedgerPadaLimitActive(): int
+    {
+        if (! $this->hasTables(['limit_potong_gaji_anggota', 'periode_potong_gaji', 'pinjaman', 'jadwal_cicilan_pinjaman', 'siklus_keanggotaan', 'pemakaian_potong_gaji'])
+            || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('limit_potong_gaji_anggota as l')
+            ->join('periode_potong_gaji as pp', 'pp.id', '=', 'l.periode_potong_gaji_id')
+            ->join('siklus_keanggotaan as s', function ($join): void {
+                $join->on('s.anggota_id', '=', 'l.anggota_id')
+                    ->where('s.status', '=', 'active');
+            })
+            ->join('pinjaman as p', function ($join): void {
+                $join->on('p.anggota_id', '=', 'l.anggota_id')
+                    ->on('p.siklus_keanggotaan_id', '=', 's.id')
+                    ->where('p.status', '=', 'aktif');
+            })
+            ->join('jadwal_cicilan_pinjaman as j', 'j.pinjaman_id', '=', 'p.id')
+            ->where('l.status', 'active')
+            ->where('j.status', 'scheduled')
+            ->whereColumn('j.periode', '<=', 'pp.periode')
+            ->whereRaw('CAST(COALESCE(j.nominal_sisa, j.nominal_pokok) AS DECIMAL(15,2)) > 0')
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('pemakaian_potong_gaji as pg')
+                    ->whereColumn('pg.source_id', 'j.id')
+                    ->where('pg.source_type', 'App\\Models\\JadwalCicilanPinjaman')
+                    ->where('pg.kategori', 'cicilan')
+                    ->whereIn('pg.status', ['reserved', 'settled']);
+            })
+            ->count('j.id');
+    }
+
+    private function posPayrollSaatCicilanUnreserved(): int
+    {
+        if (! $this->hasTables(['pemakaian_potong_gaji', 'limit_potong_gaji_anggota', 'periode_potong_gaji', 'pinjaman', 'jadwal_cicilan_pinjaman', 'siklus_keanggotaan'])
+            || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('pemakaian_potong_gaji as pos')
+            ->join('limit_potong_gaji_anggota as l', 'l.id', '=', 'pos.limit_potong_gaji_anggota_id')
+            ->join('periode_potong_gaji as pp', 'pp.id', '=', 'l.periode_potong_gaji_id')
+            ->where('pos.kategori', 'pos')
+            ->whereIn('pos.status', ['consumed', 'settled'])
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('siklus_keanggotaan as s')
+                    ->join('pinjaman as p', function ($join): void {
+                        $join->on('p.siklus_keanggotaan_id', '=', 's.id')
+                            ->where('p.status', '=', 'aktif');
+                    })
+                    ->join('jadwal_cicilan_pinjaman as j', 'j.pinjaman_id', '=', 'p.id')
+                    ->whereColumn('s.anggota_id', 'l.anggota_id')
+                    ->where('s.status', 'active')
+                    ->where('j.status', 'scheduled')
+                    ->whereColumn('j.periode', '<=', 'pp.periode')
+                    ->whereRaw('CAST(COALESCE(j.nominal_sisa, j.nominal_pokok) AS DECIMAL(15,2)) > 0')
+                    ->whereNotExists(function ($nested): void {
+                        $nested->selectRaw('1')
+                            ->from('pemakaian_potong_gaji as pg')
+                            ->whereColumn('pg.source_id', 'j.id')
+                            ->where('pg.source_type', 'App\\Models\\JadwalCicilanPinjaman')
+                            ->where('pg.kategori', 'cicilan')
+                            ->whereIn('pg.status', ['reserved', 'settled']);
+                    });
+            })
+            ->count('pos.id');
     }
 
     private function reservasiGanda(): int
@@ -515,6 +620,28 @@ class PreflightPotongGajiCommand extends Command
             ->count('p.id');
     }
 
+    private function ledgerSettledJadwalBelumPaid(): int
+    {
+        if (! $this->hasTables(['pemakaian_potong_gaji', 'jadwal_cicilan_pinjaman'])) {
+            return 0;
+        }
+
+        return DB::table('pemakaian_potong_gaji as p')
+            ->join('jadwal_cicilan_pinjaman as j', 'j.id', '=', 'p.source_id')
+            ->where('p.kategori', 'cicilan')
+            ->where('p.source_type', 'App\\Models\\JadwalCicilanPinjaman')
+            ->where('p.status', 'settled')
+            ->where('j.status', '!=', 'paid')
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('cicilan_pinjaman as c')
+                    ->whereColumn('c.jadwal_cicilan_pinjaman_id', 'j.id')
+                    ->where('c.status', 'reversed')
+                    ->whereNotNull('c.reversal_transaksi_id');
+            })
+            ->count('p.id');
+    }
+
     private function pembayaranTanpaJadwal(): int
     {
         if (! $this->hasTables(['cicilan_pinjaman', 'jadwal_cicilan_pinjaman'])) {
@@ -560,6 +687,30 @@ class PreflightPotongGajiCommand extends Command
             })
             ->whereNull('c.id')
             ->count('j.id');
+    }
+
+    private function jadwalPaidNominalSisaNonZero(): int
+    {
+        if (! Schema::hasTable('jadwal_cicilan_pinjaman') || ! Schema::hasColumn('jadwal_cicilan_pinjaman', 'nominal_sisa')) {
+            return 0;
+        }
+
+        return DB::table('jadwal_cicilan_pinjaman')
+            ->where('status', 'paid')
+            ->whereRaw('CAST(COALESCE(nominal_sisa, 0) AS DECIMAL(15,2)) > 0.01')
+            ->count();
+    }
+
+    private function jadwalUnpaidNominalSisaZero(): int
+    {
+        if (! Schema::hasTable('jadwal_cicilan_pinjaman') || ! Schema::hasColumn('jadwal_cicilan_pinjaman', 'nominal_sisa')) {
+            return 0;
+        }
+
+        return DB::table('jadwal_cicilan_pinjaman')
+            ->whereIn('status', ['scheduled', 'reserved'])
+            ->whereRaw('CAST(COALESCE(nominal_sisa, nominal_pokok) AS DECIMAL(15,2)) <= 0')
+            ->count();
     }
 
     private function sisaPinjamanMismatch(): int
@@ -652,6 +803,23 @@ class PreflightPotongGajiCommand extends Command
             ->where('c.metode_pembayaran', 'tunai')
             ->where('a.status', 'aktif')
             ->where('k.status_kerja', 'aktif')
+            ->count('c.id');
+    }
+
+    private function pembayaranTunaiDenganLedgerAktif(): int
+    {
+        if (! $this->hasTables(['cicilan_pinjaman', 'pemakaian_potong_gaji']) || ! Schema::hasColumn('cicilan_pinjaman', 'metode_pembayaran')) {
+            return 0;
+        }
+
+        return DB::table('cicilan_pinjaman as c')
+            ->join('pemakaian_potong_gaji as pg', function ($join): void {
+                $join->on('pg.source_id', '=', 'c.jadwal_cicilan_pinjaman_id')
+                    ->where('pg.source_type', '=', 'App\\Models\\JadwalCicilanPinjaman')
+                    ->where('pg.kategori', '=', 'cicilan')
+                    ->whereIn('pg.status', ['reserved', 'consumed']);
+            })
+            ->where('c.metode_pembayaran', 'tunai')
             ->count('c.id');
     }
 

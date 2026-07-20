@@ -17,6 +17,8 @@ class PreflightPinjamanCommand extends Command
     {
         $checks = [
             $this->check('schema_missing', 'Schema lifecycle Pinjaman belum lengkap', $this->schemaMissing()),
+            $this->check('pinjaman_aktif_tanpa_siklus', 'Pinjaman aktif tanpa siklus keanggotaan', $this->activeWithoutCycle()),
+            $this->check('pinjaman_siklus_anggota_mismatch', 'Pinjaman merujuk siklus milik Anggota lain', $this->cycleAnggotaMismatch()),
             $this->check('pinjaman_terbuka_ganda', 'Lebih dari satu proses terbuka/aktif per Anggota', $this->openLoanDuplicate()),
             $this->check('nominal_sistem_invalid', 'Pinjaman melebihi Rp5.000.000 atau nominal tidak valid', $this->invalidAmount()),
             $this->check('melebihi_plafon_snapshot', 'Pinjaman lebih besar dari plafon snapshot', $this->exceedsSnapshot()),
@@ -27,6 +29,8 @@ class PreflightPinjamanCommand extends Command
             $this->check('aktif_tanpa_jurnal', 'Pinjaman aktif tanpa Jurnal pencairan', $this->activeWithoutPosting('jurnal_umum')),
             $this->check('aktif_tanpa_jadwal', 'Pinjaman aktif tanpa Jadwal Cicilan', $this->activeWithoutSchedule()),
             $this->check('jadwal_total_mismatch', 'Total Jadwal tidak sama dengan pokok Pinjaman', $this->scheduleTotalMismatch()),
+            $this->check('sisa_jadwal_mismatch', 'Sisa Pinjaman tidak sama dengan total nominal_sisa jadwal', $this->remainingScheduleMismatch()),
+            $this->check('jadwal_status_nominal_invalid', 'Status Jadwal tidak konsisten dengan nominal_sisa', $this->invalidScheduleRemainingStatus()),
             $this->check('kode_duplikat', 'Kode Pinjaman duplikat/kosong', $this->duplicateCode()),
             $this->check('idempotency_duplikat', 'Idempotency Mutasi/Jurnal Pinjaman duplikat', $this->duplicateIdempotency()),
             $this->check('orphan_fk', 'Referensi Anggota/Karyawan/Dompet Pinjaman orphan', $this->orphanReference()),
@@ -90,6 +94,7 @@ class PreflightPinjamanCommand extends Command
             'disbursed_by',
             'disbursed_at',
             'anggota_pinjaman_terbuka_id',
+            'siklus_keanggotaan_id',
         ] as $column) {
             if (! Schema::hasColumn('pinjaman', $column)) {
                 return 1;
@@ -97,6 +102,32 @@ class PreflightPinjamanCommand extends Command
         }
 
         return 0;
+    }
+
+    private function activeWithoutCycle(): int
+    {
+        if (! Schema::hasTable('pinjaman') || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('pinjaman')
+            ->where('status', Pinjaman::STATUS_AKTIF)
+            ->whereRaw('CAST(sisa_pinjaman AS DECIMAL(15,2)) > 0')
+            ->whereNull('siklus_keanggotaan_id')
+            ->count();
+    }
+
+    private function cycleAnggotaMismatch(): int
+    {
+        if (! $this->hasTables(['pinjaman', 'siklus_keanggotaan']) || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('pinjaman as p')
+            ->join('siklus_keanggotaan as s', 's.id', '=', 'p.siklus_keanggotaan_id')
+            ->whereNotNull('p.siklus_keanggotaan_id')
+            ->whereColumn('s.anggota_id', '!=', 'p.anggota_id')
+            ->count('p.id');
     }
 
     private function openLoanDuplicate(): int
@@ -223,6 +254,44 @@ class PreflightPinjamanCommand extends Command
             ->get()
             ->filter(fn ($row) => number_format((float) $row->jumlah_pinjaman, 2, '.', '') !== number_format((float) $row->total_jadwal, 2, '.', ''))
             ->count();
+    }
+
+    private function remainingScheduleMismatch(): int
+    {
+        if (! $this->hasTables(['pinjaman', 'jadwal_cicilan_pinjaman']) || ! Schema::hasColumn('jadwal_cicilan_pinjaman', 'nominal_sisa')) {
+            return 0;
+        }
+
+        return DB::table('pinjaman as p')
+            ->leftJoin('jadwal_cicilan_pinjaman as j', function ($join): void {
+                $join->on('j.pinjaman_id', '=', 'p.id')
+                    ->where('j.status', '!=', 'cancelled');
+            })
+            ->whereIn('p.status', [Pinjaman::STATUS_AKTIF, Pinjaman::STATUS_LUNAS])
+            ->select('p.id', 'p.sisa_pinjaman', DB::raw('COALESCE(SUM(COALESCE(j.nominal_sisa, j.nominal_pokok)), 0) as total_sisa'))
+            ->groupBy('p.id', 'p.sisa_pinjaman')
+            ->get()
+            ->filter(fn ($row) => number_format((float) $row->sisa_pinjaman, 2, '.', '') !== number_format((float) $row->total_sisa, 2, '.', ''))
+            ->count();
+    }
+
+    private function invalidScheduleRemainingStatus(): int
+    {
+        if (! Schema::hasTable('jadwal_cicilan_pinjaman') || ! Schema::hasColumn('jadwal_cicilan_pinjaman', 'nominal_sisa')) {
+            return 0;
+        }
+
+        $paidWithRemaining = DB::table('jadwal_cicilan_pinjaman')
+            ->where('status', 'paid')
+            ->whereRaw('CAST(COALESCE(nominal_sisa, 0) AS DECIMAL(15,2)) > 0.01')
+            ->count();
+
+        $openWithoutRemaining = DB::table('jadwal_cicilan_pinjaman')
+            ->whereIn('status', ['scheduled', 'reserved'])
+            ->whereRaw('CAST(COALESCE(nominal_sisa, nominal_pokok) AS DECIMAL(15,2)) <= 0')
+            ->count();
+
+        return $paidWithRemaining + $openWithoutRemaining;
     }
 
     private function duplicateCode(): int
