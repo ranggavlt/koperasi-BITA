@@ -292,11 +292,12 @@ class TransaksiReversalService
             $jadwal->update([
                 'status' => JadwalCicilanPinjaman::STATUS_SCHEDULED,
                 'metode_penyelesaian' => null,
+                'nominal_sisa' => $this->decimalFromCents($nominalCents),
                 'paid_at' => null,
             ]);
 
             $pinjaman->update([
-                'sisa_pinjaman' => $this->decimalFromCents($this->decimalToCents($pinjaman->sisa_pinjaman) + $nominalCents),
+                'sisa_pinjaman' => $this->decimalFromCents($this->remainingPinjamanScheduleCents($pinjaman)),
                 'status' => Pinjaman::STATUS_AKTIF,
             ]);
 
@@ -707,6 +708,17 @@ class TransaksiReversalService
     private function decreaseSaldoDompet(DompetKoperasi $dompet, int $nominalCents): void
     {
         $dompet->update(['saldo' => $this->decimalFromCents($this->decimalToCents($dompet->saldo) - $nominalCents)]);
+    }
+
+    private function remainingPinjamanScheduleCents(Pinjaman $pinjaman): int
+    {
+        $total = JadwalCicilanPinjaman::query()
+            ->where('pinjaman_id', $pinjaman->id)
+            ->where('status', '!=', JadwalCicilanPinjaman::STATUS_CANCELLED)
+            ->selectRaw('COALESCE(SUM(COALESCE(nominal_sisa, nominal_pokok)), 0) as total')
+            ->value('total');
+
+        return $this->decimalToCents((string) $total);
     }
 
     private function nextCode(string $jenis, string $prefix): string

@@ -121,7 +121,17 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
         ->name('jadwal-simpanan-wajib.index');
 
-    Route::resource('pinjaman', PinjamanController::class)->only(['index', 'store', 'show']);
+    Route::resource('pinjaman', PinjamanController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+    Route::post('/pinjaman/{pinjaman}/ajukan', [PinjamanController::class, 'submit'])
+        ->name('pinjaman.submit');
+    Route::post('/pinjaman/{pinjaman}/setujui', [PinjamanController::class, 'approve'])
+        ->name('pinjaman.approve');
+    Route::post('/pinjaman/{pinjaman}/tolak', [PinjamanController::class, 'reject'])
+        ->name('pinjaman.reject');
+    Route::post('/pinjaman/{pinjaman}/batalkan', [PinjamanController::class, 'cancel'])
+        ->name('pinjaman.cancel');
+    Route::post('/pinjaman/{pinjaman}/cairkan', [PinjamanController::class, 'disburse'])
+        ->name('pinjaman.disburse');
     Route::post('/pinjaman/{pinjaman}/bayar-tunai-terjadwal', [PinjamanController::class, 'payCashSchedule'])
         ->name('pinjaman.cash-schedule');
     Route::post('/pinjaman/{pinjaman}/lunasi-tunai', [PinjamanController::class, 'payCashFull'])
@@ -207,6 +217,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('penyelesaian-keanggotaan.refund');
     Route::post('/penyelesaian-keanggotaan/{penyelesaian}/complete', [PenyelesaianKeanggotaanController::class, 'complete'])
         ->name('penyelesaian-keanggotaan.complete');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/cancel-deactivation', [PenyelesaianKeanggotaanController::class, 'cancelDeactivation'])
+        ->name('penyelesaian-keanggotaan.cancel-deactivation');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/re-register', [PenyelesaianKeanggotaanController::class, 'reRegister'])
+        ->name('penyelesaian-keanggotaan.re-register');
 
     Route::get('/sewa-mobil', [FinanceSewaMobilController::class, 'index'])
         ->name('sewa-mobil.finance.index');

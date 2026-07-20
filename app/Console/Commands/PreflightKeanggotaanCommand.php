@@ -53,6 +53,12 @@ class PreflightKeanggotaanCommand extends Command
         $this->check('sukarela_tidak_masuk_hak', 'Saldo Sukarela lama belum masuk detail hak settlement', $this->sukarelaMissingRightDetail());
         $this->check('saldo_sukarela_completed_sisa', 'Saldo Sukarela siklus lama masih tersisa setelah settlement completed', $this->completedOldSukarelaStillPositive());
         $this->check('reaktivasi_sebelum_completed', 'Anggota punya siklus baru sebelum settlement sebelumnya completed', $this->reactivationBeforeCompleted());
+        $this->check('penonaktifan_batal_material', 'Penonaktifan dibatalkan padahal sudah ada refund/offset/material process', $this->cancelledDeactivationWithMaterialProcess());
+        $this->check('penonaktifan_batal_sukarela_frozen', 'Penonaktifan dibatalkan tetapi saldo Sukarela masih frozen', $this->cancelledDeactivationFrozenSukarela());
+        $this->check('penonaktifan_batal_wajib_cancelled', 'Penonaktifan dibatalkan tetapi tagihan Wajib exit masih cancelled', $this->cancelledDeactivationWajibStillCancelled());
+        $this->check('daftar_ulang_siklus_lama', 'Pendaftaran kembali memakai ulang siklus lama', $this->reRegistrationUsesOldCycle());
+        $this->check('daftar_ulang_pinjaman_lama_aktif', 'Pendaftaran kembali terjadi saat Pinjaman siklus lama belum lunas', $this->reRegisteredWithOldActiveLoan());
+        $this->check('daftar_ulang_sukarela_tidak_nol', 'Saldo Sukarela siklus daftar ulang tidak nol saat dibuat', $this->reRegisteredSukarelaNotZero());
         $this->check('detail_source_orphan', 'Detail settlement mengarah ke source umum yang hilang', $this->orphanSettlementDetails());
         $this->check('idempotency_ganda', 'Idempotency key duplicate pada tabel lifecycle/akuntansi utama', $this->duplicateIdempotencyKeys());
 
@@ -137,7 +143,7 @@ class PreflightKeanggotaanCommand extends Command
                 $query->selectRaw('1')
                     ->from('penyelesaian_keanggotaan')
                     ->whereColumn('penyelesaian_keanggotaan.siklus_keanggotaan_id', 'siklus_keanggotaan.id')
-                    ->where('penyelesaian_keanggotaan.status', '!=', 'cancelled');
+                    ->whereNotIn('penyelesaian_keanggotaan.status', ['cancelled', 'dibatalkan_penonaktifan']);
             })
             ->count();
     }
@@ -148,7 +154,7 @@ class PreflightKeanggotaanCommand extends Command
             ->fromSub(
                 DB::table('penyelesaian_keanggotaan')
                     ->select('siklus_keanggotaan_id', DB::raw('COUNT(*) as total'))
-                    ->where('status', '!=', 'cancelled')
+                    ->whereNotIn('status', ['cancelled', 'dibatalkan_penonaktifan'])
                     ->groupBy('siklus_keanggotaan_id')
                     ->havingRaw('COUNT(*) > 1'),
                 'duplicates'
@@ -166,7 +172,7 @@ class PreflightKeanggotaanCommand extends Command
                     ->join('penyelesaian_keanggotaan', 'penyelesaian_keanggotaan.siklus_keanggotaan_id', '=', 'siklus_keanggotaan.id')
                     ->whereColumn('siklus_keanggotaan.anggota_id', 'anggota.id')
                     ->where('siklus_keanggotaan.status', 'closed')
-                    ->where('penyelesaian_keanggotaan.status', '!=', 'cancelled');
+                    ->whereNotIn('penyelesaian_keanggotaan.status', ['cancelled', 'dibatalkan_penonaktifan']);
             })
             ->count();
     }
@@ -532,6 +538,111 @@ class PreflightKeanggotaanCommand extends Command
                     ->where('closed_cycle.status', 'closed')
                     ->where('penyelesaian_keanggotaan.status', '!=', 'completed');
             })
+            ->count();
+    }
+
+    private function cancelledDeactivationWithMaterialProcess(): int
+    {
+        return DB::table('penyelesaian_keanggotaan')
+            ->where('status', 'dibatalkan_penonaktifan')
+            ->where(function ($query): void {
+                $query->whereExists(function ($exists): void {
+                    $exists->selectRaw('1')
+                        ->from('mutasi_kas')
+                        ->whereColumn('mutasi_kas.referensi_id', 'penyelesaian_keanggotaan.id')
+                        ->where('mutasi_kas.referensi_tipe', 'App\\Models\\PenyelesaianKeanggotaan');
+                })
+                    ->orWhereExists(function ($exists): void {
+                        $exists->selectRaw('1')
+                            ->from('penyelesaian_keanggotaan_detail')
+                            ->whereColumn('penyelesaian_keanggotaan_detail.penyelesaian_keanggotaan_id', 'penyelesaian_keanggotaan.id')
+                            ->where(function ($nested): void {
+                                $nested->whereRaw('CAST(nominal_dipakai_offset AS DECIMAL(15,2)) > 0')
+                                    ->orWhereRaw('CAST(nominal_direfund AS DECIMAL(15,2)) > 0')
+                                    ->orWhereRaw('CAST(nominal_offset AS DECIMAL(15,2)) > 0')
+                                    ->orWhereRaw('CAST(nominal_dibayar_tunai AS DECIMAL(15,2)) > 0');
+                            });
+                    })
+                    ->orWhereExists(function ($exists): void {
+                        $exists->selectRaw('1')
+                            ->from('simpanan')
+                            ->whereColumn('simpanan.anggota_id', 'penyelesaian_keanggotaan.anggota_id')
+                            ->whereColumn('simpanan.siklus_keanggotaan_id', 'penyelesaian_keanggotaan.siklus_keanggotaan_id')
+                            ->where('simpanan.kode_jenis_snapshot', 'SIMPANAN_POKOK')
+                            ->where('simpanan.status', 'reversed_due_to_exit');
+                    });
+            })
+            ->count();
+    }
+
+    private function cancelledDeactivationFrozenSukarela(): int
+    {
+        if (! $this->hasTables(['saldo_simpanan_sukarela', 'penyelesaian_keanggotaan'])) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan')
+            ->join('saldo_simpanan_sukarela', 'saldo_simpanan_sukarela.penyelesaian_keanggotaan_id', '=', 'penyelesaian_keanggotaan.id')
+            ->where('penyelesaian_keanggotaan.status', 'dibatalkan_penonaktifan')
+            ->whereNotNull('saldo_simpanan_sukarela.frozen_at')
+            ->count();
+    }
+
+    private function cancelledDeactivationWajibStillCancelled(): int
+    {
+        if (! $this->hasTables(['jadwal_simpanan_wajib', 'penyelesaian_keanggotaan'])) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan')
+            ->join('jadwal_simpanan_wajib', 'jadwal_simpanan_wajib.penyelesaian_keanggotaan_id', '=', 'penyelesaian_keanggotaan.id')
+            ->where('penyelesaian_keanggotaan.status', 'dibatalkan_penonaktifan')
+            ->where('jadwal_simpanan_wajib.status', 'cancelled_exit')
+            ->count();
+    }
+
+    private function reRegistrationUsesOldCycle(): int
+    {
+        if (! Schema::hasColumn('penyelesaian_keanggotaan', 're_registered_cycle_id')) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan')
+            ->whereNotNull('re_registered_cycle_id')
+            ->whereColumn('re_registered_cycle_id', 'siklus_keanggotaan_id')
+            ->count();
+    }
+
+    private function reRegisteredWithOldActiveLoan(): int
+    {
+        if (! $this->hasTables(['penyelesaian_keanggotaan', 'pinjaman'])
+            || ! Schema::hasColumn('penyelesaian_keanggotaan', 're_registered_cycle_id')
+            || ! Schema::hasColumn('pinjaman', 'siklus_keanggotaan_id')) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan as p')
+            ->join('pinjaman as loan', function ($join): void {
+                $join->on('loan.anggota_id', '=', 'p.anggota_id')
+                    ->on('loan.siklus_keanggotaan_id', '=', 'p.siklus_keanggotaan_id');
+            })
+            ->whereNotNull('p.re_registered_cycle_id')
+            ->where('loan.status', 'aktif')
+            ->whereRaw('CAST(loan.sisa_pinjaman AS DECIMAL(15,2)) > 0')
+            ->count('loan.id');
+    }
+
+    private function reRegisteredSukarelaNotZero(): int
+    {
+        if (! $this->hasTables(['penyelesaian_keanggotaan', 'saldo_simpanan_sukarela'])
+            || ! Schema::hasColumn('penyelesaian_keanggotaan', 're_registered_cycle_id')) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan')
+            ->join('saldo_simpanan_sukarela', 'saldo_simpanan_sukarela.siklus_keanggotaan_id', '=', 'penyelesaian_keanggotaan.re_registered_cycle_id')
+            ->whereNotNull('penyelesaian_keanggotaan.re_registered_cycle_id')
+            ->whereRaw('CAST(saldo_simpanan_sukarela.saldo AS DECIMAL(15,2)) <> 0')
             ->count();
     }
 

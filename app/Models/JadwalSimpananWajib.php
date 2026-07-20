@@ -40,6 +40,10 @@ class JadwalSimpananWajib extends Model
         'cancelled_at',
         'cancelled_by',
         'cancel_reason',
+        'recovery_jurnal_id',
+        'recovered_at',
+        'recovered_by',
+        'recovery_reason',
     ];
 
     protected $casts = [
@@ -49,6 +53,7 @@ class JadwalSimpananWajib extends Model
         'reserved_at' => 'datetime',
         'settled_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'recovered_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -105,6 +110,11 @@ class JadwalSimpananWajib extends Model
     public function cancellationReversal()
     {
         return $this->belongsTo(ReversalTransaksi::class, 'cancellation_reversal_id');
+    }
+
+    public function recoveryJurnal()
+    {
+        return $this->belongsTo(JurnalUmum::class, 'recovery_jurnal_id');
     }
 
     public function scopeOutstanding($query)

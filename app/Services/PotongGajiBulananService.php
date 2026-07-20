@@ -18,6 +18,7 @@ use App\Models\PeriodePotongGaji;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
 use App\Models\RiwayatLimitPotongGaji;
+use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -182,6 +183,7 @@ class PotongGajiBulananService
             $this->recordHistory($locked, $before, $nominalDecimal, $changedBy, $alasan);
 
             if ($locked->status === LimitPotongGajiAnggota::STATUS_ACTIVE) {
+                $this->reserveDueInstallmentsForLimit($locked, $changedBy);
                 app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $changedBy);
             }
 
@@ -222,7 +224,7 @@ class PotongGajiBulananService
                 ]);
             }
 
-            $this->reserveScheduledInstallmentForLimit($locked, $userId);
+            $this->reserveDueInstallmentsForLimit($locked, $userId);
             $this->allocatePendingSimpananPokokForLimit($locked, $userId);
             app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $userId);
 
@@ -349,7 +351,14 @@ class PotongGajiBulananService
             $this->assertLimitStatus($locked, LimitPotongGajiAnggota::STATUS_ACTIVE, 'Pelunasan payroll hanya dapat dibuat pada limit active.');
             $this->assertAnggotaEligible($locked->anggota);
 
-            $pinjaman = $this->activePinjamanForUpdate($locked->anggota_id);
+            $activeCycle = $this->activeCycleForLimit($locked);
+            if (! $activeCycle) {
+                throw ValidationException::withMessages([
+                    'pinjaman' => 'Anggota tidak mempunyai Pinjaman aktif untuk dilunasi.',
+                ]);
+            }
+
+            $pinjaman = $this->activePinjamanForUpdate($locked->anggota_id, $activeCycle->id);
 
             if (! $pinjaman) {
                 throw ValidationException::withMessages([
@@ -359,6 +368,8 @@ class PotongGajiBulananService
 
             $unpaidSchedules = $pinjaman->jadwalCicilan()
                 ->where('status', '!=', JadwalCicilanPinjaman::STATUS_PAID)
+                ->whereRaw('CAST(COALESCE(nominal_sisa, nominal_pokok) AS DECIMAL(15,2)) > 0')
+                ->orderBy('periode')
                 ->orderBy('angsuran_ke')
                 ->lockForUpdate()
                 ->get();
@@ -369,7 +380,7 @@ class PotongGajiBulananService
                     continue;
                 }
 
-                $additionalCents += $this->decimalToCents($jadwal->nominal_pokok);
+                $additionalCents += $this->remainingScheduleCents($jadwal);
             }
 
             if ($additionalCents <= 0) {
@@ -398,6 +409,33 @@ class PotongGajiBulananService
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
         });
+    }
+
+    public function reserveDueInstallmentsForActiveLimit(LimitPotongGajiAnggota $limit, int $userId): LimitPotongGajiAnggota
+    {
+        return DB::transaction(function () use ($limit, $userId): LimitPotongGajiAnggota {
+            $locked = LimitPotongGajiAnggota::query()
+                ->with(['anggota.karyawan', 'periodePotongGaji'])
+                ->lockForUpdate()
+                ->findOrFail($limit->id);
+
+            $this->assertLimitStatus($locked, LimitPotongGajiAnggota::STATUS_ACTIVE, 'Reservasi cicilan hanya dapat dibuat pada limit active.');
+            $this->assertAnggotaEligible($locked->anggota);
+            $this->reserveDueInstallmentsForLimit($locked, $userId);
+
+            return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
+        });
+    }
+
+    public function assertNoUnreservedDueInstallmentsForPayroll(Anggota $anggota, CarbonInterface|string|null $periode = null): void
+    {
+        if (! $this->hasUnreservedDueInstallmentsForPayroll($anggota, $periode)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'limit' => 'Cicilan Pinjaman jatuh tempo/tunggakan harus dialokasikan penuh sebelum POS potong gaji.',
+        ]);
     }
 
     public function createLedgerEntry(LimitPotongGajiAnggota $limit, array $data): PemakaianPotongGaji
@@ -494,7 +532,9 @@ class PotongGajiBulananService
 
             $this->assertCashAllowed($lockedPinjaman);
             $dompetKas = $this->cashDompetForUpdate($dompet->id);
+            $this->assertNoActivePayrollLedgerForPinjaman($lockedPinjaman);
             $jadwal = $this->firstDueUnpaidScheduleForUpdate($lockedPinjaman);
+            $this->assertNoActivePayrollLedgerForSchedule($jadwal);
 
             return $this->payJadwal($jadwal, $dompetKas, CicilanPinjaman::METODE_TUNAI, $userId, 'tunai-terjadwal');
         });
@@ -513,9 +553,12 @@ class PotongGajiBulananService
 
             $this->assertCashAllowed($lockedPinjaman);
             $dompetKas = $this->cashDompetForUpdate($dompet->id);
+            $this->assertNoActivePayrollLedgerForPinjaman($lockedPinjaman);
 
             $jadwalRows = $lockedPinjaman->jadwalCicilan()
                 ->where('status', '!=', JadwalCicilanPinjaman::STATUS_PAID)
+                ->whereRaw('CAST(COALESCE(nominal_sisa, nominal_pokok) AS DECIMAL(15,2)) > 0')
+                ->orderBy('periode')
                 ->orderBy('angsuran_ke')
                 ->lockForUpdate()
                 ->get();
@@ -529,6 +572,7 @@ class PotongGajiBulananService
             $payments = new Collection();
 
             foreach ($jadwalRows as $jadwal) {
+                $this->assertNoActivePayrollLedgerForSchedule($jadwal);
                 $payments->push($this->payJadwal($jadwal, $dompetKas, CicilanPinjaman::METODE_TUNAI, $userId, 'tunai-lunas'));
             }
 
@@ -648,46 +692,97 @@ class PotongGajiBulananService
         return $this->decimalToCents((string) $sum);
     }
 
-    private function reserveScheduledInstallmentForLimit(LimitPotongGajiAnggota $limit, int $userId): void
+    private function reserveDueInstallmentsForLimit(LimitPotongGajiAnggota $limit, int $userId): void
     {
-        $pinjaman = $this->activePinjamanForUpdate($limit->anggota_id);
-
-        if (! $pinjaman) {
+        $activeCycle = $this->activeCycleForLimit($limit);
+        if (! $activeCycle) {
             return;
         }
 
-        $periode = $limit->periodePotongGaji->periode->toDateString();
+        $dueSchedules = $this->dueInstallmentsForLimit($limit, $activeCycle->id);
 
-        $jadwal = $pinjaman->jadwalCicilan()
-            ->whereDate('periode', $periode)
-            ->lockForUpdate()
-            ->first();
-
-        if (! $jadwal || in_array($jadwal->status, [
-            JadwalCicilanPinjaman::STATUS_PAID,
-            JadwalCicilanPinjaman::STATUS_CANCELLED,
-        ], true)) {
+        if ($dueSchedules->isEmpty()) {
             return;
         }
 
-        if ($this->activeLedgerForScheduleExists($jadwal)) {
+        $reservable = new Collection();
+        $requiredCents = 0;
+
+        foreach ($dueSchedules as $jadwal) {
+            if ($this->activeLedgerForScheduleExists($jadwal)) {
+                continue;
+            }
+
+            $nominalCents = $this->remainingScheduleCents($jadwal);
+            if ($nominalCents <= 0) {
+                continue;
+            }
+
+            $reservable->push($jadwal);
+            $requiredCents += $nominalCents;
+        }
+
+        if ($requiredCents <= 0) {
             return;
         }
 
-        $nominalCents = $this->decimalToCents($jadwal->nominal_pokok);
+        $availableCents = $this->limitNominalCents($limit) - $this->reservedAndConsumedCents($limit);
 
-        if ($nominalCents > $this->limitNominalCents($limit)) {
+        if ($requiredCents > $availableCents) {
+            $shortageCents = $requiredCents - $availableCents;
+
             throw ValidationException::withMessages([
-                'limit_nominal' => 'Limit tidak mencukupi untuk reservasi cicilan bulan ini.',
+                'limit_nominal' => 'Limit tidak mencukupi untuk seluruh cicilan jatuh tempo/tunggakan. '
+                    . 'Kekurangan ' . $this->formatRupiah($shortageCents) . '.',
             ]);
         }
 
-        $this->createReservedLedgerForJadwal($limit, $jadwal, $userId, 'reservasi-bulanan');
+        foreach ($reservable as $jadwal) {
+            $this->createReservedLedgerForJadwal($limit, $jadwal, $userId, 'reservasi-cicilan');
 
-        $jadwal->update([
-            'status' => JadwalCicilanPinjaman::STATUS_RESERVED,
-            'metode_penyelesaian' => JadwalCicilanPinjaman::METODE_POTONG_GAJI,
-        ]);
+            $jadwal->update([
+                'status' => JadwalCicilanPinjaman::STATUS_RESERVED,
+                'metode_penyelesaian' => JadwalCicilanPinjaman::METODE_POTONG_GAJI,
+            ]);
+        }
+    }
+
+    private function hasUnreservedDueInstallmentsForPayroll(Anggota $anggota, CarbonInterface|string|null $periode = null): bool
+    {
+        $periodeDate = $this->normalizePeriod($periode)->toDateString();
+        $cycle = SiklusKeanggotaan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('status', SiklusKeanggotaan::STATUS_ACTIVE)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $cycle) {
+            return false;
+        }
+
+        return JadwalCicilanPinjaman::query()
+            ->join('pinjaman', 'pinjaman.id', '=', 'jadwal_cicilan_pinjaman.pinjaman_id')
+            ->where('pinjaman.anggota_id', $anggota->id)
+            ->where('pinjaman.status', Pinjaman::STATUS_AKTIF)
+            ->where('pinjaman.siklus_keanggotaan_id', $cycle->id)
+            ->whereDate('jadwal_cicilan_pinjaman.periode', '<=', $periodeDate)
+            ->whereNotIn('jadwal_cicilan_pinjaman.status', [
+                JadwalCicilanPinjaman::STATUS_PAID,
+                JadwalCicilanPinjaman::STATUS_CANCELLED,
+            ])
+            ->whereRaw('CAST(COALESCE(jadwal_cicilan_pinjaman.nominal_sisa, jadwal_cicilan_pinjaman.nominal_pokok) AS DECIMAL(15,2)) > 0')
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('pemakaian_potong_gaji')
+                    ->whereColumn('pemakaian_potong_gaji.source_id', 'jadwal_cicilan_pinjaman.id')
+                    ->where('pemakaian_potong_gaji.source_type', JadwalCicilanPinjaman::class)
+                    ->where('pemakaian_potong_gaji.kategori', PemakaianPotongGaji::KATEGORI_CICILAN)
+                    ->whereIn('pemakaian_potong_gaji.status', [
+                        PemakaianPotongGaji::STATUS_RESERVED,
+                        PemakaianPotongGaji::STATUS_SETTLED,
+                    ]);
+            })
+            ->exists();
     }
 
     private function allocatePendingSimpananPokokForLimit(LimitPotongGajiAnggota $limit, int $userId): void
@@ -752,6 +847,13 @@ class PotongGajiBulananService
         int $userId,
         string $scope
     ): PemakaianPotongGaji {
+        $nominalCents = $this->remainingScheduleCents($jadwal);
+        if ($nominalCents <= 0) {
+            throw ValidationException::withMessages([
+                'cicilan' => 'Nominal sisa jadwal cicilan tidak valid untuk reservasi payroll.',
+            ]);
+        }
+
         try {
             return PemakaianPotongGaji::query()->create([
                 'limit_potong_gaji_anggota_id' => $limit->id,
@@ -759,7 +861,7 @@ class PotongGajiBulananService
                 'source_type' => JadwalCicilanPinjaman::class,
                 'source_id' => $jadwal->id,
                 'jenis' => PemakaianPotongGaji::JENIS_RESERVASI,
-                'nominal' => $this->decimalFromCents($this->decimalToCents($jadwal->nominal_pokok)),
+                'nominal' => $this->decimalFromCents($nominalCents),
                 'status' => PemakaianPotongGaji::STATUS_RESERVED,
                 'idempotency_key' => "potong-gaji:{$scope}:{$limit->id}:{$jadwal->id}",
                 'occurred_at' => now($this->businessTimezone()),
@@ -774,6 +876,12 @@ class PotongGajiBulananService
                 ->first();
 
             if ($existing) {
+                if ((int) $existing->limit_potong_gaji_anggota_id !== (int) $limit->id) {
+                    throw ValidationException::withMessages([
+                        'cicilan' => 'Jadwal cicilan sudah mempunyai ledger payroll aktif pada limit lain.',
+                    ]);
+                }
+
                 return $existing;
             }
 
@@ -796,24 +904,33 @@ class PotongGajiBulananService
             ->findOrFail($reservation->source_id);
 
         if ($jadwal->status === JadwalCicilanPinjaman::STATUS_PAID) {
-            $reservation->update([
-                'status' => PemakaianPotongGaji::STATUS_SETTLED,
-                'settled_at' => now($this->businessTimezone()),
-                'updated_by' => $userId,
+            throw ValidationException::withMessages([
+                'cicilan' => 'Jadwal cicilan sudah paid sebelum ledger payroll disettle. Jalankan preflight dan lakukan rekonsiliasi manual.',
             ]);
-
-            return $jadwal->cicilanPembayaran()->firstOrFail();
         }
 
-        if ($this->decimalToCents($reservation->nominal) !== $this->decimalToCents($jadwal->nominal_pokok)) {
+        if ($jadwal->status !== JadwalCicilanPinjaman::STATUS_RESERVED) {
             throw ValidationException::withMessages([
-                'cicilan' => 'Nominal reservasi cicilan tidak sama dengan nominal jadwal.',
+                'cicilan' => 'Jadwal cicilan belum dalam status reserved untuk settlement payroll.',
             ]);
         }
 
         if ((int) $jadwal->pinjaman->anggota_id !== (int) $limit->anggota_id) {
             throw ValidationException::withMessages([
                 'cicilan' => 'Reservasi cicilan tidak sesuai dengan Anggota pada limit.',
+            ]);
+        }
+
+        $activeCycle = $this->activeCycleForLimit($limit);
+        if (! $activeCycle || (int) $jadwal->pinjaman->siklus_keanggotaan_id !== (int) $activeCycle->id) {
+            throw ValidationException::withMessages([
+                'cicilan' => 'Reservasi cicilan berasal dari siklus keanggotaan yang berbeda.',
+            ]);
+        }
+
+        if ($this->decimalToCents($reservation->nominal) !== $this->remainingScheduleCents($jadwal)) {
+            throw ValidationException::withMessages([
+                'cicilan' => 'Nominal reservasi cicilan tidak sama dengan nominal sisa jadwal.',
             ]);
         }
 
@@ -1071,30 +1188,43 @@ class PotongGajiBulananService
             ->lockForUpdate()
             ->findOrFail($jadwal->pinjaman_id);
 
-        $nominalCents = $this->decimalToCents($jadwal->nominal_pokok);
+        $nominalCents = $this->remainingScheduleCents($jadwal);
+        if ($nominalCents <= 0) {
+            throw ValidationException::withMessages([
+                'jadwal' => 'Nominal sisa jadwal cicilan tidak valid untuk pembayaran.',
+            ]);
+        }
+
         $period = $jadwal->periode->format('Y-m');
 
-        $payment = CicilanPinjaman::query()->create([
-            'idempotency_key' => "cicilan:{$scope}:{$jadwal->id}",
-            'pinjaman_id' => $pinjaman->id,
-            'anggota_id' => $pinjaman->anggota_id,
-            'jadwal_cicilan_pinjaman_id' => $jadwal->id,
-            'jumlah_cicilan' => $this->decimalFromCents($nominalCents),
-            'metode_pembayaran' => $metode,
-            'dompet_id' => $dompet->id,
-            'periode' => $period,
-            'status' => CicilanPinjaman::STATUS_SUDAH_BAYAR,
-            'created_by' => $userId,
-            'tanggal_bayar' => now($this->businessTimezone())->toDateString(),
-        ]);
+        try {
+            $payment = CicilanPinjaman::query()->create([
+                'idempotency_key' => "cicilan:{$scope}:{$jadwal->id}",
+                'pinjaman_id' => $pinjaman->id,
+                'anggota_id' => $pinjaman->anggota_id,
+                'jadwal_cicilan_pinjaman_id' => $jadwal->id,
+                'jumlah_cicilan' => $this->decimalFromCents($nominalCents),
+                'metode_pembayaran' => $metode,
+                'dompet_id' => $dompet->id,
+                'periode' => $period,
+                'status' => CicilanPinjaman::STATUS_SUDAH_BAYAR,
+                'created_by' => $userId,
+                'tanggal_bayar' => now($this->businessTimezone())->toDateString(),
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'jadwal' => 'Pembayaran cicilan untuk jadwal ini sudah diproses oleh transaksi lain. Muat ulang halaman.',
+            ]);
+        }
 
         $jadwal->update([
             'status' => JadwalCicilanPinjaman::STATUS_PAID,
             'metode_penyelesaian' => $metode,
+            'nominal_sisa' => '0.00',
             'paid_at' => now($this->businessTimezone()),
         ]);
 
-        $sisaCents = max(0, $this->decimalToCents($pinjaman->sisa_pinjaman) - $nominalCents);
+        $sisaCents = $this->remainingLoanScheduleCents($pinjaman);
         $pinjaman->update([
             'sisa_pinjaman' => $this->decimalFromCents($sisaCents),
             'status' => $sisaCents === 0 ? Pinjaman::STATUS_LUNAS : Pinjaman::STATUS_AKTIF,
@@ -1307,13 +1437,69 @@ class PotongGajiBulananService
         return $dompet;
     }
 
-    private function activePinjamanForUpdate(int $anggotaId): ?Pinjaman
+    private function activePinjamanForUpdate(int $anggotaId, ?int $siklusId = null): ?Pinjaman
     {
-        return Pinjaman::query()
+        $query = Pinjaman::query()
             ->where('anggota_id', $anggotaId)
-            ->where('status', Pinjaman::STATUS_AKTIF)
+            ->where('status', Pinjaman::STATUS_AKTIF);
+
+        if ($siklusId !== null) {
+            $query->where('siklus_keanggotaan_id', $siklusId);
+        }
+
+        return $query->lockForUpdate()->first();
+    }
+
+    private function activeCycleForLimit(LimitPotongGajiAnggota $limit): ?SiklusKeanggotaan
+    {
+        return SiklusKeanggotaan::query()
+            ->where('anggota_id', $limit->anggota_id)
+            ->where('status', SiklusKeanggotaan::STATUS_ACTIVE)
             ->lockForUpdate()
             ->first();
+    }
+
+    /**
+     * @return Collection<int, JadwalCicilanPinjaman>
+     */
+    private function dueInstallmentsForLimit(LimitPotongGajiAnggota $limit, int $siklusId): Collection
+    {
+        $periode = $limit->periodePotongGaji->periode->toDateString();
+
+        return JadwalCicilanPinjaman::query()
+            ->select('jadwal_cicilan_pinjaman.*')
+            ->join('pinjaman', 'pinjaman.id', '=', 'jadwal_cicilan_pinjaman.pinjaman_id')
+            ->where('pinjaman.anggota_id', $limit->anggota_id)
+            ->where('pinjaman.status', Pinjaman::STATUS_AKTIF)
+            ->where('pinjaman.siklus_keanggotaan_id', $siklusId)
+            ->where('jadwal_cicilan_pinjaman.status', JadwalCicilanPinjaman::STATUS_SCHEDULED)
+            ->whereDate('jadwal_cicilan_pinjaman.periode', '<=', $periode)
+            ->whereRaw('CAST(COALESCE(jadwal_cicilan_pinjaman.nominal_sisa, jadwal_cicilan_pinjaman.nominal_pokok) AS DECIMAL(15,2)) > 0')
+            ->orderBy('jadwal_cicilan_pinjaman.periode')
+            ->orderBy('jadwal_cicilan_pinjaman.id')
+            ->lockForUpdate()
+            ->get();
+    }
+
+    private function remainingScheduleCents(JadwalCicilanPinjaman $jadwal): int
+    {
+        return $this->decimalToCents($jadwal->nominal_sisa ?? $jadwal->nominal_pokok);
+    }
+
+    private function remainingLoanScheduleCents(Pinjaman $pinjaman): int
+    {
+        $sum = JadwalCicilanPinjaman::query()
+            ->where('pinjaman_id', $pinjaman->id)
+            ->where('status', '!=', JadwalCicilanPinjaman::STATUS_CANCELLED)
+            ->selectRaw('COALESCE(SUM(COALESCE(nominal_sisa, nominal_pokok)), 0) as total')
+            ->value('total');
+
+        return $this->decimalToCents((string) $sum);
+    }
+
+    private function formatRupiah(int $cents): string
+    {
+        return 'Rp' . number_format(intdiv($cents, 100), 0, ',', '.');
     }
 
     private function firstDueUnpaidScheduleForUpdate(Pinjaman $pinjaman): JadwalCicilanPinjaman
@@ -1323,6 +1509,8 @@ class PotongGajiBulananService
         $jadwal = $pinjaman->jadwalCicilan()
             ->where('status', JadwalCicilanPinjaman::STATUS_SCHEDULED)
             ->whereDate('periode', '<=', $currentPeriod)
+            ->whereRaw('CAST(COALESCE(nominal_sisa, nominal_pokok) AS DECIMAL(15,2)) > 0')
+            ->orderBy('periode')
             ->orderBy('angsuran_ke')
             ->lockForUpdate()
             ->first();
@@ -1348,6 +1536,47 @@ class PotongGajiBulananService
                 PemakaianPotongGaji::STATUS_SETTLED,
             ])
             ->exists();
+    }
+
+    private function assertNoActivePayrollLedgerForSchedule(JadwalCicilanPinjaman $jadwal): void
+    {
+        $exists = PemakaianPotongGaji::query()
+            ->where('kategori', PemakaianPotongGaji::KATEGORI_CICILAN)
+            ->where('source_type', JadwalCicilanPinjaman::class)
+            ->where('source_id', $jadwal->id)
+            ->whereIn('status', [
+                PemakaianPotongGaji::STATUS_RESERVED,
+                PemakaianPotongGaji::STATUS_CONSUMED,
+            ])
+            ->lockForUpdate()
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'jadwal' => 'Pembayaran tunai ditolak karena jadwal ini masih memiliki reservasi payroll aktif.',
+            ]);
+        }
+    }
+
+    private function assertNoActivePayrollLedgerForPinjaman(Pinjaman $pinjaman): void
+    {
+        $exists = PemakaianPotongGaji::query()
+            ->join('jadwal_cicilan_pinjaman', 'jadwal_cicilan_pinjaman.id', '=', 'pemakaian_potong_gaji.source_id')
+            ->where('pemakaian_potong_gaji.kategori', PemakaianPotongGaji::KATEGORI_CICILAN)
+            ->where('pemakaian_potong_gaji.source_type', JadwalCicilanPinjaman::class)
+            ->where('jadwal_cicilan_pinjaman.pinjaman_id', $pinjaman->id)
+            ->whereIn('pemakaian_potong_gaji.status', [
+                PemakaianPotongGaji::STATUS_RESERVED,
+                PemakaianPotongGaji::STATUS_CONSUMED,
+            ])
+            ->lockForUpdate()
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'pinjaman' => 'Pembayaran tunai ditolak karena Pinjaman masih memiliki reservasi payroll aktif. Selesaikan atau release periode payroll melalui flow resmi.',
+            ]);
+        }
     }
 
     private function assertCashAllowed(Pinjaman $pinjaman): void

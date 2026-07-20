@@ -18,6 +18,8 @@ class PenyelesaianKeanggotaan extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_DEACTIVATION_CANCELLED = 'dibatalkan_penonaktifan';
+
     public const METODE_TUNAI = 'tunai';
 
     public const METODE_TRANSFER_BANK = 'transfer_bank';
@@ -46,6 +48,14 @@ class PenyelesaianKeanggotaan extends Model
         'created_by',
         'processed_by',
         'completed_by',
+        'deactivation_cancelled_by',
+        'deactivation_cancelled_at',
+        'deactivation_cancel_reason',
+        're_registered_by',
+        're_registered_at',
+        're_register_reason',
+        're_registered_cycle_id',
+        're_registration_idempotency_key',
         'idempotency_key',
     ];
 
@@ -60,13 +70,18 @@ class PenyelesaianKeanggotaan extends Model
         'sisa_kewajiban' => 'decimal:2',
         'processed_at' => 'datetime',
         'completed_at' => 'datetime',
+        'deactivation_cancelled_at' => 'datetime',
+        're_registered_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::saving(function (PenyelesaianKeanggotaan $penyelesaian): void {
             if (DB::connection()->getDriverName() !== 'mysql') {
-                $penyelesaian->siklus_final_id = $penyelesaian->status !== self::STATUS_CANCELLED
+                $penyelesaian->siklus_final_id = ! in_array($penyelesaian->status, [
+                    self::STATUS_CANCELLED,
+                    self::STATUS_DEACTIVATION_CANCELLED,
+                ], true)
                     ? $penyelesaian->siklus_keanggotaan_id
                     : null;
             }
@@ -85,6 +100,7 @@ class PenyelesaianKeanggotaan extends Model
             self::STATUS_READY_TO_COMPLETE,
             self::STATUS_COMPLETED,
             self::STATUS_CANCELLED,
+            self::STATUS_DEACTIVATION_CANCELLED,
         ];
     }
 
@@ -96,6 +112,7 @@ class PenyelesaianKeanggotaan extends Model
             self::STATUS_READY_TO_COMPLETE => 'Siap Diselesaikan',
             self::STATUS_COMPLETED => 'Selesai',
             self::STATUS_CANCELLED => 'Dibatalkan',
+            self::STATUS_DEACTIVATION_CANCELLED => 'Penonaktifan Dibatalkan',
             default => str_replace('_', ' ', (string) $this->status),
         };
     }
@@ -108,6 +125,11 @@ class PenyelesaianKeanggotaan extends Model
     public function siklus()
     {
         return $this->belongsTo(SiklusKeanggotaan::class, 'siklus_keanggotaan_id');
+    }
+
+    public function siklusDaftarUlang()
+    {
+        return $this->belongsTo(SiklusKeanggotaan::class, 're_registered_cycle_id');
     }
 
     public function details()

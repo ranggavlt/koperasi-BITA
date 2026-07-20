@@ -73,8 +73,12 @@ class PenyelesaianKeanggotaanController extends Controller
 
     public function show(PenyelesaianKeanggotaan $penyelesaian): View
     {
+        $loaded = $penyelesaian->load(['anggota.karyawan', 'siklus', 'details.source', 'details.akun', 'dompetRefund', 'mutasiKas', 'jurnal.details', 'siklusDaftarUlang']);
+
         return view('pages.penyelesaian-keanggotaan.show', [
-            'penyelesaian' => $penyelesaian->load(['anggota.karyawan', 'siklus', 'details.source', 'details.akun', 'dompetRefund', 'mutasiKas', 'jurnal.details']),
+            'penyelesaian' => $loaded,
+            'cancelDeactivationEligibility' => $this->service->deactivationCancellationEligibility($loaded),
+            'reRegistrationEligibility' => $this->service->reRegistrationEligibility($loaded),
             'dompetOptions' => DompetKoperasi::query()
                 ->with('akun')
                 ->whereIn('jenis_dompet', [DompetKoperasi::JENIS_KAS, DompetKoperasi::JENIS_BANK])
@@ -119,6 +123,37 @@ class PenyelesaianKeanggotaanController extends Controller
         $this->service->complete($penyelesaian, (int) auth()->id());
 
         return back()->with('success', 'Penyelesaian keanggotaan selesai dan immutable.');
+    }
+
+    public function cancelDeactivation(Request $request, PenyelesaianKeanggotaan $penyelesaian): RedirectResponse
+    {
+        $validated = $request->validate([
+            'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+
+        $this->service->cancelDeactivation($penyelesaian, $validated['alasan'], (int) auth()->id());
+
+        return back()->with('success', 'Penonaktifan dibatalkan. Siklus lama dipulihkan tanpa membuat Simpanan Pokok baru.');
+    }
+
+    public function reRegister(Request $request, PenyelesaianKeanggotaan $penyelesaian): RedirectResponse
+    {
+        $validated = $request->validate([
+            'tanggal_bergabung' => ['required', 'date', 'before_or_equal:today'],
+            'alasan' => ['required', 'string', 'min:5', 'max:1000'],
+            'konfirmasi_siklus_baru' => ['accepted'],
+        ], [
+            'konfirmasi_siklus_baru.accepted' => 'Konfirmasi bahwa pendaftaran kembali membuat siklus baru wajib dicentang.',
+        ]);
+
+        $this->service->reRegisterMember(
+            $penyelesaian,
+            $validated['tanggal_bergabung'],
+            $validated['alasan'],
+            (int) auth()->id()
+        );
+
+        return back()->with('success', 'Anggota berhasil didaftarkan kembali dengan siklus baru, Simpanan Pokok baru, dan saldo Sukarela Rp0.');
     }
 
     private function decimalToRupiahInt(int|string|null $value): int

@@ -176,18 +176,6 @@ class PosCheckoutService
             ]);
         }
 
-        $pendingPokok = Simpanan::query()
-            ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)
-            ->where('status', Simpanan::STATUS_PENDING_PAYROLL)
-            ->exists();
-
-        if ($pendingPokok) {
-            throw ValidationException::withMessages([
-                'limit' => 'Simpanan Pokok pending harus dialokasikan pada limit sebelum POS potong gaji.',
-            ]);
-        }
-
         $limit = $this->potongGajiService->findLimitFor($anggota, $tanggal);
 
         if (! $limit) {
@@ -201,6 +189,20 @@ class PosCheckoutService
         if ($limit->status !== \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE) {
             throw ValidationException::withMessages([
                 'limit' => 'Limit potong gaji bulan ini belum active.',
+            ]);
+        }
+
+        $this->potongGajiService->assertNoUnreservedDueInstallmentsForPayroll($anggota, $tanggal);
+
+        $pendingPokok = Simpanan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('status', Simpanan::STATUS_PENDING_PAYROLL)
+            ->exists();
+
+        if ($pendingPokok) {
+            throw ValidationException::withMessages([
+                'limit' => 'Simpanan Pokok pending harus dialokasikan pada limit sebelum POS potong gaji.',
             ]);
         }
 
