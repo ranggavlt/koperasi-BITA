@@ -20,6 +20,8 @@
   $batalWajib = $penyelesaian->details->where('tipe_detail', \App\Models\PenyelesaianKeanggotaanDetail::TIPE_PEMBATALAN_WAJIB);
   $kewajiban = $penyelesaian->details->where('tipe_detail', \App\Models\PenyelesaianKeanggotaanDetail::TIPE_KEWAJIBAN);
   $remainingHak = $hak->sum(fn($d) => max(0, $rupiahInt($d->nominal_hak_awal) - $rupiahInt($d->nominal_dipakai_offset) - $rupiahInt($d->nominal_direfund)));
+  $cancelEligibility = $cancelDeactivationEligibility ?? ['eligible' => false, 'reasons' => []];
+  $reRegisterEligibility = $reRegistrationEligibility ?? ['eligible' => false, 'reasons' => []];
 @endphp
 
 <div class="kbsm-business-page">
@@ -68,7 +70,53 @@
       <p class="kbsm-business-panel__copy">Semua aksi POST memakai service settlement; tidak ada edit/hard delete transaksi final.</p>
     </div>
     <div class="kbsm-business-actions">
-      @if($penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED)
+      @if($cancelEligibility['eligible'])
+        <form method="POST" action="{{ route('penyelesaian-keanggotaan.cancel-deactivation', $penyelesaian) }}" class="kbsm-business-grid">
+          @csrf
+          <div class="kbsm-business-field kbsm-business-field--full">
+            <label class="kbsm-business-label">Alasan Batalkan Penonaktifan</label>
+            <textarea name="alasan" minlength="5" required class="kbsm-business-control" rows="3" placeholder="Contoh: Karyawan/Anggota tidak sengaja dinonaktifkan oleh Finance."></textarea>
+            <p class="kbsm-business-help">Siklus lama akan dipulihkan. Tidak membuat siklus baru, tidak membuat Simpanan Pokok baru, dan tidak membuat Mutasi Kas.</p>
+          </div>
+          <div class="kbsm-business-field">
+            <button class="kbsm-btn kbsm-btn--outline-slate">Batalkan Penonaktifan</button>
+          </div>
+        </form>
+      @elseif($penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED && $penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED)
+        <div class="kbsm-business-readonly kbsm-business-field--full">
+          <strong>Batalkan Penonaktifan tidak tersedia.</strong>
+          <div class="kbsm-business-muted">{{ implode(' ', $cancelEligibility['reasons'] ?: ['Settlement tidak memenuhi syarat pembatalan penonaktifan.']) }}</div>
+        </div>
+      @endif
+
+      @if($reRegisterEligibility['eligible'])
+        <form method="POST" action="{{ route('penyelesaian-keanggotaan.re-register', $penyelesaian) }}" class="kbsm-business-grid">
+          @csrf
+          <div class="kbsm-business-field">
+            <label class="kbsm-business-label">Tanggal Bergabung Baru</label>
+            <input type="date" name="tanggal_bergabung" value="{{ old('tanggal_bergabung', now(config('app.timezone', 'Asia/Jakarta'))->toDateString()) }}" max="{{ now(config('app.timezone', 'Asia/Jakarta'))->toDateString() }}" required class="kbsm-business-control">
+          </div>
+          <div class="kbsm-business-field kbsm-business-field--full">
+            <label class="kbsm-business-label">Alasan Daftarkan Kembali</label>
+            <textarea name="alasan" minlength="5" required class="kbsm-business-control" rows="3" placeholder="Contoh: Karyawan aktif kembali menjadi Anggota koperasi."></textarea>
+            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Pokok baru dari master aktif, jadwal Wajib baru, dan saldo Sukarela awal Rp0. Histori siklus lama tetap immutable.</p>
+          </div>
+          <label class="kbsm-business-field kbsm-business-field--full">
+            <input type="checkbox" name="konfirmasi_siklus_baru" value="1" required>
+            <span class="kbsm-business-muted">Saya memahami bahwa Daftarkan Kembali membuat siklus keanggotaan baru dan tidak membawa saldo/transaksi lama.</span>
+          </label>
+          <div class="kbsm-business-field">
+            <button class="kbsm-btn kbsm-btn--navy">Daftarkan Kembali</button>
+          </div>
+        </form>
+      @elseif($penyelesaian->status === \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED)
+        <div class="kbsm-business-readonly kbsm-business-field--full">
+          <strong>Daftarkan Kembali tidak tersedia.</strong>
+          <div class="kbsm-business-muted">{{ implode(' ', $reRegisterEligibility['reasons'] ?: ['Settlement belum memenuhi syarat pendaftaran kembali.']) }}</div>
+        </div>
+      @endif
+
+      @if(!in_array($penyelesaian->status, [\App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED, \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED], true))
         <form method="POST" action="{{ route('penyelesaian-keanggotaan.refresh', $penyelesaian) }}">
           @csrf
           <button class="kbsm-btn kbsm-btn--outline-slate">Refresh Snapshot</button>
@@ -203,7 +251,15 @@
       <div class="kbsm-business-readonly">Tanggal keluar: {{ $penyelesaian->tanggal_keluar?->format('d/m/Y') }}</div>
       <div class="kbsm-business-readonly">Diproses: {{ $penyelesaian->processed_at?->format('d/m/Y H:i') ?? '-' }}</div>
       <div class="kbsm-business-readonly">Selesai: {{ $penyelesaian->completed_at?->format('d/m/Y H:i') ?? '-' }}</div>
+      <div class="kbsm-business-readonly">Penonaktifan dibatalkan: {{ $penyelesaian->deactivation_cancelled_at?->format('d/m/Y H:i') ?? '-' }}</div>
+      <div class="kbsm-business-readonly">Siklus daftar kembali: {{ $penyelesaian->siklusDaftarUlang?->siklus_ke ? 'Siklus #' . $penyelesaian->siklusDaftarUlang->siklus_ke : '-' }}</div>
       <div class="kbsm-business-readonly kbsm-business-field--full">Alasan: {{ $penyelesaian->alasan }}</div>
+      @if($penyelesaian->deactivation_cancel_reason)
+        <div class="kbsm-business-readonly kbsm-business-field--full">Alasan Batalkan Penonaktifan: {{ $penyelesaian->deactivation_cancel_reason }}</div>
+      @endif
+      @if($penyelesaian->re_register_reason)
+        <div class="kbsm-business-readonly kbsm-business-field--full">Alasan Daftarkan Kembali: {{ $penyelesaian->re_register_reason }}</div>
+      @endif
     </div>
   </section>
 </div>

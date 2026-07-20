@@ -1171,6 +1171,49 @@ class AkuntansiService
         ]);
     }
 
+    public function recordSimpananWajibExitRecovery(Simpanan $simpanan, ?int $userId = null): JurnalUmum
+    {
+        $idempotencyKey = 'keanggotaan:wajib-recovery:jurnal:' . $simpanan->jadwal_simpanan_wajib_id;
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun', 'jadwalSimpananWajib');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Wajib tidak valid untuk pemulihan tagihan keluar.');
+        }
+
+        $jadwal = $simpanan->jadwalSimpananWajib;
+        if (! $jadwal) {
+            throw new RuntimeException('Simpanan Wajib tidak memiliki jadwal untuk jurnal pemulihan.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => 'REC-' . $jadwal->kode_tagihan,
+            'keterangan' => 'Pemulihan tagihan Simpanan Wajib karena penonaktifan dibatalkan #' . $simpanan->id,
+            'referensi_tipe' => \App\Models\JadwalSimpananWajib::class,
+            'referensi_id' => $jadwal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('refund.piutang_potong_gaji'),
+                'debit',
+                $jumlah
+            ),
+            $this->akunResolver->line($akunSimpanan, 'kredit', $jumlah),
+        ]);
+    }
+
     public function recordCicilanReversalToCredit(CicilanPinjaman $cicilan, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
     {
         return $this->recordCicilanReversal($cicilan, $reversal, $this->akunResolver->posting('refund.utang_anggota'), $userId);

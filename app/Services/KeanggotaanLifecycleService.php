@@ -8,6 +8,7 @@ use App\Models\DompetKoperasi;
 use App\Models\JadwalCicilanPinjaman;
 use App\Models\JadwalSimpananWajib;
 use App\Models\JenisSimpanan;
+use App\Models\JurnalUmum;
 use App\Models\Karyawan;
 use App\Models\KreditPotongGajiAnggota;
 use App\Models\MutasiKas;
@@ -114,7 +115,10 @@ class KeanggotaanLifecycleService
 
             $existing = PenyelesaianKeanggotaan::query()
                 ->where('siklus_keanggotaan_id', $lockedSiklus->id)
-                ->where('status', '!=', PenyelesaianKeanggotaan::STATUS_CANCELLED)
+                ->whereNotIn('status', [
+                    PenyelesaianKeanggotaan::STATUS_CANCELLED,
+                    PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED,
+                ])
                 ->lockForUpdate()
                 ->first();
 
@@ -158,7 +162,10 @@ class KeanggotaanLifecycleService
                 ->lockForUpdate()
                 ->findOrFail($penyelesaian->id);
 
-            if ($locked->status === PenyelesaianKeanggotaan::STATUS_COMPLETED) {
+            if (in_array($locked->status, [
+                PenyelesaianKeanggotaan::STATUS_COMPLETED,
+                PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED,
+            ], true)) {
                 return $locked->fresh(['details.source']);
             }
 
@@ -213,6 +220,10 @@ class KeanggotaanLifecycleService
 
             if ($locked->status === PenyelesaianKeanggotaan::STATUS_COMPLETED) {
                 throw ValidationException::withMessages(['penyelesaian' => 'Penyelesaian yang sudah completed tidak dapat diproses ulang.']);
+            }
+
+            if ($locked->status === PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Penonaktifan sudah dibatalkan; settlement ini hanya menjadi histori audit.']);
             }
 
             if ($this->decimalToCents($locked->total_offset) > 0) {
@@ -298,6 +309,10 @@ class KeanggotaanLifecycleService
                 throw ValidationException::withMessages(['penyelesaian' => 'Penyelesaian completed tidak dapat direfund ulang.']);
             }
 
+            if ($locked->status === PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Penonaktifan sudah dibatalkan; settlement ini tidak dapat direfund.']);
+            }
+
             if ($this->decimalToCents($locked->sisa_kewajiban) > 0) {
                 throw ValidationException::withMessages(['penyelesaian' => 'Refund hanya dapat diproses setelah seluruh kewajiban nol.']);
             }
@@ -370,6 +385,10 @@ class KeanggotaanLifecycleService
                 return $locked;
             }
 
+            if ($locked->status === PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Penonaktifan sudah dibatalkan; settlement ini tidak dapat ditandai completed.']);
+            }
+
             if ($this->decimalToCents($locked->sisa_kewajiban) > 0) {
                 throw ValidationException::withMessages(['penyelesaian' => 'Penyelesaian belum dapat completed karena masih ada kewajiban.']);
             }
@@ -396,6 +415,151 @@ class KeanggotaanLifecycleService
         });
     }
 
+    /**
+     * @return array{eligible:bool,reasons:array<int,string>}
+     */
+    public function deactivationCancellationEligibility(PenyelesaianKeanggotaan $penyelesaian): array
+    {
+        $fresh = PenyelesaianKeanggotaan::query()
+            ->with(['anggota.karyawan', 'siklus'])
+            ->findOrFail($penyelesaian->id);
+        $reasons = $this->deactivationCancellationBlockers($fresh);
+
+        return [
+            'eligible' => $reasons === [],
+            'reasons' => $reasons,
+        ];
+    }
+
+    /**
+     * @return array{eligible:bool,reasons:array<int,string>}
+     */
+    public function reRegistrationEligibility(PenyelesaianKeanggotaan $penyelesaian): array
+    {
+        $fresh = PenyelesaianKeanggotaan::query()
+            ->with(['anggota.karyawan', 'siklus'])
+            ->findOrFail($penyelesaian->id);
+        $reasons = $this->reRegistrationBlockers($fresh, null);
+
+        return [
+            'eligible' => $reasons === [],
+            'reasons' => $reasons,
+        ];
+    }
+
+    public function cancelDeactivation(PenyelesaianKeanggotaan $penyelesaian, string $reason, ?int $userId): PenyelesaianKeanggotaan
+    {
+        return DB::transaction(function () use ($penyelesaian, $reason, $userId): PenyelesaianKeanggotaan {
+            $locked = PenyelesaianKeanggotaan::query()
+                ->with(['anggota.karyawan', 'siklus'])
+                ->lockForUpdate()
+                ->findOrFail($penyelesaian->id);
+
+            if ($locked->status === PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED) {
+                return $locked->fresh(['anggota.karyawan', 'siklus', 'details.source']);
+            }
+
+            $blockers = $this->deactivationCancellationBlockers($locked);
+            if ($blockers !== []) {
+                throw ValidationException::withMessages(['penyelesaian' => implode(' ', $blockers)]);
+            }
+
+            $anggota = Anggota::query()->with('karyawan.user')->lockForUpdate()->findOrFail($locked->anggota_id);
+            $karyawan = Karyawan::query()->with('user')->lockForUpdate()->findOrFail($anggota->karyawan_id);
+            $siklus = SiklusKeanggotaan::query()->lockForUpdate()->findOrFail($locked->siklus_keanggotaan_id);
+
+            $this->restoreCancelledWajibForDeactivation($locked, $userId, $reason);
+            $this->unfreezeSukarelaSaldo($locked);
+
+            $siklus->update([
+                'status' => SiklusKeanggotaan::STATUS_ACTIVE,
+                'tanggal_selesai' => null,
+                'alasan_selesai' => null,
+                'closed_by' => null,
+            ]);
+
+            $anggota->update([
+                'status' => Anggota::STATUS_AKTIF,
+                'tanggal_nonaktif' => null,
+            ]);
+
+            $karyawan->update([
+                'status_kerja' => Karyawan::STATUS_AKTIF,
+                'tanggal_berhenti' => null,
+            ]);
+
+            $karyawan->user()->update([
+                'is_active' => true,
+                'account_updated_by' => $userId,
+                'account_deactivated_by' => null,
+                'account_deactivated_at' => null,
+            ]);
+
+            $this->syncLegacyIsAnggotaForLifecycle($karyawan->fresh(), $anggota->fresh());
+
+            $locked->update([
+                'status' => PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED,
+                'deactivation_cancelled_by' => $userId,
+                'deactivation_cancelled_at' => $this->now(),
+                'deactivation_cancel_reason' => trim($reason),
+                'processed_by' => $userId,
+                'processed_at' => $this->now(),
+            ]);
+
+            return $locked->fresh(['anggota.karyawan', 'siklus', 'details.source']);
+        });
+    }
+
+    public function reRegisterMember(PenyelesaianKeanggotaan $penyelesaian, CarbonInterface|string $tanggalBergabung, string $reason, ?int $userId): Anggota
+    {
+        return DB::transaction(function () use ($penyelesaian, $tanggalBergabung, $reason, $userId): Anggota {
+            $tanggal = $this->normalizeDate($tanggalBergabung);
+            if ($tanggal->greaterThan(CarbonImmutable::now($this->timezone())->startOfDay())) {
+                throw ValidationException::withMessages(['tanggal_bergabung' => 'Tanggal bergabung baru tidak boleh melebihi hari ini.']);
+            }
+
+            $locked = PenyelesaianKeanggotaan::query()
+                ->with(['anggota.karyawan', 'siklus'])
+                ->lockForUpdate()
+                ->findOrFail($penyelesaian->id);
+
+            if ($locked->re_registered_cycle_id) {
+                return $locked->anggota->fresh(['karyawan', 'siklusAktif', 'saldoSimpananSukarela', 'simpanan']);
+            }
+
+            $blockers = $this->reRegistrationBlockers($locked, $tanggal);
+            if ($blockers !== []) {
+                throw ValidationException::withMessages(['penyelesaian' => implode(' ', $blockers)]);
+            }
+
+            $anggota = Anggota::query()->with('karyawan')->lockForUpdate()->findOrFail($locked->anggota_id);
+            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail($anggota->karyawan_id);
+
+            $anggota->update([
+                'status' => Anggota::STATUS_AKTIF,
+                'tanggal_nonaktif' => null,
+                'tanggal_bergabung' => $tanggal->toDateString(),
+            ]);
+
+            $cycle = $this->createReRegistrationCycle($anggota->fresh(), $tanggal, $userId);
+            $this->ensureZeroSukarelaSaldoForCycle($anggota->fresh(), $cycle);
+            $this->createSimpananPokokForCycle($anggota->fresh(), $cycle, $userId);
+            app(SimpananWajibService::class)->generateUntil($tanggal, $anggota->fresh(), $userId);
+
+            $this->syncLegacyIsAnggotaForLifecycle($karyawan->fresh(), $anggota->fresh());
+
+            $locked->update([
+                're_registered_by' => $userId,
+                're_registered_at' => $this->now(),
+                're_register_reason' => trim($reason),
+                're_registered_cycle_id' => $cycle->id,
+                're_registration_idempotency_key' => 'keanggotaan:daftar-ulang:' . $locked->id,
+            ]);
+
+            return $anggota->fresh(['karyawan', 'siklusAktif', 'saldoSimpananSukarela', 'simpanan']);
+        });
+    }
+
     public function reactivateAnggota(Anggota $anggota, CarbonInterface|string|null $tanggalMulai, ?int $userId): Anggota
     {
         return DB::transaction(function () use ($anggota, $tanggalMulai, $userId): Anggota {
@@ -411,38 +575,30 @@ class KeanggotaanLifecycleService
                 ->lockForUpdate()
                 ->first();
 
-            if ($latestClosed && $latestClosed->status === SiklusKeanggotaan::STATUS_CLOSED) {
-                $settlement = PenyelesaianKeanggotaan::query()
-                    ->where('siklus_keanggotaan_id', $latestClosed->id)
-                    ->where('status', '!=', PenyelesaianKeanggotaan::STATUS_CANCELLED)
-                    ->first();
-
-                if (! $settlement || $settlement->status !== PenyelesaianKeanggotaan::STATUS_COMPLETED) {
-                    throw ValidationException::withMessages([
-                        'penyelesaian' => 'Reaktivasi Anggota ditolak sampai penyelesaian keanggotaan sebelumnya completed.',
-                    ]);
-                }
-
-                if ($this->rightRemainingCents($settlement) > 0
-                    || $this->decimalToCents($settlement->sisa_kewajiban) > 0
-                    || $this->oldSukarelaSaldoCents($settlement) > 0
-                    || $this->hasActiveOldPayrollReservations($locked->id, $latestClosed->id)) {
-                    throw ValidationException::withMessages([
-                        'penyelesaian' => 'Reaktivasi Anggota ditolak karena masih ada hak, kewajiban, saldo Sukarela, atau reservasi payroll lama yang belum tuntas.',
-                    ]);
-                }
+            if (! $latestClosed || $latestClosed->status !== SiklusKeanggotaan::STATUS_CLOSED) {
+                throw ValidationException::withMessages([
+                    'penyelesaian' => 'Aktivasi Anggota harus melalui Batalkan Penonaktifan atau Daftarkan Kembali pada detail Penyelesaian Keanggotaan.',
+                ]);
             }
 
-            $locked->update([
-                'status' => Anggota::STATUS_AKTIF,
-                'tanggal_nonaktif' => null,
-            ]);
+            $settlement = PenyelesaianKeanggotaan::query()
+                ->where('siklus_keanggotaan_id', $latestClosed->id)
+                ->where('status', PenyelesaianKeanggotaan::STATUS_COMPLETED)
+                ->latest('id')
+                ->first();
 
-            $cycle = $this->ensureActiveCycle($locked, $userId, $tanggalMulai ?? now());
-            $this->createSimpananPokokForCycle($locked->fresh('karyawan'), $cycle, $userId);
-            $this->ensureZeroSukarelaSaldoForCycle($locked->fresh('karyawan'), $cycle);
+            if (! $settlement) {
+                throw ValidationException::withMessages([
+                    'penyelesaian' => 'Daftarkan kembali ditolak sampai penyelesaian keanggotaan sebelumnya completed.',
+                ]);
+            }
 
-            return $locked->fresh(['karyawan', 'siklusAktif', 'simpanan']);
+            return $this->reRegisterMember(
+                $settlement,
+                $tanggalMulai ?? $this->today(),
+                'Pendaftaran kembali Anggota melalui flow aktivasi legacy.',
+                $userId
+            );
         });
     }
 
@@ -485,6 +641,244 @@ class KeanggotaanLifecycleService
         $this->akuntansiService->recordSimpananPokokPayroll($simpanan, $userId);
 
         return $simpanan;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function deactivationCancellationBlockers(PenyelesaianKeanggotaan $penyelesaian): array
+    {
+        $reasons = [];
+
+        if ($penyelesaian->status === PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED) {
+            $reasons[] = 'Penonaktifan sudah dibatalkan sebelumnya.';
+        }
+
+        if ($penyelesaian->status === PenyelesaianKeanggotaan::STATUS_COMPLETED) {
+            $reasons[] = 'Penyelesaian sudah completed sehingga tidak dapat dibatalkan sebagai salah input.';
+        }
+
+        if (in_array($penyelesaian->status, [
+            PenyelesaianKeanggotaan::STATUS_WAITING_SETTLEMENT,
+            PenyelesaianKeanggotaan::STATUS_READY_TO_COMPLETE,
+        ], true)) {
+            $reasons[] = 'Penyelesaian sudah masuk proses material. Gunakan koreksi manual, bukan Batalkan Penonaktifan.';
+        }
+
+        if ($penyelesaian->siklus && $penyelesaian->siklus->status !== SiklusKeanggotaan::STATUS_CLOSED) {
+            $reasons[] = 'Siklus lama tidak dalam status closed.';
+        }
+
+        if ($this->hasMaterialSettlementProcess($penyelesaian)) {
+            $reasons[] = 'Sudah ada refund, offset, pembayaran tunai, Mutasi Kas, atau pembalikan Pokok yang membuat pembatalan otomatis tidak aman.';
+        }
+
+        return array_values(array_unique($reasons));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function reRegistrationBlockers(PenyelesaianKeanggotaan $penyelesaian, ?CarbonImmutable $tanggalBergabung): array
+    {
+        $reasons = [];
+        $anggota = $penyelesaian->anggota;
+        $karyawan = $anggota?->karyawan;
+
+        if ($penyelesaian->status !== PenyelesaianKeanggotaan::STATUS_COMPLETED) {
+            $reasons[] = 'Daftarkan kembali hanya dapat dilakukan setelah penyelesaian completed.';
+        }
+
+        if ($penyelesaian->re_registered_cycle_id) {
+            $reasons[] = 'Pendaftaran kembali sudah pernah diproses untuk settlement ini.';
+        }
+
+        if (! $anggota || ! $karyawan) {
+            $reasons[] = 'Data Anggota/Karyawan tidak lengkap.';
+        } elseif ($karyawan->status_kerja !== Karyawan::STATUS_AKTIF) {
+            $reasons[] = 'Karyawan harus aktif sebelum didaftarkan kembali sebagai Anggota.';
+        }
+
+        if ($anggota && SiklusKeanggotaan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('status', SiklusKeanggotaan::STATUS_ACTIVE)
+            ->exists()) {
+            $reasons[] = 'Anggota masih mempunyai siklus keanggotaan aktif.';
+        }
+
+        if ($this->decimalToCents($penyelesaian->sisa_kewajiban) > 0) {
+            $reasons[] = 'Masih ada sisa kewajiban pada penyelesaian lama.';
+        }
+
+        if ($this->rightRemainingCentsReadOnly($penyelesaian) > 0) {
+            $reasons[] = 'Masih ada hak Anggota pada penyelesaian lama yang belum dialokasikan/refund.';
+        }
+
+        if ($this->oldSukarelaSaldoCents($penyelesaian) > 0) {
+            $reasons[] = 'Saldo Simpanan Sukarela siklus lama belum nol.';
+        }
+
+        if ($anggota && $this->hasActiveOldPayrollReservations($anggota->id, $penyelesaian->siklus_keanggotaan_id)) {
+            $reasons[] = 'Masih ada reservasi/pemakaian payroll aktif dari siklus lama.';
+        }
+
+        if ($tanggalBergabung && $tanggalBergabung->greaterThan(CarbonImmutable::now($this->timezone())->startOfDay())) {
+            $reasons[] = 'Tanggal bergabung baru tidak boleh melebihi hari ini.';
+        }
+
+        return array_values(array_unique($reasons));
+    }
+
+    private function hasMaterialSettlementProcess(PenyelesaianKeanggotaan $penyelesaian): bool
+    {
+        if ($penyelesaian->mutasiKas()->exists()) {
+            return true;
+        }
+
+        if (JurnalUmum::query()
+            ->where('referensi_tipe', PenyelesaianKeanggotaan::class)
+            ->where('referensi_id', $penyelesaian->id)
+            ->where(function ($query): void {
+                $query->where('idempotency_key', 'like', 'keanggotaan:offset:jurnal:%')
+                    ->orWhere('idempotency_key', 'like', 'keanggotaan:refund:jurnal:%');
+            })
+            ->exists()) {
+            return true;
+        }
+
+        if (PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where(function ($query): void {
+                $query->whereRaw('CAST(nominal_dipakai_offset AS DECIMAL(15,2)) > 0')
+                    ->orWhereRaw('CAST(nominal_direfund AS DECIMAL(15,2)) > 0')
+                    ->orWhereRaw('CAST(nominal_offset AS DECIMAL(15,2)) > 0')
+                    ->orWhereRaw('CAST(nominal_dibayar_tunai AS DECIMAL(15,2)) > 0');
+            })
+            ->exists()) {
+            return true;
+        }
+
+        return Simpanan::query()
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('status', Simpanan::STATUS_REVERSED_DUE_TO_EXIT)
+            ->exists();
+    }
+
+    private function rightRemainingCentsReadOnly(PenyelesaianKeanggotaan $penyelesaian): int
+    {
+        return PenyelesaianKeanggotaanDetail::query()
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->where('tipe_detail', PenyelesaianKeanggotaanDetail::TIPE_HAK)
+            ->get()
+            ->sum(function (PenyelesaianKeanggotaanDetail $detail): int {
+                $total = $this->decimalToCents($detail->nominal_hak_awal);
+                $used = $this->decimalToCents($detail->nominal_dipakai_offset)
+                    + $this->decimalToCents($detail->nominal_direfund);
+
+                return max(0, $total - $used);
+            });
+    }
+
+    private function restoreCancelledWajibForDeactivation(PenyelesaianKeanggotaan $penyelesaian, ?int $userId, string $reason): void
+    {
+        $jadwals = JadwalSimpananWajib::query()
+            ->with(['simpanan.jenisSimpanan.akun', 'simpanan.jadwalSimpananWajib'])
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where('status', JadwalSimpananWajib::STATUS_CANCELLED_EXIT)
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->orderBy('periode')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($jadwals as $jadwal) {
+            $simpanan = $jadwal->simpanan;
+            if (! $simpanan) {
+                throw ValidationException::withMessages([
+                    'simpanan_wajib' => 'Jadwal Simpanan Wajib yang dibatalkan tidak mempunyai transaksi Simpanan untuk dipulihkan.',
+                ]);
+            }
+
+            $jurnal = $jadwal->recovery_jurnal_id
+                ? JurnalUmum::query()->find($jadwal->recovery_jurnal_id)
+                : null;
+            $jurnal ??= $this->akuntansiService->recordSimpananWajibExitRecovery($simpanan, $userId);
+
+            if ($simpanan->status === Simpanan::STATUS_REVERSED_DUE_TO_EXIT) {
+                $simpanan->update([
+                    'status' => Simpanan::STATUS_PENDING_PAYROLL,
+                    'pemakaian_potong_gaji_id' => null,
+                    'reversal_transaksi_id' => null,
+                    'penyelesaian_keanggotaan_id' => null,
+                    'metode_pembayaran' => Simpanan::METODE_POTONG_GAJI,
+                ]);
+            }
+
+            $jadwal->update([
+                'status' => JadwalSimpananWajib::STATUS_OUTSTANDING,
+                'reserved_at' => null,
+                'penyelesaian_keanggotaan_id' => null,
+                'recovery_jurnal_id' => $jurnal?->id,
+                'recovered_at' => $jadwal->recovered_at ?? $this->now(),
+                'recovered_by' => $userId,
+                'recovery_reason' => trim($reason),
+            ]);
+        }
+    }
+
+    private function unfreezeSukarelaSaldo(PenyelesaianKeanggotaan $penyelesaian): void
+    {
+        SaldoSimpananSukarela::query()
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->lockForUpdate()
+            ->update([
+                'penyelesaian_keanggotaan_id' => null,
+                'frozen_at' => null,
+            ]);
+    }
+
+    private function createReRegistrationCycle(Anggota $anggota, CarbonImmutable $tanggalMulai, ?int $userId): SiklusKeanggotaan
+    {
+        $existingActive = SiklusKeanggotaan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('status', SiklusKeanggotaan::STATUS_ACTIVE)
+            ->lockForUpdate()
+            ->first();
+
+        if ($existingActive) {
+            throw ValidationException::withMessages(['siklus' => 'Anggota sudah mempunyai siklus aktif.']);
+        }
+
+        $next = ((int) SiklusKeanggotaan::query()->where('anggota_id', $anggota->id)->max('siklus_ke')) + 1;
+
+        try {
+            return SiklusKeanggotaan::query()->create([
+                'anggota_id' => $anggota->id,
+                'siklus_ke' => $next,
+                'tanggal_mulai' => $tanggalMulai->toDateString(),
+                'tanggal_selesai' => null,
+                'status' => SiklusKeanggotaan::STATUS_ACTIVE,
+                'alasan_selesai' => null,
+                'created_by' => $userId,
+            ]);
+        } catch (QueryException) {
+            throw ValidationException::withMessages([
+                'siklus' => 'Pendaftaran kembali sudah diproses oleh transaksi lain. Muat ulang halaman.',
+            ]);
+        }
+    }
+
+    private function syncLegacyIsAnggotaForLifecycle(Karyawan $karyawan, Anggota $anggota): void
+    {
+        $aktif = $karyawan->status_kerja === Karyawan::STATUS_AKTIF
+            && $anggota->status === Anggota::STATUS_AKTIF;
+
+        $karyawan->forceFill(['is_anggota' => $aktif])->saveQuietly();
     }
 
     private function rightSources(PenyelesaianKeanggotaan $penyelesaian): Collection

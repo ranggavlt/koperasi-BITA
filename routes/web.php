@@ -207,6 +207,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('penyelesaian-keanggotaan.refund');
     Route::post('/penyelesaian-keanggotaan/{penyelesaian}/complete', [PenyelesaianKeanggotaanController::class, 'complete'])
         ->name('penyelesaian-keanggotaan.complete');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/cancel-deactivation', [PenyelesaianKeanggotaanController::class, 'cancelDeactivation'])
+        ->name('penyelesaian-keanggotaan.cancel-deactivation');
+    Route::post('/penyelesaian-keanggotaan/{penyelesaian}/re-register', [PenyelesaianKeanggotaanController::class, 'reRegister'])
+        ->name('penyelesaian-keanggotaan.re-register');
 
     Route::get('/sewa-mobil', [FinanceSewaMobilController::class, 'index'])
         ->name('sewa-mobil.finance.index');

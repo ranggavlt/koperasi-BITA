@@ -1840,7 +1840,10 @@ class KoperasiDummySeeder extends Seeder
 
         if ($agus) {
             $penyelesaian = $agus->penyelesaianKeanggotaan()
-                ->where('status', '!=', \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED)
+                ->whereNotIn('status', [
+                    \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED,
+                    \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED,
+                ])
                 ->latest('id')
                 ->first();
 
@@ -1850,6 +1853,34 @@ class KoperasiDummySeeder extends Seeder
                 if ((float) $penyelesaian->total_offset <= 0 && (float) $penyelesaian->total_hak_anggota > 0) {
                     $service->processOffset($penyelesaian, $keuangan->id);
                 }
+            }
+        }
+
+        $lilis = $karyawan['lilis']->anggota()->with('siklusKeanggotaan.penyelesaian')->first();
+        if ($lilis && $lilis->status === Anggota::STATUS_AKTIF) {
+            $masterDataService->updateKaryawan($karyawan['lilis']->fresh(), [
+                'nama' => $karyawan['lilis']->nama,
+                'email' => $karyawan['lilis']->email,
+                'telepon' => $karyawan['lilis']->telepon,
+                'jabatan' => $karyawan['lilis']->jabatan,
+                'status_kerja' => Karyawan::STATUS_BERHENTI,
+                'tanggal_berhenti' => $awalBulanIni->copy()->subDays(3)->toDateString(),
+            ]);
+
+            $penyelesaianLilis = $karyawan['lilis']->fresh()->anggota?->penyelesaianKeanggotaan()
+                ->whereNotIn('status', [
+                    \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED,
+                    \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED,
+                ])
+                ->latest('id')
+                ->first();
+
+            if ($penyelesaianLilis) {
+                $service->cancelDeactivation(
+                    $penyelesaianLilis,
+                    'Contoh dummy SP-4H: penonaktifan Lilis salah input dan dibatalkan.',
+                    $keuangan->id
+                );
             }
         }
 
@@ -1880,7 +1911,10 @@ class KoperasiDummySeeder extends Seeder
 
         $nina = $karyawan['nina']->fresh()->anggota()->first();
         $penyelesaianNina = $nina?->penyelesaianKeanggotaan()
-            ->where('status', '!=', \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED)
+            ->whereNotIn('status', [
+                \App\Models\PenyelesaianKeanggotaan::STATUS_CANCELLED,
+                \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED,
+            ])
             ->latest('id')
             ->first();
 
@@ -1920,7 +1954,12 @@ class KoperasiDummySeeder extends Seeder
 
         $nina = $karyawan['nina']->fresh()->anggota()->first();
         if ($nina && $nina->status === Anggota::STATUS_NONAKTIF) {
-            $masterDataService->activateAnggota($nina);
+            $service->reRegisterMember(
+                $penyelesaianNina->fresh(),
+                $awalBulanIni->copy()->toDateString(),
+                'Contoh dummy SP-4H: Nina didaftarkan kembali dengan siklus baru.',
+                $keuangan->id
+            );
         }
     }
 

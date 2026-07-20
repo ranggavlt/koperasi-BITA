@@ -86,6 +86,75 @@ class KeanggotaanSettlementSp4Test extends TestCase
         ], $admin->id);
     }
 
+    public function test_batalkan_penonaktifan_memulihkan_siklus_lama_sukarela_dan_wajib_tanpa_mutasi_kas(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin);
+        $anggota = $this->anggotaAktif('2026-01-05');
+        $karyawanUser = User::factory()->create([
+            'role' => 'karyawan',
+            'karyawan_id' => $anggota->karyawan_id,
+            'is_active' => true,
+            'must_change_password' => false,
+            'password_changed_at' => now(),
+        ]);
+        $this->payrollBank();
+        $kas = $this->kasDompet(1000000);
+        $this->confirmPayroll($anggota, '2026-01-01', 200000, $admin);
+        app(SimpananWajibService::class)->generateUntil('2026-04-01', $anggota, $admin->id);
+        app(SimpananSukarelaService::class)->setoran([
+            'anggota_id' => $anggota->id,
+            'dompet_id' => $kas->id,
+            'jumlah' => 175000,
+            'metode_pembayaran' => Simpanan::METODE_TUNAI,
+            'tanggal' => '2026-03-15',
+        ], $admin->id);
+
+        $oldCycle = $anggota->siklusAktif()->firstOrFail();
+        $pokokBefore = Simpanan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->count();
+
+        $this->stopKaryawan($anggota, '2026-04-30');
+        $penyelesaian = PenyelesaianKeanggotaan::query()->where('anggota_id', $anggota->id)->firstOrFail();
+        $this->assertSame(1, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->where('status', JadwalSimpananWajib::STATUS_CANCELLED_EXIT)->count());
+
+        $restored = app(KeanggotaanLifecycleService::class)->cancelDeactivation(
+            $penyelesaian,
+            'Salah input nonaktif pada data dummy.',
+            $admin->id
+        );
+
+        $this->assertSame(PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED, $restored->status);
+        $this->assertSame(Anggota::STATUS_AKTIF, $anggota->fresh()->status);
+        $this->assertSame(Karyawan::STATUS_AKTIF, $anggota->karyawan->fresh()->status_kerja);
+        $this->assertTrue((bool) $karyawanUser->fresh()->is_active);
+        $this->assertSame($oldCycle->id, $anggota->fresh()->siklusAktif()->firstOrFail()->id);
+        $this->assertSame('175000.00', SaldoSimpananSukarela::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $oldCycle->id)->firstOrFail()->saldo);
+        $this->assertSame(0, SaldoSimpananSukarela::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $oldCycle->id)->whereNotNull('frozen_at')->count());
+        $this->assertSame(0, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->where('status', JadwalSimpananWajib::STATUS_CANCELLED_EXIT)->count());
+        $this->assertSame(1, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->whereNotNull('recovery_jurnal_id')->count());
+        $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', JadwalSimpananWajib::class)->count());
+        $this->assertSame($pokokBefore, Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)->count());
+
+        $counts = [
+            'cycles' => SiklusKeanggotaan::query()->where('anggota_id', $anggota->id)->count(),
+            'pokok' => Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)->count(),
+            'recovery_journal' => JurnalUmum::query()->where('idempotency_key', 'like', 'keanggotaan:wajib-recovery:jurnal:%')->count(),
+        ];
+
+        app(KeanggotaanLifecycleService::class)->cancelDeactivation(
+            $restored,
+            'Retry double submit tidak boleh duplikasi.',
+            $admin->id
+        );
+
+        $this->assertSame($counts['cycles'], SiklusKeanggotaan::query()->where('anggota_id', $anggota->id)->count());
+        $this->assertSame($counts['pokok'], Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)->count());
+        $this->assertSame($counts['recovery_journal'], JurnalUmum::query()->where('idempotency_key', 'like', 'keanggotaan:wajib-recovery:jurnal:%')->count());
+    }
+
     public function test_offset_mengurangi_pinjaman_tanpa_cicilan_palsu_dan_menyisakan_kewajiban_pending(): void
     {
         $admin = $this->admin();
@@ -127,6 +196,12 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $retry = app(KeanggotaanLifecycleService::class)->processOffset($processed, $admin->id);
         $this->assertSame('250000.00', $pinjaman->fresh()->sisa_pinjaman);
         $this->assertSame($processed->total_offset, $retry->total_offset);
+
+        $this->expectValidation(fn () => app(KeanggotaanLifecycleService::class)->cancelDeactivation(
+            $processed,
+            'Tidak boleh dibatalkan setelah offset.',
+            $admin->id
+        ));
 
         $this->expectException(ValidationException::class);
         app(KeanggotaanLifecycleService::class)->complete($processed, $admin->id);
@@ -186,16 +261,46 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $completed = app(KeanggotaanLifecycleService::class)->complete($refunded, $admin->id);
         $this->assertSame(PenyelesaianKeanggotaan::STATUS_COMPLETED, $completed->status);
 
+        $this->expectValidation(fn () => app(KeanggotaanLifecycleService::class)->cancelDeactivation(
+            $completed,
+            'Tidak boleh dibatalkan setelah completed.',
+            $admin->id
+        ));
+
+        $this->expectValidation(fn () => app(KeanggotaanLifecycleService::class)->reRegisterMember(
+            $completed,
+            '2026-05-10',
+            'Karyawan belum aktif.',
+            $admin->id
+        ));
+
         app(MasterDataKoperasiService::class)->updateKaryawan($anggota->karyawan->fresh(), $this->karyawanData($anggota->karyawan->fresh(), Karyawan::STATUS_AKTIF));
-        app(MasterDataKoperasiService::class)->activateAnggota($anggota->fresh());
+        app(KeanggotaanLifecycleService::class)->reRegisterMember(
+            $completed,
+            '2026-05-10',
+            'Daftar kembali setelah settlement completed.',
+            $admin->id
+        );
 
         $this->assertSame(2, SiklusKeanggotaan::query()->where('anggota_id', $anggota->id)->count());
         $newCycle = $anggota->fresh()->siklusAktif()->firstOrFail();
+        $this->assertSame($newCycle->id, $completed->fresh()->re_registered_cycle_id);
         $this->assertSame('0.00', SaldoSimpananSukarela::query()
             ->where('anggota_id', $anggota->id)
             ->where('siklus_keanggotaan_id', $newCycle->id)
             ->firstOrFail()
             ->saldo);
+        $this->assertSame(1, Simpanan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('siklus_keanggotaan_id', $newCycle->id)
+            ->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+            ->count());
+        $this->assertSame(0, JadwalSimpananWajib::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('siklus_keanggotaan_id', '!=', $newCycle->id)
+            ->where('status', JadwalSimpananWajib::STATUS_OUTSTANDING)
+            ->count());
     }
 
     public function test_ui_authorization_dan_get_read_only(): void
@@ -220,6 +325,12 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $this->actingAs($admin)->get(route('penyelesaian-keanggotaan.show', $penyelesaian))->assertOk()->assertSee('Hak Anggota');
         $this->actingAs($kasir)->get(route('penyelesaian-keanggotaan.index'))->assertForbidden();
         $this->actingAs($karyawanUser)->post(route('penyelesaian-keanggotaan.process-offset', $penyelesaian))->assertForbidden();
+        $this->actingAs($kasir)->post(route('penyelesaian-keanggotaan.cancel-deactivation', $penyelesaian), ['alasan' => 'Tidak boleh kasir'])->assertForbidden();
+        $this->actingAs($karyawanUser)->post(route('penyelesaian-keanggotaan.re-register', $penyelesaian), [
+            'tanggal_bergabung' => '2026-05-01',
+            'alasan' => 'Tidak boleh karyawan',
+            'konfirmasi_siklus_baru' => '1',
+        ])->assertForbidden();
         $this->post(route('logout'));
         $this->get(route('penyelesaian-keanggotaan.index'))->assertRedirect(route('login'));
 

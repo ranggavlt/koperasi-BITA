@@ -161,7 +161,8 @@ class PreflightSimpananWajibCommand extends Command
             ->get(['j.periode', 'a.tanggal_bergabung', 'js.berlaku_mulai', 'sk.tanggal_mulai'])
             ->filter(function ($row): bool {
                 $periode = CarbonImmutable::parse((string) $row->periode)->startOfMonth();
-                $dates = collect([$row->tanggal_bergabung, $row->berlaku_mulai, $row->tanggal_mulai])
+                $cycleOrMemberStart = $row->tanggal_mulai ?: $row->tanggal_bergabung;
+                $dates = collect([$cycleOrMemberStart, $row->berlaku_mulai])
                     ->filter()
                     ->map(fn ($date) => CarbonImmutable::parse((string) $date)->startOfMonth());
                 $eligible = $dates->max();
