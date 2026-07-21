@@ -7,6 +7,7 @@ use App\Models\KategoriProduk;
 use App\Models\Reseller;
 use App\Http\Requests\StoreProdukRequest;
 use App\Http\Requests\UpdateProdukRequest;
+use Illuminate\Support\Facades\Storage;
 
 class ProdukController extends Controller
 {
@@ -41,6 +42,7 @@ class ProdukController extends Controller
             'konsinyasi'  => 'required|in:0,1',
             'reseller_id' => 'nullable|exists:reseller,id',
             'harga_setor' => 'nullable|numeric|min:0',
+            'foto'        => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ], [
             'nama_produk.required' => 'Nama produk wajib diisi.',
             'kategori_id.required' => 'Kategori wajib dipilih.',
@@ -62,8 +64,14 @@ class ProdukController extends Controller
             ]);
         }
 
+        $fotoPath = null;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('produk_foto', 'public');
+        }
+
         Produk::create([
             'nama_produk' => $request->nama_produk,
+            'foto'        => $fotoPath,
             'kategori_id' => $request->kategori_id,
             'harga_beli'  => $request->harga_beli ?? 0,
             'harga_jual'  => $request->harga_jual,
@@ -111,6 +119,7 @@ class ProdukController extends Controller
             'konsinyasi'  => 'required|in:0,1',
             'reseller_id' => 'nullable|exists:reseller,id',
             'harga_setor' => 'nullable|numeric|min:0',
+            'foto'        => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         $isKonsinyasi = (int)$request->konsinyasi === 1;
@@ -122,8 +131,17 @@ class ProdukController extends Controller
             ]);
         }
 
+        $fotoPath = $produk->foto;
+        if ($request->hasFile('foto')) {
+            if ($produk->foto && Storage::disk('public')->exists($produk->foto)) {
+                Storage::disk('public')->delete($produk->foto);
+            }
+            $fotoPath = $request->file('foto')->store('produk_foto', 'public');
+        }
+
         $produk->update([
             'nama_produk' => $request->nama_produk,
+            'foto'        => $fotoPath,
             'kategori_id' => $request->kategori_id,
             'harga_beli'  => $request->harga_beli ?? 0,
             'harga_jual'  => $request->harga_jual,
@@ -143,6 +161,10 @@ class ProdukController extends Controller
      */
     public function destroy(Produk $produk)
     {
+        if ($produk->foto && Storage::disk('public')->exists($produk->foto)) {
+            Storage::disk('public')->delete($produk->foto);
+        }
+
         $produk->delete();
 
         return redirect()->route('produk.index')

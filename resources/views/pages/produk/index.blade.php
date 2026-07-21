@@ -44,7 +44,7 @@
 
         {{-- BODY FORM (Bisa di-hidden/ditampilkan) --}}
         <div id="form-container" class="flex-auto p-6 transition-all duration-300 {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">
-          <form action="{{ isset($data) ? route('produk.update', $data->id) : route('produk.store') }}" method="POST">
+          <form action="{{ isset($data) ? route('produk.update', $data->id) : route('produk.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             @if(isset($data))
               @method('PUT')
@@ -159,6 +159,22 @@
               </div>
 
             </div>
+            
+            {{-- Foto Produk --}}
+            <div class="flex flex-wrap -mx-3 mt-4">
+              <div class="w-full max-w-full px-3">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">
+                  Foto Produk
+                </label>
+                <input type="file" name="foto" accept="image/*"
+                  class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+                @if(isset($data) && $data->foto)
+                  <div class="mt-2">
+                    <img src="{{ Storage::url($data->foto) }}" alt="Foto Produk" class="h-20 w-20 object-cover rounded-lg border border-slate-200">
+                  </div>
+                @endif
+              </div>
+            </div>
 
             <div class="mt-6 flex gap-2">
               <button type="submit"
@@ -209,13 +225,15 @@
                     {{-- NAMA & PENOMORAN --}}
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center px-4 py-2">
-
-                        {{-- KOTAK NOMOR URUT --}}
-                        <div style="background-color: #a855f7;"
-                             class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white">
-                          {{ $produk->firstItem() + $loop->index }}
-                        </div>
-
+                        {{-- KOTAK FOTO / NOMOR URUT --}}
+                        @if($item->foto)
+                          <img src="{{ Storage::url($item->foto) }}" alt="{{ $item->nama_produk }}" class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl object-cover border border-slate-200 shadow-sm">
+                        @else
+                          <div style="background-color: #a855f7;" 
+                               class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm">
+                            {{ $produk->firstItem() + $loop->index }}
+                          </div>
+                        @endif
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-0 text-sm leading-normal">{{ $item->nama_produk }}</h6>
                           <p class="mb-0 text-xs leading-tight text-slate-400">

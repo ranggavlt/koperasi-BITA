@@ -89,7 +89,7 @@
                             <!-- Foto -->
                             <div style="width: 100%; height: 90px; border-radius: 8px; background-color: #f1f5f9; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
                                 @if($item->foto)
-                                    <img src="{{ asset('storage/' . $item->foto) }}" style="width: 100%; height: 100%; object-fit: cover;" alt="{{ $item->nama_produk }}">
+                                    <img src="{{ Storage::url($item->foto) }}" style="width: 100%; height: 100%; object-fit: cover;" alt="{{ $item->nama_produk }}">
                                 @else
                                     <i class="fas fa-box text-slate-300" style="font-size: 28px;"></i>
                                 @endif
@@ -266,10 +266,11 @@
 
                     <!-- Action Buttons -->
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" onclick="clearCart()" style="width: 25%; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background-color: #fef2f2; color: #ef4444; font-weight: bold; border: 1px solid #fee2e2; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.backgroundColor='#ef4444'; this.style.color='white';" onmouseout="this.style.backgroundColor='#fef2f2'; this.style.color='#ef4444';">
+                        <button type="button" onclick="clearCart()" style="width: 30%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; background-color: #fef2f2; color: #ef4444; font-weight: bold; font-size: 13px; border: 1px solid #fee2e2; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.backgroundColor='#ef4444'; this.style.color='white';" onmouseout="this.style.backgroundColor='#fef2f2'; this.style.color='#ef4444';">
                             <i class="fas fa-trash-alt" style="font-size: 13px;"></i>
+                            <span>BATAL</span>
                         </button>
-                        <button type="button" onclick="submitCheckout()" style="width: 75%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; background-color: #10b981; color: white; font-weight: 700; font-size: 13px; border: none; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.backgroundColor='#059669';" onmouseout="this.style.backgroundColor='#10b981';">
+                        <button type="button" onclick="submitCheckout()" style="width: 70%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; background-color: #10b981; color: white; font-weight: 700; font-size: 13px; border: none; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.backgroundColor='#059669';" onmouseout="this.style.backgroundColor='#10b981';">
                             <i class="fas fa-check-circle" style="font-size: 14px;"></i>
                             <span>PROSES BAYAR</span>
                         </button>
