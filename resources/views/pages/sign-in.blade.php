@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
@@ -19,7 +19,7 @@
         <img
           class="auth-hero__image"
           src="{{ asset('assets/img/login_page.png') }}"
-          alt="KBSM — ATK, Konsinyasi, dan Simpan Pinjam" />
+          alt="KBSM â€” ATK, Konsinyasi, dan Simpan Pinjam" />
       </section>
 
       <section class="auth-panel">

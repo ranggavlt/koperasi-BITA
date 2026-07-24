@@ -1,4 +1,4 @@
-@php
+﻿@php
   $role = auth()->user()->role ?? null;
   $modules = collect(config('navigation.modules', []))
     ->filter(function (array $module) use ($role) {

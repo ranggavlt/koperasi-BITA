@@ -334,7 +334,12 @@ class PinjamanKoperasiService
                 $mutasi = $this->recordMutasiPencairan($locked, $dompet, $jumlahRupiah);
 
                 if ($mutasi->wasRecentlyCreated) {
-                    $this->decreaseSaldoDompet($dompet, $jumlahRupiah);
+                    if ($locked->cara_bayar_admin === 'potong_pinjaman') {
+                        $this->decreaseSaldoDompet($dompet, $jumlahRupiah - (int) $locked->biaya_admin);
+                    } else {
+                        // Tunai: cash out = jumlahRupiah, cash in = biaya_admin
+                        $this->decreaseSaldoDompet($dompet, $jumlahRupiah - (int) $locked->biaya_admin);
+                    }
                 }
 
                 $this->akuntansiService->recordPencairanPinjaman($locked, $akunDompet, $userId);
@@ -406,7 +411,7 @@ class PinjamanKoperasiService
 
     private function recordMutasiPencairan(Pinjaman $pinjaman, DompetKoperasi $dompet, int $jumlahRupiah): MutasiKas
     {
-        return MutasiKas::query()->firstOrCreate(
+        $mutasiPencairan = MutasiKas::query()->firstOrCreate(
             ['idempotency_key' => $this->pencairanIdempotencyKey($pinjaman, 'mutasi')],
             [
                 'dompet_id' => $dompet->id,
@@ -418,6 +423,23 @@ class PinjamanKoperasiService
                 'tanggal' => $pinjaman->tanggal_pinjaman,
             ]
         );
+
+        if ($pinjaman->cara_bayar_admin === 'tunai' && $pinjaman->biaya_admin > 0) {
+            MutasiKas::query()->firstOrCreate(
+                ['idempotency_key' => $this->pencairanIdempotencyKey($pinjaman, 'mutasi_admin')],
+                [
+                    'dompet_id' => $dompet->id,
+                    'tipe' => 'masuk',
+                    'jumlah' => $this->rupiahDecimal((int) $pinjaman->biaya_admin),
+                    'keterangan' => 'Penerimaan Biaya Admin Pinjaman ' . $pinjaman->kode_pinjaman,
+                    'referensi_tipe' => Pinjaman::class,
+                    'referensi_id' => $pinjaman->id,
+                    'tanggal' => $pinjaman->tanggal_pinjaman,
+                ]
+            );
+        }
+        
+        return $mutasiPencairan;
     }
 
     private function decreaseSaldoDompet(DompetKoperasi $dompet, int $jumlahRupiah): void

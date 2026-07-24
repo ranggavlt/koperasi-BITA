@@ -6,6 +6,7 @@ use App\Models\Karyawan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -26,6 +27,7 @@ class UserController extends Controller
             'role' => ['required', 'string', 'in:admin,kasir,karyawan'],
             'karyawan_id' => ['nullable', 'exists:karyawan,id'],
             'password' => ['required', 'string', 'min:8'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -33,6 +35,11 @@ class UserController extends Controller
         $validated['must_change_password'] = true;
         $validated['account_created_by'] = auth()->id();
         $validated['account_updated_by'] = auth()->id();
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar_path'] = $path;
+        }
 
         User::create($validated);
 
@@ -47,9 +54,19 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'role' => ['required', 'string', 'in:admin,kasir,karyawan'],
             'karyawan_id' => ['nullable', 'exists:karyawan,id'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
         $validated['account_updated_by'] = auth()->id();
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar_path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar_path'] = $path;
+        }
+
         $user->update($validated);
 
         return redirect()->route('users.index')
@@ -62,6 +79,10 @@ class UserController extends Controller
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index')
                 ->withErrors(['delete' => 'Anda tidak dapat menghapus akun Anda sendiri.']);
+        }
+
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
         }
 
         $user->delete();

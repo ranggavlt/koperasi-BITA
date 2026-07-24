@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 @section('content')
 
       <main class="xl:ml-68.5 ease-soft-in-out mt-1 rounded-xl transition-all duration-200">
@@ -38,7 +38,7 @@
               <div class="max-w-full px-3 md:w-11/12 md:flex-none lg:w-8/12">
                 <div class="flex">
                   <div class="mr-auto">
-                    <h1 class="mb-0 -mt-6 font-semibold text-banner-calculate leading-tighter xl:text-8xl">28°C</h1>
+                    <h1 class="mb-0 -mt-6 font-semibold text-banner-calculate leading-tighter xl:text-8xl">28Â°C</h1>
                     <h6 class="mb-0 ml-1 uppercase">Cloudy</h6>
                   </div>
                   <div class="ml-auto">

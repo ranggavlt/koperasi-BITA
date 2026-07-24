@@ -27,6 +27,14 @@ class DashboardController extends Controller
 
         $transaksiHariIni = Penjualan::whereDate('created_at', $hariIni)
             ->count() ?? 0;
+            
+        $itemTerjualHariIni = DetailPenjualan::whereHas('penjualan', function ($q) use ($hariIni) {
+            $q->whereDate('created_at', $hariIni);
+        })->sum('qty') ?? 0;
+
+        $rataRataTransaksi = $transaksiHariIni > 0 
+            ? $pendapatanHariIni / $transaksiHariIni 
+            : 0;
 
         $konsinyasiBulanIni = DetailPenjualan::where('konsinyasi', 1)
             ->whereMonth('created_at', $bulanIni)
@@ -99,6 +107,8 @@ class DashboardController extends Controller
             return view('pages.dashboard-kasir', compact(
                 'pendapatanHariIni',
                 'transaksiHariIni',
+                'itemTerjualHariIni',
+                'rataRataTransaksi',
                 'transaksiTerakhir'
             ));
         }

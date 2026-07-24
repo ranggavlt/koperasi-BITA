@@ -27,10 +27,19 @@
     white-space: normal !important;
     line-height: 1.3 !important;
   }
+  
+  /* Hide scrollbar for sidebar */
+  .kbsm-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+  .kbsm-sidebar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 </style>
 
 <aside
-  class="kbsm-sidebar max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-none transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-transparent" style="max-width: 210px;">
+  class="kbsm-sidebar max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-center justify-between overflow-y-auto rounded-2xl border-0 bg-white p-0 antialiased shadow-soft-xl transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-white" style="max-width: 210px;">
 
   {{-- FIX: Mengubah tinggi menjadi auto agar menyesuaikan teks yang turun baris --}}
   <div class="h-auto pb-4 pt-2">
@@ -87,41 +96,6 @@
         </a>
       </li>
 
-      {{-- PROFILE --}}
-      @if($role !== 'kasir')
-      @php $active = $is('pages.profile'); @endphp
-      <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('pages.profile') }}">
-          <div class="{{ $iconWrap($active) }}">
-            <svg width="12px" height="12px" viewBox="0 0 24 24"
-                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
-              <path fill="currentColor"
-                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5V21h16v-2.5C20 16 16.42 14 12 14Z"/>
-            </svg>
-          </div>
-
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Profile</span>
-        </a>
-      </li>
-      @endif
-
-      {{-- LOGOUT --}}
-      <li class="mt-0.5 w-full">
-        <form method="POST" action="{{ route('logout') }}">
-          @csrf
-          <button type="submit" class="{{ $linkClass(false) }} text-left" style="width: calc(100% - 2rem);">
-            <div class="{{ $iconWrap(false) }}">
-              <svg width="12px" height="12px" viewBox="0 0 24 24"
-                   class="fill-current {{ $iconColor(false) }}" xmlns="http://www.w3.org/2000/svg">
-                <path fill="currentColor"
-                  d="M10 17v-2h4v-6h-4V7l-5 5 5 5Zm9 4H12v-2h7V5h-7V3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2Z"/>
-              </svg>
-            </div>
-
-            <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Logout</span>
-          </button>
-        </form>
-      </li>
 
       {{-- POS KOPERASI --}}
       @if(in_array($role, ['kasir', 'admin']))
@@ -132,11 +106,11 @@
       </li>
       @endif
 
-      {{-- PENJUALAN / KASIR --}}
+      {{-- WASERBA / KASIR --}}
       @if($role === 'kasir')
-      @php $active = $is('penjualan.index'); @endphp
+      @php $active = $is('waserba.index'); @endphp
       <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('penjualan.index') }}">
+        <a class="{{ $linkClass($active) }}" href="{{ route('waserba.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                  class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
@@ -144,7 +118,7 @@
                 d="M7 4V2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v3H3V6a2 2 0 0 1 2-2h2Zm14 7v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7h18Zm-5 2H8v2h8v-2Z"/>
             </svg>
           </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Penjualan / Kasir</span>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Waserba / Kasir</span>
         </a>
       </li>
       @endif
@@ -210,6 +184,20 @@
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Pembayaran Konsinyasi</span>
         </a>
       </li>
+      {{-- INVOICE PENAGIHAN --}}
+      @php $active = $is('invoice-penagihan.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('invoice-penagihan.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 14H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Invoice Penagihan (B2B)</span>
+        </a>
+      </li>
       @endif
 
       {{-- ====== MASTER DATA ====== --}}
@@ -245,6 +233,21 @@
             </svg>
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Karyawan</span>
+        </a>
+      </li>
+
+      {{-- VENDOR --}}
+      @php $active = $is('vendor.*'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('vendor.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Vendor / Supplier</span>
         </a>
       </li>
 
@@ -632,6 +635,23 @@
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
             Buku Besar
+          </span>
+        </a>
+      </li>
+
+      {{-- KLAIM DANA KHUSUS --}}
+      @php $active = $is('klaim-dana-khusus.index'); @endphp
+      <li class="mt-0.5 w-full">
+        <a class="{{ $linkClass($active) }}" href="{{ route('klaim-dana-khusus.index') }}">
+          <div class="{{ $iconWrap($active) }}">
+            <svg width="12px" height="12px" viewBox="0 0 24 24"
+                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor"
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </div>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
+            Klaim Dana Sosial
           </span>
         </a>
       </li>

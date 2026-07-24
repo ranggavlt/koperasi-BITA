@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 @section('content')
   <div class="w-full px-6 py-6 mx-auto">
     <div class="flex flex-wrap -mx-3">
@@ -101,7 +101,7 @@
               <p class="text-white">
                 Pantau seluruh transaksi kasbon karyawan dan penjualan konsinyasi secara real-time dari satu tempat.
               </p>
-              <a class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm" href="{{ route('penjualan.index') }}">
+              <a class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm" href="{{ route('waserba.index') }}">
                 Buka Mesin Kasir <i class="fas fa-arrow-right ease-bounce text-sm group-hover:translate-x-1.25 ml-1 leading-normal transition-all duration-200"></i>
               </a>
             </div>

@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -87,15 +87,15 @@
             <tr>
               <td>
                 <span class="kbsm-business-strong">{{ $row->anggota?->nomor_anggota ?? '-' }}</span>
-                <div class="kbsm-business-muted">{{ $row->karyawan?->nama ?? '-' }} · {{ ucfirst($row->karyawan?->status_kerja ?? '-') }}</div>
+                <div class="kbsm-business-muted">{{ $row->karyawan?->nama ?? '-' }} Â· {{ ucfirst($row->karyawan?->status_kerja ?? '-') }}</div>
               </td>
               <td>{{ $row->kelompok }}</td>
               <td><span class="kbsm-business-code">{{ $row->kode_transaksi }}</span></td>
               <td>
                 @if(($row->kelompok ?? '') === 'Cicilan Pinjaman')
                   <span class="kbsm-business-muted">
-                    {{ $row->siklus_lama ? 'Siklus lama' : 'Tidak eligible payroll' }} ·
-                    jadwal terbuka {{ $row->jumlah_jadwal_terbuka }} ·
+                    {{ $row->siklus_lama ? 'Siklus lama' : 'Tidak eligible payroll' }} Â·
+                    jadwal terbuka {{ $row->jumlah_jadwal_terbuka }} Â·
                     tertua {{ optional($row->jadwal_tertua)->format('Y-m') ?? '-' }}
                   </span>
                 @else

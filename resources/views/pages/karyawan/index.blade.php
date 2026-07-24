@@ -15,7 +15,7 @@
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
       <p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Data</p>
-      <h1 class="text-2xl font-bold text-slate-700">Karyawan</h1>
+      <h1 class="text-lg font-bold text-slate-700 m-0">Karyawan</h1>
       <p class="mt-1 text-sm text-slate-400">Sumber identitas utama Karyawan perusahaan dan status kerjanya.</p>
     </div>
     @if (!isset($data))
@@ -28,7 +28,7 @@
 
   <section id="form-container" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">
     <div class="mb-5">
-      <h2 class="font-bold text-slate-700">{{ isset($data) ? 'Edit Karyawan' : 'Karyawan Baru' }}</h2>
+      <h2 class="text-base font-bold text-slate-700 m-0">{{ isset($data) ? 'Edit Karyawan' : 'Karyawan Baru' }}</h2>
       <p class="text-sm text-slate-400">Keanggotaan dikelola pada halaman Anggota, bukan melalui form ini.</p>
     </div>
 
@@ -85,7 +85,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6">
-      <h2 class="font-bold text-slate-700">Daftar Karyawan</h2>
+      <h2 class="text-base font-bold text-slate-700 m-0">Daftar Karyawan</h2>
       <p class="text-sm text-slate-400">Status Anggota berasal dari relasi master Anggota.</p>
     </div>
     <div style="overflow-x: auto;">

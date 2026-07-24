@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -286,7 +286,7 @@
     <footer class="coa-pagination-wrap">
       <div class="coa-pagination">
         <p class="coa-pagination__info">
-          Menampilkan {{ $akun->firstItem() ?? 0 }}–{{ $akun->lastItem() ?? 0 }} dari {{ $akun->total() }} akun
+          Menampilkan {{ $akun->firstItem() ?? 0 }}â€“{{ $akun->lastItem() ?? 0 }} dari {{ $akun->total() }} akun
         </p>
 
         @if($akun->hasPages())

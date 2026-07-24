@@ -46,10 +46,13 @@ class AsetMobilController extends Controller
             ->mapWithKeys(fn (AsetKoperasi $aset) => [$aset->id => $this->service->canDelete($aset)])
             ->all();
 
+        $vendors = \App\Models\Vendor::orderBy('nama')->get();
+
         return view('pages.aset-mobil.index', [
             'asetMobil' => $asetMobil,
             'statuses' => AsetKoperasi::statusLabels(),
             'deleteGuards' => $deleteGuards,
+            'vendors' => $vendors,
         ]);
     }
 
@@ -77,11 +80,14 @@ class AsetMobilController extends Controller
             ->mapWithKeys(fn (AsetKoperasi $item) => [$item->id => $this->service->canDelete($item)])
             ->all();
 
+        $vendors = \App\Models\Vendor::orderBy('nama')->get();
+
         return view('pages.aset-mobil.index', [
             'data' => $aset->load('mobil'),
             'asetMobil' => $asetMobil,
             'statuses' => AsetKoperasi::statusLabels(),
             'deleteGuards' => $deleteGuards,
+            'vendors' => $vendors,
         ]);
     }
 

@@ -1,4 +1,4 @@
-@props([
+﻿@props([
     'striped' => true
 ])
 

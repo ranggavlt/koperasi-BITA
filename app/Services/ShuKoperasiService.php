@@ -80,6 +80,8 @@ class ShuKoperasiService
                 'shu_total' => $shuTotal,
                 'nominal_dana_cadangan' => $this->calculateNominal($basisPembagian, (float) $shuKoperasi->persen_dana_cadangan),
                 'nominal_shu_anggota' => $nominalShuAnggota,
+                'nominal_pengawas' => $this->calculateNominal($basisPembagian, (float) $shuKoperasi->persen_pengawas),
+                'nominal_pembina' => $this->calculateNominal($basisPembagian, (float) $shuKoperasi->persen_pembina),
                 'nominal_pengurus' => $this->calculateNominal($basisPembagian, (float) $shuKoperasi->persen_pengurus),
                 'nominal_dana_sosial' => $this->calculateNominal($basisPembagian, (float) $shuKoperasi->persen_dana_sosial),
                 'nominal_dana_pendidikan' => $this->calculateNominal($basisPembagian, (float) $shuKoperasi->persen_dana_pendidikan),
@@ -124,7 +126,8 @@ class ShuKoperasiService
         });
 
         $bobotUsaha = $anggota->mapWithKeys(function (Karyawan $karyawan) use ($totalUsahaPerAnggota) {
-            return [$karyawan->id => round((float) ($totalUsahaPerAnggota[$karyawan->id] ?? 0), 2)];
+            $totalUsaha = round((float) ($totalUsahaPerAnggota[$karyawan->id] ?? 0), 2);
+            return [$karyawan->id => $totalUsaha];
         });
 
         $alokasiJasaModal = $this->allocateProportionally(

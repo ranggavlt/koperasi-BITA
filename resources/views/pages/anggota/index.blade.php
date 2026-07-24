@@ -10,7 +10,7 @@
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
       <p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Data</p>
-      <h1 class="text-2xl font-bold text-slate-700">Anggota</h1>
+      <h1 class="text-lg font-bold text-slate-700 m-0">Anggota</h1>
       <p class="mt-1 text-sm text-slate-400">Keanggotaan Koperasi yang terhubung satu-ke-satu dengan Karyawan.</p>
     </div>
     @if (!isset($data))
@@ -21,7 +21,7 @@
   </div>
 
   <section id="anggota-form" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl {{ (isset($data) || $errors->any() || request('karyawan_id')) ? 'block' : 'hidden' }}">
-    <h2 class="font-bold text-slate-700">{{ isset($data) ? 'Edit Anggota '.$data->nomor_anggota : 'Pendaftaran Anggota' }}</h2>
+    <h2 class="text-base font-bold text-slate-700 m-0">{{ isset($data) ? 'Edit Anggota '.$data->nomor_anggota : 'Pendaftaran Anggota' }}</h2>
     <p class="mb-5 text-sm text-slate-400">Anggota baru langsung aktif. Nomor dibuat otomatis setelah penyimpanan.</p>
     <form method="POST" action="{{ isset($data) ? route('anggota.update', $data) : route('anggota.store') }}">
       @csrf
@@ -33,7 +33,7 @@
             <select id="karyawan_id" name="karyawan_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
               <option value="">Pilih Karyawan yang belum menjadi Anggota</option>
               @foreach($karyawanTersedia as $item)
-                <option value="{{ $item->id }}" {{ (string) old('karyawan_id', request('karyawan_id')) === (string) $item->id ? 'selected' : '' }}>{{ $item->nama }} — {{ $item->jabatan }}</option>
+                <option value="{{ $item->id }}" {{ (string) old('karyawan_id', request('karyawan_id')) === (string) $item->id ? 'selected' : '' }}>{{ $item->nama }} â€” {{ $item->jabatan }}</option>
               @endforeach
             </select>
           </div>
@@ -68,7 +68,7 @@
   </section>
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-    <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Anggota</h2><p class="text-sm text-slate-400">Data nonaktif tetap dipertahankan sebagai histori.</p></div>
+    <div class="border-b border-slate-100 p-6"><h2 class="text-base font-bold text-slate-700 m-0">Daftar Anggota</h2><p class="text-sm text-slate-400">Data nonaktif tetap dipertahankan sebagai histori.</p></div>
     <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1050px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white"><tr><th class="px-6 py-4">Nomor</th><th class="px-6 py-4">Karyawan</th><th class="px-6 py-4">Bergabung</th><th class="px-6 py-4">Alamat</th><th class="px-6 py-4">Plafon</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-center">Aksi</th></tr></thead>
@@ -76,7 +76,7 @@
           @forelse($anggota as $item)
             <tr class="hover:bg-slate-50">
               <td class="px-6 py-4 font-bold text-[#073b5c]">{{ $item->nomor_anggota }}</td>
-              <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->karyawan->nama }}</div><div class="text-xs text-slate-400">{{ $item->karyawan->jabatan }} · {{ ucfirst($item->karyawan->status_kerja) }}</div></td>
+              <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->karyawan->nama }}</div><div class="text-xs text-slate-400">{{ $item->karyawan->jabatan }} Â· {{ ucfirst($item->karyawan->status_kerja) }}</div></td>
               <td class="px-6 py-4 text-slate-600">{{ $item->tanggal_bergabung->format('d/m/Y') }}</td>
               <td class="max-w-xs whitespace-normal px-6 py-4 text-slate-600">{{ $item->alamat }}</td>
               <td class="px-6 py-4 font-semibold text-slate-700">Rp {{ number_format((float) $item->plafon_pinjaman, 0, ',', '.') }}</td>

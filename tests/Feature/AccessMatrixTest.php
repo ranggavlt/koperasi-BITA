@@ -44,7 +44,7 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($finance)->get(route('shu-koperasi.index'))->assertNotFound();
         $this->assertFalse(Route::has('users.destroy'));
 
-        $this->actingAs($kasir)->get(route('penjualan.index'))->assertOk();
+        $this->actingAs($kasir)->get(route('waserba.index'))->assertOk();
         $this->actingAs($kasir)->get(route('karyawan.index'))->assertForbidden();
         $this->actingAs($kasir)->get(route('periode-potong-gaji.index'))->assertForbidden();
         $this->actingAs($kasir)->get(route('sewa-mobil.finance.index'))->assertForbidden();
@@ -53,7 +53,7 @@ class AccessMatrixTest extends TestCase
         $this->assertFalse(Route::has('sewa-mobil.karyawan.index'));
         $this->actingAs($employee)->get('/pengajuan-sewa-mobil')->assertNotFound();
         $this->actingAs($employee)->get(route('sewa-mobil.finance.index'))->assertForbidden();
-        $this->actingAs($employee)->get(route('penjualan.index'))->assertForbidden();
+        $this->actingAs($employee)->get(route('waserba.index'))->assertForbidden();
         $this->actingAs($employee)->get(route('karyawan.index'))->assertForbidden();
     }
 
@@ -268,7 +268,7 @@ class AccessMatrixTest extends TestCase
         $this->assertSame(0, User::query()->where('role', 'keuangan')->count());
 
         $this->actingAs($finance)->get(route('users.index'))->assertOk();
-        $this->actingAs($kasir)->get(route('penjualan.index'))->assertOk();
+        $this->actingAs($kasir)->get(route('waserba.index'))->assertOk();
         $this->actingAs($kasir)->get(route('users.index'))->assertForbidden();
 
         $this->assertFalse(Route::has('register'));

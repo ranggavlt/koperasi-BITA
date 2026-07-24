@@ -806,7 +806,6 @@ class KoperasiDummySeeder extends Seeder
     {
         $akunIds = [
             'pokok' => $this->akunId('simpanan_pokok'),
-            'wajib' => $this->akunId('simpanan_wajib'),
             'sukarela' => $this->akunId('simpanan_sukarela'),
         ];
 
@@ -817,35 +816,23 @@ class KoperasiDummySeeder extends Seeder
                 'kategori' => JenisSimpanan::KATEGORI_POKOK,
                 'nama_jenis' => 'Simpanan Pokok',
                 'aktif' => true,
-                'nominal_default' => 100000,
+                'nominal_default' => 10000,
                 'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
                 'keterangan' => 'Setoran awal saat anggota mulai aktif di koperasi.',
                 'alasan_perubahan' => 'Setup dummy Master Simpanan Pokok.',
             ],
-            'wajib' => [
-                'akun_id' => $akunIds['wajib'],
-                'kode' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
-                'kategori' => JenisSimpanan::KATEGORI_WAJIB,
-                'nama_jenis' => 'Simpanan Wajib',
-                'aktif' => true,
-                'nominal_default' => 100000,
-                'interval_bulan' => 3,
-                'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran wajib per penagihan tiga bulanan untuk menjaga likuiditas koperasi.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Wajib per 3 bulan.',
-            ],
             'sukarela' => [
                 'akun_id' => $akunIds['sukarela'],
-                'kode' => JenisSimpanan::KODE_SIMPANAN_SUKARELA,
-                'kategori' => JenisSimpanan::KATEGORI_SUKARELA,
-                'nama_jenis' => 'Simpanan Sukarela',
+                'kode' => JenisSimpanan::KODE_SIMPANAN_MANASUKA,
+                'kategori' => JenisSimpanan::KATEGORI_MANASUKA,
+                'nama_jenis' => 'Simpanan Manasuka',
                 'aktif' => true,
                 'nominal_default' => 0,
                 'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran sukarela anggota di luar kewajiban rutin.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Sukarela.',
+                'keterangan' => 'Simpanan sukarela / manasuka, bisa diambil kapan saja.',
+                'alasan_perubahan' => 'Setup dummy Master Simpanan Manasuka.',
             ],
         ];
 

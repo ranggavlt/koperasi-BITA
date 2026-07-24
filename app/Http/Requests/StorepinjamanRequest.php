@@ -14,11 +14,13 @@ class StorePinjamanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'anggota_id' => ['required', 'exists:anggota,id'],
-            'jumlah_pinjaman' => ['required', 'integer', 'min:1', 'max:5000000'],
+            'anggota_id' => ['required', 'integer', 'exists:anggota,id'],
+            'tanggal_pengajuan' => ['required', 'date', 'before_or_equal:today'],
+            'jumlah_pinjaman' => ['required', 'numeric', 'min:1', 'max:5000000'],
             'tenor_bulan' => ['required', 'integer', 'min:1', 'max:12'],
-            'tanggal_pengajuan' => ['required', 'date'],
-            'keterangan' => ['nullable', 'string', 'max:2000'],
+            'biaya_admin' => ['required', 'numeric', 'min:0'],
+            'cara_bayar_admin' => ['required', 'in:tunai,potong_pinjaman'],
+            'keterangan' => ['nullable', 'string', 'max:1000'],
         ];
     }
 

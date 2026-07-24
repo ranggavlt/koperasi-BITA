@@ -35,6 +35,8 @@ class Pinjaman extends Model
         'anggota_pinjaman_terbuka_id',
         'dompet_id',
         'jumlah_pinjaman',
+        'biaya_admin',
+        'cara_bayar_admin',
         'plafon_pinjaman_snapshot',
         'bunga_persen',
         'tenor_bulan',

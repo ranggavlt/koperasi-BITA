@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
@@ -99,7 +99,7 @@
                     <div class="relative z-10 flex flex-col flex-auto h-full p-4">
                         <h5 class="pt-2 mb-6 font-bold text-white">Sistem POS Koperasi</h5>
                         <p class="text-white">Kelola transaksi kasbon karyawan dan produk konsinyasi secara efisien.</p>
-                        <a class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm" href="{{ route('penjualan.index') }}">
+                        <a class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm" href="{{ route('waserba.index') }}">
                             Buka Mesin Kasir
                             <i class="fas fa-arrow-right ease-bounce text-sm group-hover:translate-x-1.25 ml-1 transition-all duration-200"></i>
                         </a>

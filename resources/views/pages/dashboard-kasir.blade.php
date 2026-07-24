@@ -11,7 +11,7 @@
     </div>
     <div class="mt-4 sm:mt-0 flex flex-col items-end">
        <p class="text-sm text-slate-500 mb-2 font-semibold">Siap melayani pelanggan?</p>
-       <a href="{{ route('penjualan.index') }}" class="inline-flex items-center justify-center px-8 py-3 font-bold text-center text-white uppercase transition-all border-0 rounded-xl cursor-pointer hover:scale-105 active:opacity-85" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2); font-size: 14px; min-width: 200px;">
+       <a href="{{ route('waserba.index') }}" class="inline-flex items-center justify-center px-8 py-3 font-bold text-center text-white uppercase transition-all border-0 rounded-xl cursor-pointer hover:scale-105 active:opacity-85" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2); font-size: 14px; min-width: 200px;">
          <i class="fas fa-cash-register mr-2" style="font-size: 16px;"></i> Buka Mesin Kasir
        </a>
     </div>
@@ -20,8 +20,8 @@
   <!-- Cards -->
   <div class="flex flex-wrap -mx-3 mb-6">
     <!-- Total Transaksi -->
-    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/2">
-      <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
+      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
         <div class="flex-auto p-4">
           <div class="flex flex-row -mx-3">
             <div class="flex-none w-2/3 max-w-full px-3">
@@ -43,8 +43,8 @@
     </div>
 
     <!-- Omzet Hari Ini -->
-    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/2">
-      <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
+      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
         <div class="flex-auto p-4">
           <div class="flex flex-row -mx-3">
             <div class="flex-none w-2/3 max-w-full px-3">
@@ -65,7 +65,51 @@
       </div>
     </div>
 
-    <!-- Waktu & Tombol Aksi dipindahkan ke header -->
+    <!-- Item Terjual -->
+    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
+      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+        <div class="flex-auto p-4">
+          <div class="flex flex-row -mx-3">
+            <div class="flex-none w-2/3 max-w-full px-3">
+              <div>
+                <p class="mb-0 font-sans text-sm font-semibold leading-normal">Item Terjual Hari Ini</p>
+                <h5 class="mb-0 font-bold">
+                  {{ number_format($itemTerjualHariIni, 0, ',', '.') }}
+                </h5>
+              </div>
+            </div>
+            <div class="px-3 text-right basis-1/3">
+              <div class="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-green-600 to-lime-400">
+                <i class="ni leading-none ni-box-2 text-lg relative top-3.5 text-white"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rata-rata Transaksi -->
+    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
+      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+        <div class="flex-auto p-4">
+          <div class="flex flex-row -mx-3">
+            <div class="flex-none w-2/3 max-w-full px-3">
+              <div>
+                <p class="mb-0 font-sans text-sm font-semibold leading-normal">Rata-rata Transaksi</p>
+                <h5 class="mb-0 font-bold">
+                  Rp {{ number_format($rataRataTransaksi, 0, ',', '.') }}
+                </h5>
+              </div>
+            </div>
+            <div class="px-3 text-right basis-1/3">
+              <div class="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-green-600 to-lime-400">
+                <i class="ni leading-none ni-chart-bar-32 text-lg relative top-3.5 text-white"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Transaksi Terakhir -->

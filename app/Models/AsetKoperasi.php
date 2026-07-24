@@ -34,7 +34,14 @@ class AsetKoperasi extends Model
         'updated_by',
         'nonaktif_at',
         'nonaktif_by',
+        'vendor_id',
+        'harga_dasar_vendor',
     ];
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
 
     protected $casts = [
         'nonaktif_at' => 'datetime',

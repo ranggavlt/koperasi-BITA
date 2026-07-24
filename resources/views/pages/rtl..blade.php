@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 =========================================================
 * Soft UI Dashboard Tailwind - v1.0.5
 =========================================================
@@ -119,7 +119,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >لوحة القيادة</span
+                >Ù„ÙˆØ­Ø© Ø§Ù„Ù‚ÙŠØ§Ø¯Ø©</span
               >
             </a>
           </li>
@@ -163,7 +163,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >الجداول</span
+                >Ø§Ù„Ø¬Ø¯Ø§ÙˆÙ„</span
               >
             </a>
           </li>
@@ -207,7 +207,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >الفواتير</span
+                >Ø§Ù„ÙÙˆØ§ØªÙŠØ±</span
               >
             </a>
           </li>
@@ -254,7 +254,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >الواقع الافتراضي</span
+                >Ø§Ù„ÙˆØ§Ù‚Ø¹ Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠ</span
               >
             </a>
           </li>
@@ -309,7 +309,7 @@
           <li class="w-full mt-4">
             <h6
               class="pr-6 mr-2 font-bold leading-tight uppercase text-xs opacity-60">
-              صفحات الحساب
+              ØµÙØ­Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø¨
             </h6>
           </li>
 
@@ -355,7 +355,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >حساب تعريفي</span
+                >Ø­Ø³Ø§Ø¨ ØªØ¹Ø±ÙŠÙÙŠ</span
               >
             </a>
           </li>
@@ -399,7 +399,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >تسجيل الدخول</span
+                >ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„</span
               >
             </a>
           </li>
@@ -449,7 +449,7 @@
               </div>
               <span
                 class="mr-1 duration-300 opacity-100 pointer-events-none ease-soft"
-                >اشتراك</span
+                >Ø§Ø´ØªØ±Ø§Ùƒ</span
               >
             </a>
           </li>
@@ -477,16 +477,16 @@
                 sidenav-card-icon></i>
             </div>
             <div class="transition-all duration-200 ease-nav-brand">
-              <h6 class="mb-0 text-right text-white">تحتاج مساعدة?</h6>
+              <h6 class="mb-0 text-right text-white">ØªØ­ØªØ§Ø¬ Ù…Ø³Ø§Ø¹Ø¯Ø©?</h6>
               <p
                 class="mt-0 mb-4 font-semibold leading-tight text-right text-xs">
-                يرجى التحقق من مستنداتنا
+                ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ù…Ø³ØªÙ†Ø¯Ø§ØªÙ†Ø§
               </p>
               <a
                 href="https://www.creative-tim.com/learning-lab/tailwind/html/quick-start/soft-ui-dashboard/"
                 target="_blank"
                 class="inline-block w-full px-8 py-2 mb-0 font-bold text-center text-black uppercase transition-all ease-in bg-white border-0 border-white rounded-lg shadow-soft-md bg-150 leading-pro text-xs hover:shadow-soft-2xl hover:scale-102"
-                >توثيق</a
+                >ØªÙˆØ«ÙŠÙ‚</a
               >
             </div>
           </div>
@@ -510,7 +510,7 @@
             <ol class="flex flex-wrap pt-1 bg-transparent rounded-lg">
               <li class="pl-2 leading-normal text-sm">
                 <a class="opacity-50 text-slate-700" href="javascript:;"
-                  >لوحات القيادة</a
+                  >Ù„ÙˆØ­Ø§Øª Ø§Ù„Ù‚ÙŠØ§Ø¯Ø©</a
                 >
               </li>
               <li
@@ -534,21 +534,21 @@
                 <input
                   type="text"
                   class="text-sm focus:shadow-soft-primary-outline pr-8.75 ease-soft w-1/100 leading-5.6 relative -mr-px block min-w-0 flex-auto rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding py-2 pl-0 text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-                  placeholder="أكتب هنا..." />
+                  placeholder="Ø£ÙƒØªØ¨ Ù‡Ù†Ø§..." />
               </div>
             </div>
             <ul
               class="flex flex-row justify-end pl-0 pr-10 mb-0 ml-0 mr-auto list-none md-max:w-full">
               <!-- online builder btn  -->
               <!-- <li class="flex items-center">
-                <a class="inline-block px-8 py-2 mb-0 ml-4 font-bold text-center uppercase align-middle transition-all bg-transparent border border-solid rounded-lg shadow-none cursor-pointer leading-pro border-fuchsia-500 ease-soft-in text-xs hover:scale-102 active:shadow-soft-xs text-fuchsia-500 hover:border-fuchsia-500 active:bg-fuchsia-500 active:hover:text-fuchsia-500 hover:text-fuchsia-500 tracking-tight-soft hover:bg-transparent hover:opacity-75 hover:shadow-none active:text-white active:hover:bg-transparent" target="_blank" href="https://www.creative-tim.com/builder/soft-ui?ref=navbar-dashboard&amp;_ga=2.76518741.1192788655.1647724933-1242940210.1644448053">منشئ مضمنة</a>
+                <a class="inline-block px-8 py-2 mb-0 ml-4 font-bold text-center uppercase align-middle transition-all bg-transparent border border-solid rounded-lg shadow-none cursor-pointer leading-pro border-fuchsia-500 ease-soft-in text-xs hover:scale-102 active:shadow-soft-xs text-fuchsia-500 hover:border-fuchsia-500 active:bg-fuchsia-500 active:hover:text-fuchsia-500 hover:text-fuchsia-500 tracking-tight-soft hover:bg-transparent hover:opacity-75 hover:shadow-none active:text-white active:hover:bg-transparent" target="_blank" href="https://www.creative-tim.com/builder/soft-ui?ref=navbar-dashboard&amp;_ga=2.76518741.1192788655.1647724933-1242940210.1644448053">Ù…Ù†Ø´Ø¦ Ù…Ø¶Ù…Ù†Ø©</a>
               </li> -->
               <li class="flex items-center">
                 <a
                   href="../pages/sign-in.html"
                   class="block px-0 py-2 font-semibold transition-all ease-nav-brand text-sm text-slate-500">
                   <i class="fa fa-user sm:mr-1" aria-hidden="true"></i>
-                  <span class="hidden sm:inline">يسجل دخول</span>
+                  <span class="hidden sm:inline">ÙŠØ³Ø¬Ù„ Ø¯Ø®ÙˆÙ„</span>
                 </a>
               </li>
               <li class="flex items-center pr-4 xl:hidden">
@@ -606,13 +606,13 @@
                         </div>
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-1 font-normal leading-normal text-sm">
-                            <span class="font-semibold">رسالة جديدة</span> من
-                            لور
+                            <span class="font-semibold">Ø±Ø³Ø§Ù„Ø© Ø¬Ø¯ÙŠØ¯Ø©</span> Ù…Ù†
+                            Ù„ÙˆØ±
                           </h6>
                           <p
                             class="mb-0 ml-auto leading-tight text-xs text-slate-400">
                             <i class="ml-1 fa fa-clock" aria-hidden="true"></i>
-                            منذ 13 دقيقة
+                            Ù…Ù†Ø° 13 Ø¯Ù‚ÙŠÙ‚Ø©
                           </p>
                         </div>
                       </div>
@@ -631,13 +631,13 @@
                         </div>
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-1 font-normal leading-normal text-sm">
-                            <span class="font-semibold">البوم جديد</span> بواسطة
-                            ترافيس سكوت
+                            <span class="font-semibold">Ø§Ù„Ø¨ÙˆÙ… Ø¬Ø¯ÙŠØ¯</span> Ø¨ÙˆØ§Ø³Ø·Ø©
+                            ØªØ±Ø§ÙÙŠØ³ Ø³ÙƒÙˆØª
                           </h6>
                           <p
                             class="mb-0 ml-auto leading-tight text-xs text-slate-400">
                             <i class="ml-1 fa fa-clock" aria-hidden="true"></i>
-                            يوم 1
+                            ÙŠÙˆÙ… 1
                           </p>
                         </div>
                       </div>
@@ -687,12 +687,12 @@
                         </div>
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-1 font-normal leading-normal text-sm">
-                            اكتمل الدفع بنجاح
+                            Ø§ÙƒØªÙ…Ù„ Ø§Ù„Ø¯ÙØ¹ Ø¨Ù†Ø¬Ø§Ø­
                           </h6>
                           <p
                             class="mb-0 ml-auto leading-tight text-xs text-slate-400">
                             <i class="ml-1 fa fa-clock" aria-hidden="true"></i>
-                            2 أيام
+                            2 Ø£ÙŠØ§Ù…
                           </p>
                         </div>
                       </div>
@@ -722,7 +722,7 @@
                     <div>
                       <p
                         class="mb-0 font-sans font-semibold leading-normal text-sm">
-                        أموال اليوم
+                        Ø£Ù…ÙˆØ§Ù„ Ø§Ù„ÙŠÙˆÙ…
                       </p>
                       <h5 class="mb-0 font-bold">
                         $53,000
@@ -757,7 +757,7 @@
                     <div>
                       <p
                         class="mb-0 font-sans font-semibold leading-normal text-sm">
-                        مستخدمو اليوم
+                        Ù…Ø³ØªØ®Ø¯Ù…Ùˆ Ø§Ù„ÙŠÙˆÙ…
                       </p>
                       <h5 class="mb-0 font-bold">
                         2,300
@@ -792,7 +792,7 @@
                     <div>
                       <p
                         class="mb-0 font-sans font-semibold leading-normal text-sm">
-                        عملاء جدد
+                        Ø¹Ù…Ù„Ø§Ø¡ Ø¬Ø¯Ø¯
                       </p>
                       <h5 class="mb-0 font-bold">
                         +3,462
@@ -826,7 +826,7 @@
                     <div>
                       <p
                         class="mb-0 font-sans font-semibold leading-normal text-sm">
-                        مبيعات
+                        Ù…Ø¨ÙŠØ¹Ø§Øª
                       </p>
                       <h5 class="mb-0 font-bold">
                         $103,430
@@ -860,16 +860,16 @@
                 <div class="flex flex-wrap -mx-3">
                   <div class="max-w-full px-3 lg:w-1/2 lg:flex-none">
                     <div class="flex flex-col h-full">
-                      <p class="pt-2 mb-1 font-semibold">بناها المطورون</p>
+                      <p class="pt-2 mb-1 font-semibold">Ø¨Ù†Ø§Ù‡Ø§ Ø§Ù„Ù…Ø·ÙˆØ±ÙˆÙ†</p>
                       <h5 class="font-bold">Soft UI Dashboard</h5>
                       <p class="mb-12">
-                        من الألوان والبطاقات والطباعة إلى العناصر المعقدة ، ستجد
-                        الوثائق الكاملة.
+                        Ù…Ù† Ø§Ù„Ø£Ù„ÙˆØ§Ù† ÙˆØ§Ù„Ø¨Ø·Ø§Ù‚Ø§Øª ÙˆØ§Ù„Ø·Ø¨Ø§Ø¹Ø© Ø¥Ù„Ù‰ Ø§Ù„Ø¹Ù†Ø§ØµØ± Ø§Ù„Ù…Ø¹Ù‚Ø¯Ø© ØŒ Ø³ØªØ¬Ø¯
+                        Ø§Ù„ÙˆØ«Ø§Ø¦Ù‚ Ø§Ù„ÙƒØ§Ù…Ù„Ø©.
                       </p>
                       <a
                         class="mt-auto mb-0 font-semibold leading-normal text-sm group text-slate-500"
                         href="javascript:;">
-                        اقرأ المستندات
+                        Ø§Ù‚Ø±Ø£ Ø§Ù„Ù…Ø³ØªÙ†Ø¯Ø§Øª
                         <i
                           class="fas fa-arrow-left ease-bounce text-sm group-hover:-translate-x-1.25 mr-1 leading-normal transition-all duration-200"
                           aria-hidden="true"></i>
@@ -907,16 +907,16 @@
                   class="absolute top-0 left-0 w-full h-full bg-center bg-cover bg-gradient-to-tl from-gray-900 to-slate-800 opacity-80"></span>
                 <div class="relative z-10 flex flex-col flex-auto h-full p-4">
                   <h5 class="pt-2 mb-6 font-bold text-white">
-                    العمل مع الصواريخ
+                    Ø§Ù„Ø¹Ù…Ù„ Ù…Ø¹ Ø§Ù„ØµÙˆØ§Ø±ÙŠØ®
                   </h5>
                   <p class="text-white">
-                    تكوين الثروة هو لعبة تطوري حديثة ذات حصيلة إيجابية. الأمر
-                    كله يتعلق بمن يغتنم الفرصة أولاً هذه بطاقة بسيطة.
+                    ØªÙƒÙˆÙŠÙ† Ø§Ù„Ø«Ø±ÙˆØ© Ù‡Ùˆ Ù„Ø¹Ø¨Ø© ØªØ·ÙˆØ±ÙŠ Ø­Ø¯ÙŠØ«Ø© Ø°Ø§Øª Ø­ØµÙŠÙ„Ø© Ø¥ÙŠØ¬Ø§Ø¨ÙŠØ©. Ø§Ù„Ø£Ù…Ø±
+                    ÙƒÙ„Ù‡ ÙŠØªØ¹Ù„Ù‚ Ø¨Ù…Ù† ÙŠØºØªÙ†Ù… Ø§Ù„ÙØ±ØµØ© Ø£ÙˆÙ„Ø§Ù‹ Ù‡Ø°Ù‡ Ø¨Ø·Ø§Ù‚Ø© Ø¨Ø³ÙŠØ·Ø©.
                   </p>
                   <a
                     class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm"
                     href="javascript:;">
-                    اقرأ المستندات
+                    Ø§Ù‚Ø±Ø£ Ø§Ù„Ù…Ø³ØªÙ†Ø¯Ø§Øª
                     <i
                       class="fas fa-arrow-left ease-bounce text-sm group-hover:-translate-x-1.25 mr-1 leading-normal transition-all duration-200"
                       aria-hidden="true"></i>
@@ -941,9 +941,9 @@
                     <canvas id="chart-bars" height="170"></canvas>
                   </div>
                 </div>
-                <h6 class="mt-6 mb-0 mr-2">المستخدمين النشطين</h6>
+                <h6 class="mt-6 mb-0 mr-2">Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† Ø§Ù„Ù†Ø´Ø·ÙŠÙ†</h6>
                 <p class="mr-2 leading-normal text-sm">
-                  (<span class="font-bold">+23%</span>) من الأسبوع الماضي
+                  (<span class="font-bold">+23%</span>) Ù…Ù† Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹ Ø§Ù„Ù…Ø§Ø¶ÙŠ
                 </p>
                 <div class="w-full px-6 mx-auto max-w-screen-2xl rounded-xl">
                   <div class="flex flex-wrap mt-0 -mx-3">
@@ -987,7 +987,7 @@
                         </div>
                         <p
                           class="mt-1 mb-0 font-semibold leading-tight text-xs">
-                          المستخدمون
+                          Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙˆÙ†
                         </p>
                       </div>
                       <h4 class="font-bold">36K</h4>
@@ -1048,7 +1048,7 @@
                         </div>
                         <p
                           class="mt-1 mb-0 font-semibold leading-tight text-xs">
-                          نقرات
+                          Ù†Ù‚Ø±Ø§Øª
                         </p>
                       </div>
                       <h4 class="font-bold">2m</h4>
@@ -1102,7 +1102,7 @@
                         </div>
                         <p
                           class="mt-1 mb-0 font-semibold leading-tight text-xs">
-                          مبيعات
+                          Ù…Ø¨ÙŠØ¹Ø§Øª
                         </p>
                       </div>
                       <h4 class="font-bold">435$</h4>
@@ -1160,7 +1160,7 @@
                         </div>
                         <p
                           class="mt-1 mb-0 font-semibold leading-tight text-xs">
-                          العناصر
+                          Ø§Ù„Ø¹Ù†Ø§ØµØ±
                         </p>
                       </div>
                       <h4 class="font-bold">43</h4>
@@ -1184,12 +1184,12 @@
               class="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border">
               <div
                 class="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
-                <h6>نظرة عامة على المبيعات</h6>
+                <h6>Ù†Ø¸Ø±Ø© Ø¹Ø§Ù…Ø© Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª</h6>
                 <p class="leading-normal text-sm">
                   <i
                     class="fa fa-arrow-up text-lime-500"
                     aria-hidden="true"></i>
-                  <span class="font-semibold">4% أكثر</span> في عام 2021
+                  <span class="font-semibold">4% Ø£ÙƒØ«Ø±</span> ÙÙŠ Ø¹Ø§Ù… 2021
                 </p>
               </div>
               <div class="flex-auto p-4">
@@ -1215,13 +1215,13 @@
                 <div class="flex flex-wrap mt-0 -mx-3">
                   <div
                     class="flex-none w-7/12 max-w-full px-3 mt-0 lg:w-1/2 lg:flex-none">
-                    <h6>المشاريع</h6>
+                    <h6>Ø§Ù„Ù…Ø´Ø§Ø±ÙŠØ¹</h6>
                     <p class="mb-0 leading-normal text-sm">
                       <i
                         class="fa fa-check text-cyan-500"
                         aria-hidden="true"></i>
-                      <span class="mr-1 font-semibold">30 انتهى</span>
-                      هذا الشهر
+                      <span class="mr-1 font-semibold">30 Ø§Ù†ØªÙ‡Ù‰</span>
+                      Ù‡Ø°Ø§ Ø§Ù„Ø´Ù‡Ø±
                     </p>
                   </div>
                   <div
@@ -1240,21 +1240,21 @@
                           <a
                             class="py-1.2 lg:ease-soft clear-both block w-full whitespace-nowrap rounded-lg border-0 bg-transparent px-4 text-right font-normal text-slate-500 lg:transition-colors lg:duration-300"
                             href="javascript:;"
-                            >عمل</a
+                            >Ø¹Ù…Ù„</a
                           >
                         </li>
                         <li class="relative">
                           <a
                             class="py-1.2 lg:ease-soft clear-both block w-full whitespace-nowrap rounded-lg border-0 bg-transparent px-4 text-right font-normal text-slate-500 lg:transition-colors lg:duration-300"
                             href="javascript:;"
-                            >عمل آخر</a
+                            >Ø¹Ù…Ù„ Ø¢Ø®Ø±</a
                           >
                         </li>
                         <li class="relative">
                           <a
                             class="py-1.2 lg:ease-soft clear-both block w-full whitespace-nowrap rounded-lg border-0 bg-transparent px-4 text-right font-normal text-slate-500 lg:transition-colors lg:duration-300"
                             href="javascript:;"
-                            >شيء آخر هنا</a
+                            >Ø´ÙŠØ¡ Ø¢Ø®Ø± Ù‡Ù†Ø§</a
                           >
                         </li>
                       </ul>
@@ -1270,19 +1270,19 @@
                       <tr>
                         <th
                           class="px-6 py-3 font-bold tracking-normal text-right uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                          المشروع
+                          Ø§Ù„Ù…Ø´Ø±ÙˆØ¹
                         </th>
                         <th
                           class="px-6 py-3 pr-2 font-bold tracking-normal text-right uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                          أعضاء
+                          Ø£Ø¹Ø¶Ø§Ø¡
                         </th>
                         <th
                           class="px-6 py-3 font-bold tracking-normal text-center uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                          ميزانية
+                          Ù…ÙŠØ²Ø§Ù†ÙŠØ©
                         </th>
                         <th
                           class="px-6 py-3 font-bold tracking-normal text-center uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                          إكمال
+                          Ø¥ÙƒÙ…Ø§Ù„
                         </th>
                       </tr>
                     </thead>
@@ -1299,7 +1299,7 @@
                             </div>
                             <div class="flex flex-col justify-center">
                               <h6 class="mb-0 leading-normal text-sm">
-                                Soft UI XD الإصدار
+                                Soft UI XD Ø§Ù„Ø¥ØµØ¯Ø§Ø±
                               </h6>
                             </div>
                           </div>
@@ -1426,7 +1426,7 @@
                             </div>
                             <div class="flex flex-col justify-center">
                               <h6 class="mb-0 leading-normal text-sm">
-                                أضف مسار التقدم إلى التطبيق الداخلي
+                                Ø£Ø¶Ù Ù…Ø³Ø§Ø± Ø§Ù„ØªÙ‚Ø¯Ù… Ø¥Ù„Ù‰ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø¯Ø§Ø®Ù„ÙŠ
                               </h6>
                             </div>
                           </div>
@@ -1515,7 +1515,7 @@
                             </div>
                             <div class="flex flex-col justify-center">
                               <h6 class="mb-0 leading-normal text-sm">
-                                إصلاح أخطاء النظام الأساسي
+                                Ø¥ØµÙ„Ø§Ø­ Ø£Ø®Ø·Ø§Ø¡ Ø§Ù„Ù†Ø¸Ø§Ù… Ø§Ù„Ø£Ø³Ø§Ø³ÙŠ
                               </h6>
                             </div>
                           </div>
@@ -1566,7 +1566,7 @@
                         <td
                           class="p-2 leading-normal text-center align-middle bg-transparent border-b text-sm whitespace-nowrap">
                           <span class="font-semibold leading-tight text-xs">
-                            غير مضبوط
+                            ØºÙŠØ± Ù…Ø¶Ø¨ÙˆØ·
                           </span>
                         </td>
                         <td
@@ -1604,7 +1604,7 @@
                             </div>
                             <div class="flex flex-col justify-center">
                               <h6 class="mb-0 leading-normal text-sm">
-                                إطلاق تطبيق الهاتف المحمول الخاص بنا
+                                Ø¥Ø·Ù„Ø§Ù‚ ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ù…Ø­Ù…ÙˆÙ„ Ø§Ù„Ø®Ø§Øµ Ø¨Ù†Ø§
                               </h6>
                             </div>
                           </div>
@@ -1731,7 +1731,7 @@
                             </div>
                             <div class="flex flex-col justify-center">
                               <h6 class="mb-0 leading-normal text-sm">
-                                أضف صفحة التسعير الجديدة
+                                Ø£Ø¶Ù ØµÙØ­Ø© Ø§Ù„ØªØ³Ø¹ÙŠØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
                               </h6>
                             </div>
                           </div>
@@ -1801,7 +1801,7 @@
                             </div>
                             <div class="flex flex-col justify-center">
                               <h6 class="mb-0 leading-normal text-sm">
-                                إعادة تصميم متجر جديد على الإنترنت
+                                Ø¥Ø¹Ø§Ø¯Ø© ØªØµÙ…ÙŠÙ… Ù…ØªØ¬Ø± Ø¬Ø¯ÙŠØ¯ Ø¹Ù„Ù‰ Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª
                               </h6>
                             </div>
                           </div>
@@ -1893,12 +1893,12 @@
               class="border-black/12.5 shadow-soft-xl relative flex h-full min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border">
               <div
                 class="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
-                <h6>نظرة عامة على الطلبات</h6>
+                <h6>Ù†Ø¸Ø±Ø© Ø¹Ø§Ù…Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø·Ù„Ø¨Ø§Øª</h6>
                 <p class="leading-normal text-sm">
                   <i
                     class="fa fa-arrow-up text-lime-500"
                     aria-hidden="true"></i>
-                  <span class="font-semibold">24%</span> هذا الشهر
+                  <span class="font-semibold">24%</span> Ù‡Ø°Ø§ Ø§Ù„Ø´Ù‡Ø±
                 </p>
               </div>
               <div class="flex-auto p-4">
@@ -1915,7 +1915,7 @@
                       class="mr-11.252 pt-1.4 lg:max-w-120 relative -top-1.5 w-auto">
                       <h6
                         class="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                        $2400, تغييرات في التصميم
+                        $2400, ØªØºÙŠÙŠØ±Ø§Øª ÙÙŠ Ø§Ù„ØªØµÙ…ÙŠÙ…
                       </h6>
                       <p
                         class="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">
@@ -1934,7 +1934,7 @@
                       class="mr-11.252 pt-1.4 lg:max-w-120 relative -top-1.5 w-auto">
                       <h6
                         class="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                        طلب جديد #1832412
+                        Ø·Ù„Ø¨ Ø¬Ø¯ÙŠØ¯ #1832412
                       </h6>
                       <p
                         class="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">
@@ -1953,7 +1953,7 @@
                       class="mr-11.252 pt-1.4 lg:max-w-120 relative -top-1.5 w-auto">
                       <h6
                         class="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                        مدفوعات الخادم لشهر أبريل
+                        Ù…Ø¯ÙÙˆØ¹Ø§Øª Ø§Ù„Ø®Ø§Ø¯Ù… Ù„Ø´Ù‡Ø± Ø£Ø¨Ø±ÙŠÙ„
                       </h6>
                       <p
                         class="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">
@@ -1972,7 +1972,7 @@
                       class="mr-11.252 pt-1.4 lg:max-w-120 relative -top-1.5 w-auto">
                       <h6
                         class="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                        تمت إضافة بطاقة جديدة للطلب #4395133
+                        ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø¨Ø·Ø§Ù‚Ø© Ø¬Ø¯ÙŠØ¯Ø© Ù„Ù„Ø·Ù„Ø¨ #4395133
                       </h6>
                       <p
                         class="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">
@@ -1991,7 +1991,7 @@
                       class="mr-11.252 pt-1.4 lg:max-w-120 relative -top-1.5 w-auto">
                       <h6
                         class="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                        فتح الحزم من أجل التطوير
+                        ÙØªØ­ Ø§Ù„Ø­Ø²Ù… Ù…Ù† Ø£Ø¬Ù„ Ø§Ù„ØªØ·ÙˆÙŠØ±
                       </h6>
                       <p
                         class="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">
@@ -2010,7 +2010,7 @@
                       class="mr-11.252 pt-1.4 lg:max-w-120 relative -top-1.5 w-auto">
                       <h6
                         class="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                        طلب جديد #9583120
+                        Ø·Ù„Ø¨ Ø¬Ø¯ÙŠØ¯ #9583120
                       </h6>
                       <p
                         class="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">
@@ -2031,19 +2031,19 @@
                 class="w-full max-w-full px-3 mt-0 mb-6 shrink-0 lg:mb-0 lg:w-1/2 lg:flex-none">
                 <div
                   class="leading-normal text-center text-sm text-slate-500 lg:text-right">
-                  ©
+                  Â©
                   <script>
                     document.write(new Date().getFullYear() + ",");
                   </script>
-                  مصنوع بواسطة <i class="fa fa-heart"></i> بواسطة
+                  Ù…ØµÙ†ÙˆØ¹ Ø¨ÙˆØ§Ø³Ø·Ø© <i class="fa fa-heart"></i> Ø¨ÙˆØ§Ø³Ø·Ø©
                   <a
                     href="https://www.creative-tim.com"
                     class="font-semibold text-slate-700"
                     target="_blank"
                     >Creative Tim</a
                   >
-                  للحصول على ويب أفضل.
-                  <span class="w-full"> Distributed by ❤️ ThemeWagon </span>
+                  Ù„Ù„Ø­ØµÙˆÙ„ Ø¹Ù„Ù‰ ÙˆÙŠØ¨ Ø£ÙØ¶Ù„.
+                  <span class="w-full"> Distributed by â¤ï¸ ThemeWagon </span>
                 </div>
               </div>
               <div

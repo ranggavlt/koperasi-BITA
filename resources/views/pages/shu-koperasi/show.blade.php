@@ -170,9 +170,21 @@
                 class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
             </div>
 
-            <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
+            <div class="mt-4 w-full max-w-full px-3 md:w-3/12">
               <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pengurus (%)</label>
               <input type="number" name="persen_pengurus" min="0" max="100" step="0.01" value="{{ old('persen_pengurus', $shuKoperasi->persen_pengurus) }}"
+                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+            </div>
+
+            <div class="mt-4 w-full max-w-full px-3 md:w-3/12">
+              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pengawas (%)</label>
+              <input type="number" name="persen_pengawas" min="0" max="100" step="0.01" value="{{ old('persen_pengawas', $shuKoperasi->persen_pengawas) }}"
+                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+            </div>
+
+            <div class="mt-4 w-full max-w-full px-3 md:w-3/12">
+              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pembina (%)</label>
+              <input type="number" name="persen_pembina" min="0" max="100" step="0.01" value="{{ old('persen_pembina', $shuKoperasi->persen_pembina) }}"
                 class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
             </div>
 
@@ -377,6 +389,8 @@
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jasa Modal</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jasa Usaha</th>
                   <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Total SHU</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -426,10 +440,37 @@
                         Rp {{ number_format((float) $item->nominal_shu, 0, ',', '.') }}
                       </span>
                     </td>
+
+                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
+                      @if($item->is_dicairkan)
+                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-emerald-500 to-teal-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
+                          Cair ({{ $item->metode_pencairan }})
+                        </span>
+                      @else
+                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-amber-400 to-orange-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
+                          Belum Cair
+                        </span>
+                      @endif
+                    </td>
+
+                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
+                      @if(!$item->is_dicairkan)
+                        <form action="{{ route('shu-koperasi.cairkan', $item->id) }}" method="POST" class="inline-flex gap-2">
+                          @csrf
+                          <select name="metode" class="rounded-md border border-gray-300 px-2 py-1 text-xs outline-none">
+                            <option value="tunai">Tunai</option>
+                            <option value="transfer">Transfer</option>
+                          </select>
+                          <button type="submit" class="rounded-md bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-emerald-600">
+                            Cairkan
+                          </button>
+                        </form>
+                      @endif
+                    </td>
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="6" class="p-4 text-center text-sm text-slate-400">
+                    <td colspan="8" class="p-4 text-center text-sm text-slate-400">
                       Belum ada snapshot pembagian SHU anggota.
                     </td>
                   </tr>

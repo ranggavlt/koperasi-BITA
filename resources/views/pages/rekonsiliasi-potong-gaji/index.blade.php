@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -41,7 +41,7 @@
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Status Rekonsiliasi</h2>
-      <p class="kbsm-business-panel__copy">Status “Perlu Diperiksa” berarti ada selisih yang harus ditelusuri manual.</p>
+      <p class="kbsm-business-panel__copy">Status â€œPerlu Diperiksaâ€ berarti ada selisih yang harus ditelusuri manual.</p>
     </div>
     <div class="p-5">
       <span class="kbsm-status {{ $rekonsiliasi['status'] === 'balanced' ? 'kbsm-status--green' : 'kbsm-status--red' }}">

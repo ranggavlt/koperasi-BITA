@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -102,7 +102,7 @@
                 <ul class="mt-2 space-y-1">
                   @foreach($item->details as $detail)
                     <li>
-                      <span class="kbsm-business-strong">{{ $detail->kuantitas }}× {{ $detail->jenis_model_printer }}</span>
+                      <span class="kbsm-business-strong">{{ $detail->kuantitas }}Ã— {{ $detail->jenis_model_printer }}</span>
                       <span class="kbsm-business-muted"> @ Rp {{ number_format((int) $detail->harga_vendor_per_unit, 0, ',', '.') }} + margin Rp {{ number_format((int) $detail->margin_per_unit, 0, ',', '.') }}</span>
                     </li>
                   @endforeach

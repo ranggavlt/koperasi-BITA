@@ -6,12 +6,12 @@
   @if ($errors->any())<div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><ul class="mb-0 list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-    <div><p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Data</p><h1 class="text-2xl font-bold text-slate-700">Pengurus Koperasi</h1><p class="mt-1 text-sm text-slate-400">Jabatan organisasi hanya dapat diisi oleh Anggota dan Karyawan aktif.</p></div>
+    <div><p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Data</p><h1 class="text-lg font-bold text-slate-700 m-0">Pengurus Koperasi</h1><p class="mt-1 text-sm text-slate-400">Jabatan organisasi hanya dapat diisi oleh Anggota dan Karyawan aktif.</p></div>
     @if(!isset($data))<button type="button" onclick="togglePengurusForm()" id="btn-toggle-pengurus" class="kbsm-btn kbsm-btn--navy">{{ $errors->any() ? 'Tutup Form' : '+ Tambah Pengurus' }}</button>@endif
   </div>
 
   <section id="pengurus-form" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl {{ (isset($data) || $errors->any()) ? 'block' : 'hidden' }}">
-    <h2 class="font-bold text-slate-700">{{ isset($data) ? 'Edit Pengurus' : 'Jabatan Pengurus Baru' }}</h2>
+    <h2 class="text-base font-bold text-slate-700 m-0">{{ isset($data) ? 'Edit Pengurus' : 'Jabatan Pengurus Baru' }}</h2>
     <p class="mb-5 text-sm text-slate-400">Satu Anggota dan satu jabatan organisasi hanya boleh memiliki satu record aktif.</p>
     <form method="POST" action="{{ isset($data) ? route('pengurus-koperasi.update', $data) : route('pengurus-koperasi.store') }}">
       @csrf
@@ -22,10 +22,10 @@
           <select id="anggota_id" name="anggota_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
             <option value="">Pilih Anggota</option>
             @if(isset($data) && !$anggotaAktif->contains('id', $data->anggota_id))
-              <option value="{{ $data->anggota_id }}" selected>{{ $data->anggota->nomor_anggota }} — {{ $data->anggota->karyawan->nama }} (histori)</option>
+              <option value="{{ $data->anggota_id }}" selected>{{ $data->anggota->nomor_anggota }} â€” {{ $data->anggota->karyawan->nama }} (histori)</option>
             @endif
             @foreach($anggotaAktif as $item)
-              <option value="{{ $item->id }}" {{ (string) old('anggota_id', $data->anggota_id ?? '') === (string) $item->id ? 'selected' : '' }}>{{ $item->nomor_anggota }} — {{ $item->karyawan->nama }}</option>
+              <option value="{{ $item->id }}" {{ (string) old('anggota_id', $data->anggota_id ?? '') === (string) $item->id ? 'selected' : '' }}>{{ $item->nomor_anggota }} â€” {{ $item->karyawan->nama }}</option>
             @endforeach
           </select>
         </div>
@@ -42,7 +42,7 @@
   </section>
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-    <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar dan Histori Pengurus</h2><p class="text-sm text-slate-400">Identitas ditampilkan dari master Karyawan melalui Anggota.</p></div>
+    <div class="border-b border-slate-100 p-6"><h2 class="text-base font-bold text-slate-700 m-0">Daftar dan Histori Pengurus</h2><p class="text-sm text-slate-400">Identitas ditampilkan dari master Karyawan melalui Anggota.</p></div>
     <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[850px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white"><tr><th class="px-6 py-4">Nomor Anggota</th><th class="px-6 py-4">Nama</th><th class="px-6 py-4">Jabatan</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-center">Aksi</th></tr></thead>
