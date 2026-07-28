@@ -18,31 +18,31 @@
     </div>
   @endif
 
-  @if (! $jenisManasuka)
+  @if (! $jenisSukarela)
     <div class="kbsm-business-alert kbsm-business-alert--danger">
-      Master Simpanan Manasuka aktif belum dikonfigurasi. Aktifkan satu master Simpanan Manasuka terlebih dahulu.
+      Master Simpanan Sukarela aktif belum dikonfigurasi. Aktifkan satu master Simpanan Sukarela terlebih dahulu.
     </div>
   @endif
 
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
-      <h1 class="kbsm-business-title">Transaksi Simpanan Manasuka</h1>
-      <p class="kbsm-business-subtitle">Finance mencatat setoran atau penarikan Manasuka langsung melalui Kas/Bank. Transaksi posted tidak bisa diedit atau dihapus.</p>
+      <h1 class="kbsm-business-title">Transaksi Simpanan Sukarela</h1>
+      <p class="kbsm-business-subtitle">Finance mencatat setoran atau penarikan Sukarela langsung melalui Kas/Bank. Transaksi posted tidak bisa diedit atau dihapus.</p>
     </div>
     <a href="{{ route('simpanan.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Simpanan</a>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Form Simpanan Manasuka</h2>
+      <h2 class="kbsm-business-panel__title">Form Simpanan Sukarela</h2>
       <p class="kbsm-business-panel__copy">Server tetap menghitung saldo akhir dan memvalidasi Dompet, COA, status Anggota, serta saldo tersedia.</p>
     </div>
 
-    <form method="POST" action="{{ route('simpanan.store') }}" class="kbsm-business-form" data-simpanan-Manasuka-form data-saldo-base="{{ url('/simpanan/saldo-Manasuka') }}">
+    <form method="POST" action="{{ route('simpanan.store') }}" class="kbsm-business-form" data-simpanan-sukarela-form data-saldo-base="{{ url('/simpanan/saldo-sukarela') }}">
       @csrf
-      <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan-Manasuka:' . \Illuminate\Support\Str::uuid()) }}">
-      <input type="hidden" name="jenis_simpanan_id" value="{{ old('jenis_simpanan_id', $jenisManasuka?->id) }}">
+      <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan-sukarela:' . \Illuminate\Support\Str::uuid()) }}">
+      <input type="hidden" name="jenis_simpanan_id" value="{{ old('jenis_simpanan_id', $jenisSukarela?->id) }}">
 
       <section class="kbsm-business-section">
         <h3 class="kbsm-business-section__title">Pemilik Saldo</h3>
@@ -65,7 +65,7 @@
           </div>
           <div class="kbsm-business-field">
             <label class="kbsm-business-label">Master Simpanan</label>
-            <div class="kbsm-business-readonly">{{ $jenisManasuka?->nama_jenis ?? 'Belum tersedia' }}</div>
+            <div class="kbsm-business-readonly">{{ $jenisSukarela?->nama_jenis ?? 'Belum tersedia' }}</div>
           </div>
           <div class="kbsm-business-field">
             <label class="kbsm-business-label">Status Posting</label>
@@ -130,12 +130,12 @@
           <article class="kbsm-business-summary-card kbsm-business-summary-card--green">
             <p class="kbsm-business-summary-label">Setoran</p>
             <p class="kbsm-business-summary-value">Debit Dompet</p>
-            <p class="kbsm-business-muted">Kredit Simpanan Manasuka.</p>
+            <p class="kbsm-business-muted">Kredit Simpanan Sukarela.</p>
           </article>
           <article class="kbsm-business-summary-card kbsm-business-summary-card--gold">
             <p class="kbsm-business-summary-label">Penarikan</p>
             <p class="kbsm-business-summary-value">Kredit Dompet</p>
-            <p class="kbsm-business-muted">Debit Simpanan Manasuka.</p>
+            <p class="kbsm-business-muted">Debit Simpanan Sukarela.</p>
           </article>
           <article class="kbsm-business-summary-card kbsm-business-summary-card--navy">
             <p class="kbsm-business-summary-label">Koreksi</p>
@@ -144,7 +144,7 @@
           </article>
         </div>
         <div class="kbsm-business-actions">
-          <button class="kbsm-btn kbsm-btn--navy" {{ ! $jenisManasuka ? 'disabled' : '' }}>Posting Transaksi</button>
+          <button class="kbsm-btn kbsm-btn--navy" {{ ! $jenisSukarela ? 'disabled' : '' }}>Posting Transaksi</button>
           <a href="{{ route('simpanan.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal</a>
         </div>
       </section>
@@ -154,7 +154,7 @@
 
 <script>
   (function () {
-    const form = document.querySelector('[data-simpanan-Manasuka-form]');
+    const form = document.querySelector('[data-simpanan-sukarela-form]');
     if (!form) return;
 
     const anggotaSelect = form.querySelector('[data-anggota-select]');

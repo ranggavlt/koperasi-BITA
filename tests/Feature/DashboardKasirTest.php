@@ -43,7 +43,7 @@ class DashboardKasirTest extends TestCase
             ->assertOk()
             ->assertSee('Dashboard Kasir')
             ->assertSee('Buka Mesin Kasir')
-            ->assertSee(route('penjualan.index'), false)
+            ->assertSee(route('waserba.index'), false)
             ->assertDontSee('Transaksi Terakhir')
             ->assertDontSee('<table', false);
 

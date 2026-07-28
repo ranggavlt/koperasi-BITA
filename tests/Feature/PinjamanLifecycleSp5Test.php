@@ -65,9 +65,11 @@ class PinjamanLifecycleSp5Test extends TestCase
 
         $this->assertSame(Pinjaman::STATUS_AKTIF, $active->status);
         $this->assertNotNull($active->disbursed_at);
-        $this->assertSame('2000000.00', $dompet->fresh()->saldo);
+        $this->assertSame('2050000.00', $dompet->fresh()->saldo);
         $this->assertSame(1, $active->jadwalCicilan()->count() > 0 ? 1 : 0);
-        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', Pinjaman::class)->where('referensi_id', $active->id)->count());
+        $mutasiPencairan = MutasiKas::query()->where('referensi_tipe', Pinjaman::class)->where('referensi_id', $active->id)->first();
+        $this->assertNotNull($mutasiPencairan);
+        $this->assertSame('4950000.00', $mutasiPencairan->jumlah);
         $this->assertSame(1, JurnalUmum::query()->where('referensi_tipe', Pinjaman::class)->where('referensi_id', $active->id)->count());
         $this->assertSame(0, PemakaianPotongGaji::query()->count());
 
@@ -84,7 +86,7 @@ class PinjamanLifecycleSp5Test extends TestCase
             'tanggal_pencairan' => '2026-07-20',
         ], $finance->id);
 
-        $this->assertSame('2000000.00', $dompet->fresh()->saldo);
+        $this->assertSame('2050000.00', $dompet->fresh()->saldo);
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', Pinjaman::class)->where('referensi_id', $active->id)->count());
         $this->assertSame(1, JurnalUmum::query()->where('referensi_tipe', Pinjaman::class)->where('referensi_id', $active->id)->count());
     }

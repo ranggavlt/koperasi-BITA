@@ -25,7 +25,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Master Data</p>
       <h1 class="kbsm-business-title">Jenis Simpanan</h1>
-      <p class="kbsm-business-subtitle">Kelola master resmi Simpanan Pokok, Wajib, dan Manasuka. Snapshot transaksi lama tidak ikut berubah.</p>
+      <p class="kbsm-business-subtitle">Kelola master resmi Simpanan Pokok, Wajib, dan Sukarela. Snapshot transaksi lama tidak ikut berubah.</p>
     </div>
   </div>
 

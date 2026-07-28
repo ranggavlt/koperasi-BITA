@@ -54,6 +54,9 @@
 
     $currentModule = $currentModule ?? $modules->firstWhere('route', 'pages.dashboard');
 
+    $currentSection = $currentModule['section'] ?? 'Dashboard';
+    $currentLabel = $currentModule['label'] ?? 'Dashboard';
+
     $quickLinks = $quickLinkRoutes
         ->map(fn(string $route) => $modules->firstWhere('route', $route))
         ->filter()
@@ -88,10 +91,10 @@
                 </span>
                 <div class="min-w-0">
                     <div class="text-slate-400 uppercase tracking-widest font-bold" style="font-size: 0.65rem;">
-                        {{ $brandName }} / {{ $currentModule['section'] }}
+                        {{ $brandName }} / {{ $currentSection }}
                     </div>
                     <div class="text-slate-700 font-bold truncate text-sm">
-                        {{ $currentModule['label'] }}
+                        {{ $currentLabel }}
                     </div>
                 </div>
             </div>

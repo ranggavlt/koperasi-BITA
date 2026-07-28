@@ -3,6 +3,7 @@
 
 @php
   $rupiah = fn ($nominal) => 'Rp ' . number_format((int) $nominal, 0, ',', '.');
+  $fallbackFotoProduk = asset('assets/img/demo-products/fallback-produk.svg');
 @endphp
 
 @section('content')
@@ -16,22 +17,86 @@
         Transaksi potong gaji yang masih pending tetap dihitung sebagai nilai penjualan.
       </p>
     </div>
-    <div class="mt-4 sm:mt-0 flex flex-col items-end">
-       <p class="text-sm text-slate-500 mb-2 font-semibold">Siap melayani pelanggan?</p>
-       <a href="{{ route('waserba.index') }}" class="inline-flex items-center justify-center px-8 py-3 font-bold text-center text-white uppercase transition-all border-0 rounded-xl cursor-pointer hover:scale-105 active:opacity-85" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2); font-size: 14px; min-width: 200px;">
-         <i class="fas fa-cash-register mr-2" style="font-size: 16px;"></i> Buka Mesin Kasir
-       </a>
-    </div>
-  </div>
 
-  <!-- Cards -->
-  <div class="flex flex-wrap -mx-3 mb-6">
-    <!-- Total Transaksi -->
-    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
-      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="flex-auto p-4">
-          <div class="flex flex-row -mx-3">
-            <div class="flex-none w-2/3 max-w-full px-3">
+    <div class="kbsm-cashier-hero__action">
+      <span>Siap melayani pelanggan?</span>
+      <a href="{{ route('waserba.index') }}" class="kbsm-cashier-primary-action">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 3a2 2 0 0 0-2 2v3h14V5a2 2 0 0 0-2-2H7Zm12 7H5a3 3 0 0 0-3 3v4a3 3 0 0 0 3 3h1v-6h12v6h1a3 3 0 0 0 3-3v-4a3 3 0 0 0-3-3Zm-3 6H8v5h8v-5Z"/>
+        </svg>
+        Buka Mesin Kasir
+      </a>
+    </div>
+  </section>
+
+  <section class="kbsm-cashier-kpi-grid" aria-label="Ringkasan POS hari ini">
+    <article class="kbsm-cashier-kpi-card">
+      <span class="kbsm-cashier-kpi-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 4h16a1 1 0 0 1 1 1v4H3V5a1 1 0 0 1 1-1Zm-1 7h18v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-8Zm4 3v2h4v-2H7Zm8 0v2h2v-2h-2Z"/>
+        </svg>
+      </span>
+      <div>
+        <p>Total Transaksi Hari Ini</p>
+        <strong>{{ number_format($transaksiHariIni, 0, ',', '.') }}</strong>
+        <span>Transaksi POS valid</span>
+      </div>
+    </article>
+
+    <article class="kbsm-cashier-kpi-card kbsm-cashier-kpi-card--navy">
+      <span class="kbsm-cashier-kpi-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L14 10h7V3l-2.62 2.62A8.96 8.96 0 0 0 12 3Zm-1 4v2.05A3.5 3.5 0 0 0 8 12.5c0 1.76 1.31 2.57 3.58 3.14 1.41.35 1.92.64 1.92 1.16 0 .58-.62.95-1.5.95-.95 0-1.88-.33-2.7-.97l-1.1 1.62c.78.65 1.75 1.05 2.8 1.2V21h2v-1.42c1.78-.33 3-1.43 3-2.9 0-1.67-1.1-2.55-3.45-3.14-1.55-.39-2.05-.65-2.05-1.15 0-.54.58-.89 1.35-.89.82 0 1.54.24 2.21.73l1.02-1.66A5.06 5.06 0 0 0 13 9.08V7h-2Z"/>
+        </svg>
+      </span>
+      <div>
+        <p>Nilai Penjualan Hari Ini</p>
+        <strong>{{ $rupiah($pendapatanHariIni) }}</strong>
+        <span>Termasuk payroll pending yang sah</span>
+      </div>
+    </article>
+
+    <article class="kbsm-cashier-kpi-card kbsm-cashier-kpi-card--gold">
+      <span class="kbsm-cashier-kpi-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/>
+        </svg>
+      </span>
+      <div>
+        <p>Item Terjual Hari Ini</p>
+        <strong>{{ number_format($itemTerjualHariIni, 0, ',', '.') }}</strong>
+        <span>Total kuantitas detail transaksi</span>
+      </div>
+    </article>
+
+    <article class="kbsm-cashier-kpi-card">
+      <span class="kbsm-cashier-kpi-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 19h16v2H4v-2Zm2-8h3v6H6v-6Zm5-6h3v12h-3V5Zm5 3h3v9h-3V8Z"/>
+        </svg>
+      </span>
+      <div>
+        <p>Rata-rata Transaksi</p>
+        <strong>{{ $rupiah($rataRataTransaksi) }}</strong>
+        <span>Nilai penjualan / transaksi</span>
+      </div>
+    </article>
+  </section>
+
+  <section class="kbsm-cashier-lower-grid">
+    <article class="kbsm-cashier-panel">
+      <div class="kbsm-cashier-panel__header">
+        <div>
+          <span class="kbsm-cashier-eyebrow">Pembayaran</span>
+          <h2>Metode Pembayaran Hari Ini</h2>
+        </div>
+      </div>
+
+      <div class="kbsm-cashier-method-list">
+        @foreach($metodePembayaranHariIni as $metode)
+          <div class="kbsm-cashier-method kbsm-cashier-method--{{ $metode['accent'] }}">
+            <div class="kbsm-cashier-method__main">
+              <span class="kbsm-cashier-method__dot" aria-hidden="true"></span>
               <div>
                 <strong>{{ $metode['label'] }}</strong>
                 <span>{{ $metode['hint'] }}</span>
@@ -54,136 +119,36 @@
         </div>
       </div>
 
-    <!-- Omzet Hari Ini -->
-    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
-      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="flex-auto p-4">
-          <div class="flex flex-row -mx-3">
-            <div class="flex-none w-2/3 max-w-full px-3">
-              <div>
-                <p class="mb-0 font-sans text-sm font-semibold leading-normal">Omzet Hari Ini</p>
-                <h5 class="mb-0 font-bold">
-                  Rp {{ number_format($pendapatanHariIni, 0, ',', '.') }}
-                </h5>
+      @if($produkTerlarisHariIni->isEmpty())
+        <div class="kbsm-cashier-empty-state">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 4h10l2 5v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V9l2-5Zm1.24 2-1 2h9.52l-1-2H8.24ZM9 11v2h6v-2H9Z"/>
+          </svg>
+          <strong>Belum ada produk terjual hari ini</strong>
+          <span>Produk terlaris akan muncul otomatis setelah transaksi POS valid tersimpan.</span>
+        </div>
+      @else
+        <div class="kbsm-cashier-product-list">
+          @foreach($produkTerlarisHariIni as $index => $item)
+            <div class="kbsm-cashier-product">
+              <span class="kbsm-cashier-product__rank">{{ $index + 1 }}</span>
+              <img
+                src="{{ $item->produk?->foto_url ?? $fallbackFotoProduk }}"
+                alt="Foto {{ $item->produk?->nama_produk ?? 'Produk' }}"
+                class="kbsm-cashier-product__image"
+              >
+              <div class="kbsm-cashier-product__body">
+                <strong>{{ $item->produk?->nama_produk ?? 'Produk tidak ditemukan' }}</strong>
+                <span>{{ number_format((int) $item->total_qty, 0, ',', '.') }} item terjual</span>
+              </div>
+              <div class="kbsm-cashier-product__revenue">
+                {{ $rupiah($item->total_revenue) }}
               </div>
             </div>
           @endforeach
         </div>
-      </div>
-    </div>
-
-    <!-- Item Terjual -->
-    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
-      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="flex-auto p-4">
-          <div class="flex flex-row -mx-3">
-            <div class="flex-none w-2/3 max-w-full px-3">
-              <div>
-                <p class="mb-0 font-sans text-sm font-semibold leading-normal">Item Terjual Hari Ini</p>
-                <h5 class="mb-0 font-bold">
-                  {{ number_format($itemTerjualHariIni, 0, ',', '.') }}
-                </h5>
-              </div>
-            </div>
-            <div class="px-3 text-right basis-1/3">
-              <div class="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-green-600 to-lime-400">
-                <i class="ni leading-none ni-box-2 text-lg relative top-3.5 text-white"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Rata-rata Transaksi -->
-    <div class="w-full max-w-full px-3 mb-6 sm:w-1/2 sm:flex-none xl:mb-0 xl:w-1/4">
-      <div class="relative flex flex-col h-full min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-        <div class="flex-auto p-4">
-          <div class="flex flex-row -mx-3">
-            <div class="flex-none w-2/3 max-w-full px-3">
-              <div>
-                <p class="mb-0 font-sans text-sm font-semibold leading-normal">Rata-rata Transaksi</p>
-                <h5 class="mb-0 font-bold">
-                  Rp {{ number_format($rataRataTransaksi, 0, ',', '.') }}
-                </h5>
-              </div>
-            </div>
-            <div class="px-3 text-right basis-1/3">
-              <div class="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-green-600 to-lime-400">
-                <i class="ni leading-none ni-chart-bar-32 text-lg relative top-3.5 text-white"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Transaksi Terakhir -->
-  <div class="flex flex-wrap -mx-3">
-    <div class="w-full max-w-full px-3 mt-0 mb-6 lg:mb-0 lg:w-full lg:flex-none">
-      <div class="border-black/12.5 shadow-soft-xl relative flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border">
-        <div class="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
-          <div class="flex flex-wrap mt-0 -mx-3">
-            <div class="flex-none w-7/12 max-w-full px-3 mt-0 lg:w-1/2 lg:flex-none">
-              <h6 class="mb-0">Transaksi Terakhir</h6>
-            </div>
-          </div>
-        </div>
-        <div class="flex-auto p-6 px-0 pb-2">
-          <div style="overflow-x: auto;" class="">
-            <table class="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-              <thead class="align-bottom">
-                <tr>
-                  <th class="px-6 py-3 font-bold tracking-normal text-left uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                    No. Ref
-                  </th>
-                  <th class="px-6 py-3 pl-2 font-bold tracking-normal text-left uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                    Pelanggan
-                  </th>
-                  <th class="px-6 py-3 font-bold tracking-normal text-center uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                    Total
-                  </th>
-                  <th class="px-6 py-3 font-bold tracking-normal text-center uppercase align-middle bg-transparent border-b letter border-b-solid text-xxs whitespace-nowrap border-b-gray-200 text-slate-400 opacity-70">
-                    Waktu
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                @forelse($transaksiTerakhir as $trx)
-                <tr class="hover:bg-slate-50 transition-colors">
-                  <td class="p-3 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                    <div class="flex px-2 py-1">
-                      <div class="flex flex-col justify-center">
-                        <h6 class="mb-0 text-sm font-bold text-slate-700">{{ $trx->kode_transaksi }}</h6>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                    <p class="mb-0 text-xs font-semibold leading-tight">
-                        {{ $trx->tipe_pelanggan === 'anggota' ? ($trx->anggota->karyawan->nama ?? 'Anggota') : ($trx->tipe_pelanggan === 'karyawan' ? ($trx->karyawan->nama ?? 'Karyawan') : 'Umum') }}
-                    </p>
-                  </td>
-                  <td class="p-2 text-sm leading-normal text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                    <span class="text-xs font-semibold leading-tight">Rp {{ number_format($trx->grand_total, 0, ',', '.') }}</span>
-                  </td>
-                  <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                    <span class="text-xs font-semibold leading-tight">{{ $trx->created_at->format('H:i') }}</span>
-                  </td>
-                </tr>
-                @empty
-                <tr>
-                  <td colspan="4" class="p-4 text-center text-sm text-slate-500 bg-transparent border-b">
-                    Belum ada transaksi
-                  </td>
-                </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+      @endif
+    </article>
+  </section>
 </div>
 @endsection

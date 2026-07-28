@@ -32,7 +32,7 @@ class KasirPanelTouchUpTest extends TestCase
         $this->post(route('login.submit'), [
             'email' => $kasir->email,
             'password' => 'Kbsm12345!',
-        ])->assertRedirect(route('penjualan.index'));
+        ])->assertRedirect(route('waserba.index'));
         $this->post(route('logout'));
 
         $this->post(route('login.submit'), [
@@ -62,7 +62,7 @@ class KasirPanelTouchUpTest extends TestCase
             ->assertDontSee('@livewireScripts', false);
 
         $this->actingAs($kasir)
-            ->get(route('penjualan.index'))
+            ->get(route('waserba.index'))
             ->assertOk()
             ->assertDontSee('@livewireStyles', false)
             ->assertDontSee('@livewireScripts', false);
@@ -126,7 +126,7 @@ class KasirPanelTouchUpTest extends TestCase
             ->assertSee('Foto Beras Premium BITA 5kg', false);
 
         $this->actingAs($this->user('kasir', 'kasir-produk-foto@kbsm.test'))
-            ->get(route('penjualan.index'))
+            ->get(route('waserba.index'))
             ->assertOk()
             ->assertSee($produk->foto_url, false)
             ->assertSee('Foto Beras Premium BITA 5kg', false);

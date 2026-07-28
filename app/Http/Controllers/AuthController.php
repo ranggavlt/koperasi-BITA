@@ -46,7 +46,7 @@ class AuthController extends Controller
         }
 
         return match (Auth::user()->role) {
-            'kasir' => redirect()->route('penjualan.index'),
+            'kasir' => redirect()->route('waserba.index'),
             default => redirect()->route('pages.dashboard'),
         };
     }

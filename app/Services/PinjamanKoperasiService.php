@@ -87,8 +87,9 @@ class PinjamanKoperasiService
 
                 $this->createJadwal($pinjaman, $jumlahRupiah, $tenor, $tanggalPinjaman);
                 $this->reserveFirstInstallmentIfActiveLimit($pinjaman, $userId);
-                $this->recordMutasiPencairan($pinjaman, $dompet, $jumlahRupiah);
-                $this->decreaseSaldoDompet($dompet, $jumlahRupiah);
+                $cashOutRupiah = $this->cashOutPencairanAmount($pinjaman, $jumlahRupiah);
+                $this->recordMutasiPencairan($pinjaman, $dompet, $cashOutRupiah);
+                $this->decreaseSaldoDompet($dompet, $cashOutRupiah);
                 $this->akuntansiService->recordPencairanPinjaman($pinjaman, $akunDompet, $userId);
 
                 return $pinjaman->fresh(['anggota.karyawan', 'dompet.akun', 'jadwalCicilan', 'mutasiKas', 'jurnal.details']);
@@ -315,7 +316,8 @@ class PinjamanKoperasiService
                     ->lockForUpdate()
                     ->findOrFail((int) $data['dompet_id']);
                 $akunDompet = $this->assertUsableDompet($dompet);
-                $this->assertSaldoCukup($dompet, $jumlahRupiah);
+                $cashOutRupiah = $this->cashOutPencairanAmount($locked, $jumlahRupiah);
+                $this->assertSaldoCukup($dompet, $cashOutRupiah);
 
                 $tanggalPencairan = $this->normalizeTanggal($data['tanggal_pencairan'] ?? $data['tanggal_pinjaman'] ?? now(config('app.timezone')));
 
@@ -331,15 +333,10 @@ class PinjamanKoperasiService
 
                 $this->createJadwal($locked, $jumlahRupiah, $tenor, $tanggalPencairan);
                 $this->reserveFirstInstallmentIfActiveLimit($locked, $userId);
-                $mutasi = $this->recordMutasiPencairan($locked, $dompet, $jumlahRupiah);
+                $mutasi = $this->recordMutasiPencairan($locked, $dompet, $cashOutRupiah);
 
                 if ($mutasi->wasRecentlyCreated) {
-                    if ($locked->cara_bayar_admin === 'potong_pinjaman') {
-                        $this->decreaseSaldoDompet($dompet, $jumlahRupiah - (int) $locked->biaya_admin);
-                    } else {
-                        // Tunai: cash out = jumlahRupiah, cash in = biaya_admin
-                        $this->decreaseSaldoDompet($dompet, $jumlahRupiah - (int) $locked->biaya_admin);
-                    }
+                    $this->decreaseSaldoDompet($dompet, $cashOutRupiah);
                 }
 
                 $this->akuntansiService->recordPencairanPinjaman($locked, $akunDompet, $userId);
@@ -440,6 +437,17 @@ class PinjamanKoperasiService
         }
         
         return $mutasiPencairan;
+    }
+
+    private function cashOutPencairanAmount(Pinjaman $pinjaman, int $jumlahRupiah): int
+    {
+        $biayaAdmin = max(0, $this->rupiahInt($pinjaman->biaya_admin ?? 0));
+
+        if ($pinjaman->cara_bayar_admin === 'potong_pinjaman' && $biayaAdmin > 0) {
+            return max(0, $jumlahRupiah - $biayaAdmin);
+        }
+
+        return $jumlahRupiah;
     }
 
     private function decreaseSaldoDompet(DompetKoperasi $dompet, int $jumlahRupiah): void

@@ -92,35 +92,9 @@ class DashboardController extends Controller
             ->get();
 
         // =============================
-        // 5. AKTIVITAS TERAKHIR
-        // =============================
-
-        $transaksiTerakhir = Penjualan::with('karyawan')
-            ->orderByDesc('id')
-            ->limit(6)
-            ->get()
-            ->map(function ($trx) {
-                $trx->grand_total = (int) ($trx->grand_total ?? 0);
-                return $trx;
-            });
-
-        // =============================
         // RETURN VIEW
         // =============================
 
-<<<<<<< HEAD
-=======
-        if (auth()->user()->role === 'kasir') {
-            return view('pages.dashboard-kasir', compact(
-                'pendapatanHariIni',
-                'transaksiHariIni',
-                'itemTerjualHariIni',
-                'rataRataTransaksi',
-                'transaksiTerakhir'
-            ));
-        }
-
->>>>>>> 7a84cbae3a71fe0b580c3e272de2861dca8832e6
         return view('pages.dashboard', compact(
             'pendapatanHariIni',
             'transaksiHariIni',
@@ -128,8 +102,7 @@ class DashboardController extends Controller
             'pendapatanBulanIni',
             'grafikBulan',
             'grafikPendapatan',
-            'produkTerlaris',
-            'transaksiTerakhir'
+            'produkTerlaris'
         ));
     }
 
