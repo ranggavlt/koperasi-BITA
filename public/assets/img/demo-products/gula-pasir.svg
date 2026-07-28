@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Gula Pasir Kristal 1kg</title>
+  <desc id="desc">Kemasan gula pasir kristal.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <rect x="72" y="44" width="176" height="164" rx="24" fill="#ffffff" stroke="#073b5c" stroke-width="6"/>
+  <path d="M88 70h144v42H88z" fill="#10b981"/>
+  <path d="M104 126h112v54H104z" fill="#e0f2fe"/>
+  <text x="160" y="96" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">GULA</text>
+  <text x="160" y="159" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#073b5c">1 kg</text>
+  <g fill="#f2b84b" opacity=".95">
+    <circle cx="70" cy="182" r="8"/>
+    <circle cx="248" cy="68" r="7"/>
+    <circle cx="262" cy="190" r="10"/>
+    <circle cx="56" cy="66" r="5"/>
+  </g>
+</svg>

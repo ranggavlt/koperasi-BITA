@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Kopi Mix 10 Sachet</title>
+  <desc id="desc">Kemasan kopi mix dengan cangkir.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <rect x="74" y="48" width="172" height="150" rx="20" fill="#073b5c"/>
+  <rect x="94" y="70" width="132" height="46" rx="12" fill="#f2b84b"/>
+  <text x="160" y="101" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#073b5c">KOPI</text>
+  <path d="M124 136h54v24c0 18-12 30-27 30s-27-12-27-30z" fill="#ffffff"/>
+  <path d="M178 144h14c12 0 12 22 0 22h-14" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M138 130c-8-10 8-14 0-24M158 130c-8-10 8-14 0-24" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+  <text x="204" y="174" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#10b981">10x</text>
+</svg>

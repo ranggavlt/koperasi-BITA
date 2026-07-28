@@ -605,6 +605,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'beras-premium.svg',
             ],
             'gula_pasir' => [
                 'nama_produk' => 'Gula Pasir Kristal 1kg',
@@ -615,6 +616,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'gula-pasir.svg',
             ],
             'minyak_goreng' => [
                 'nama_produk' => 'Minyak Goreng Hemat 1L',
@@ -625,6 +627,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'minyak-goreng.svg',
             ],
             'air_mineral' => [
                 'nama_produk' => 'Air Mineral 600ml',
@@ -635,6 +638,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'air-mineral.svg',
             ],
             'kopi_mix' => [
                 'nama_produk' => 'Kopi Mix 10 Sachet',
@@ -645,6 +649,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'kopi-mix.svg',
             ],
             'biskuit_cokelat' => [
                 'nama_produk' => 'Biskuit Cokelat Keluarga',
@@ -655,6 +660,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'biskuit-cokelat.svg',
             ],
             'buku_tulis' => [
                 'nama_produk' => 'Buku Tulis 38 Lembar',
@@ -665,6 +671,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'buku-tulis.svg',
             ],
             'sabun_cuci' => [
                 'nama_produk' => 'Sabun Cuci Piring 800ml',
@@ -675,6 +682,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => false,
                 'reseller_id' => null,
                 'harga_setor' => 0,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'sabun-cuci-piring.svg',
             ],
             'brownies_kukus' => [
                 'nama_produk' => 'Brownies Kukus Cokelat',
@@ -685,6 +693,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => true,
                 'reseller_id' => $reseller['dapur_bu_rina']->id,
                 'harga_setor' => 13000,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'brownies-cokelat.svg',
             ],
             'roti_sisir' => [
                 'nama_produk' => 'Roti Sisir Keju',
@@ -695,6 +704,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => true,
                 'reseller_id' => $reseller['roti_kampung']->id,
                 'harga_setor' => 10500,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'roti-sisir-keju.svg',
             ],
             'keripik_pisang' => [
                 'nama_produk' => 'Keripik Pisang Original',
@@ -705,6 +715,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => true,
                 'reseller_id' => $reseller['keripik_nusantara']->id,
                 'harga_setor' => 8500,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'keripik-pisang.svg',
             ],
             'sambal_rumahan' => [
                 'nama_produk' => 'Sambal Botol Rumahan 200ml',
@@ -715,6 +726,7 @@ class KoperasiDummySeeder extends Seeder
                 'konsinyasi' => true,
                 'reseller_id' => $reseller['dapur_bu_rina']->id,
                 'harga_setor' => 16000,
+                'foto' => Produk::DEMO_PHOTO_PREFIX . 'sambal-botol.svg',
             ],
         ];
 
@@ -730,7 +742,13 @@ class KoperasiDummySeeder extends Seeder
                 $lookup['reseller_id'] = $row['reseller_id'];
             }
 
-            $result[$key] = Produk::firstOrCreate($lookup, $row);
+            $produk = Produk::firstOrCreate($lookup, $row);
+
+            if (empty($produk->foto) && isset($row['foto'])) {
+                $produk->update(['foto' => $row['foto']]);
+            }
+
+            $result[$key] = $produk->fresh();
         }
 
         return $result;

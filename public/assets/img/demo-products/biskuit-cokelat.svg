@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Biskuit Cokelat Keluarga</title>
+  <desc id="desc">Kemasan biskuit cokelat keluarga.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <rect x="62" y="70" width="196" height="110" rx="22" fill="#7c2d12" stroke="#073b5c" stroke-width="6"/>
+  <rect x="84" y="90" width="152" height="32" rx="10" fill="#f2b84b"/>
+  <text x="160" y="114" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#073b5c">BISKUIT</text>
+  <g fill="#f8fafc" opacity=".95">
+    <circle cx="116" cy="148" r="16"/>
+    <circle cx="160" cy="148" r="16"/>
+    <circle cx="204" cy="148" r="16"/>
+  </g>
+  <g fill="#7c2d12">
+    <circle cx="111" cy="145" r="3"/>
+    <circle cx="163" cy="151" r="3"/>
+    <circle cx="208" cy="145" r="3"/>
+  </g>
+  <path d="M70 196h180" stroke="#10b981" stroke-width="9" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Sabun Cuci Piring 800ml</title>
+  <desc id="desc">Botol sabun cuci piring hijau.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <rect x="128" y="36" width="64" height="32" rx="10" fill="#073b5c"/>
+  <path d="M118 68h84l16 36v78c0 22-18 40-40 40h-36c-22 0-40-18-40-40v-78z" fill="#10b981" stroke="#073b5c" stroke-width="6"/>
+  <rect x="120" y="118" width="80" height="54" rx="14" fill="#ffffff"/>
+  <text x="160" y="151" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#073b5c">SABUN</text>
+  <circle cx="232" cy="72" r="12" fill="#dbeafe"/>
+  <circle cx="254" cy="98" r="8" fill="#dbeafe"/>
+  <circle cx="82" cy="94" r="10" fill="#dbeafe"/>
+  <path d="M118 198c25 12 59 12 84 0" stroke="#f2b84b" stroke-width="8" stroke-linecap="round"/>
+</svg>

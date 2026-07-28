@@ -23,6 +23,5 @@
     <script src="{{ asset('assets/js/soft-ui-dashboard-tailwind.js') }}?v=1.0.5" defer></script>
 
     @stack('scripts')
-    @livewireScripts
   </body>
 </html>
