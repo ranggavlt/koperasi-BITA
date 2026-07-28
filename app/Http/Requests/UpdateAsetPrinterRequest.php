@@ -36,6 +36,8 @@ class UpdateAsetPrinterRequest extends FormRequest
             'model' => ['required', 'string', 'max:100'],
             'lokasi' => ['required', 'string', 'max:150'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
+            'vendor_id' => ['nullable', 'exists:vendor,id'],
+            'harga_dasar_vendor' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
@@ -47,6 +49,8 @@ class UpdateAsetPrinterRequest extends FormRequest
             'merek.required' => 'Merek printer wajib diisi.',
             'model.required' => 'Model printer wajib diisi.',
             'lokasi.required' => 'Lokasi printer wajib diisi.',
+            'vendor_id.exists' => 'Vendor tidak ditemukan.',
+            'harga_dasar_vendor.numeric' => 'Harga dasar harus berupa angka.',
         ];
     }
 

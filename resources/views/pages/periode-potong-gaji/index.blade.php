@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -52,7 +52,7 @@
       @foreach($periodeList as $periode)
         <a href="{{ route('periode-potong-gaji.index', ['periode_id' => $periode->id]) }}"
           class="rounded-xl px-4 py-2 text-xs font-bold uppercase {{ $selectedPeriode && $selectedPeriode->id === $periode->id ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600' }}">
-          {{ $periode->periode->format('M Y') }} · {{ $periode->status }} · {{ $periode->limits_count }} limit
+          {{ $periode->periode->format('M Y') }} Â· {{ $periode->status }} Â· {{ $periode->limits_count }} limit
         </a>
       @endforeach
     </div>
@@ -63,7 +63,7 @@
     <div class="mt-6 rounded-2xl bg-white shadow-soft-xl">
       <div class="border-b border-slate-100 p-6">
         <h6 class="mb-1">Limit Anggota Periode {{ $periodeLabel }}</h6>
-        <p class="mb-0 text-sm text-slate-400">Anggota tanpa limit tampil sebagai “Belum dikonfigurasi”, bukan Rp0.</p>
+        <p class="mb-0 text-sm text-slate-400">Anggota tanpa limit tampil sebagai â€œBelum dikonfigurasiâ€, bukan Rp0.</p>
       </div>
 
       <div style="overflow-x: auto;" class="">

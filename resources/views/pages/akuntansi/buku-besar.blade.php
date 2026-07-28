@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @php
   $normalSide = strtolower((string) ($akunModel?->posisi_saldo ?? 'debit'));

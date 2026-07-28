@@ -486,10 +486,32 @@ class AkuntansiService
     public function recordPencairanPinjaman(Pinjaman $pinjaman, Akun $akunDompet, ?int $userId = null): JurnalUmum
     {
         $jumlah = (float) ($pinjaman->jumlah_pinjaman ?? 0);
+        $biayaAdmin = (float) ($pinjaman->biaya_admin ?? 0);
         $tanggal = (string) ($pinjaman->tanggal_pinjaman ?? now()->toDateString());
 
         if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
             throw new RuntimeException('Akun Dompet pencairan harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $lines = [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('pinjaman.piutang'),
+                'debit',
+                $jumlah
+            ),
+        ];
+
+        if ($pinjaman->cara_bayar_admin === 'potong_pinjaman' && $biayaAdmin > 0) {
+            $lines[] = $this->akunResolver->line($akunDompet, 'kredit', $jumlah - $biayaAdmin);
+            $lines[] = $this->akunResolver->line($this->akunResolver->posting('pinjaman.pendapatan_admin'), 'kredit', $biayaAdmin);
+        } elseif ($pinjaman->cara_bayar_admin === 'tunai' && $biayaAdmin > 0) {
+            // Pencairan utuh
+            $lines[] = $this->akunResolver->line($akunDompet, 'kredit', $jumlah);
+            // Tambahan Jurnal untuk penerimaan kas admin
+            $lines[] = $this->akunResolver->line($akunDompet, 'debit', $biayaAdmin);
+            $lines[] = $this->akunResolver->line($this->akunResolver->posting('pinjaman.pendapatan_admin'), 'kredit', $biayaAdmin);
+        } else {
+            $lines[] = $this->akunResolver->line($akunDompet, 'kredit', $jumlah);
         }
 
         return $this->record([
@@ -500,18 +522,7 @@ class AkuntansiService
             'referensi_tipe' => Pinjaman::class,
             'referensi_id' => $pinjaman->id,
             'created_by' => $userId ?? auth()->id(),
-        ], [
-            $this->akunResolver->line(
-                $this->akunResolver->posting('pinjaman.piutang'),
-                'debit',
-                $jumlah
-            ),
-            $this->akunResolver->line(
-                $akunDompet,
-                'kredit',
-                $jumlah
-            ),
-        ]);
+        ], $lines);
     }
 
     public function recordPembayaranDimukaSewaMobil(

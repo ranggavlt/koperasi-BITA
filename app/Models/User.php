@@ -30,6 +30,7 @@ class User extends Authenticatable
         'account_updated_by',
         'account_deactivated_by',
         'account_deactivated_at',
+        'avatar_path',
     ];
 
     /**

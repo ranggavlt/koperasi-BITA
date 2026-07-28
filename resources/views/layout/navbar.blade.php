@@ -40,7 +40,19 @@
             ->contains($currentPath);
 
         return $routeMatches || $pathMatches;
-    }) ?? $modules->firstWhere('route', 'pages.dashboard');
+    });
+
+    if (! $currentModule && $currentRouteName === 'pages.profile') {
+        $currentModule = [
+            'section' => 'Akun',
+            'label' => 'Profile',
+            'route' => 'pages.profile',
+            'badge' => 'PR',
+            'url' => route('pages.profile')
+        ];
+    }
+
+    $currentModule = $currentModule ?? $modules->firstWhere('route', 'pages.dashboard');
 
     $quickLinks = $quickLinkRoutes
         ->map(fn(string $route) => $modules->firstWhere('route', $route))
@@ -63,157 +75,84 @@
     $brandName = config('navigation.brand.name', 'Koperasi BITA');
 @endphp
 
-<nav class="relative mx-6 mt-4 mb-3" navbar-main navbar-scroll="true">
-    <div
-        class="relative rounded-2xl bg-white shadow-soft-xl"
-        data-navbar-shell
-        style="padding: 0.8rem 1rem;">
-        <div class="flex flex-wrap items-center" style="gap: 0.7rem;">
+<nav class="flex flex-wrap items-center justify-between px-0 py-2 mx-6 mt-3 mb-2 transition-all duration-250 ease-soft-in rounded-2xl lg:flex-nowrap lg:justify-start bg-white shadow-soft-xl" navbar-main>
+    <div class="flex items-center justify-between w-full px-4 py-1 mx-auto flex-wrap lg:flex-nowrap" data-navbar-shell>
+        
+        <!-- BREADCRUMBS (LEFT) -->
+        <nav class="lg:flex-1 flex justify-start">
             <div class="flex min-w-0 items-center" data-navbar-current style="gap: 0.7rem;">
-                <span
-                    class="inline-flex items-center justify-center rounded-xl text-slate-700"
-                    data-module-badge
-                    style="width: 2.2rem; height: 2.2rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;">
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        aria-hidden="true">
-                        <path
-                            d="M4 4H11V11H4V4ZM13 4H20V8.5H13V4ZM13 10.5H20V20H13V10.5ZM4 13H11V20H4V13Z"
-                            fill="currentColor" />
+                <span class="inline-flex items-center justify-center rounded-xl text-slate-700 bg-white shadow-sm" data-module-badge style="width: 2.2rem; height: 2.2rem;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M4 4H11V11H4V4ZM13 4H20V8.5H13V4ZM13 10.5H20V20H13V10.5ZM4 13H11V20H4V13Z" fill="currentColor" />
                     </svg>
                 </span>
-
-                {{-- <div class="min-w-0">
-                    <div
-                        class="text-slate-400"
-                        style="font-size: 0.67rem; font-weight: 700; letter-spacing: 0.14em; line-height: 1.1; text-transform: uppercase;">
+                <div class="min-w-0">
+                    <div class="text-slate-400 uppercase tracking-widest font-bold" style="font-size: 0.65rem;">
                         {{ $brandName }} / {{ $currentModule['section'] }}
                     </div>
-                    <div
-                        class="text-slate-700"
-                        style="font-size: 0.95rem; font-weight: 700; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <div class="text-slate-700 font-bold truncate text-sm">
                         {{ $currentModule['label'] }}
                     </div>
-                </div> --}}
+                </div>
             </div>
+        </nav>
 
-            <form class="relative" data-navbar-search-wrap data-module-search-form>
-                <div class="flex items-center" style="gap: 0.55rem;">
-                    <div class="relative flex-1">
-                    <span
-                        class="absolute left-0 z-10 flex h-full items-center justify-center text-slate-400"
-                        style="width: 2.45rem;">
-                        <i class="fas fa-search" style="font-size: 0.82rem;"></i>
+        <!-- SEARCH BAR (CENTER) -->
+        <div class="lg:flex-1 flex justify-center w-full lg:w-auto mt-3 lg:mt-0 order-3 lg:order-none">
+            <form class="relative flex items-center w-full max-w-md" data-navbar-search-wrap data-module-search-form>
+                <div class="relative w-full flex items-center">
+                    <span class="absolute left-0 z-10 flex h-full items-center justify-center text-slate-400 w-10">
+                        <i class="fas fa-search text-xs"></i>
                     </span>
-
-                    <input
-                        type="text"
-                        class="kbsm-focus w-full rounded-xl border border-solid border-gray-300 bg-white text-sm text-slate-700 transition-all placeholder:text-slate-400 focus:outline-none"
-                        style="height: 2.65rem; padding-left: 2.45rem; padding-right: 0.95rem;"
-                        placeholder="Cari modul..."
-                        autocomplete="off"
-                        data-module-search-input />
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="rounded-lg px-3 text-xs font-bold uppercase transition-all"
-                        data-module-search-button
-                        style="height: 2.65rem; min-width: 4.35rem;">
+                    <input type="text" class="kbsm-focus w-full rounded-xl border border-solid border-gray-300 bg-white text-sm text-slate-700 transition-all placeholder:text-slate-400 focus:outline-none focus:border-fuchsia-300 focus:shadow-soft-primary-outline pl-10 pr-4 py-2" style="height: 2.2rem;" placeholder="Cari modul..." autocomplete="off" data-module-search-input />
+                    <button type="submit" class="ml-2 rounded-lg px-3 font-bold uppercase transition-all bg-gradient-to-tl from-slate-800 to-slate-700 text-white shadow-soft-md hover:scale-102" data-module-search-button style="height: 2.2rem; font-size: 0.7rem;">
                         Buka
                     </button>
+                    <!-- Search Results -->
+                    <div class="absolute left-0 right-0 z-50 hidden max-h-96 overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-soft-3xl" style="top: calc(100% + 0.6rem);" data-module-search-results></div>
                 </div>
-
                 <div class="hidden" data-module-search-status aria-live="polite">
-                    Ketik nama modul lalu tekan Enter. Shortcut cepat: tekan "/".
+                    Ketik nama modul lalu tekan Enter.
                 </div>
-
-                <div
-                    class="absolute left-0 right-0 z-50 hidden overflow-hidden rounded-2xl bg-white shadow-soft-3xl"
-                    style="top: calc(100% + 0.6rem);"
-                    data-module-search-results></div>
             </form>
+        </div>
 
-            {{-- <div class="flex items-center" data-navbar-tools style="gap: 0.45rem;">
-                <span
-                    class="text-slate-500"
-                    data-navbar-meta-pill
-                    style="font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em;">
-                    /
-                </span>
-
-                <div class="items-center" data-navbar-quick-links style="gap: 0.4rem;">
-                    @foreach ($quickLinks as $quickLink)
-                        @php $isActiveQuickLink = $currentModule['route'] === $quickLink['route']; @endphp
-
-                        <a
-                            href="{{ $quickLink['url'] }}"
-                            class="rounded-lg px-3 py-2 text-slate-600 transition-all"
-                            data-navbar-pill
-                            data-active="{{ $isActiveQuickLink ? 'true' : 'false' }}"
-                            style="font-size: 0.78rem; font-weight: 700; line-height: 1; text-decoration: none;">
-                            {{ $quickLink['label'] }}
-                        </a>
-                    @endforeach
-                </div>
-
-                <a
-                    href="javascript:;"
-                    class="block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden"
-                    sidenav-trigger>
-                    <div class="w-4.5 overflow-hidden">
-                        <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
-                        <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
-                        <i class="ease-soft relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
-                    </div>
+        <!-- TOOLS (RIGHT) -->
+        <div class="lg:flex-1 flex items-center justify-end sm:mr-6 md:mr-0 order-2 lg:order-none" style="gap: 1rem;">
+            <!-- Profile & Logout -->
+            @auth
+            <div class="hidden xl:flex items-center" style="gap: 0.5rem;">
+                <a href="{{ route('pages.profile') }}" class="flex items-center rounded-xl border border-gray-200 bg-white pr-3 pl-1 py-1 font-bold uppercase text-slate-600 shadow-soft-xs transition-all hover:scale-105" style="font-size: 0.75rem;">
+                  @if(auth()->user()->avatar_path)
+                    <img src="{{ Storage::url(auth()->user()->avatar_path) }}" class="w-6 h-6 rounded-full object-cover mr-2" alt="avatar">
+                  @else
+                    <div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mr-2"><i class="fas fa-user" style="font-size:0.6rem"></i></div>
+                  @endif
+                  {{ auth()->user()->name }}
                 </a>
-            </div> --}}
+                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                  @csrf
+                  <button type="submit" class="rounded-xl bg-gradient-to-tl from-red-600 to-rose-400 px-3 py-1.5 font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105" style="font-size: 0.75rem;">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                  </button>
+                </form>
+            </div>
+            @endauth
 
-            <a
-                href="javascript:;"
-                class="ml-auto block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden"
-                sidenav-trigger>
+            <!-- Hamburger Menu (Mobile) -->
+            <a href="javascript:;" class="block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden" sidenav-trigger>
                 <div class="w-4.5 overflow-hidden">
                     <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
                     <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
                     <i class="ease-soft relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
                 </div>
             </a>
-
-            @auth
-              <div class="ml-auto hidden items-center xl:flex" style="gap: 0.5rem;">
-                <a
-                  href="{{ route('pages.profile') }}"
-                  class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold uppercase text-slate-600 shadow-soft-xs transition-all hover:scale-105"
-                  style="text-decoration: none;">
-                  <i class="fas fa-user mr-2"></i>Profile
-                </a>
-
-                <form method="POST" action="{{ route('logout') }}">
-                  @csrf
-                  <button
-                    type="submit"
-                    class="rounded-xl bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                  </button>
-                </form>
-              </div>
-            @endauth
         </div>
     </div>
 </nav>
 
 @once
     <style>
-        [data-navbar-shell] {
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            box-shadow: 0 12px 30px rgba(5, 44, 70, 0.07);
-        }
-
         [data-navbar-current] {
             flex: 0 0 auto;
         }

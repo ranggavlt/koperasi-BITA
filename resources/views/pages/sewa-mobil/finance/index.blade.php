@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -108,7 +108,7 @@
                 <div>{{ $item->tanggal_selesai->format('d/m/Y') }}</div>
               </td>
               <td>
-                <div>{{ $item->jumlah_hari }} hari × Rp {{ number_format((int) $item->tarif_harian_snapshot, 0, ',', '.') }}</div>
+                <div>{{ $item->jumlah_hari }} hari Ã— Rp {{ number_format((int) $item->tarif_harian_snapshot, 0, ',', '.') }}</div>
                 <div class="kbsm-business-strong">Rp {{ number_format((int) $item->total_sewa, 0, ',', '.') }}</div>
                 @if($item->pembayaran)
                   <div class="kbsm-business-muted">{{ $item->pembayaran->metode_pembayaran }} / {{ $item->pembayaran->dompet->nama_dompet ?? '-' }}</div>

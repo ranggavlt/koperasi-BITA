@@ -26,11 +26,11 @@
 
   <section id="form-container" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl hidden">
     <div class="mb-5">
-      <h2 class="font-bold text-slate-700">Form Akun Baru</h2>
+      <h2 class="text-base font-bold text-slate-700 m-0">Form Akun Baru</h2>
       <p class="text-sm text-slate-400">Buat akun untuk memberi hak akses ke dalam sistem.</p>
     </div>
 
-    <form action="{{ route('users.store') }}" method="POST">
+    <form action="{{ route('users.store') }}" method="POST" enctype="multipart/form-data">
       @csrf
       <div class="grid gap-4 md:grid-cols-2">
         <div>
@@ -57,6 +57,11 @@
             class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
         </div>
         <div class="md:col-span-2">
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="avatar">Foto Profil (Avatar)</label>
+          <input id="avatar" name="avatar" type="file" accept="image/*"
+            class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm bg-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+        </div>
+        <div class="md:col-span-2">
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="karyawan_id">Hubungkan ke Profil Karyawan (Opsional)</label>
           <select id="karyawan_id" name="karyawan_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
             <option value="">-- Tidak Terhubung ke Karyawan --</option>
@@ -79,7 +84,7 @@
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
     <div class="border-b border-slate-100 p-6">
-      <h2 class="font-bold text-slate-700">Daftar Akun Pengguna</h2>
+      <h2 class="text-base font-bold text-slate-700 m-0">Daftar Akun Pengguna</h2>
       <p class="text-sm text-slate-400">Kelola semua hak akses login sistem.</p>
     </div>
     <div style="overflow-x: auto;">
@@ -150,7 +155,7 @@
 <div id="edit-modal" class="fixed inset-0 z-50 flex hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm">
   <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl mx-4">
     <h3 class="mb-4 text-lg font-bold text-slate-700">Edit Akun</h3>
-    <form id="edit-form" method="POST">
+    <form id="edit-form" method="POST" enctype="multipart/form-data">
       @csrf @method('PUT')
       <div class="grid gap-4 mb-6">
         <div>
@@ -177,6 +182,11 @@
               <option value="{{ $kry->id }}">{{ $kry->nama }}</option>
             @endforeach
           </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-bold uppercase text-slate-600">Ganti Foto Profil (Opsional)</label>
+          <input id="edit_avatar" name="avatar" type="file" accept="image/*"
+            class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm bg-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
         </div>
       </div>
       <div class="flex justify-end gap-3">

@@ -29,6 +29,8 @@ class AsetKoperasiService
                     'keterangan' => $this->nullableText($data['keterangan'] ?? null),
                     'created_by' => $userId,
                     'updated_by' => $userId,
+                    'vendor_id' => $data['vendor_id'] ?? null,
+                    'harga_dasar_vendor' => $data['harga_dasar_vendor'] ?? 0,
                 ]);
 
                 $aset->mobil()->create([
@@ -56,6 +58,8 @@ class AsetKoperasiService
                     'keterangan' => $this->nullableText($data['keterangan'] ?? null),
                     'created_by' => $userId,
                     'updated_by' => $userId,
+                    'vendor_id' => $data['vendor_id'] ?? null,
+                    'harga_dasar_vendor' => $data['harga_dasar_vendor'] ?? 0,
                 ]);
 
                 $aset->printer()->create([
@@ -87,6 +91,8 @@ class AsetKoperasiService
                     'model' => $this->normalizeText($data['model']),
                     'keterangan' => $this->nullableText($data['keterangan'] ?? null),
                     'updated_by' => $userId,
+                    'vendor_id' => $data['vendor_id'] ?? null,
+                    'harga_dasar_vendor' => $data['harga_dasar_vendor'] ?? 0,
                 ]);
 
                 $locked->mobil()->updateOrCreate(
@@ -120,6 +126,8 @@ class AsetKoperasiService
                     'model' => $this->normalizeText($data['model']),
                     'keterangan' => $this->nullableText($data['keterangan'] ?? null),
                     'updated_by' => $userId,
+                    'vendor_id' => $data['vendor_id'] ?? null,
+                    'harga_dasar_vendor' => $data['harga_dasar_vendor'] ?? 0,
                 ]);
 
                 $locked->printer()->updateOrCreate(

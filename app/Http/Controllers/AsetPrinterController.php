@@ -46,10 +46,13 @@ class AsetPrinterController extends Controller
             ->mapWithKeys(fn (AsetKoperasi $aset) => [$aset->id => $this->service->canDelete($aset)])
             ->all();
 
+        $vendors = \App\Models\Vendor::orderBy('nama')->get();
+
         return view('pages.aset-printer.index', [
             'asetPrinter' => $asetPrinter,
             'statuses' => AsetKoperasi::statusLabels(),
             'deleteGuards' => $deleteGuards,
+            'vendors' => $vendors,
         ]);
     }
 
@@ -77,11 +80,14 @@ class AsetPrinterController extends Controller
             ->mapWithKeys(fn (AsetKoperasi $item) => [$item->id => $this->service->canDelete($item)])
             ->all();
 
+        $vendors = \App\Models\Vendor::orderBy('nama')->get();
+
         return view('pages.aset-printer.index', [
             'data' => $aset->load('printer'),
             'asetPrinter' => $asetPrinter,
             'statuses' => AsetKoperasi::statusLabels(),
             'deleteGuards' => $deleteGuards,
+            'vendors' => $vendors,
         ]);
     }
 

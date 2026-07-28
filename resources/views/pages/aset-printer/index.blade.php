@@ -25,7 +25,7 @@
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
       <p class="mb-1 text-xs font-bold uppercase tracking-widest text-green-600">Master Aset Koperasi</p>
-      <h1 class="text-2xl font-bold text-slate-700">Printer Koperasi</h1>
+      <h1 class="text-lg font-bold text-slate-700 m-0">Printer Koperasi</h1>
       <p class="mt-1 text-sm text-slate-400">Pencatatan identitas printer saja. Belum ada jasa print, sewa, depresiasi, COA, jurnal, atau mutasi kas.</p>
     </div>
     @if (! $editing)
@@ -37,7 +37,7 @@
   </div>
 
   <section id="aset-printer-form" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl {{ ($editing || $errors->any()) ? 'block' : 'hidden' }}">
-    <h2 class="font-bold text-slate-700">{{ $editing ? 'Edit Printer '.$data->kode_aset : 'Tambah Printer Koperasi' }}</h2>
+    <h2 class="text-base font-bold text-slate-700 m-0">{{ $editing ? 'Edit Printer '.$data->kode_aset : 'Tambah Printer Koperasi' }}</h2>
     <p class="mb-5 text-sm text-slate-400">Kode printer dibuat otomatis dengan format PRT-0001 dan tidak pernah digunakan ulang.</p>
     <form method="POST" action="{{ $editing ? route('aset-printer.update', $data) : route('aset-printer.store') }}">
       @csrf
@@ -63,6 +63,21 @@
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Kode aset</label>
           <div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">{{ $editing ? $data->kode_aset : 'Otomatis setelah disimpan' }}</div>
         </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="vendor_id">Vendor Sewa (B2B)</label>
+          <select id="vendor_id" name="vendor_id" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+            <option value="">- Milik Koperasi (Bukan Sewa) -</option>
+            @foreach($vendors as $vendor)
+                <option value="{{ $vendor->id }}" {{ old('vendor_id', $data->vendor_id ?? '') == $vendor->id ? 'selected' : '' }}>
+                    {{ $vendor->nama }}
+                </option>
+            @endforeach
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="harga_dasar_vendor">Harga Dasar Vendor (Rp)</label>
+          <input id="harga_dasar_vendor" name="harga_dasar_vendor" type="number" min="0" value="{{ old('harga_dasar_vendor', (int)($data->harga_dasar_vendor ?? 0)) }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="Contoh: 500000">
+        </div>
         <div class="md:col-span-3">
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="keterangan">Keterangan</label>
           <textarea id="keterangan" name="keterangan" rows="3" maxlength="1000" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">{{ old('keterangan', $data->keterangan ?? '') }}</textarea>
@@ -81,7 +96,7 @@
     <div class="border-b border-slate-100 p-6">
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 class="font-bold text-slate-700">Daftar Printer Koperasi</h2>
+          <h2 class="text-base font-bold text-slate-700 m-0">Daftar Printer Koperasi</h2>
           <p class="text-sm text-slate-400">Filter berdasarkan kode, merek, model, nomor seri, lokasi, atau status.</p>
         </div>
         <form method="GET" action="{{ route('aset-printer.index') }}" class="flex flex-wrap items-end gap-3">
@@ -111,6 +126,7 @@
             <th class="px-6 py-4">Printer</th>
             <th class="px-6 py-4">Nomor Seri</th>
             <th class="px-6 py-4">Lokasi</th>
+            <th class="px-6 py-4">Vendor & Harga</th>
             <th class="px-6 py-4">Status</th>
             <th class="px-6 py-4">Audit</th>
             <th class="px-6 py-4 text-center">Aksi</th>
@@ -127,6 +143,15 @@
               </td>
               <td class="px-6 py-4 font-semibold text-slate-700">{{ $item->printer->nomor_seri ?? '-' }}</td>
               <td class="px-6 py-4 text-slate-600">{{ $item->printer->lokasi ?? '-' }}</td>
+              <td class="px-6 py-4">
+                @if($item->vendor)
+                    <div class="font-semibold text-slate-700">{{ $item->vendor->nama }}</div>
+                    <div class="text-xs text-slate-500">Dasar: Rp {{ number_format($item->harga_dasar_vendor, 0, ',', '.') }}</div>
+                    <div class="text-xs text-green-600 font-bold">Sewa (+15%): Rp {{ number_format($item->harga_dasar_vendor * 1.15, 0, ',', '.') }}</div>
+                @else
+                    <span class="text-xs text-slate-400">Milik Koperasi</span>
+                @endif
+              </td>
               <td class="px-6 py-4">
                 <span class="{{ $statusBadge($item->status) }}">{{ $item->status_label }}</span>
                 @if($item->nonaktif_at)<div class="mt-1 text-xs text-slate-400">Nonaktif: {{ $item->nonaktif_at->format('d/m/Y H:i') }}</div>@endif

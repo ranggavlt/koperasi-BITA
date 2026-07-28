@@ -16,7 +16,7 @@ use App\Http\Controllers\FinanceSewaMobilController;
 use App\Http\Controllers\FinanceSewaPrinterController;
 use App\Http\Controllers\FinanceBebanOperasionalController;
 use App\Http\Controllers\MutasiKasController;
-use App\Http\Controllers\PenjualanController;
+use App\Http\Controllers\WaserbaController;
 use App\Http\Controllers\ResellerController;
 use App\Http\Controllers\PembayaranKonsinyasiController;
 use App\Http\Controllers\KonsinyasiReportController;
@@ -37,6 +37,8 @@ use App\Http\Controllers\OutstandingCashController;
 use App\Http\Controllers\RekonsiliasiPotongGajiController;
 use App\Http\Controllers\ReversalTransaksiController;
 use App\Http\Controllers\PenyelesaianKeanggotaanController;
+use App\Http\Controllers\InvoicePenagihanController;
+use App\Http\Controllers\VendorController;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
 
@@ -63,8 +65,8 @@ Route::middleware(['auth', 'active_user', 'password_changed'])->prefix('pages')-
 });
 
 Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,admin'])->group(function () {
-    //PENJUALAN (Kasir & Admin)
-    Route::resource('penjualan', PenjualanController::class)->only(['index', 'store']);
+    //WASERBA (Kasir & Admin)
+    Route::resource('waserba', WaserbaController::class)->only(['index', 'store']);
 });
 
 Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->group(function () {
@@ -158,7 +160,11 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/mutasi-kas', [MutasiKasController::class,'index'])->name('mutasi-kas.index');
 
-    // Master data Karyawan dan Anggota
+    Route::resource('invoice-penagihan', InvoicePenagihanController::class);
+    Route::resource('vendor', VendorController::class)->except(['create', 'show']);
+
+    // KARYAWAN
+    Route::get('karyawan/template', [KaryawanController::class, 'downloadTemplate'])->name('karyawan.template');
     Route::resource('karyawan', KaryawanController::class)->except(['create', 'show']);
     Route::post('/karyawan/{karyawan}/akun', [KaryawanController::class, 'createAccount'])->name('karyawan.akun.store');
     Route::patch('/karyawan/{karyawan}/akun/password', [KaryawanController::class, 'resetAccountPassword'])->name('karyawan.akun.password');
@@ -184,7 +190,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         Route::post('/shu-koperasi/{shuKoperasi}/refresh', [ShuKoperasiController::class, 'refresh'])->name('shu-koperasi.refresh');
         Route::post('/shu-koperasi/{shuKoperasi}/transaksi', [ShuKoperasiController::class, 'storeTransaksi'])->name('shu-koperasi.transaksi.store');
         Route::delete('/shu-koperasi/{shuKoperasi}/transaksi/{shuTransaksi}', [ShuKoperasiController::class, 'destroyTransaksi'])->name('shu-koperasi.transaksi.destroy');
+        Route::post('/shu-koperasi/cairkan/{shuAnggota}', [ShuKoperasiController::class, 'cairkan'])->name('shu-koperasi.cairkan');
     });
+
+    Route::resource('klaim-dana-khusus', \App\Http\Controllers\KlaimDanaKhususController::class)->only(['index', 'store']);
 
     Route::get('/laporan-potong-gaji', [LaporanPotongGajiController::class, 'index'])
         ->name('laporan.potong-gaji');

@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -40,7 +40,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Penyelesaian Keanggotaan</p>
       <h1 class="kbsm-business-title">{{ $penyelesaian->kode_penyelesaian }}</h1>
-      <p class="kbsm-business-subtitle">{{ $penyelesaian->anggota?->nomor_anggota }} - {{ $penyelesaian->anggota?->karyawan?->nama }} · Siklus #{{ $penyelesaian->siklus?->siklus_ke }}</p>
+      <p class="kbsm-business-subtitle">{{ $penyelesaian->anggota?->nomor_anggota }} - {{ $penyelesaian->anggota?->karyawan?->nama }} Â· Siklus #{{ $penyelesaian->siklus?->siklus_ke }}</p>
     </div>
     <a href="{{ route('penyelesaian-keanggotaan.index') }}" class="kbsm-business-back-link">Kembali</a>
   </div>
@@ -99,7 +99,7 @@
           <div class="kbsm-business-field kbsm-business-field--full">
             <label class="kbsm-business-label">Alasan Daftarkan Kembali</label>
             <textarea name="alasan" minlength="5" required class="kbsm-business-control" rows="3" placeholder="Contoh: Karyawan aktif kembali menjadi Anggota koperasi."></textarea>
-            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Pokok baru dari master aktif, jadwal Wajib baru, dan saldo Sukarela awal Rp0. Histori siklus lama tetap immutable.</p>
+            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Pokok baru dari master aktif, jadwal Wajib baru, dan saldo Manasuka awal Rp0. Histori siklus lama tetap immutable.</p>
           </div>
           <label class="kbsm-business-field kbsm-business-field--full">
             <input type="checkbox" name="konfirmasi_siklus_baru" value="1" required>
@@ -144,7 +144,7 @@
             <select name="dompet_id" required class="kbsm-business-control">
               <option value="">Pilih Dompet</option>
               @foreach($dompetOptions as $dompet)
-                <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} · {{ strtoupper($dompet->jenis_dompet) }} · {{ $dompet->akun?->kode_akun ?? 'tanpa COA' }}</option>
+                <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} Â· {{ strtoupper($dompet->jenis_dompet) }} Â· {{ $dompet->akun?->kode_akun ?? 'tanpa COA' }}</option>
               @endforeach
             </select>
           </div>
@@ -169,7 +169,7 @@
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Hak Anggota</h2>
-      <p class="kbsm-business-panel__copy">Pokok, Wajib paid, Sukarela, dan kredit/refund valid ditampilkan sebagai sumber terpisah.</p>
+      <p class="kbsm-business-panel__copy">Pokok, Wajib paid, Manasuka, dan kredit/refund valid ditampilkan sebagai sumber terpisah.</p>
     </div>
     <div class="kbsm-business-table-wrap">
       <table class="kbsm-business-table">

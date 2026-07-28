@@ -284,6 +284,7 @@ return [
             'piutang' => 'piutang_pinjaman',
             'kas' => 'kas',
             'pendapatan_jasa' => 'pendapatan_jasa_pinjaman',
+            'pendapatan_admin' => 'pendapatan_administrasi',
         ],
         'konsinyasi' => [
             'utang_reseller' => 'utang_reseller_konsinyasi',

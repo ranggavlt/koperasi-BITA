@@ -14,24 +14,24 @@ class JenisSimpanan extends Model
 
     public const KODE_SIMPANAN_WAJIB = 'SIMPANAN_WAJIB';
 
-    public const KODE_SIMPANAN_SUKARELA = 'SIMPANAN_SUKARELA';
+    public const KODE_SIMPANAN_MANASUKA = 'SIMPANAN_MANASUKA';
 
     public const KATEGORI_POKOK = 'pokok';
 
     public const KATEGORI_WAJIB = 'wajib';
 
-    public const KATEGORI_SUKARELA = 'sukarela';
+    public const KATEGORI_MANASUKA = 'manasuka';
 
     public const KATEGORI = [
         self::KATEGORI_POKOK => 'Pokok',
         self::KATEGORI_WAJIB => 'Wajib',
-        self::KATEGORI_SUKARELA => 'Sukarela',
+        self::KATEGORI_MANASUKA => 'Manasuka',
     ];
 
     public const KODE_BY_KATEGORI = [
         self::KATEGORI_POKOK => self::KODE_SIMPANAN_POKOK,
         self::KATEGORI_WAJIB => self::KODE_SIMPANAN_WAJIB,
-        self::KATEGORI_SUKARELA => self::KODE_SIMPANAN_SUKARELA,
+        self::KATEGORI_MANASUKA => self::KODE_SIMPANAN_MANASUKA,
     ];
 
     protected $table = 'jenis_simpanan';
@@ -133,7 +133,7 @@ class JenisSimpanan extends Model
         return match ($this->kategori) {
             self::KATEGORI_POKOK => 'Sekali saat menjadi Anggota',
             self::KATEGORI_WAJIB => 'Setiap ' . (int) $this->interval_bulan . ' bulan',
-            self::KATEGORI_SUKARELA => 'Sesuai transaksi',
+            self::KATEGORI_MANASUKA => 'Bebas (Tunai/Potong Gaji)',
             default => '-',
         };
     }

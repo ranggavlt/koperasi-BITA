@@ -55,27 +55,48 @@
 </style>
 
 <div class="pos-wrapper">
-    <form id="posForm" action="{{ route('penjualan.store') }}" method="POST" style="width: 100%; box-sizing: border-box;">
+    <form id="posForm" action="{{ route('waserba.store') }}" method="POST" style="width: 100%; box-sizing: border-box;">
         @csrf
         <div class="pos-layout">
             <!-- Bagian Produk (KIRI) -->
             <div class="pos-left" style="display: flex; flex-direction: column; gap: 12px;">
-                <!-- Search Bar -->
-                <div class="relative w-full">
-                    <input type="text" id="searchInput" style="width: 100%; padding: 10px 12px 10px 38px; font-size: 13px; border: none; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); outline: none; background-color: white;" placeholder="Cari produk...">
-                    <i class="fas fa-search absolute top-1/2 transform -translate-y-1/2 text-slate-400" style="left: 14px; font-size: 14px;"></i>
-                </div>
+                <!-- Search and Filters Container -->
+                <div class="flex flex-col gap-3 mb-5 w-full">
+                    <!-- Search Bar -->
+                    <div class="relative w-full group">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <svg class="w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                        <input type="text" id="searchInput" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm" placeholder="Ketik nama produk untuk mencari...">
+                    </div>
 
-                <!-- Kategori Chips -->
-                <div style="overflow-x: auto;" class="flex gap-2 pb-1 scrollbar-hide w-full max-w-full" id="kategoriContainer">
-                    <button type="button" onclick="filterKategori('all', this)" class="kategori-btn" style="padding: 6px 16px; font-size: 12px; font-weight: 600; border-radius: 20px; white-space: nowrap; transition: all 0.2s; background-color: #059669; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: none; cursor: pointer;">
-                        Semua
-                    </button>
-                    @foreach($kategoris as $kategori)
-                        <button type="button" onclick="filterKategori({{ $kategori->id }}, this)" class="kategori-btn" style="padding: 6px 16px; font-size: 12px; font-weight: 600; border-radius: 20px; white-space: nowrap; transition: all 0.2s; background-color: white; color: #475569; border: 1px solid #e2e8f0; cursor: pointer;">
-                            {{ $kategori->nama_kategori }}
-                        </button>
-                    @endforeach
+                    <!-- Filters Row -->
+                    <div class="flex gap-3 w-full">
+                        <!-- Tipe Filter -->
+                        <div class="relative w-1/3">
+                            <select onchange="filterTipeDropdown(this.value)" class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl pl-4 pr-10 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer shadow-sm">
+                                <option value="all">Semua Tipe</option>
+                                <option value="0">Koperasi</option>
+                                <option value="1">Konsinyasi</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none">
+                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+
+                        <!-- Kategori Filter -->
+                        <div class="relative w-2/3">
+                            <select onchange="filterKategoriDropdown(this.value)" class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl pl-4 pr-10 py-3 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer shadow-sm">
+                                <option value="all">Semua Kategori</option>
+                                @foreach($kategoris as $kategori)
+                                    <option value="{{ $kategori->id }}">{{ $kategori->nama_kategori }}</option>
+                                @endforeach
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none">
+                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Grid Produk -->
@@ -84,6 +105,7 @@
                         <div class="produk-card bg-white cursor-pointer relative flex flex-col group hover:shadow-md transition-shadow" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);"
                              data-id="{{ $item->id }}"
                              data-kategori="{{ $item->kategori_id }}"
+                             data-tipe="{{ $item->konsinyasi ? '1' : '0' }}"
                              data-nama="{{ strtolower($item->nama_produk) }}"
                              onclick="addToCart({{ $item->id }}, '{{ addslashes($item->nama_produk) }}', {{ $item->harga_jual }}, {{ $item->stok }})">
                             <!-- Foto -->
@@ -116,7 +138,7 @@
             </div>
 
             <!-- Bagian Keranjang (KANAN) -->
-            <div class="pos-right" style="background-color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: sticky; top: 16px; align-self: flex-start; border: 1px solid #e2e8f0; border-radius: 16px; z-index: 20; max-height: calc(100vh - 40px);">
+            <div class="pos-right" style="background-color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: sticky; top: 16px; align-self: flex-start; border: 1px solid #e2e8f0; border-radius: 16px; z-index: 20; max-height: calc(100vh - 120px);">
 
                 <div style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 16px 16px 0 0; flex-shrink: 0;">
                     <h2 style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 0;"><i class="fas fa-shopping-cart" style="color: #059669; margin-right: 6px;"></i>Keranjang</h2>
@@ -311,36 +333,34 @@
         return new Intl.NumberFormat('id-ID').format(number);
     }
 
+    let currentKategori = 'all';
+    let currentTipe = 'all';
+    let currentSearch = '';
+
     // SEARCH & FILTER
     document.getElementById('searchInput').addEventListener('input', function(e) {
-        let keyword = e.target.value.toLowerCase();
-        let cards = document.querySelectorAll('.produk-card');
-        cards.forEach(card => {
-            if(card.getAttribute('data-nama').includes(keyword)) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
-        });
+        currentSearch = e.target.value.toLowerCase();
+        applyFilters();
     });
 
-    function filterKategori(id, btn) {
-        // Update Buttons
-        document.querySelectorAll('.kategori-btn').forEach(b => {
-            b.style.backgroundColor = 'white';
-            b.style.color = '#475569';
-            b.style.border = '1px solid #e2e8f0';
-            b.style.boxShadow = 'none';
-        });
-        btn.style.backgroundColor = '#059669';
-        btn.style.color = 'white';
-        btn.style.border = 'none';
-        btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+    function filterTipeDropdown(tipe) {
+        currentTipe = tipe;
+        applyFilters();
+    }
 
-        // Update Grid
+    function filterKategoriDropdown(id) {
+        currentKategori = id;
+        applyFilters();
+    }
+
+    function applyFilters() {
         let cards = document.querySelectorAll('.produk-card');
         cards.forEach(card => {
-            if(id === 'all' || card.getAttribute('data-kategori') == id) {
+            let matchSearch = card.getAttribute('data-nama').includes(currentSearch);
+            let matchKategori = (currentKategori === 'all' || card.getAttribute('data-kategori') == currentKategori);
+            let matchTipe = (currentTipe === 'all' || card.getAttribute('data-tipe') == currentTipe);
+
+            if(matchSearch && matchKategori && matchTipe) {
                 card.style.display = 'flex';
             } else {
                 card.style.display = 'none';
@@ -348,7 +368,7 @@
         });
     }
 
-    // CART LOGIC
+    // FUNGSI CART (KERANJANG)IC
     function addToCart(id, nama, harga, stok) {
         let existing = cart.find(item => item.id == id);
         if(existing) {

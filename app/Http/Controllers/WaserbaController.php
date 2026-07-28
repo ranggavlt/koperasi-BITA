@@ -15,9 +15,9 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-class PenjualanController extends Controller
+class WaserbaController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $penjualan = Penjualan::query()
             ->with(['anggota.karyawan', 'karyawan', 'details.produk', 'pembayaran.dompet', 'pembayaran.ledger.limit.periodePotongGaji'])
@@ -25,9 +25,18 @@ class PenjualanController extends Controller
             ->paginate(10);
 
         $produk = Produk::query()
+            ->with('kategori')
+            ->when($request->kategori, function ($q, $kategoriId) {
+                return $q->where('kategori_id', $kategoriId);
+            })
+            ->when($request->search, function ($q, $search) {
+                return $q->where('nama_produk', 'like', "%{$search}%")
+                         ->orWhere('kode_produk', 'like', "%{$search}%");
+            })
             ->where('stok', '>', 0)
-            ->orderBy('nama_produk')
-            ->get();
+            ->latest()
+            ->paginate(12)
+            ->withQueryString();
 
         $produkOptions = $produk->map(fn (Produk $item): array => [
             'id' => $item->id,
@@ -54,7 +63,7 @@ class PenjualanController extends Controller
         $dompets = DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get();
         $kategoris = KategoriProduk::orderBy('nama_kategori')->get();
 
-        return view('pages.penjualan.index', compact(
+        return view('pages.waserba.index', compact(
             'penjualan',
             'produk',
             'produkOptions',
@@ -100,7 +109,7 @@ class PenjualanController extends Controller
             $penjualan = $checkoutService->checkout($validated, auth()->id());
 
             return redirect()
-                ->route('penjualan.index')
+                ->route('waserba.index')
                 ->with('success', $penjualan->pembayaran?->metode_pembayaran === Pembayaran::METODE_POTONG_GAJI
                     ? 'Transaksi POS Potong Gaji tersimpan sebagai pending payroll.'
                     : 'Transaksi POS non-payroll tersimpan dan kas/bank tercatat.');

@@ -39,6 +39,8 @@ class UpdateAsetMobilRequest extends FormRequest
             'warna' => ['required', 'string', 'max:50'],
             'tarif_sewa_harian' => ['required', 'integer', 'min:1'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
+            'vendor_id' => ['nullable', 'exists:vendor,id'],
+            'harga_dasar_vendor' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
@@ -53,8 +55,10 @@ class UpdateAsetMobilRequest extends FormRequest
             'tahun.min' => 'Tahun mobil tidak masuk akal.',
             'tahun.max' => 'Tahun mobil tidak boleh melewati tahun depan.',
             'warna.required' => 'Warna mobil wajib diisi.',
-            'tarif_sewa_harian.required' => 'Tarif Sewa Harian wajib diisi.',
+            'tarif_sewa_harian.required' => 'Tarif sewa harian wajib diisi.',
             'tarif_sewa_harian.min' => 'Tarif Sewa Harian wajib lebih besar dari nol.',
+            'vendor_id.exists' => 'Vendor tidak ditemukan.',
+            'harga_dasar_vendor.integer' => 'Harga dasar harus berupa angka.',
         ];
     }
 

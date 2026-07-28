@@ -34,7 +34,7 @@
   </div>
 
   <section id="sewa-form" class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl {{ ($editing || $errors->any()) ? 'block' : 'hidden' }}">
-    <h2 class="font-bold text-slate-700">{{ $editing ? 'Edit Draft' : 'Draft Pengajuan Baru' }}</h2>
+    <h2 class="text-base font-bold text-slate-700 m-0">{{ $editing ? 'Edit Draft' : 'Draft Pengajuan Baru' }}</h2>
     <p class="mb-5 text-sm text-slate-400">Penyewa/pembayar selalu {{ config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering') }}. Tarif akan diisi Finance.</p>
     <form method="POST" action="{{ $editing ? route('sewa-mobil.karyawan.update', $data) : route('sewa-mobil.karyawan.store') }}">
       @csrf
@@ -81,7 +81,7 @@
   </section>
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-    <div class="border-b border-slate-100 p-6"><h2 class="font-bold text-slate-700">Daftar Pengajuan Saya</h2><p class="text-sm text-slate-400">Finance mencatat approval Pengurus dan pembayaran perusahaan setelah pengajuan diajukan.</p></div>
+    <div class="border-b border-slate-100 p-6"><h2 class="text-base font-bold text-slate-700 m-0">Daftar Pengajuan Saya</h2><p class="text-sm text-slate-400">Finance mencatat approval Pengurus dan pembayaran perusahaan setelah pengajuan diajukan.</p></div>
     <div style="overflow-x: auto;" class="">
       <table class="w-full min-w-[1180px] text-left text-sm">
         <thead class="kbsm-thead"><tr><th class="px-6 py-4">Kode</th><th class="px-6 py-4">Mobil</th><th class="px-6 py-4">Kegiatan</th><th class="px-6 py-4">Jadwal</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Tarif/Pembayaran</th><th class="px-6 py-4">Approval</th><th class="px-6 py-4 text-center">Aksi</th></tr></thead>

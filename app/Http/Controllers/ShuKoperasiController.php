@@ -116,6 +116,8 @@ class ShuKoperasiController extends Controller
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'persen_dana_cadangan' => 'required|numeric|min:0|max:100',
             'persen_shu_anggota' => 'required|numeric|min:0|max:100',
+            'persen_pengawas' => 'required|numeric|min:0|max:100',
+            'persen_pembina' => 'required|numeric|min:0|max:100',
             'persen_pengurus' => 'required|numeric|min:0|max:100',
             'persen_dana_sosial' => 'required|numeric|min:0|max:100',
             'persen_dana_pendidikan' => 'required|numeric|min:0|max:100',
@@ -128,6 +130,8 @@ class ShuKoperasiController extends Controller
             $totalPembagian = round(
                 (float) $request->input('persen_dana_cadangan', 0)
                 + (float) $request->input('persen_shu_anggota', 0)
+                + (float) $request->input('persen_pengawas', 0)
+                + (float) $request->input('persen_pembina', 0)
                 + (float) $request->input('persen_pengurus', 0)
                 + (float) $request->input('persen_dana_sosial', 0)
                 + (float) $request->input('persen_dana_pendidikan', 0),
@@ -174,5 +178,33 @@ class ShuKoperasiController extends Controller
         });
 
         return $validator->validate();
+    }
+
+    public function cairkan(\Illuminate\Http\Request $request, \App\Models\ShuAnggota $shuAnggota)
+    {
+        $request->validate([
+            'metode' => 'required|in:tunai,transfer',
+        ]);
+
+        $shuAnggota->update([
+            'is_dicairkan' => true,
+            'metode_pencairan' => $request->metode,
+            'tanggal_pencairan' => now(),
+        ]);
+
+        // Jurnal untuk pencairan SHU
+        $akunKas = \App\Models\AkunAkuntansi::where('kode', config('account_map.kas'))->first();
+        if ($akunKas) {
+            $this->akuntansiService->createJurnal(
+                $shuAnggota->shu_koperasi_id,
+                'App\Models\ShuKoperasi',
+                "Pencairan SHU {$shuAnggota->karyawan->nama} ({$request->metode})",
+                [
+                    ['akun_id' => $akunKas->id, 'debit' => 0, 'kredit' => $shuAnggota->nominal_shu], // Kas Keluar
+                ]
+            );
+        }
+
+        return back()->with('success', "SHU Anggota {$shuAnggota->karyawan->nama} berhasil dicairkan.");
     }
 }

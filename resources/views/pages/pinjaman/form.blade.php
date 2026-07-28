@@ -1,4 +1,4 @@
-@extends('layout.main')
+﻿@extends('layout.main')
 
 @section('content')
 @php
@@ -72,6 +72,20 @@
             value="{{ old('tenor_bulan', $pinjaman?->tenor_bulan) }}"
             class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
             placeholder="1-12 bulan">
+        </div>
+
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Biaya Admin</label>
+          <input type="text" value="Rp 50.000" readonly class="block w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-slate-500">
+          <input type="hidden" name="biaya_admin" value="50000">
+        </div>
+
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Opsi Bayar Admin</label>
+          <select name="cara_bayar_admin" class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option value="potong_pinjaman" @selected(old('cara_bayar_admin', $pinjaman?->cara_bayar_admin) === 'potong_pinjaman')>Potong Pinjaman (Cair dipotong 50rb)</option>
+            <option value="tunai" @selected(old('cara_bayar_admin', $pinjaman?->cara_bayar_admin) === 'tunai')>Bayar Tunai (Cair Bulat/Utuh)</option>
+          </select>
         </div>
 
         <div class="md:col-span-2">
