@@ -34,7 +34,7 @@ class SewaMobilService
             $this->assertRentableAsset($aset);
 
             [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
-            $tarifHarian = $this->rupiahInt($aset->mobil->tarif_sewa_harian ?? 0);
+            $tarifHarian = $this->rupiahInt($aset->harga_dasar_vendor ?? 0);
             $totalSewa = $jumlahHari * $tarifHarian;
 
             return SewaMobil::query()->create([
@@ -80,7 +80,7 @@ class SewaMobilService
             $this->assertRentableAsset($aset);
 
             [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
-            $tarifHarian = $this->rupiahInt($aset->mobil->tarif_sewa_harian ?? 0);
+            $tarifHarian = $this->rupiahInt($aset->harga_dasar_vendor ?? 0);
             $totalSewa = $jumlahHari * $tarifHarian;
 
             $locked->update([
@@ -498,7 +498,7 @@ class SewaMobilService
             ]);
         }
 
-        if ($this->rupiahInt($aset->mobil->tarif_sewa_harian ?? 0) <= 0) {
+        if ($this->rupiahInt($aset->harga_dasar_vendor ?? 0) <= 0) {
             throw ValidationException::withMessages([
                 'aset_koperasi_id' => 'Mobil belum memiliki Tarif Sewa Harian yang valid.',
             ]);

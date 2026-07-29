@@ -39,6 +39,11 @@ class PeriodePotongGajiController extends Controller
         return view('pages.periode-potong-gaji.index', compact('periodeList', 'selectedPeriode', 'limits', 'anggotaAktif'));
     }
 
+    public function create()
+    {
+        return view('pages.periode-potong-gaji.create');
+    }
+
     public function storePeriode(Request $request, PotongGajiBulananService $service)
     {
         $validated = $request->validate([

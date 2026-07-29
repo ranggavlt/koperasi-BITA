@@ -27,6 +27,7 @@ class StoreKaryawanRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', Rule::unique('karyawan', 'email')],
             'telepon' => ['nullable', 'string', 'max:50'],
             'jabatan' => ['required', 'string', 'max:255'],
+            'perusahaan_id' => ['required', 'integer', 'exists:perusahaan,id'],
             'status_kerja' => ['required', Rule::in(['aktif', 'berhenti'])],
             'tanggal_berhenti' => ['nullable', 'required_if:status_kerja,berhenti', 'date'],
         ];

@@ -186,7 +186,7 @@ class FinanceSewaMobilController extends Controller
                         $query->orWhere('id', $editData->aset_koperasi_id);
                     }
                 })
-                ->whereHas('mobil', fn ($query) => $query->where('tarif_sewa_harian', '>', 0))
+                ->where('harga_dasar_vendor', '>', 0)
                 ->orderBy('kode_aset')
                 ->get(),
             'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),

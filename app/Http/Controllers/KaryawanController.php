@@ -16,11 +16,13 @@ class KaryawanController extends Controller
     public function index()
     {
         $karyawan = Karyawan::query()
-            ->with(['anggota', 'user'])
+            ->with(['anggota', 'user', 'perusahaan'])
             ->latest('id')
             ->paginate(10);
+            
+        $perusahaan = \App\Models\Perusahaan::all();
 
-        return view('pages.karyawan.index', compact('karyawan'));
+        return view('pages.karyawan.index', compact('karyawan', 'perusahaan'));
     }
 
     public function store(StoreKaryawanRequest $request, MasterDataKoperasiService $service)
@@ -34,12 +36,18 @@ class KaryawanController extends Controller
     public function edit(Karyawan $karyawan)
     {
         $data = $karyawan->load(['anggota', 'user']);
-        $karyawan = Karyawan::query()
-            ->with(['anggota', 'user'])
+        $karyawanList = Karyawan::query()
+            ->with(['anggota', 'user', 'perusahaan'])
             ->latest('id')
             ->paginate(10);
+            
+        $perusahaan = \App\Models\Perusahaan::all();
 
-        return view('pages.karyawan.index', compact('data', 'karyawan'));
+        return view('pages.karyawan.index', [
+            'data' => $data,
+            'karyawan' => $karyawanList,
+            'perusahaan' => $perusahaan
+        ]);
     }
 
     public function update(

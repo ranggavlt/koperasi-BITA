@@ -178,7 +178,10 @@ class Simpanan extends Model
     {
         return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_MANASUKA
             || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_MANASUKA
-            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_MANASUKA;
+            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_MANASUKA
+            || $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_SUKARELA
+            || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_SUKARELA
+            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_SUKARELA;
     }
 
     public function getJenisTransaksiLabelAttribute(): string

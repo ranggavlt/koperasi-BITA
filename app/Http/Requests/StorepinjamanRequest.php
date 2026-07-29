@@ -21,6 +21,7 @@ class StorePinjamanRequest extends FormRequest
             'biaya_admin' => ['required', 'numeric', 'min:0'],
             'cara_bayar_admin' => ['required', 'in:tunai,potong_pinjaman'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
+            'dompet_id' => ['required', 'integer', 'exists:dompet_koperasi,id'],
         ];
     }
 

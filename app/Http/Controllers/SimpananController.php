@@ -104,8 +104,13 @@ class SimpananController extends Controller
 
         $jenisManasuka = JenisSimpanan::query()
             ->aktif()
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
             ->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)
+            ->first();
+
+        $jenisWajib = JenisSimpanan::query()
+            ->aktif()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
             ->first();
 
         $dompet = DompetKoperasi::query()
@@ -117,7 +122,12 @@ class SimpananController extends Controller
             ->orderBy('nama_dompet')
             ->get();
 
-        return view('pages.simpanan.create', compact('anggota', 'jenisManasuka', 'dompet'));
+        return view('pages.simpanan.create', [
+            'anggota' => $anggota,
+            'jenisManasuka' => $jenisManasuka,
+            'jenisWajib' => $jenisWajib,
+            'dompet' => $dompet,
+        ]);
     }
 
     public function store(StoreSimpananRequest $request, SimpananSukarelaService $service): RedirectResponse
@@ -127,7 +137,7 @@ class SimpananController extends Controller
 
             return redirect()
                 ->route('simpanan.index')
-                ->with('success', 'Transaksi Simpanan Sukarela berhasil diposting.');
+                ->with('success', 'Transaksi Simpanan berhasil diposting.');
         } catch (ValidationException $exception) {
             return back()
                 ->withErrors($exception->errors())
@@ -146,7 +156,7 @@ class SimpananController extends Controller
 
         if ($anggota->status !== Anggota::STATUS_AKTIF || $anggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {
             return response()->json([
-                'message' => 'Anggota nonaktif atau Karyawan berhenti tidak dapat melakukan transaksi Simpanan Sukarela langsung.',
+                'message' => 'Anggota nonaktif atau Karyawan berhenti tidak dapat melakukan transaksi Simpanan Manasuka langsung.',
             ], 422);
         }
 

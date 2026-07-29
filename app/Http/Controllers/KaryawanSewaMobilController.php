@@ -90,8 +90,8 @@ class KaryawanSewaMobilController extends Controller
     {
         return AsetKoperasi::query()
             ->mobil()
-            ->with('mobil')
             ->whereNotIn('status', [AsetKoperasi::STATUS_NONAKTIF, AsetKoperasi::STATUS_PERAWATAN])
+            ->where('harga_dasar_vendor', '>', 0)
             ->orderBy('kode_aset')
             ->get();
     }

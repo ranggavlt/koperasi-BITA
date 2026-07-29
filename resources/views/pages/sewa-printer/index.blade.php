@@ -25,14 +25,14 @@
   <div class="kbsm-business-header">
     <div>
       <p class="kbsm-business-eyebrow">Usaha Koperasi</p>
-      <h1 class="kbsm-business-title">Sewa Printer</h1>
+      <h1 class="kbsm-business-title">Sewa Hardware</h1>
       <p class="kbsm-business-subtitle">Finance mencatat kebutuhan Karyawan, menyimpan snapshot vendor eksternal, dan sistem menghitung margin koperasi tetap 15% dari harga vendor.</p>
     </div>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Filter Sewa Printer</h2>
+      <h2 class="kbsm-business-panel__title">Filter Sewa Hardware</h2>
       <p class="kbsm-business-panel__copy">Filter transaksi vendor-based berdasarkan status, karyawan, dan rentang tanggal yang overlap dengan periode sewa.</p>
     </div>
     <form method="GET" action="{{ route('sewa-printer.index') }}" class="kbsm-business-filter kbsm-business-filter--sewa">
@@ -71,10 +71,10 @@
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header kbsm-business-panel__header--action">
       <div>
-        <h2 class="kbsm-business-panel__title">Daftar Sewa Printer</h2>
+        <h2 class="kbsm-business-panel__title">Daftar Sewa Hardware</h2>
         <p class="kbsm-business-panel__copy">Kontrak paid, berjalan, dan selesai tidak dapat diedit/hapus. Pembatalan hanya tersedia sebelum paid.</p>
       </div>
-      <a href="{{ route('sewa-printer.create') }}" class="kbsm-business-add-button">+ TAMBAH SEWA PRINTER</a>
+      <a href="{{ route('sewa-printer.create') }}" class="kbsm-business-add-button">+ TAMBAH SEWA HARDWARE</a>
     </div>
     <div class="kbsm-business-table-wrap">
       <table class="kbsm-business-table">
@@ -88,7 +88,7 @@
             <tr>
               <td class="kbsm-business-code">{{ $item->kode_sewa }}</td>
               <td>
-                <div class="kbsm-business-strong">{{ $item->karyawanPic?->nama ?? '-' }}</div>
+                <div class="kbsm-business-strong">{{ $item->karyawan?->nama ?? '-' }}</div>
                 <div class="kbsm-business-muted">{{ $item->nama_perusahaan_snapshot }}</div>
                 <div class="kbsm-business-muted">Vendor: {{ $item->vendor_nama }} / {{ $item->vendor_kontak }}</div>
                 <div class="kbsm-business-muted">{{ $item->vendor_alamat }}</div>
@@ -190,7 +190,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="9" class="kbsm-business-empty">Belum ada transaksi Sewa Printer.</td></tr>
+            <tr><td colspan="9" class="kbsm-business-empty">Belum ada transaksi Sewa Hardware.</td></tr>
           @endforelse
         </tbody>
       </table>

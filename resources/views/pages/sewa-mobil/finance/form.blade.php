@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -6,7 +6,7 @@
   $selectedMobilId = old('aset_koperasi_id', $editData?->aset_koperasi_id);
   $selectedKaryawanId = old('karyawan_id', $editData?->karyawan_id);
   $selectedMobil = $mobilOptions->firstWhere('id', (int) $selectedMobilId) ?? $editData?->aset;
-  $previewTarif = (int) ($selectedMobil?->mobil?->tarif_sewa_harian ?? $editData?->tarif_harian_snapshot ?? 0);
+  $previewTarif = (int) ($selectedMobil?->harga_dasar_vendor ?? $editData?->tarif_harian_snapshot ?? 0);
   $previewHari = (int) old('jumlah_hari', $editData?->jumlah_hari ?? 0);
   $previewTotal = (int) old('total_sewa', $editData?->total_sewa ?? ($previewTarif * max(0, $previewHari)));
 @endphp
@@ -69,8 +69,8 @@
             <select name="aset_koperasi_id" required class="kbsm-business-control" data-sewa-mobil-asset>
               <option value="" data-tarif="0">Pilih Mobil</option>
               @foreach($mobilOptions as $mobil)
-                <option value="{{ $mobil->id }}" data-tarif="{{ (int) ($mobil->mobil->tarif_sewa_harian ?? 0) }}" {{ (string) $selectedMobilId === (string) $mobil->id ? 'selected' : '' }}>
-                  {{ $mobil->kode_aset }} - {{ $mobil->mobil->plat_nomor ?? '-' }} - {{ $mobil->merek }} {{ $mobil->model }} (Tarif/Hari: Rp {{ number_format((int) ($mobil->mobil->tarif_sewa_harian ?? 0), 0, ',', '.') }})
+                <option value="{{ $mobil->id }}" data-tarif="{{ (int) ($mobil->harga_dasar_vendor ?? 0) }}" {{ (string) $selectedMobilId === (string) $mobil->id ? 'selected' : '' }}>
+                  {{ $mobil->kode_aset }} - {{ $mobil->merek }} {{ $mobil->model }} (Tarif/Hari: Rp {{ number_format((int) ($mobil->harga_dasar_vendor ?? 0), 0, ',', '.') }})
                 </option>
               @endforeach
             </select>

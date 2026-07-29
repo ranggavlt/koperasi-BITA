@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -33,15 +33,15 @@
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
       <p class="kbsm-business-eyebrow">Usaha Koperasi</p>
-      <h1 class="kbsm-business-title">{{ $editData ? 'Edit Draft Sewa Printer' : 'Tambah Sewa Printer' }}</h1>
+      <h1 class="kbsm-business-title">{{ $editData ? 'Edit Draft Sewa Hardware' : 'Tambah Sewa Hardware' }}</h1>
       <p class="kbsm-business-subtitle">Finance mencatat kebutuhan Karyawan, menyimpan snapshot vendor eksternal, dan sistem menghitung margin koperasi tetap 15% dari harga vendor.</p>
     </div>
-    <a href="{{ route('sewa-printer.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Sewa Printer</a>
+    <a href="{{ route('sewa-printer.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Sewa Hardware</a>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">{{ $editData ? 'Edit Draft Sewa Printer' : 'Buat Draft Sewa Printer' }}</h2>
+      <h2 class="kbsm-business-panel__title">{{ $editData ? 'Edit Draft Sewa Hardware' : 'Buat Draft Sewa Hardware' }}</h2>
       <p class="kbsm-business-panel__copy">Printer vendor tidak dicatat sebagai aset koperasi. Total dihitung ulang oleh server dengan Rupiah bulat.</p>
     </div>
 

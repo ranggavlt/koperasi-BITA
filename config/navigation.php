@@ -90,15 +90,7 @@ return [
             'description' => 'Kelola keanggotaan koperasi yang terhubung ke Karyawan.',
             'keywords' => ['anggota', 'nomor anggota', 'member', 'plafon'],
         ],
-        [
-            'section' => 'Master Data',
-            'label' => 'Jenis Simpanan',
-            'route' => 'jenis-simpanan.index',
-            'roles' => ['admin'],
-            'patterns' => ['jenis-simpanan.*'],
-            'description' => 'Atur tipe simpanan seperti pokok, wajib, dan sukarela.',
-            'keywords' => ['tabungan', 'simpanan wajib', 'simpanan pokok'],
-        ],
+
         [
             'section' => 'Master Data',
             'label' => 'Pengurus',
@@ -108,15 +100,7 @@ return [
             'description' => 'Kelola data pengurus untuk struktur organisasi koperasi.',
             'keywords' => ['pengurus', 'manajemen', 'pengelola'],
         ],
-        [
-            'section' => 'Master Data',
-            'label' => 'Jenis Pinjaman',
-            'route' => 'jenis-pinjaman.index',
-            'roles' => ['admin'],
-            'patterns' => ['jenis-pinjaman.*'],
-            'description' => 'Atur jenis pinjaman beserta skema dan ketentuannya.',
-            'keywords' => ['skema pinjaman', 'kategori pinjaman'],
-        ],
+
         [
             'section' => 'Master Data',
             'label' => 'COA',
@@ -126,15 +110,7 @@ return [
             'description' => 'Kelola daftar akun sebagai sumber pencatatan jurnal koperasi.',
             'keywords' => ['coa', 'chart of accounts', 'kode akun', 'master akun'],
         ],
-        [
-            'section' => 'Master Data',
-            'label' => 'Mobil Koperasi',
-            'route' => 'aset-mobil.index',
-            'roles' => ['admin'],
-            'patterns' => ['aset-mobil.*'],
-            'description' => 'Kelola master aset mobil koperasi.',
-            'keywords' => ['mobil', 'aset mobil', 'kendaraan koperasi'],
-        ],
+
         [
             'section' => 'Master Data',
             'label' => 'Printer Koperasi',
@@ -172,15 +148,7 @@ return [
             'description' => 'Catat setoran dan transaksi simpanan anggota.',
             'keywords' => ['setoran', 'tabungan anggota', 'transaksi simpanan'],
         ],
-        [
-            'section' => 'Simpan Pinjam',
-            'label' => 'Jadwal Simpanan Wajib',
-            'route' => 'jadwal-simpanan-wajib.index',
-            'roles' => ['admin'],
-            'patterns' => ['jadwal-simpanan-wajib.*'],
-            'description' => 'Pantau tagihan, alokasi, dan tunggakan Simpanan Wajib payroll.',
-            'keywords' => ['simpanan wajib', 'tagihan wajib', 'tunggakan wajib', 'payroll wajib'],
-        ],
+
         [
             'section' => 'Simpan Pinjam',
             'label' => 'Pinjaman',
@@ -219,7 +187,7 @@ return [
         ],
         [
             'section' => 'Usaha Koperasi',
-            'label' => 'Sewa Printer',
+            'label' => 'Sewa Hardware',
             'route' => 'sewa-printer.index',
             'roles' => ['admin'],
             'patterns' => ['sewa-printer.*'],

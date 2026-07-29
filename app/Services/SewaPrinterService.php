@@ -56,7 +56,7 @@ class SewaPrinterService
 
             $sewa->details()->createMany($detailRows);
 
-            return $sewa->fresh(['details', 'karyawanPic', 'recorder']);
+            return $sewa->fresh(['details', 'karyawan', 'recorder']);
         });
     }
 
@@ -95,7 +95,7 @@ class SewaPrinterService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details', 'karyawanPic', 'recorder']);
+            return $locked->fresh(['details', 'karyawan', 'recorder']);
         });
     }
 
@@ -103,12 +103,12 @@ class SewaPrinterService
     {
         return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
             $locked = SewaPrinter::query()
-                ->with(['details', 'karyawanPic'])
+                ->with(['details', 'karyawan'])
                 ->lockForUpdate()
                 ->findOrFail($sewaPrinter->id);
 
             $this->assertStatus($locked, [SewaPrinter::STATUS_DRAFT], 'Hanya draft Sewa Printer yang dapat dikonfirmasi.');
-            $this->assertActiveKaryawan($locked->karyawanPic);
+            $this->assertActiveKaryawan($locked->karyawan);
 
             if ($locked->details->isEmpty()) {
                 throw ValidationException::withMessages([
@@ -132,7 +132,7 @@ class SewaPrinterService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details', 'karyawanPic', 'confirmer']);
+            return $locked->fresh(['details', 'karyawan', 'confirmer']);
         });
     }
 
@@ -223,7 +223,7 @@ class SewaPrinterService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details', 'karyawanPic', 'pembayaran.dompetPenerimaan.akun', 'pembayaran.dompetVendor.akun']);
+            return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan.akun', 'pembayaran.dompetVendor.akun']);
         });
     }
 
@@ -231,12 +231,12 @@ class SewaPrinterService
     {
         return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
             $locked = SewaPrinter::query()
-                ->with(['karyawanPic', 'pembayaran'])
+                ->with(['karyawan', 'pembayaran'])
                 ->lockForUpdate()
                 ->findOrFail($sewaPrinter->id);
 
             $this->assertStatus($locked, [SewaPrinter::STATUS_DIKONFIRMASI], 'Hanya kontrak dikonfirmasi yang dapat dimulai.');
-            $this->assertActiveKaryawan($locked->karyawanPic);
+            $this->assertActiveKaryawan($locked->karyawan);
 
             if ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran) {
                 throw ValidationException::withMessages([
@@ -250,7 +250,7 @@ class SewaPrinterService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details', 'karyawanPic', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor']);
+            return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor']);
         });
     }
 
@@ -282,7 +282,7 @@ class SewaPrinterService
 
             $this->akuntansiService->recordPengakuanPendapatanSewaPrinter($locked->fresh(), $financeUserId);
 
-            return $locked->fresh(['details', 'karyawanPic', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
+            return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
         });
     }
 
@@ -321,7 +321,7 @@ class SewaPrinterService
                 'updated_by' => $financeUserId,
             ]);
 
-            return $locked->fresh(['details', 'karyawanPic', 'pembayaran']);
+            return $locked->fresh(['details', 'karyawan', 'pembayaran']);
         });
     }
 

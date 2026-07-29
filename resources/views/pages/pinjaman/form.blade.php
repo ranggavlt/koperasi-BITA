@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -18,8 +18,8 @@
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h1 class="text-lg font-bold text-slate-700">{{ $editing ? 'Edit Draft Pengajuan Pinjaman' : 'Buat Pengajuan Pinjaman' }}</h1>
-      <p class="mt-1 text-sm text-slate-400">Form ini hanya membuat draft. Dompet dan tanggal pencairan dipilih setelah pengajuan disetujui.</p>
+      <h1 class="text-lg font-bold text-slate-700">{{ $editing ? 'Edit Pengajuan Pinjaman' : 'Buat & Cairkan Pinjaman' }}</h1>
+      <p class="mt-1 text-sm text-slate-400">Pinjaman yang dibuat akan otomatis disetujui, dicairkan, dan jadwal cicilannya akan terbentuk.</p>
     </div>
     <a href="{{ route('pinjaman.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Kembali</a>
   </div>
@@ -59,19 +59,24 @@
 
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Nominal Pengajuan</label>
-          <input type="number" name="jumlah_pinjaman" min="1" max="5000000" step="1"
-            value="{{ old('jumlah_pinjaman', $pinjaman?->jumlah_pinjaman ? (int) $pinjaman->jumlah_pinjaman : '') }}"
-            class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-            placeholder="Maksimal 5000000">
+          <div class="relative flex items-center">
+            <span class="absolute left-3 text-sm text-slate-500 font-medium pointer-events-none">Rp</span>
+            <input type="number" name="jumlah_pinjaman" min="1" max="5000000" step="1"
+              value="{{ old('jumlah_pinjaman', $pinjaman?->jumlah_pinjaman ? (int) $pinjaman->jumlah_pinjaman : '') }}"
+              class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm"
+              placeholder="0">
+          </div>
           <p class="mt-1 text-xs text-slate-400">Maksimal sistem Rp5.000.000 dan tetap dibatasi plafon Anggota.</p>
         </div>
 
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Tenor</label>
-          <input type="number" name="tenor_bulan" min="1" max="12" step="1"
-            value="{{ old('tenor_bulan', $pinjaman?->tenor_bulan) }}"
-            class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-            placeholder="1-12 bulan">
+          <select name="tenor_bulan" class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option value="">-- Pilih Tenor --</option>
+            @foreach([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as $t)
+              <option value="{{ $t }}" @selected(old('tenor_bulan', $pinjaman?->tenor_bulan) == $t)>{{ $t }} Bulan</option>
+            @endforeach
+          </select>
         </div>
 
         <div>
@@ -94,10 +99,19 @@
             class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
             placeholder="Contoh: kebutuhan pendidikan, kesehatan, atau kebutuhan keluarga">{{ old('keterangan', $pinjaman?->keterangan) }}</textarea>
         </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Sumber Dana (Dompet)</label>
+          <select name="dompet_id" required class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option value="">-- Pilih Kas/Bank --</option>
+            @foreach($dompet as $d)
+              <option value="{{ $d->id }}" @selected(old('dompet_id', $pinjaman?->dompet_id) == $d->id)>{{ $d->nama_dompet }}</option>
+            @endforeach
+          </select>
+        </div>
       </div>
 
       <div class="mt-6 flex flex-wrap gap-3">
-        <button class="kbsm-btn kbsm-btn--navy">{{ $editing ? 'Simpan Draft' : 'Buat Draft' }}</button>
+        <button class="kbsm-btn kbsm-btn--navy">{{ $editing ? 'Simpan' : 'Buat & Cairkan Pinjaman' }}</button>
         <a href="{{ route('pinjaman.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal</a>
       </div>
     </form>

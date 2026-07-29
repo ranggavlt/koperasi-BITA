@@ -40,7 +40,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Penyelesaian Keanggotaan</p>
       <h1 class="kbsm-business-title">{{ $penyelesaian->kode_penyelesaian }}</h1>
-      <p class="kbsm-business-subtitle">{{ $penyelesaian->anggota?->nomor_anggota }} - {{ $penyelesaian->anggota?->karyawan?->nama }} Â· Siklus #{{ $penyelesaian->siklus?->siklus_ke }}</p>
+      <p class="kbsm-business-subtitle">{{ $penyelesaian->anggota?->nomor_anggota }} - {{ $penyelesaian->anggota?->karyawan?->nama }} &bull; Siklus #{{ $penyelesaian->siklus?->siklus_ke }}</p>
     </div>
     <a href="{{ route('penyelesaian-keanggotaan.index') }}" class="kbsm-business-back-link">Kembali</a>
   </div>
@@ -144,7 +144,7 @@
             <select name="dompet_id" required class="kbsm-business-control">
               <option value="">Pilih Dompet</option>
               @foreach($dompetOptions as $dompet)
-                <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} Â· {{ strtoupper($dompet->jenis_dompet) }} Â· {{ $dompet->akun?->kode_akun ?? 'tanpa COA' }}</option>
+                <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} &bull; {{ strtoupper($dompet->jenis_dompet) }} &bull; {{ $dompet->akun?->kode_akun ?? 'tanpa COA' }}</option>
               @endforeach
             </select>
           </div>

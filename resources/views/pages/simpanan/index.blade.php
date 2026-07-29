@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -25,9 +25,9 @@
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
       <h1 class="kbsm-business-title">Transaksi Simpanan</h1>
-      <p class="kbsm-business-subtitle">Daftar immutable untuk Simpanan Pokok, Wajib, dan Sukarela. Koreksi Sukarela dilakukan dengan audit trail, bukan edit/hapus.</p>
+      <p class="kbsm-business-subtitle">Daftar immutable untuk Simpanan Pokok, Wajib, dan Manasuka. Koreksi Manasuka dilakukan dengan audit trail, bukan edit/hapus.</p>
     </div>
-    <a href="{{ route('simpanan.create') }}" class="kbsm-business-add-button">+ Transaksi Simpanan Sukarela</a>
+    <a href="{{ route('simpanan.create') }}" class="kbsm-business-add-button">+ Transaksi Simpanan Manasuka</a>
   </div>
 
   <section class="kbsm-business-panel">
@@ -110,21 +110,21 @@
       <div class="kbsm-business-summary-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M12 3l4 4h-3v7h-2V7H8l4-4Zm-7 9h2v5h10v-5h2v7H5v-7Z"/></svg>
       </div>
-      <p class="kbsm-business-summary-label">Total Setoran Sukarela</p>
+      <p class="kbsm-business-summary-label">Total Setoran Manasuka</p>
       <p class="kbsm-business-summary-value">{{ $rupiah($summary['setoran'] ?? 0) }}</p>
     </article>
     <article class="kbsm-business-summary-card kbsm-business-summary-card--gold">
       <div class="kbsm-business-summary-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M12 21l-4-4h3v-7h2v7h3l-4 4ZM5 5h14v7h-2V7H7v5H5V5Z"/></svg>
       </div>
-      <p class="kbsm-business-summary-label">Total Penarikan Sukarela</p>
+      <p class="kbsm-business-summary-label">Total Penarikan Manasuka</p>
       <p class="kbsm-business-summary-value">{{ $rupiah($summary['penarikan'] ?? 0) }}</p>
     </article>
     <article class="kbsm-business-summary-card kbsm-business-summary-card--navy">
       <div class="kbsm-business-summary-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v2h-5a3 3 0 0 0 0 6h5v1a2 2 0 0 1-2 2H4V7Zm0-3h12v2H4a1 1 0 0 1 0-2Zm14 9h-3a1 1 0 0 0 0 2h3v-2Z"/></svg>
       </div>
-      <p class="kbsm-business-summary-label">Saldo Sukarela Aktif</p>
+      <p class="kbsm-business-summary-label">Saldo Manasuka Aktif</p>
       <p class="kbsm-business-summary-value">{{ $rupiah($summary['saldo_aktif'] ?? 0) }}</p>
     </article>
     <article class="kbsm-business-summary-card kbsm-business-summary-card--red">
@@ -139,7 +139,7 @@
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Daftar Transaksi Simpanan</h2>
-      <p class="kbsm-business-panel__copy">Tidak ada tombol edit atau hapus. Transaksi Sukarela posted yang salah dapat dikoreksi penuh dengan alasan.</p>
+      <p class="kbsm-business-panel__copy">Tidak ada tombol edit atau hapus. Transaksi Manasuka posted yang salah dapat dikoreksi penuh dengan alasan.</p>
     </div>
 
     <div class="kbsm-business-table-wrap">
@@ -192,7 +192,7 @@
                 <div class="kbsm-business-muted">Jurnal: {{ $item->jurnal ? 'Ada' : '-' }}</div>
               </td>
               <td>
-                @if($item->isSimpananSukarela() && $item->status === \App\Models\Simpanan::STATUS_SETTLED && in_array($item->jenis_transaksi, [\App\Models\Simpanan::JENIS_SETORAN, \App\Models\Simpanan::JENIS_PENARIKAN], true))
+                @if($item->isSimpananManasuka() && $item->status === \App\Models\Simpanan::STATUS_SETTLED && in_array($item->jenis_transaksi, [\App\Models\Simpanan::JENIS_SETORAN, \App\Models\Simpanan::JENIS_PENARIKAN], true))
                   <form method="POST" action="{{ route('simpanan.koreksi', $item) }}" class="kbsm-business-inline-actions">
                     @csrf
                     <textarea name="alasan" rows="2" required minlength="5" class="kbsm-business-control" placeholder="Alasan Koreksi"></textarea>

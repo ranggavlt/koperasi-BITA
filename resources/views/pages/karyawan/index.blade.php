@@ -57,6 +57,15 @@
             class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
         </div>
         <div>
+          <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="perusahaan_id">Perusahaan</label>
+          <select id="perusahaan_id" name="perusahaan_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+            <option value="">Pilih Perusahaan</option>
+            @foreach($perusahaan as $p)
+              <option value="{{ $p->id }}" {{ old('perusahaan_id', $data->perusahaan_id ?? '') == $p->id ? 'selected' : '' }}>{{ $p->nama }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="status_kerja">Status kerja</label>
           <select id="status_kerja" name="status_kerja" required onchange="syncTanggalBerhenti()"
             class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
@@ -91,12 +100,13 @@
     <div style="overflow-x: auto;">
       <table class="w-full min-w-[1150px] text-left text-sm">
         <thead class="bg-[#073b5c] text-xs uppercase text-white">
-          <tr><th class="px-6 py-4">Karyawan</th><th class="px-6 py-4">Kontak</th><th class="px-6 py-4">Jabatan</th><th class="px-6 py-4">Status kerja</th><th class="px-6 py-4">Keanggotaan</th><th class="px-6 py-4 text-center">Aksi</th></tr>
+          <tr><th class="px-6 py-4">Karyawan</th><th class="px-6 py-4">Perusahaan</th><th class="px-6 py-4">Kontak</th><th class="px-6 py-4">Jabatan</th><th class="px-6 py-4">Status kerja</th><th class="px-6 py-4">Keanggotaan</th><th class="px-6 py-4 text-center">Aksi</th></tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           @forelse($karyawan as $item)
             <tr class="hover:bg-slate-50">
               <td class="px-6 py-4 font-semibold text-slate-700">{{ $item->nama }}</td>
+              <td class="px-6 py-4 text-slate-600">{{ $item->perusahaan->nama ?? '-' }}</td>
               <td class="px-6 py-4"><div class="text-slate-600">{{ $item->email }}</div><div class="text-xs text-slate-400">{{ $item->telepon ?: '-' }}</div></td>
               <td class="px-6 py-4 text-slate-600">{{ $item->jabatan }}</td>
               <td class="px-6 py-4">

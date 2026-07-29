@@ -39,7 +39,7 @@ class FinanceSewaPrinterController extends Controller
         $query = SewaPrinter::query()
             ->with([
                 'details',
-                'karyawanPic',
+                'karyawan',
                 'recorder',
                 'pembayaran.dompetPenerimaan.akun',
                 'pembayaran.dompetVendor.akun',
@@ -51,7 +51,7 @@ class FinanceSewaPrinterController extends Controller
         }
 
         if (! empty($filters['karyawan_id'])) {
-            $query->where('karyawan_id', $filters['karyawan_id']);
+            $query->where('karyawan_pic_id', $filters['karyawan_id']);
         }
 
         if (! empty($filters['tanggal_dari'])) {
@@ -82,7 +82,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->createDraft($request->validated(), $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Draft Sewa Printer berhasil dibuat.');
+            ->with('success', 'Draft Sewa Hardware berhasil dibuat.');
     }
 
     public function edit(SewaPrinter $sewaPrinter)
@@ -97,7 +97,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->updateDraft($sewaPrinter, $request->validated(), $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Draft Sewa Printer berhasil diperbarui.');
+            ->with('success', 'Draft Sewa Hardware berhasil diperbarui.');
     }
 
     public function confirm(Request $request, SewaPrinter $sewaPrinter)
@@ -107,7 +107,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->confirm($sewaPrinter, $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer berhasil dikonfirmasi.');
+            ->with('success', 'Kontrak Sewa Hardware berhasil dikonfirmasi.');
     }
 
     public function pay(PaySewaPrinterRequest $request, SewaPrinter $sewaPrinter)
@@ -115,7 +115,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->pay($sewaPrinter, $request->validated(), $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Pembayaran penuh Sewa Printer berhasil dicatat.');
+            ->with('success', 'Pembayaran penuh Sewa Hardware berhasil dicatat.');
     }
 
     public function start(Request $request, SewaPrinter $sewaPrinter)
@@ -125,7 +125,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->start($sewaPrinter, $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer dimulai.');
+            ->with('success', 'Kontrak Sewa Hardware dimulai.');
     }
 
     public function complete(Request $request, SewaPrinter $sewaPrinter)
@@ -135,7 +135,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->complete($sewaPrinter, $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer selesai dan margin koperasi diakui.');
+            ->with('success', 'Kontrak Sewa Hardware selesai dan margin koperasi diakui.');
     }
 
     public function cancel(CancelSewaPrinterRequest $request, SewaPrinter $sewaPrinter)
@@ -143,7 +143,7 @@ class FinanceSewaPrinterController extends Controller
         $this->service->cancelByFinance($sewaPrinter, $request->validated('alasan'), $request->user()->id);
 
         return redirect()->route('sewa-printer.index')
-            ->with('success', 'Kontrak Sewa Printer berhasil dibatalkan sebelum pembayaran.');
+            ->with('success', 'Kontrak Sewa Hardware berhasil dibatalkan sebelum pembayaran.');
     }
 
     private function formOptions(?SewaPrinter $editData = null): array

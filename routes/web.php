@@ -4,10 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\KategoriProdukController;
 use App\Http\Controllers\KasirController;
-use App\Http\Controllers\JenisSimpananController;
-use App\Http\Controllers\JadwalSimpananWajibController;
+
+
 use App\Http\Controllers\KaryawanController;
-use App\Http\Controllers\JenisPinjamanController;
+
 use App\Http\Controllers\DompetKoperasiController;
 use App\Http\Controllers\SimpananController;
 use App\Http\Controllers\PinjamanController;
@@ -30,7 +30,7 @@ use App\Http\Controllers\BukuBesarController;
 use App\Http\Controllers\AkunController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnggotaController;
-use App\Http\Controllers\AsetMobilController;
+
 use App\Http\Controllers\AsetPrinterController;
 use App\Http\Controllers\PeriodePotongGajiController;
 use App\Http\Controllers\OutstandingCashController;
@@ -84,20 +84,13 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     // RESELLER (Konsinyasi)
     Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
 
-    Route::resource('jenis-simpanan', JenisSimpananController::class)->except(['show']);
 
-    Route::resource('jenis-pinjaman', JenisPinjamanController::class)->except(['create', 'show']);
+
+
 
     Route::resource('dompet-koperasi', DompetKoperasiController::class)->except(['create', 'show']);
 
-    Route::get('/aset-mobil', [AsetMobilController::class, 'index'])->name('aset-mobil.index');
-    Route::post('/aset-mobil', [AsetMobilController::class, 'store'])->name('aset-mobil.store');
-    Route::get('/aset-mobil/{aset}/edit', [AsetMobilController::class, 'edit'])->name('aset-mobil.edit');
-    Route::put('/aset-mobil/{aset}', [AsetMobilController::class, 'update'])->name('aset-mobil.update');
-    Route::patch('/aset-mobil/{aset}/status', [AsetMobilController::class, 'updateStatus'])->name('aset-mobil.status');
-    Route::patch('/aset-mobil/{aset}/nonaktifkan', [AsetMobilController::class, 'nonaktifkan'])->name('aset-mobil.nonaktifkan');
-    Route::patch('/aset-mobil/{aset}/aktifkan', [AsetMobilController::class, 'aktifkan'])->name('aset-mobil.aktifkan');
-    Route::delete('/aset-mobil/{aset}', [AsetMobilController::class, 'destroy'])->name('aset-mobil.destroy');
+
 
     Route::middleware('feature:master_printer_enabled')->group(function (): void {
         Route::get('/aset-printer', [AsetPrinterController::class, 'index'])->name('aset-printer.index');
@@ -120,8 +113,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
         ->name('simpanan.saldo-manasuka');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
-    Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
-        ->name('jadwal-simpanan-wajib.index');
+
 
     Route::resource('pinjaman', PinjamanController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
     Route::post('/pinjaman/{pinjaman}/ajukan', [PinjamanController::class, 'submit'])
@@ -143,6 +135,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/periode-potong-gaji', [PeriodePotongGajiController::class, 'index'])
         ->name('periode-potong-gaji.index');
+    Route::get('/periode-potong-gaji/create', [PeriodePotongGajiController::class, 'create'])
+        ->name('periode-potong-gaji.create');
     Route::post('/periode-potong-gaji', [PeriodePotongGajiController::class, 'storePeriode'])
         ->name('periode-potong-gaji.store');
     Route::post('/periode-potong-gaji/limit', [PeriodePotongGajiController::class, 'storeLimit'])

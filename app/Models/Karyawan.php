@@ -17,6 +17,7 @@ class Karyawan extends Model
         'email',
         'telepon',
         'jabatan',
+        'perusahaan_id',
         'status_kerja',
         'tanggal_berhenti',
     ];
@@ -38,6 +39,11 @@ class Karyawan extends Model
     public function user()
     {
         return $this->hasOne(User::class);
+    }
+
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class);
     }
 
     public function penjualan()

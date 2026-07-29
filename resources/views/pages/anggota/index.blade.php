@@ -76,7 +76,7 @@
           @forelse($anggota as $item)
             <tr class="hover:bg-slate-50">
               <td class="px-6 py-4 font-bold text-[#073b5c]">{{ $item->nomor_anggota }}</td>
-              <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->karyawan->nama }}</div><div class="text-xs text-slate-400">{{ $item->karyawan->jabatan }} Â· {{ ucfirst($item->karyawan->status_kerja) }}</div></td>
+              <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->karyawan->nama }}</div><div class="text-xs text-slate-400">{{ $item->karyawan->jabatan }} &bull; {{ ucfirst($item->karyawan->status_kerja) }}</div></td>
               <td class="px-6 py-4 text-slate-600">{{ $item->tanggal_bergabung->format('d/m/Y') }}</td>
               <td class="max-w-xs whitespace-normal px-6 py-4 text-slate-600">{{ $item->alamat }}</td>
               <td class="px-6 py-4 font-semibold text-slate-700">Rp {{ number_format((float) $item->plafon_pinjaman, 0, ',', '.') }}</td>

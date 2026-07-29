@@ -48,19 +48,35 @@ class PinjamanController extends Controller
 
     public function create()
     {
+        $dompet = \App\Models\DompetKoperasi::query()
+            ->with('akun')
+            ->orderBy('nama_dompet')
+            ->get();
+
         return view('pages.pinjaman.form', [
             'pinjaman' => null,
             'anggota' => $this->availableAnggota(),
+            'dompet' => $dompet,
         ]);
     }
 
     public function store(StorePinjamanRequest $request, PinjamanKoperasiService $service)
     {
-        $pinjaman = $service->createDraft($request->validated(), $request->user()->id);
+        $data = $request->validated();
+        
+        $pinjaman = $service->createDraft($data, $request->user()->id);
+        $pinjaman = $service->submit($pinjaman, $request->user()->id);
+        $pinjaman = $service->approve($pinjaman, $request->user()->id);
+        
+        $disburseData = [
+            'tanggal_pencairan' => $data['tanggal_pengajuan'],
+            'dompet_id' => $data['dompet_id'],
+        ];
+        $pinjaman = $service->disburse($pinjaman, $disburseData, $request->user()->id);
 
         return redirect()
             ->route('pinjaman.show', $pinjaman)
-            ->with('success', 'Draft pengajuan Pinjaman berhasil dibuat.');
+            ->with('success', 'Pinjaman berhasil dibuat, disetujui, dan dicairkan.');
     }
 
     public function edit(Pinjaman $pinjaman)

@@ -65,7 +65,7 @@ class SimpananSukarelaService
                     ->lockForUpdate()
                     ->findOrFail($simpanan->id);
 
-                if (! $locked->isSimpananManasuka()) {
+                if (! $locked->isSimpananSukarela()) {
                     throw ValidationException::withMessages([
                         'simpanan' => 'Koreksi Transaksi hanya tersedia untuk Simpanan Sukarela.',
                     ]);
@@ -431,7 +431,7 @@ class SimpananSukarelaService
 
         if (! $jenis) {
             throw ValidationException::withMessages([
-                'jenis_simpanan_id' => 'Master Simpanan Sukarela aktif belum dikonfigurasi.',
+                'jenis_simpanan_id' => 'Master Simpanan Manasuka aktif belum dikonfigurasi.',
             ]);
         }
 

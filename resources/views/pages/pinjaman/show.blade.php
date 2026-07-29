@@ -90,7 +90,7 @@
           <p class="text-sm text-slate-700">
             Siklus {{ $pinjaman->siklusKeanggotaan?->siklus_ke ?? '-' }}
             @if($pinjaman->siklusKeanggotaan?->status)
-              Â· {{ ucfirst($pinjaman->siklusKeanggotaan->status) }}
+              &bull; {{ ucfirst($pinjaman->siklusKeanggotaan->status) }}
             @endif
           </p>
         </div>
@@ -108,7 +108,7 @@
         </div>
         <div>
           <p class="mb-1 text-xs font-bold uppercase text-slate-400">Tenor & Bunga</p>
-          <p class="text-sm text-slate-700">{{ $pinjaman->tenor_bulan }} bulan Â· 0%</p>
+          <p class="text-sm text-slate-700">{{ $pinjaman->tenor_bulan }} bulan &bull; 0%</p>
         </div>
         <div>
           <p class="mb-1 text-xs font-bold uppercase text-slate-400">Dompet Pencairan</p>
@@ -187,7 +187,7 @@
                 <select name="dompet_id" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" required>
                   <option value="">-- Pilih Dompet --</option>
                   @foreach($dompet as $item)
-                    <option value="{{ $item->id }}">{{ $item->nama_dompet }} Â· Saldo {{ $money($item->saldo) }} Â· {{ $item->akun?->kode_akun ?? 'COA?' }}</option>
+                    <option value="{{ $item->id }}">{{ $item->nama_dompet }} &bull; Saldo {{ $money($item->saldo) }} &bull; {{ $item->akun?->kode_akun ?? 'COA?' }}</option>
                   @endforeach
                 </select>
               </div>
@@ -219,7 +219,7 @@
           <label class="mb-2 block text-xs font-bold uppercase text-emerald-50">Dompet Kas penerimaan</label>
           <select name="dompet_id" class="mb-3 w-full rounded-lg border-0 px-3 py-2 text-sm text-slate-700">
             @foreach($dompetKas as $kas)
-              <option value="{{ $kas->id }}">{{ $kas->nama_dompet }} Â· {{ $kas->akun?->kode_akun ?? 'COA?' }}</option>
+              <option value="{{ $kas->id }}">{{ $kas->nama_dompet }} &bull; {{ $kas->akun?->kode_akun ?? 'COA?' }}</option>
             @endforeach
           </select>
           <button class="rounded-lg bg-white px-4 py-2 text-xs font-bold uppercase text-slate-900">Bayar Cicilan Terjadwal</button>
@@ -230,7 +230,7 @@
           <label class="mb-2 block text-xs font-bold uppercase text-emerald-50">Dompet Kas penerimaan</label>
           <select name="dompet_id" class="mb-3 w-full rounded-lg border-0 px-3 py-2 text-sm text-slate-700">
             @foreach($dompetKas as $kas)
-              <option value="{{ $kas->id }}">{{ $kas->nama_dompet }} Â· {{ $kas->akun?->kode_akun ?? 'COA?' }}</option>
+              <option value="{{ $kas->id }}">{{ $kas->nama_dompet }} &bull; {{ $kas->akun?->kode_akun ?? 'COA?' }}</option>
             @endforeach
           </select>
           <button class="rounded-lg bg-emerald-100 px-4 py-2 text-xs font-bold uppercase text-emerald-900">Lunasi Seluruh Sisa Tunai</button>
@@ -276,7 +276,7 @@
               <td>
                 @if($row->payment)
                   <span class="kbsm-business-code">CIC-{{ $row->payment->id }}</span>
-                  <div class="kbsm-business-muted">{{ $row->metode_pembayaran_label }} Â· {{ optional($row->tanggal_pembayaran)->format('d/m/Y') ?? '-' }}</div>
+                  <div class="kbsm-business-muted">{{ $row->metode_pembayaran_label }} &bull; {{ optional($row->tanggal_pembayaran)->format('d/m/Y') ?? '-' }}</div>
                 @else
                   <span class="kbsm-business-muted">Belum ada pembayaran</span>
                 @endif
@@ -326,18 +326,18 @@
       <div class="p-5">
         <div class="mb-4 rounded-xl border border-slate-100 p-4">
           <p class="mb-1 text-xs font-bold uppercase text-slate-400">Mutasi Pencairan</p>
-          <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->mutasiKas?->tanggal ?? '-' }} Â· {{ $pinjaman->mutasiKas?->dompet?->nama_dompet ?? $pinjaman->dompet?->nama_dompet ?? '-' }} Â· {{ $pinjaman->mutasiKas ? $money($pinjaman->mutasiKas->jumlah) : '-' }}</p>
+          <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->mutasiKas?->tanggal ?? '-' }} &bull; {{ $pinjaman->mutasiKas?->dompet?->nama_dompet ?? $pinjaman->dompet?->nama_dompet ?? '-' }} &bull; {{ $pinjaman->mutasiKas ? $money($pinjaman->mutasiKas->jumlah) : '-' }}</p>
         </div>
         <div class="mb-4 rounded-xl border border-slate-100 p-4">
           <p class="mb-1 text-xs font-bold uppercase text-slate-400">Jurnal Pencairan</p>
           <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->jurnal?->nomor_bukti ?? 'Belum ada' }}</p>
           @if($pinjaman->jurnal)
-            <p class="mt-1 text-xs text-slate-400">Debit {{ $money($pinjaman->jurnal->details->sum('debit')) }} Â· Kredit {{ $money($pinjaman->jurnal->details->sum('kredit')) }}</p>
+            <p class="mt-1 text-xs text-slate-400">Debit {{ $money($pinjaman->jurnal->details->sum('debit')) }} &bull; Kredit {{ $money($pinjaman->jurnal->details->sum('kredit')) }}</p>
           @endif
         </div>
         <div class="rounded-xl border border-slate-100 p-4">
           <p class="mb-1 text-xs font-bold uppercase text-slate-400">Posting Pembayaran Cicilan</p>
-          <p class="mb-0 text-sm text-slate-700">{{ $payments->where('status', 'sudah_bayar')->count() }} pembayaran Â· {{ $money($payments->where('status', 'sudah_bayar')->sum(fn ($row) => (float) $row->jumlah_cicilan)) }}</p>
+          <p class="mb-0 text-sm text-slate-700">{{ $payments->where('status', 'sudah_bayar')->count() }} pembayaran &bull; {{ $money($payments->where('status', 'sudah_bayar')->sum(fn ($row) => (float) $row->jumlah_cicilan)) }}</p>
         </div>
       </div>
     </section>
