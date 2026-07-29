@@ -121,7 +121,7 @@
         </div>
     </div>
 
-    {{-- BARIS BAWAH: Top Produk & Aktivitas --}}
+    {{-- BARIS BAWAH: Top Produk & Ringkasan Operasional --}}
     <div class="flex flex-wrap my-6 -mx-3">
         <div class="w-full max-w-full px-3 mt-0 mb-6 md:mb-0 md:w-1/2 lg:w-2/3 lg:flex-none">
             <div class="border-black/12.5 shadow-soft-xl relative flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border">
@@ -165,38 +165,24 @@
             </div>
         </div>
 
-        {{-- FIX: Layout Aktivitas Terakhir Dirombak Jadi Flexbox List --}}
         <div class="w-full max-w-full px-3 md:w-1/2 lg:w-1/3 lg:flex-none">
             <div class="border-black/12.5 shadow-soft-xl relative flex h-full min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border">
                 <div class="p-6 pb-0 mb-4 bg-white rounded-t-2xl">
-                    <h6>Aktivitas Terakhir</h6>
+                    <h6>Ringkasan Operasional</h6>
                 </div>
                 <div class="flex-auto p-6 pt-0">
-                    <div class="flex flex-col gap-5">
-                        @forelse($transaksiTerakhir as $trx)
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center" style="gap: 0.75rem;">
-                                {{-- Icon Keranjang --}}
-                                <div class="flex flex-shrink-0 items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-sm">
-                                    <i class="ni ni-cart text-white text-lg"></i>
-                                </div>
-                                {{-- Info Kiri --}}
-                                <div class="flex flex-col">
-                                    <h6 class="mb-0 text-sm font-semibold text-slate-700">{{ $trx->kode_transaksi }}</h6>
-                                    <span class="text-xs font-semibold text-slate-400">{{ $trx->karyawan->nama ?? 'Admin/Kasir' }}</span>
-                                </div>
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-start" style="gap: 0.75rem;">
+                            <div class="flex flex-shrink-0 items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-sm">
+                                <i class="ni ni-chart-bar-32 text-white text-lg"></i>
                             </div>
-                            {{-- Info Kanan (Harga & Waktu) --}}
-                            <div class="flex flex-col text-right">
-                                <h6 class="mb-0 text-sm font-bold text-slate-700">Rp {{ number_format($trx->grand_total, 0, ',', '.') }}</h6>
-                                <span class="text-xs font-semibold text-slate-400">
-                                    {{ \Carbon\Carbon::parse($trx->created_at)->format('d M H:i') }}
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-sm font-semibold text-slate-700">Dashboard finance tetap fokus pada agregat.</h6>
+                                <span class="text-xs font-semibold leading-relaxed text-slate-400">
+                                    Detail transaksi terbaru dikelola lewat modul Penjualan/Kasir, Mutasi Kas & Bank, dan laporan akuntansi agar tidak ada dua sumber pembacaan aktivitas.
                                 </span>
                             </div>
                         </div>
-                        @empty
-                        <div class="text-center text-sm text-slate-400 py-4">Belum ada aktivitas.</div>
-                        @endforelse
                     </div>
                 </div>
             </div>

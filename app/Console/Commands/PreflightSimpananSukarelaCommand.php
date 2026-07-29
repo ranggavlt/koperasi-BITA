@@ -22,6 +22,10 @@ class PreflightSimpananSukarelaCommand extends Command
     {
         $checks = [
             $this->check('schema_missing', 'Schema SP-3 Simpanan Sukarela belum lengkap', $this->schemaMissing()),
+            $this->check('jenis_duplicate_active', 'Master Jenis Simpanan aktif duplikat per kategori', $this->duplicateActiveJenisSimpananKategori()),
+            $this->check('legacy_manasuka_master', 'Master Manasuka legacy terpisah dari Sukarela canonical', $this->legacyManasukaMaster()),
+            $this->check('sukarela_without_master', 'Transaksi Sukarela tanpa master Sukarela aktif', $this->sukarelaTransactionWithoutActiveMaster()),
+            $this->check('saldo_sukarela_orphan', 'Saldo Sukarela orphan atau memakai master non-Sukarela', $this->orphanSaldoSukarelaMaster()),
             $this->check('saldo_duplicate', 'Saldo duplikat per Anggota/Siklus/Jenis', $this->duplicateSaldo()),
             $this->check('saldo_negative', 'Saldo cached Simpanan Sukarela negatif', $this->negativeSaldo()),
             $this->check('saldo_cached_mismatch', 'Saldo cached berbeda dari transaksi immutable', $this->cachedBalanceMismatch()),
@@ -88,6 +92,83 @@ class PreflightSimpananSukarelaCommand extends Command
         }
 
         return 0;
+    }
+
+    private function duplicateActiveJenisSimpananKategori(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->select('kategori', DB::raw('COUNT(*) as total'))
+            ->where('aktif', true)
+            ->whereIn('kategori', [
+                JenisSimpanan::KATEGORI_POKOK,
+                JenisSimpanan::KATEGORI_WAJIB,
+                JenisSimpanan::KATEGORI_SUKARELA,
+            ])
+            ->groupBy('kategori')
+            ->having('total', '>', 1)
+            ->get()
+            ->count();
+    }
+
+    private function legacyManasukaMaster(): int
+    {
+        if (! Schema::hasTable('jenis_simpanan')) {
+            return 0;
+        }
+
+        return DB::table('jenis_simpanan')
+            ->where(function ($query): void {
+                $query->where('kode', 'SIMPANAN_MANASUKA')
+                    ->orWhere('kategori', 'manasuka')
+                    ->orWhere('nama_jenis', 'like', '%Manasuka%');
+            })
+            ->count();
+    }
+
+    private function sukarelaTransactionWithoutActiveMaster(): int
+    {
+        if (! $this->hasTables(['simpanan', 'jenis_simpanan']) || ! Schema::hasColumn('simpanan', 'kode_jenis_snapshot')) {
+            return 0;
+        }
+
+        $hasActiveMaster = DB::table('jenis_simpanan')
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)
+            ->where('aktif', true)
+            ->exists();
+
+        if ($hasActiveMaster) {
+            return 0;
+        }
+
+        return DB::table('simpanan as s')
+            ->leftJoin('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')
+            ->where(function ($query): void {
+                $query->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+                    ->orWhere('js.kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+                    ->orWhere('js.kategori', JenisSimpanan::KATEGORI_SUKARELA);
+            })
+            ->count('s.id');
+    }
+
+    private function orphanSaldoSukarelaMaster(): int
+    {
+        if (! $this->hasTables(['saldo_simpanan_sukarela', 'jenis_simpanan'])) {
+            return 0;
+        }
+
+        return DB::table('saldo_simpanan_sukarela as saldo')
+            ->leftJoin('jenis_simpanan as js', 'js.id', '=', 'saldo.jenis_simpanan_id')
+            ->where(function ($query): void {
+                $query->whereNull('js.id')
+                    ->orWhere('js.kode', '!=', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+                    ->orWhere('js.kategori', '!=', JenisSimpanan::KATEGORI_SUKARELA);
+            })
+            ->count('saldo.id');
     }
 
     private function duplicateSaldo(): int

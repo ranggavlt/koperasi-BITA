@@ -76,7 +76,7 @@
 
       <div class="kbsm-business-section">
         <h2 class="kbsm-business-section__title">Konfigurasi Keuangan</h2>
-        <p class="kbsm-business-section__copy">Nominal Pokok/Wajib wajib lebih dari nol. Manasuka memakai nominal transaksi pada SP-3.</p>
+        <p class="kbsm-business-section__copy">Nominal Pokok/Wajib wajib lebih dari nol. Sukarela memakai nominal transaksi pada SP-3.</p>
 
         <div class="kbsm-business-grid">
           <div class="kbsm-business-field">

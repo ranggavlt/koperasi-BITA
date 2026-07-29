@@ -38,6 +38,7 @@ class BukuBesarController extends Controller
         $saldoAkhir = 0.0;
         $totalDebit = 0.0;
         $totalKredit = 0.0;
+        $akunModel = null;
 
         if ($akun !== '') {
             $akunModel = Akun::query()
@@ -91,6 +92,7 @@ class BukuBesarController extends Controller
             'mulai' => $mulai,
             'akhir' => $akhir,
             'akun' => $akun,
+            'akunModel' => $akunModel,
             'akunList' => $akunList,
             'lines' => $lines,
             'saldoAwal' => $saldoAwal,

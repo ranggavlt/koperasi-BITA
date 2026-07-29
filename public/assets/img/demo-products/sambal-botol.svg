@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Sambal Botol Rumahan 200ml</title>
+  <desc id="desc">Botol sambal rumahan merah.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <rect x="136" y="32" width="48" height="28" rx="8" fill="#073b5c"/>
+  <path d="M128 60h64l14 36v88c0 20-16 36-36 36h-20c-20 0-36-16-36-36V96z" fill="#ef4444" stroke="#073b5c" stroke-width="6"/>
+  <rect x="122" y="120" width="76" height="50" rx="12" fill="#ffffff"/>
+  <text x="160" y="151" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#073b5c">SAMBAL</text>
+  <path d="M220 80c24 6 30 28 12 42-19-13-18-33-12-42z" fill="#10b981" stroke="#073b5c" stroke-width="4"/>
+  <circle cx="86" cy="182" r="16" fill="#f2b84b"/>
+</svg>

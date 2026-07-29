@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Roti Sisir Keju</title>
+  <desc id="desc">Roti sisir keju dengan taburan emas.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <path d="M72 142c0-50 36-86 88-86s88 36 88 86v24c0 19-15 34-34 34H106c-19 0-34-15-34-34z" fill="#f2b84b" stroke="#073b5c" stroke-width="6"/>
+  <path d="M106 84v92M136 66v110M166 60v116M196 68v108" stroke="#fff7d6" stroke-width="7" stroke-linecap="round"/>
+  <path d="M104 154h112" stroke="#10b981" stroke-width="9" stroke-linecap="round"/>
+  <text x="160" y="184" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#073b5c">KEJU</text>
+</svg>

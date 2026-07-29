@@ -29,7 +29,7 @@ return [
         ],
         [
             'section' => 'POS Koperasi',
-            'label' => 'Waserba / Kasir',
+            'label' => 'Penjualan / Kasir',
             'route' => 'waserba.index',
             'roles' => ['kasir'],
             'patterns' => ['waserba.*'],

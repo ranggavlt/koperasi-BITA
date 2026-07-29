@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
+use App\Models\Pembayaran;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -11,6 +12,10 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        if (auth()->user()->role === 'kasir') {
+            return view('pages.dashboard-kasir', $this->kasirDashboardData());
+        }
+
         // =============================
         // 1. Inisialisasi waktu
         // =============================
@@ -87,31 +92,8 @@ class DashboardController extends Controller
             ->get();
 
         // =============================
-        // 5. AKTIVITAS TERAKHIR
-        // =============================
-
-        $transaksiTerakhir = Penjualan::with('karyawan')
-            ->orderByDesc('id')
-            ->limit(6)
-            ->get()
-            ->map(function ($trx) {
-                $trx->grand_total = (int) ($trx->grand_total ?? 0);
-                return $trx;
-            });
-
-        // =============================
         // RETURN VIEW
         // =============================
-
-        if (auth()->user()->role === 'kasir') {
-            return view('pages.dashboard-kasir', compact(
-                'pendapatanHariIni',
-                'transaksiHariIni',
-                'itemTerjualHariIni',
-                'rataRataTransaksi',
-                'transaksiTerakhir'
-            ));
-        }
 
         return view('pages.dashboard', compact(
             'pendapatanHariIni',
@@ -120,8 +102,125 @@ class DashboardController extends Controller
             'pendapatanBulanIni',
             'grafikBulan',
             'grafikPendapatan',
-            'produkTerlaris',
-            'transaksiTerakhir'
+            'produkTerlaris'
         ));
+    }
+
+    private function kasirDashboardData(): array
+    {
+        $timezone = config('app.timezone', 'Asia/Jakarta');
+        $tanggalHariIni = Carbon::now($timezone)->toDateString();
+
+        $validPenjualanIds = $this->validPenjualanKasirHariIniQuery($tanggalHariIni)
+            ->pluck('id');
+
+        $transaksiHariIni = $validPenjualanIds->count();
+
+        $pendapatanHariIni = (int) Penjualan::query()
+            ->whereIn('id', $validPenjualanIds)
+            ->sum('grand_total');
+
+        $itemTerjualHariIni = (int) DetailPenjualan::query()
+            ->whereIn('penjualan_id', $validPenjualanIds)
+            ->sum('qty');
+
+        $rataRataTransaksi = $transaksiHariIni > 0
+            ? (int) round($pendapatanHariIni / $transaksiHariIni)
+            : 0;
+
+        $metodePembayaranHariIni = $this->metodePembayaranHariIni($validPenjualanIds);
+
+        $produkTerlarisHariIni = DetailPenjualan::query()
+            ->select(
+                'produk_id',
+                DB::raw('SUM(qty) as total_qty'),
+                DB::raw('SUM(subtotal) as total_revenue')
+            )
+            ->whereIn('penjualan_id', $validPenjualanIds)
+            ->with('produk')
+            ->groupBy('produk_id')
+            ->orderByDesc('total_qty')
+            ->orderByDesc('total_revenue')
+            ->limit(5)
+            ->get();
+
+        return [
+            'tanggalDashboard' => Carbon::parse($tanggalHariIni, $timezone),
+            'kasirName' => auth()->user()->karyawan?->nama ?? auth()->user()->name ?? auth()->user()->username,
+            'transaksiHariIni' => $transaksiHariIni,
+            'pendapatanHariIni' => $pendapatanHariIni,
+            'itemTerjualHariIni' => $itemTerjualHariIni,
+            'rataRataTransaksi' => $rataRataTransaksi,
+            'metodePembayaranHariIni' => $metodePembayaranHariIni,
+            'produkTerlarisHariIni' => $produkTerlarisHariIni,
+        ];
+    }
+
+    private function validPenjualanKasirHariIniQuery(string $tanggalHariIni)
+    {
+        return Penjualan::query()
+            ->whereDate('tanggal_transaksi', $tanggalHariIni)
+            ->where(function ($query): void {
+                $query
+                    ->whereNull('status')
+                    ->orWhereNotIn('status', [
+                        Penjualan::STATUS_CANCELLED,
+                        Penjualan::STATUS_REVERSED,
+                        Penjualan::STATUS_REFUNDED,
+                    ]);
+            })
+            ->whereNull('reversal_transaksi_id')
+            ->whereNull('reversed_at');
+    }
+
+    private function metodePembayaranHariIni($validPenjualanIds)
+    {
+        $paymentRows = Pembayaran::query()
+            ->select('metode_pembayaran')
+            ->selectRaw('COUNT(DISTINCT penjualan_id) as total_transaksi')
+            ->selectRaw('SUM(jumlah_bayar) as total_nominal')
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending_payroll', [Pembayaran::STATUS_PENDING_PAYROLL])
+            ->whereIn('penjualan_id', $validPenjualanIds)
+            ->groupBy('metode_pembayaran')
+            ->get()
+            ->keyBy('metode_pembayaran');
+
+        return collect([
+            Pembayaran::METODE_TUNAI => [
+                'label' => 'Tunai',
+                'hint' => 'Diterima langsung',
+                'accent' => 'green',
+            ],
+            Pembayaran::METODE_POTONG_GAJI => [
+                'label' => 'Potong Gaji',
+                'hint' => 'Menunggu payroll bila belum confirmed',
+                'accent' => 'gold',
+            ],
+            Pembayaran::METODE_TRANSFER_BANK => [
+                'label' => 'Transfer Bank',
+                'hint' => 'Masuk rekening koperasi',
+                'accent' => 'navy',
+            ],
+            Pembayaran::METODE_QRIS => [
+                'label' => 'QRIS',
+                'hint' => 'Pembayaran digital',
+                'accent' => 'green',
+            ],
+        ])->map(function (array $meta, string $metode) use ($paymentRows): array {
+            $row = $paymentRows->get($metode);
+            $pendingPayroll = (int) ($row->pending_payroll ?? 0);
+
+            return [
+                'metode' => $metode,
+                'label' => $meta['label'],
+                'hint' => $pendingPayroll > 0
+                    ? $pendingPayroll . ' transaksi menunggu payroll'
+                    : $meta['hint'],
+                'accent' => $meta['accent'],
+                'total_transaksi' => (int) ($row->total_transaksi ?? 0),
+                'total_nominal' => (int) round((float) ($row->total_nominal ?? 0)),
+                'pending_payroll' => $pendingPayroll,
+            ];
+        })->values();
     }
 }

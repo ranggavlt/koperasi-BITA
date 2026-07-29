@@ -14,24 +14,37 @@ class JenisSimpanan extends Model
 
     public const KODE_SIMPANAN_WAJIB = 'SIMPANAN_WAJIB';
 
-    public const KODE_SIMPANAN_MANASUKA = 'SIMPANAN_MANASUKA';
+    public const KODE_SIMPANAN_SUKARELA = 'SIMPANAN_SUKARELA';
+
+    /**
+     * Backward-compatible alias for incoming main terminology.
+     *
+     * KBSM canonical domain tetap "Sukarela"; alias ini tidak membuat
+     * kategori/master simpanan keempat.
+     */
+    public const KODE_SIMPANAN_MANASUKA = self::KODE_SIMPANAN_SUKARELA;
 
     public const KATEGORI_POKOK = 'pokok';
 
     public const KATEGORI_WAJIB = 'wajib';
 
-    public const KATEGORI_MANASUKA = 'manasuka';
+    public const KATEGORI_SUKARELA = 'sukarela';
+
+    /**
+     * Backward-compatible alias for incoming main terminology.
+     */
+    public const KATEGORI_MANASUKA = self::KATEGORI_SUKARELA;
 
     public const KATEGORI = [
         self::KATEGORI_POKOK => 'Pokok',
         self::KATEGORI_WAJIB => 'Wajib',
-        self::KATEGORI_MANASUKA => 'Manasuka',
+        self::KATEGORI_SUKARELA => 'Sukarela',
     ];
 
     public const KODE_BY_KATEGORI = [
         self::KATEGORI_POKOK => self::KODE_SIMPANAN_POKOK,
         self::KATEGORI_WAJIB => self::KODE_SIMPANAN_WAJIB,
-        self::KATEGORI_MANASUKA => self::KODE_SIMPANAN_MANASUKA,
+        self::KATEGORI_SUKARELA => self::KODE_SIMPANAN_SUKARELA,
     ];
 
     protected $table = 'jenis_simpanan';
@@ -133,7 +146,7 @@ class JenisSimpanan extends Model
         return match ($this->kategori) {
             self::KATEGORI_POKOK => 'Sekali saat menjadi Anggota',
             self::KATEGORI_WAJIB => 'Setiap ' . (int) $this->interval_bulan . ' bulan',
-            self::KATEGORI_MANASUKA => 'Bebas (Tunai/Potong Gaji)',
+            self::KATEGORI_SUKARELA => 'Sesuai transaksi',
             default => '-',
         };
     }

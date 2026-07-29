@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Beras Premium BITA 5kg</title>
+  <desc id="desc">Karung beras premium dengan butir beras.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <circle cx="272" cy="48" r="28" fill="#f2b84b"/>
+  <path d="M94 48h132l20 142c2 15-10 28-25 28H99c-15 0-27-13-25-28z" fill="#ffffff" stroke="#073b5c" stroke-width="6"/>
+  <path d="M104 62h112l-8 28h-96z" fill="#10b981"/>
+  <rect x="106" y="108" width="108" height="64" rx="14" fill="#e0f2fe"/>
+  <text x="160" y="136" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#073b5c">BERAS</text>
+  <text x="160" y="158" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#047857">5 kg</text>
+  <g fill="#f2b84b">
+    <ellipse cx="70" cy="188" rx="11" ry="5" transform="rotate(-22 70 188)"/>
+    <ellipse cx="248" cy="182" rx="11" ry="5" transform="rotate(26 248 182)"/>
+    <ellipse cx="230" cy="202" rx="9" ry="4" transform="rotate(-16 230 202)"/>
+  </g>
+</svg>

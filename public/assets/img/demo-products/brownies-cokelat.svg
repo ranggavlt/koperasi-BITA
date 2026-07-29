@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Brownies Kukus Cokelat</title>
+  <desc id="desc">Potongan brownies cokelat kukus.</desc>
+  <rect width="320" height="240" rx="28" fill="#f8fafc"/>
+  <path d="M72 102h176l-22 86H94z" fill="#7c2d12" stroke="#073b5c" stroke-width="6"/>
+  <path d="M72 102l34-42h142l-34 42z" fill="#92400e" stroke="#073b5c" stroke-width="6"/>
+  <path d="M214 102l34-42v86l-22 42z" fill="#5b2110" stroke="#073b5c" stroke-width="6"/>
+  <g fill="#f2b84b">
+    <circle cx="120" cy="88" r="6"/>
+    <circle cx="158" cy="76" r="6"/>
+    <circle cx="196" cy="90" r="6"/>
+  </g>
+  <rect x="96" y="130" width="92" height="28" rx="8" fill="#ffffff" opacity=".92"/>
+  <text x="142" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#073b5c">BROWNIES</text>
+</svg>

@@ -110,11 +110,7 @@
                              onclick="addToCart({{ $item->id }}, '{{ addslashes($item->nama_produk) }}', {{ $item->harga_jual }}, {{ $item->stok }})">
                             <!-- Foto -->
                             <div style="width: 100%; height: 90px; border-radius: 8px; background-color: #f1f5f9; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-                                @if($item->foto)
-                                    <img src="{{ Storage::url($item->foto) }}" style="width: 100%; height: 100%; object-fit: cover;" alt="{{ $item->nama_produk }}">
-                                @else
-                                    <i class="fas fa-box text-slate-300" style="font-size: 28px;"></i>
-                                @endif
+                                <img src="{{ $item->foto_url }}" style="width: 100%; height: 100%; object-fit: contain; padding: 6px;" alt="Foto {{ $item->nama_produk }}">
                                 <div class="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
 

@@ -168,9 +168,9 @@
                 </label>
                 <input type="file" name="foto" accept="image/*"
                   class="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                @if(isset($data) && $data->foto)
+                @if(isset($data))
                   <div class="mt-2">
-                    <img src="{{ Storage::url($data->foto) }}" alt="Foto Produk" class="h-20 w-20 object-cover rounded-lg border border-slate-200">
+                    <img src="{{ $data->foto_url }}" alt="Foto {{ $data->nama_produk }}" class="h-20 w-20 object-contain rounded-lg border border-slate-200 bg-slate-50 p-1">
                   </div>
                 @endif
               </div>
@@ -226,14 +226,7 @@
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center px-4 py-2">
                         {{-- KOTAK FOTO / NOMOR URUT --}}
-                        @if($item->foto)
-                          <img src="{{ Storage::url($item->foto) }}" alt="{{ $item->nama_produk }}" class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl object-cover border border-slate-200 shadow-sm">
-                        @else
-                          <div style="background-color: #a855f7;" 
-                               class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm">
-                            {{ $produk->firstItem() + $loop->index }}
-                          </div>
-                        @endif
+                        <img src="{{ $item->foto_url }}" alt="Foto {{ $item->nama_produk }}" class="mr-4 flex shrink-0 h-9 w-9 items-center justify-center rounded-xl object-contain border border-slate-200 bg-slate-50 p-1 shadow-sm">
                         <div class="flex flex-col justify-center">
                           <h6 class="mb-0 text-sm leading-normal">{{ $item->nama_produk }}</h6>
                           <p class="mb-0 text-xs leading-tight text-slate-400">

@@ -106,7 +106,7 @@
       </li>
       @endif
 
-      {{-- WASERBA / KASIR --}}
+      {{-- PENJUALAN / KASIR --}}
       @if($role === 'kasir')
       @php $active = $is('waserba.index'); @endphp
       <li class="mt-0.5 w-full">
@@ -118,7 +118,7 @@
                 d="M7 4V2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v3H3V6a2 2 0 0 1 2-2h2Zm14 7v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7h18Zm-5 2H8v2h8v-2Z"/>
             </svg>
           </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Waserba / Kasir</span>
+          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft" style="font-size: 12.5px;">Penjualan / Kasir</span>
         </a>
       </li>
       @endif

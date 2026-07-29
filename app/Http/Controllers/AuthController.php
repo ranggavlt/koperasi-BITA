@@ -45,7 +45,10 @@ class AuthController extends Controller
             return redirect()->route('password.change');
         }
 
-        return redirect()->route('pages.dashboard');
+        return match (Auth::user()->role) {
+            'kasir' => redirect()->route('waserba.index'),
+            default => redirect()->route('pages.dashboard'),
+        };
     }
 
     private function isInactiveEmployeeAccount(User $user): bool
