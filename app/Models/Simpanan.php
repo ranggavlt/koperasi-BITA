@@ -174,11 +174,11 @@ class Simpanan extends Model
             || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_WAJIB;
     }
 
-    public function isSimpananSukarela(): bool
+    public function isSimpananManasuka(): bool
     {
-        return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_SUKARELA
-            || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_SUKARELA
-            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_SUKARELA;
+        return $this->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_MANASUKA
+            || $this->jenisSimpanan?->kode === JenisSimpanan::KODE_SIMPANAN_MANASUKA
+            || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_MANASUKA;
     }
 
     public function getJenisTransaksiLabelAttribute(): string

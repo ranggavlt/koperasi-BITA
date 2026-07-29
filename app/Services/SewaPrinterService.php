@@ -35,7 +35,7 @@ class SewaPrinterService
             $sewa = SewaPrinter::query()->create([
                 'kode_sewa' => $this->nextKodeSewa($createdAt),
                 'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
-                'karyawan_id' => $karyawan->id,
+                'karyawan_pic_id' => $karyawan->id,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),
@@ -81,7 +81,7 @@ class SewaPrinterService
             $locked->details()->createMany($detailRows);
 
             $locked->update([
-                'karyawan_id' => $karyawan->id,
+                'karyawan_pic_id' => $karyawan->id,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),

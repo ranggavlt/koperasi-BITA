@@ -1059,7 +1059,7 @@ class PreflightPotongGajiCommand extends Command
                 })->orWhere(function ($subQuery): void {
                     $subQuery->where('kategori', 'wajib')->where('kode', '!=', 'SIMPANAN_WAJIB');
                 })->orWhere(function ($subQuery): void {
-                    $subQuery->where('kategori', 'sukarela')->where('kode', '!=', 'SIMPANAN_SUKARELA');
+                    $subQuery->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)->where('kode', '!=', JenisSimpanan::KODE_SIMPANAN_MANASUKA);
                 })->orWhereNull('kode');
             })
             ->count();

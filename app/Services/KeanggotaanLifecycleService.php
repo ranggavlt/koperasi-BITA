@@ -1676,8 +1676,8 @@ class KeanggotaanLifecycleService
     private function ensureZeroSukarelaSaldoForCycle(Anggota $anggota, SiklusKeanggotaan $cycle): void
     {
         $jenis = JenisSimpanan::query()
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+            ->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)
             ->where('aktif', true)
             ->first();
 

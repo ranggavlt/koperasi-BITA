@@ -102,10 +102,10 @@ class SimpananController extends Controller
             ->orderBy('nomor_anggota')
             ->get();
 
-        $jenisSukarela = JenisSimpanan::query()
+        $jenisManasuka = JenisSimpanan::query()
             ->aktif()
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+            ->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)
             ->first();
 
         $dompet = DompetKoperasi::query()
@@ -117,7 +117,7 @@ class SimpananController extends Controller
             ->orderBy('nama_dompet')
             ->get();
 
-        return view('pages.simpanan.create', compact('anggota', 'jenisSukarela', 'dompet'));
+        return view('pages.simpanan.create', compact('anggota', 'jenisManasuka', 'dompet'));
     }
 
     public function store(StoreSimpananRequest $request, SimpananSukarelaService $service): RedirectResponse
@@ -139,8 +139,9 @@ class SimpananController extends Controller
         }
     }
 
-    public function saldoSukarela(Anggota $anggota, SimpananSukarelaService $service): JsonResponse
+    public function saldoManasuka(Anggota $anggota, SimpananSukarelaService $service): JsonResponse
     {
+        $saldo = $service->getSaldoCached($anggota);
         $anggota->loadMissing('karyawan');
 
         if ($anggota->status !== Anggota::STATUS_AKTIF || $anggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {

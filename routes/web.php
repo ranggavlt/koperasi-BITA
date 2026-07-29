@@ -117,8 +117,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::patch('/pengurus-koperasi/{pengurusKoperasi}/aktifkan', [PengurusKoperasiController::class, 'activate'])
         ->name('pengurus-koperasi.activate');
 
-    Route::get('/simpanan/saldo-sukarela/{anggota}', [SimpananController::class, 'saldoSukarela'])
-        ->name('simpanan.saldo-sukarela');
+    Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
+        ->name('simpanan.saldo-manasuka');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
     Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
         ->name('jadwal-simpanan-wajib.index');

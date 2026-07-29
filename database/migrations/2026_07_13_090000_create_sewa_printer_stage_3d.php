@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('kode_sewa', 24)->unique();
             $table->string('nama_perusahaan_snapshot', 150);
-            $table->foreignId('karyawan_id')
+            $table->foreignId('karyawan_pic_id')
                 ->constrained('karyawan')
                 ->restrictOnDelete();
             $table->date('mulai_tanggal');
@@ -52,7 +52,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['mulai_tanggal', 'selesai_tanggal', 'status'], 'sewa_printer_periode_status_index');
-            $table->index(['karyawan_id', 'status'], 'sewa_printer_karyawan_status_index');
+            $table->index(['karyawan_pic_id', 'status'], 'sewa_printer_karyawan_status_index');
             $table->index(['recorded_by', 'status'], 'sewa_printer_recorded_status_index');
             $table->index(['vendor_nama', 'status'], 'sewa_printer_vendor_status_index');
         });

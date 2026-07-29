@@ -36,6 +36,7 @@ class InvoicePenagihanController extends Controller
         $sewaMobil = SewaMobil::whereHas('karyawan', function($q) use ($perusahaan) {
                 $q->where('perusahaan_id', $perusahaan->id);
             })
+            ->whereIn('status', [SewaMobil::STATUS_DISETUJUI, SewaMobil::STATUS_BERJALAN, SewaMobil::STATUS_SELESAI])
             ->whereMonth('created_at', $request->bulan)
             ->whereYear('created_at', $request->tahun)
             ->get();
@@ -44,6 +45,7 @@ class InvoicePenagihanController extends Controller
         $sewaPrinter = \App\Models\SewaPrinter::whereHas('karyawan', function($q) use ($perusahaan) {
                 $q->where('perusahaan_id', $perusahaan->id);
             })
+            ->whereIn('status', [\App\Models\SewaPrinter::STATUS_DIKONFIRMASI, \App\Models\SewaPrinter::STATUS_BERJALAN, \App\Models\SewaPrinter::STATUS_SELESAI])
             ->whereMonth('created_at', $request->bulan)
             ->whereYear('created_at', $request->tahun)
             ->get();

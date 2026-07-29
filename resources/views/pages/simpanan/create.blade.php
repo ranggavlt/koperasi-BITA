@@ -1,10 +1,11 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
   $selectedAnggota = old('anggota_id');
   $selectedMetode = old('metode_pembayaran', \App\Models\Simpanan::METODE_TUNAI);
   $selectedDompet = old('dompet_id');
+  $jenisMaster = $jenisManasuka ?? $jenisSukarela ?? null;
 @endphp
 
 <div class="kbsm-business-page">
@@ -18,31 +19,31 @@
     </div>
   @endif
 
-  @if (! $jenisSukarela)
+  @if (! $jenisMaster)
     <div class="kbsm-business-alert kbsm-business-alert--danger">
-      Master Simpanan Sukarela aktif belum dikonfigurasi. Aktifkan satu master Simpanan Sukarela terlebih dahulu.
+      Master Simpanan aktif belum dikonfigurasi. Aktifkan satu master Simpanan terlebih dahulu.
     </div>
   @endif
 
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
-      <h1 class="kbsm-business-title">Transaksi Simpanan Sukarela</h1>
-      <p class="kbsm-business-subtitle">Finance mencatat setoran atau penarikan Sukarela langsung melalui Kas/Bank. Transaksi posted tidak bisa diedit atau dihapus.</p>
+      <h1 class="kbsm-business-title">Transaksi Simpanan Manasuka / Sukarela</h1>
+      <p class="kbsm-business-subtitle">Finance mencatat setoran atau penarikan Sukarela/Manasuka langsung melalui Kas/Bank. Transaksi posted tidak bisa diedit atau dihapus.</p>
     </div>
     <a href="{{ route('simpanan.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Simpanan</a>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Form Simpanan Sukarela</h2>
+      <h2 class="kbsm-business-panel__title">Form Simpanan Manasuka / Sukarela</h2>
       <p class="kbsm-business-panel__copy">Server tetap menghitung saldo akhir dan memvalidasi Dompet, COA, status Anggota, serta saldo tersedia.</p>
     </div>
 
-    <form method="POST" action="{{ route('simpanan.store') }}" class="kbsm-business-form" data-simpanan-sukarela-form data-saldo-base="{{ url('/simpanan/saldo-sukarela') }}">
+    <form method="POST" action="{{ route('simpanan.store') }}" class="kbsm-business-form" data-simpanan-Manasuka-form data-saldo-base="{{ url('/simpanan/saldo-manasuka') }}">
       @csrf
-      <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan-sukarela:' . \Illuminate\Support\Str::uuid()) }}">
-      <input type="hidden" name="jenis_simpanan_id" value="{{ old('jenis_simpanan_id', $jenisSukarela?->id) }}">
+      <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan-manasuka:' . \Illuminate\Support\Str::uuid()) }}">
+      <input type="hidden" name="jenis_simpanan_id" value="{{ old('jenis_simpanan_id', $jenisMaster?->id) }}">
 
       <section class="kbsm-business-section">
         <h3 class="kbsm-business-section__title">Pemilik Saldo</h3>

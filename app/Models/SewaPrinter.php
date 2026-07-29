@@ -31,7 +31,7 @@ class SewaPrinter extends Model
     protected $fillable = [
         'kode_sewa',
         'nama_perusahaan_snapshot',
-        'karyawan_id',
+        'karyawan_pic_id',
         'mulai_tanggal',
         'selesai_tanggal',
         'kebutuhan',
@@ -113,12 +113,12 @@ class SewaPrinter extends Model
 
     public function karyawanPic()
     {
-        return $this->belongsTo(Karyawan::class, 'karyawan_id');
+        return $this->belongsTo(Karyawan::class, 'karyawan_pic_id');
     }
 
     public function karyawan()
     {
-        return $this->belongsTo(Karyawan::class);
+        return $this->belongsTo(Karyawan::class, 'karyawan_pic_id');
     }
 
     public function pembayaran()
@@ -161,10 +161,7 @@ class SewaPrinter extends Model
         return self::statusLabels()[$this->status] ?? ucfirst(str_replace('_', ' ', (string) $this->status));
     }
 
-    public function getKaryawanPicIdAttribute(): ?int
-    {
-        return $this->karyawan_id;
-    }
+
 
     public function getTotalHargaDasarAttribute(): int
     {

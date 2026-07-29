@@ -65,7 +65,7 @@ class SimpananSukarelaService
                     ->lockForUpdate()
                     ->findOrFail($simpanan->id);
 
-                if (! $locked->isSimpananSukarela()) {
+                if (! $locked->isSimpananManasuka()) {
                     throw ValidationException::withMessages([
                         'simpanan' => 'Koreksi Transaksi hanya tersedia untuk Simpanan Sukarela.',
                     ]);
@@ -420,8 +420,8 @@ class SimpananSukarelaService
         $query = JenisSimpanan::query()
             ->with('akun')
             ->aktif()
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA);
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+            ->where('kategori', JenisSimpanan::KATEGORI_MANASUKA);
 
         if ($jenisSimpananId) {
             $query->where('id', $jenisSimpananId);
@@ -615,8 +615,8 @@ class SimpananSukarelaService
     {
         return Simpanan::query()
             ->whereHas('jenisSimpanan', fn ($query) => $query
-                ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-                ->orWhere('kategori', JenisSimpanan::KATEGORI_SUKARELA))
+                ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+                ->orWhere('kategori', JenisSimpanan::KATEGORI_MANASUKA))
             ->when($filters['anggota_id'] ?? null, fn ($query, $anggotaId) => $query->where('anggota_id', $anggotaId))
             ->when($filters['jenis_transaksi'] ?? null, fn ($query, $jenis) => $query->where('jenis_transaksi', $jenis))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
