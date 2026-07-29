@@ -29,7 +29,7 @@ class JenisSimpananService
                     'interval_bulan' => $payload['interval_bulan'],
                     'berlaku_mulai' => $payload['berlaku_mulai'],
                     'nama_jenis' => $payload['nama_jenis'],
-                    'wajib' => $payload['kategori'] !== JenisSimpanan::KATEGORI_SUKARELA,
+                    'wajib' => $payload['kategori'] !== JenisSimpanan::KATEGORI_MANASUKA,
                     'aktif' => $payload['aktif'],
                     'nominal_default' => $this->rupiahDecimal($payload['nominal_default']),
                     'keterangan' => $payload['keterangan'],
@@ -91,7 +91,7 @@ class JenisSimpananService
                     'interval_bulan' => $payload['interval_bulan'],
                     'berlaku_mulai' => $payload['berlaku_mulai'],
                     'nama_jenis' => $payload['nama_jenis'],
-                    'wajib' => $payload['kategori'] !== JenisSimpanan::KATEGORI_SUKARELA,
+                    'wajib' => $payload['kategori'] !== JenisSimpanan::KATEGORI_MANASUKA,
                     'aktif' => $payload['aktif'],
                     'nominal_default' => $this->rupiahDecimal($payload['nominal_default']),
                     'keterangan' => $payload['keterangan'],
@@ -202,7 +202,7 @@ class JenisSimpananService
             ]);
         }
 
-        if (in_array($payload['kategori'], [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_SUKARELA], true)
+        if (in_array($payload['kategori'], [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_MANASUKA], true)
             && $payload['interval_bulan'] !== null) {
             throw ValidationException::withMessages([
                 'interval_bulan' => 'Interval hanya boleh diisi untuk Simpanan Wajib.',
@@ -223,7 +223,7 @@ class JenisSimpananService
             ]);
         }
 
-        if ($payload['kategori'] === JenisSimpanan::KATEGORI_SUKARELA && $payload['nominal_default'] < 0) {
+        if ($payload['kategori'] === JenisSimpanan::KATEGORI_MANASUKA && $payload['nominal_default'] < 0) {
             throw ValidationException::withMessages([
                 'nominal_default' => 'Nominal default Simpanan Sukarela tidak boleh negatif.',
             ]);
@@ -242,13 +242,13 @@ class JenisSimpananService
 
         $expectedKategori = match ($kategori) {
             JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB => 'ekuitas',
-            JenisSimpanan::KATEGORI_SUKARELA => 'kewajiban',
+            JenisSimpanan::KATEGORI_MANASUKA => 'kewajiban',
             default => null,
         };
 
         if ($expectedKategori !== null && $akun->kategori !== $expectedKategori) {
             throw ValidationException::withMessages([
-                'akun_id' => $kategori === JenisSimpanan::KATEGORI_SUKARELA
+                'akun_id' => $kategori === JenisSimpanan::KATEGORI_MANASUKA
                     ? 'Simpanan Sukarela wajib memakai akun Kewajiban aktif.'
                     : 'Simpanan Pokok/Wajib wajib memakai akun Ekuitas aktif.',
             ]);

@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -88,7 +88,7 @@
             <tr>
               <td class="kbsm-business-code">{{ $item->kode_sewa }}</td>
               <td>
-                <div class="kbsm-business-strong">{{ $item->karyawanPic->nama }}</div>
+                <div class="kbsm-business-strong">{{ $item->karyawanPic?->nama ?? '-' }}</div>
                 <div class="kbsm-business-muted">{{ $item->nama_perusahaan_snapshot }}</div>
                 <div class="kbsm-business-muted">Vendor: {{ $item->vendor_nama }} / {{ $item->vendor_kontak }}</div>
                 <div class="kbsm-business-muted">{{ $item->vendor_alamat }}</div>
@@ -102,7 +102,7 @@
                 <ul class="mt-2 space-y-1">
                   @foreach($item->details as $detail)
                     <li>
-                      <span class="kbsm-business-strong">{{ $detail->kuantitas }}Ã— {{ $detail->jenis_model_printer }}</span>
+                      <span class="kbsm-business-strong">{{ $detail->kuantitas }} x {{ $detail->jenis_model_printer }}</span>
                       <span class="kbsm-business-muted"> @ Rp {{ number_format((int) $detail->harga_vendor_per_unit, 0, ',', '.') }} + margin Rp {{ number_format((int) $detail->margin_per_unit, 0, ',', '.') }}</span>
                     </li>
                   @endforeach

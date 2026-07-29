@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -39,7 +39,7 @@
       <p class="kbsm-business-panel__copy">Server tetap menghitung saldo akhir dan memvalidasi Dompet, COA, status Anggota, serta saldo tersedia.</p>
     </div>
 
-    <form method="POST" action="{{ route('simpanan.store') }}" class="kbsm-business-form" data-simpanan-Manasuka-form data-saldo-base="{{ url('/simpanan/saldo-Manasuka') }}">
+    <form method="POST" action="{{ route('simpanan.store') }}" class="kbsm-business-form" data-simpanan-Manasuka-form data-saldo-base="{{ url('/simpanan/saldo-manasuka') }}">
       @csrf
       <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', 'simpanan-Manasuka:' . \Illuminate\Support\Str::uuid()) }}">
       <input type="hidden" name="jenis_simpanan_id" value="{{ old('jenis_simpanan_id', $jenisManasuka?->id) }}">

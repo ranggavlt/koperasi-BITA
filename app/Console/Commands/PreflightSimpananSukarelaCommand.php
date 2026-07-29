@@ -259,8 +259,8 @@ class PreflightSimpananSukarelaCommand extends Command
         return Simpanan::query()
             ->with(['jenisSimpanan.akun', 'dompet.akun', 'jurnal.details'])
             ->whereHas('jenisSimpanan', fn ($query) => $query
-                ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-                ->orWhere('kategori', JenisSimpanan::KATEGORI_SUKARELA))
+                ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+                ->orWhere('kategori', JenisSimpanan::KATEGORI_MANASUKA))
             ->where('status', Simpanan::STATUS_SETTLED)
             ->whereIn('jenis_transaksi', [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])
             ->get()
@@ -518,9 +518,9 @@ class PreflightSimpananSukarelaCommand extends Command
         return DB::table('simpanan as s')
             ->join('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')
             ->where(function ($query): void {
-                $query->where('js.kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-                    ->orWhere('js.kategori', JenisSimpanan::KATEGORI_SUKARELA)
-                    ->orWhere('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_SUKARELA);
+                $query->where('js.kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+                    ->orWhere('js.kategori', JenisSimpanan::KATEGORI_MANASUKA)
+                    ->orWhere('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_MANASUKA);
             });
     }
 

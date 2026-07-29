@@ -62,11 +62,11 @@
         <div>{{-- placeholder to keep 2-col alignment --}}</div>
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Mulai</label>
-          <input type="datetime-local" name="mulai_at" required value="{{ old('mulai_at', isset($data) ? $data->mulai_at->format('Y-m-d\TH:i') : '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <input type="datetime-local" name="mulai_at" required value="{{ old('mulai_at', isset($data) ? $data->mulai_at?->format('Y-m-d\TH:i') : '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Selesai</label>
-          <input type="datetime-local" name="selesai_at" required value="{{ old('selesai_at', isset($data) ? $data->selesai_at->format('Y-m-d\TH:i') : '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <input type="datetime-local" name="selesai_at" required value="{{ old('selesai_at', isset($data) ? $data->selesai_at?->format('Y-m-d\TH:i') : '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
         <div class="md:col-span-2">
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Keterangan</label>
@@ -91,7 +91,7 @@
               <td class="px-6 py-4 font-bold kbsm-text-navy">{{ $item->kode_sewa ?: 'Belum diajukan' }}</td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->aset->kode_aset }} - {{ $item->aset->merek }} {{ $item->aset->model }}</div><div class="text-xs text-slate-400">{{ $item->aset->mobil->plat_nomor ?? '-' }}</div></td>
               <td class="px-6 py-4"><div class="font-semibold text-slate-700">{{ $item->nama_kegiatan }}</div><div class="text-xs text-slate-400">{{ $item->lokasi_kegiatan }}</div></td>
-              <td class="px-6 py-4 text-slate-600">{{ $item->mulai_at->format('d/m/Y H:i') }}<br>{{ $item->selesai_at->format('d/m/Y H:i') }}</td>
+              <td class="px-6 py-4 text-slate-600">{{ $item->mulai_at?->format('d/m/Y H:i') ?? '-' }}<br>{{ $item->selesai_at?->format('d/m/Y H:i') ?? '-' }}</td>
               <td class="px-6 py-4">
                 <span class="{{ $badge($item->status) }}">{{ $item->status_label }}</span>
                 @if($item->needs_finance_review)<div class="mt-1 text-xs font-semibold text-amber-600">Review Finance</div>@endif
