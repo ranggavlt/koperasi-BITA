@@ -15,7 +15,7 @@ use App\Models\PenyelesaianKeanggotaan;
 use App\Models\PenyelesaianKeanggotaanDetail;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use App\Models\User;
@@ -23,7 +23,7 @@ use App\Services\KeanggotaanLifecycleService;
 use App\Services\MasterDataKoperasiService;
 use App\Services\PinjamanKoperasiService;
 use App\Services\PotongGajiBulananService;
-use App\Services\SimpananSukarelaService;
+use App\Services\SimpananManasukaService;
 use App\Services\SimpananWajibService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -33,7 +33,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_deactivation_idempotent_membekukan_sukarela_dan_membatalkan_wajib_belum_dibayar(): void
+    public function test_deactivation_idempotent_membekukan_manasuka_dan_membatalkan_wajib_belum_dibayar(): void
     {
         $admin = $this->admin();
         $this->actingAs($admin);
@@ -53,7 +53,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
             ->where('status', PemakaianPotongGaji::STATUS_RESERVED)
             ->count());
 
-        app(SimpananSukarelaService::class)->setoran([
+        app(SimpananManasukaService::class)->setoran([
             'anggota_id' => $anggota->id,
             'dompet_id' => $kas->id,
             'jumlah' => 150000,
@@ -67,7 +67,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $this->assertSame(1, PenyelesaianKeanggotaan::query()->where('anggota_id', $anggota->id)->count());
         $penyelesaian = PenyelesaianKeanggotaan::query()->where('anggota_id', $anggota->id)->firstOrFail();
         $this->assertSame(PenyelesaianKeanggotaan::STATUS_PENDING_REVIEW, $penyelesaian->status);
-        $this->assertSame(1, SaldoSimpananSukarela::query()->where('anggota_id', $anggota->id)->where('penyelesaian_keanggotaan_id', $penyelesaian->id)->whereNotNull('frozen_at')->count());
+        $this->assertSame(1, SaldoSimpananManasuka::query()->where('anggota_id', $anggota->id)->where('penyelesaian_keanggotaan_id', $penyelesaian->id)->whereNotNull('frozen_at')->count());
 
         $this->assertSame(1, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->where('status', JadwalSimpananWajib::STATUS_SETTLED)->count());
         $this->assertSame(1, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->where('status', JadwalSimpananWajib::STATUS_CANCELLED_EXIT)->count());
@@ -77,7 +77,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', ReversalTransaksi::class)->count());
 
         $this->expectException(ValidationException::class);
-        app(SimpananSukarelaService::class)->setoran([
+        app(SimpananManasukaService::class)->setoran([
             'anggota_id' => $anggota->id,
             'dompet_id' => $kas->id,
             'jumlah' => 10000,
@@ -86,7 +86,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         ], $admin->id);
     }
 
-    public function test_batalkan_penonaktifan_memulihkan_siklus_lama_sukarela_dan_wajib_tanpa_mutasi_kas(): void
+    public function test_batalkan_penonaktifan_memulihkan_siklus_lama_manasuka_dan_wajib_tanpa_mutasi_kas(): void
     {
         $admin = $this->admin();
         $this->actingAs($admin);
@@ -102,7 +102,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $kas = $this->kasDompet(1000000);
         $this->confirmPayroll($anggota, '2026-01-01', 200000, $admin);
         app(SimpananWajibService::class)->generateUntil('2026-04-01', $anggota, $admin->id);
-        app(SimpananSukarelaService::class)->setoran([
+        app(SimpananManasukaService::class)->setoran([
             'anggota_id' => $anggota->id,
             'dompet_id' => $kas->id,
             'jumlah' => 175000,
@@ -131,8 +131,8 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $this->assertSame(Karyawan::STATUS_AKTIF, $anggota->karyawan->fresh()->status_kerja);
         $this->assertTrue((bool) $karyawanUser->fresh()->is_active);
         $this->assertSame($oldCycle->id, $anggota->fresh()->siklusAktif()->firstOrFail()->id);
-        $this->assertSame('175000.00', SaldoSimpananSukarela::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $oldCycle->id)->firstOrFail()->saldo);
-        $this->assertSame(0, SaldoSimpananSukarela::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $oldCycle->id)->whereNotNull('frozen_at')->count());
+        $this->assertSame('175000.00', SaldoSimpananManasuka::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $oldCycle->id)->firstOrFail()->saldo);
+        $this->assertSame(0, SaldoSimpananManasuka::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $oldCycle->id)->whereNotNull('frozen_at')->count());
         $this->assertSame(0, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->where('status', JadwalSimpananWajib::STATUS_CANCELLED_EXIT)->count());
         $this->assertSame(1, JadwalSimpananWajib::query()->where('anggota_id', $anggota->id)->whereNotNull('recovery_jurnal_id')->count());
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', JadwalSimpananWajib::class)->count());
@@ -164,7 +164,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $kas = $this->kasDompet(1500000);
 
         $this->confirmPayroll($anggota, '2026-01-01', 200000, $admin);
-        app(SimpananSukarelaService::class)->setoran([
+        app(SimpananManasukaService::class)->setoran([
             'anggota_id' => $anggota->id,
             'dompet_id' => $kas->id,
             'jumlah' => 150000,
@@ -207,7 +207,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         app(KeanggotaanLifecycleService::class)->complete($processed, $admin->id);
     }
 
-    public function test_refund_kas_bank_idempotent_dan_reaktivasi_membuat_saldo_sukarela_baru_nol(): void
+    public function test_refund_kas_bank_idempotent_dan_reaktivasi_membuat_saldo_manasuka_baru_nol(): void
     {
         $admin = $this->admin();
         $this->actingAs($admin);
@@ -217,7 +217,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $bank = $this->bankDompet(1000000);
 
         $this->confirmPayroll($anggota, '2026-01-01', 200000, $admin);
-        app(SimpananSukarelaService::class)->setoran([
+        app(SimpananManasukaService::class)->setoran([
             'anggota_id' => $anggota->id,
             'dompet_id' => $bank->id,
             'jumlah' => 125000,
@@ -254,7 +254,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $this->assertSame('675000.00', $kas->fresh()->saldo);
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PenyelesaianKeanggotaan::class)->where('tipe', 'keluar')->count());
         $this->assertSame(1, JurnalUmum::query()->where('referensi_tipe', PenyelesaianKeanggotaan::class)->where('idempotency_key', 'keanggotaan:refund:jurnal:' . $ready->id)->count());
-        $this->assertSame('0.00', SaldoSimpananSukarela::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $ready->siklus_keanggotaan_id)->firstOrFail()->saldo);
+        $this->assertSame('0.00', SaldoSimpananManasuka::query()->where('anggota_id', $anggota->id)->where('siklus_keanggotaan_id', $ready->siklus_keanggotaan_id)->firstOrFail()->saldo);
 
         $this->expectValidation(fn () => app(MasterDataKoperasiService::class)->updateKaryawan($anggota->karyawan->fresh(), $this->karyawanData($anggota->karyawan->fresh(), Karyawan::STATUS_AKTIF)));
 
@@ -285,7 +285,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
         $this->assertSame(2, SiklusKeanggotaan::query()->where('anggota_id', $anggota->id)->count());
         $newCycle = $anggota->fresh()->siklusAktif()->firstOrFail();
         $this->assertSame($newCycle->id, $completed->fresh()->re_registered_cycle_id);
-        $this->assertSame('0.00', SaldoSimpananSukarela::query()
+        $this->assertSame('0.00', SaldoSimpananManasuka::query()
             ->where('anggota_id', $anggota->id)
             ->where('siklus_keanggotaan_id', $newCycle->id)
             ->firstOrFail()

@@ -4,16 +4,16 @@ namespace Database\Factories;
 
 use App\Models\Anggota;
 use App\Models\JenisSimpanan;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\SiklusKeanggotaan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SaldoSimpananSukarela>
+ * @extends Factory<SaldoSimpananManasuka>
  */
-class SaldoSimpananSukarelaFactory extends Factory
+class SaldoSimpananManasukaFactory extends Factory
 {
-    protected $model = SaldoSimpananSukarela::class;
+    protected $model = SaldoSimpananManasuka::class;
 
     public function definition(): array
     {
@@ -23,9 +23,9 @@ class SaldoSimpananSukarelaFactory extends Factory
                 ->create(['anggota_id' => $attributes['anggota_id']])
                 ->id,
             'jenis_simpanan_id' => fn () => JenisSimpanan::query()
-                ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
+                ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
                 ->value('id')
-                ?: JenisSimpanan::factory()->sukarela()->create()->id,
+                ?: JenisSimpanan::factory()->manasuka()->create()->id,
             'saldo' => '0.00',
         ];
     }

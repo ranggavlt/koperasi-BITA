@@ -18,27 +18,27 @@ class SemanticMergeHardeningTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_domain_simpanan_final_adalah_sukarela_dengan_alias_manasuka_non_data(): void
+    public function test_domain_simpanan_final_adalah_manasuka_tanpa_alias_sukarela(): void
     {
-        $this->assertSame('SIMPANAN_SUKARELA', JenisSimpanan::KODE_SIMPANAN_SUKARELA);
-        $this->assertSame('sukarela', JenisSimpanan::KATEGORI_SUKARELA);
-        $this->assertSame(JenisSimpanan::KODE_SIMPANAN_SUKARELA, JenisSimpanan::KODE_SIMPANAN_MANASUKA);
-        $this->assertSame(JenisSimpanan::KATEGORI_SUKARELA, JenisSimpanan::KATEGORI_MANASUKA);
-        $this->assertSame('Sukarela', JenisSimpanan::KATEGORI[JenisSimpanan::KATEGORI_SUKARELA]);
+        $this->assertSame('SIMPANAN_MANASUKA', JenisSimpanan::KODE_SIMPANAN_MANASUKA);
+        $this->assertSame('manasuka', JenisSimpanan::KATEGORI_MANASUKA);
+        $this->assertSame('Manasuka', JenisSimpanan::KATEGORI[JenisSimpanan::KATEGORI_MANASUKA]);
+        $this->assertFalse(defined(JenisSimpanan::class . '::KODE_SIMPANAN_SUKARELA'));
+        $this->assertFalse(defined(JenisSimpanan::class . '::KATEGORI_SUKARELA'));
     }
 
-    public function test_seeder_membuat_satu_master_pokok_wajib_sukarela_dan_tidak_membuat_manasuka_terpisah(): void
+    public function test_seeder_membuat_satu_master_pokok_wajib_dan_manasuka_tanpa_legacy_sukarela(): void
     {
         $this->seed(AkunSeeder::class);
         $this->seed(KoperasiDummySeeder::class);
 
         $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_POKOK)->count());
         $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_WAJIB)->count());
-        $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)->count());
+        $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)->count());
         $this->assertSame(0, JenisSimpanan::query()
-            ->where('kode', 'SIMPANAN_MANASUKA')
-            ->orWhere('kategori', 'manasuka')
-            ->orWhere('nama_jenis', 'like', '%Manasuka%')
+            ->where('kode', 'SIMPANAN_SUKARELA')
+            ->orWhere('kategori', 'sukarela')
+            ->orWhere('nama_jenis', 'like', '%Sukarela%')
             ->count());
     }
 

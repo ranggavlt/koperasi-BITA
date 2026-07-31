@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -99,7 +99,7 @@
           <div class="kbsm-business-field kbsm-business-field--full">
             <label class="kbsm-business-label">Alasan Daftarkan Kembali</label>
             <textarea name="alasan" minlength="5" required class="kbsm-business-control" rows="3" placeholder="Contoh: Karyawan aktif kembali menjadi Anggota koperasi."></textarea>
-            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Pokok baru dari master aktif, jadwal Wajib baru, dan saldo Sukarela awal Rp0. Histori siklus lama tetap immutable.</p>
+            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Pokok baru dari master aktif, jadwal Wajib baru, dan saldo Manasuka awal Rp0. Histori siklus lama tetap immutable.</p>
           </div>
           <label class="kbsm-business-field kbsm-business-field--full">
             <input type="checkbox" name="konfirmasi_siklus_baru" value="1" required>
@@ -169,7 +169,7 @@
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Hak Anggota</h2>
-      <p class="kbsm-business-panel__copy">Pokok, Wajib paid, Sukarela, dan kredit/refund valid ditampilkan sebagai sumber terpisah.</p>
+      <p class="kbsm-business-panel__copy">Pokok, Wajib paid, Manasuka, dan kredit/refund valid ditampilkan sebagai sumber terpisah.</p>
     </div>
     <div class="kbsm-business-table-wrap">
       <table class="kbsm-business-table">

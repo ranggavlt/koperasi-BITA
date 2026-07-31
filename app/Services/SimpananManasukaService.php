@@ -10,7 +10,7 @@ use App\Models\JurnalUmum;
 use App\Models\Karyawan;
 use App\Models\MutasiKas;
 use App\Models\ReversalTransaksi;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
-class SimpananSukarelaService
+class SimpananManasukaService
 {
     public function __construct(
         private readonly MutasiKasService $mutasiKasService,
@@ -38,7 +38,7 @@ class SimpananSukarelaService
             Simpanan::JENIS_SETORAN => $this->setoran($data, $userId),
             Simpanan::JENIS_PENARIKAN => $this->penarikan($data, $userId),
             default => throw ValidationException::withMessages([
-                'jenis_transaksi' => 'Jenis transaksi Simpanan Sukarela tidak valid.',
+                'jenis_transaksi' => 'Jenis transaksi Simpanan Manasuka tidak valid.',
             ]),
         };
     }
@@ -67,7 +67,7 @@ class SimpananSukarelaService
 
                 if (! $locked->isSimpananManasuka()) {
                     throw ValidationException::withMessages([
-                        'simpanan' => 'Koreksi Transaksi hanya tersedia untuk Simpanan Sukarela.',
+                        'simpanan' => 'Koreksi Transaksi hanya tersedia untuk Simpanan Manasuka.',
                     ]);
                 }
 
@@ -79,7 +79,7 @@ class SimpananSukarelaService
 
                 if (! in_array($locked->jenis_transaksi, [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN], true)) {
                     throw ValidationException::withMessages([
-                        'simpanan' => 'Jenis transaksi Sukarela lama belum terklasifikasi; lakukan rekonsiliasi manual terlebih dahulu.',
+                        'simpanan' => 'Jenis transaksi Manasuka lama belum terklasifikasi; lakukan rekonsiliasi manual terlebih dahulu.',
                     ]);
                 }
 
@@ -107,7 +107,7 @@ class SimpananSukarelaService
                 if ($locked->jenis_transaksi === Simpanan::JENIS_SETORAN) {
                     if ($saldoCents < $nominalCents) {
                         throw ValidationException::withMessages([
-                            'simpanan' => 'Saldo Simpanan Sukarela tidak cukup untuk mengoreksi setoran ini.',
+                            'simpanan' => 'Saldo Simpanan Manasuka tidak cukup untuk mengoreksi setoran ini.',
                         ]);
                     }
 
@@ -123,7 +123,7 @@ class SimpananSukarelaService
                     'kode_reversal' => $this->nextCode('reversal', 'REV'),
                     'source_type' => Simpanan::class,
                     'source_id' => $locked->id,
-                    'jenis_reversal' => ReversalTransaksi::JENIS_SIMPANAN_SUKARELA_CORRECTION,
+                    'jenis_reversal' => ReversalTransaksi::JENIS_SIMPANAN_MANASUKA_CORRECTION,
                     'nominal' => $this->decimalFromCents($nominalCents),
                     'alasan' => trim($alasan),
                     'status' => ReversalTransaksi::STATUS_PROCESSED,
@@ -133,15 +133,15 @@ class SimpananSukarelaService
                     'created_by' => $userId,
                     'processed_by' => $userId,
                     'processed_at' => $this->now(),
-                    'idempotency_key' => 'reversal:simpanan-sukarela:' . $locked->id,
+                    'idempotency_key' => 'reversal:simpanan-manasuka:' . $locked->id,
                 ]);
 
                 $mutasi = $this->mutasiKasService->record([
-                    'idempotency_key' => 'reversal:simpanan-sukarela:mutasi:' . $reversal->id,
+                    'idempotency_key' => 'reversal:simpanan-manasuka:mutasi:' . $reversal->id,
                     'dompet_id' => $dompet->id,
                     'tipe' => $mutasiTipe,
                     'jumlah' => intdiv($nominalCents, 100),
-                    'keterangan' => 'Koreksi Transaksi Simpanan Sukarela ' . ($locked->kode_transaksi ?: ('#' . $locked->id)),
+                    'keterangan' => 'Koreksi Transaksi Simpanan Manasuka ' . ($locked->kode_transaksi ?: ('#' . $locked->id)),
                     'referensi_tipe' => ReversalTransaksi::class,
                     'referensi_id' => $reversal->id,
                     'tanggal' => $this->today(),
@@ -153,7 +153,7 @@ class SimpananSukarelaService
                     'reversal_transaksi_id' => $reversal->id,
                 ]);
 
-                $jurnal = $this->akuntansiService->recordSimpananSukarelaCorrection(
+                $jurnal = $this->akuntansiService->recordSimpananManasukaCorrection(
                     $reversal->fresh(),
                     $locked->fresh(['jenisSimpanan.akun']),
                     $dompet->akun,
@@ -175,15 +175,15 @@ class SimpananSukarelaService
     public function saldoTersedia(Anggota $anggota, ?int $jenisSimpananId = null): int
     {
         $jenis = $jenisSimpananId
-            ? $this->activeSukarelaJenis($jenisSimpananId)
-            : $this->activeSukarelaJenis();
+            ? $this->activeManasukaJenis($jenisSimpananId)
+            : $this->activeManasukaJenis();
         $siklus = $anggota->siklusAktif()->first();
 
         if (! $siklus) {
             return 0;
         }
 
-        $saldo = SaldoSimpananSukarela::query()
+        $saldo = SaldoSimpananManasuka::query()
             ->where('anggota_id', $anggota->id)
             ->where('siklus_keanggotaan_id', $siklus->id)
             ->where('jenis_simpanan_id', $jenis->id)
@@ -223,7 +223,7 @@ class SimpananSukarelaService
      */
     public function summary(array $filters = []): array
     {
-        $base = $this->simpananSukarelaQuery($filters);
+        $base = $this->simpananManasukaQuery($filters);
 
         $setoran = (clone $base)
             ->where('jenis_transaksi', Simpanan::JENIS_SETORAN)
@@ -234,7 +234,7 @@ class SimpananSukarelaService
             ->where('status', Simpanan::STATUS_SETTLED)
             ->sum('jumlah');
 
-        $saldoAktif = SaldoSimpananSukarela::query()
+        $saldoAktif = SaldoSimpananManasuka::query()
             ->whereHas('anggota', fn ($query) => $query->where('status', Anggota::STATUS_AKTIF))
             ->whereHas('siklusKeanggotaan', fn ($query) => $query->where('status', SiklusKeanggotaan::STATUS_ACTIVE))
             ->sum('saldo');
@@ -271,21 +271,21 @@ class SimpananSukarelaService
                 $jenisTransaksi = $data['jenis_transaksi'] ?? Simpanan::JENIS_SETORAN;
                 if (! in_array($jenisTransaksi, [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN], true)) {
                     throw ValidationException::withMessages([
-                        'jenis_transaksi' => 'Jenis transaksi Simpanan Sukarela tidak valid.',
+                        'jenis_transaksi' => 'Jenis transaksi Simpanan Manasuka tidak valid.',
                     ]);
                 }
 
                 $metode = $data['metode_pembayaran'] ?? Simpanan::METODE_TUNAI;
                 if (! in_array($metode, [Simpanan::METODE_TUNAI, Simpanan::METODE_TRANSFER_BANK], true)) {
                     throw ValidationException::withMessages([
-                        'metode_pembayaran' => 'Simpanan Sukarela hanya boleh memakai Tunai atau Transfer Bank.',
+                        'metode_pembayaran' => 'Simpanan Manasuka hanya boleh memakai Tunai atau Transfer Bank.',
                     ]);
                 }
 
                 $jumlah = $this->rupiahInt($data['jumlah'] ?? 0);
                 if ($jumlah <= 0) {
                     throw ValidationException::withMessages([
-                        'jumlah' => 'Nominal Simpanan Sukarela wajib lebih besar dari nol.',
+                        'jumlah' => 'Nominal Simpanan Manasuka wajib lebih besar dari nol.',
                     ]);
                 }
                 $jumlahCents = $jumlah * 100;
@@ -296,8 +296,8 @@ class SimpananSukarelaService
                     ->findOrFail((int) $data['anggota_id']);
                 $siklus = $this->assertActiveAnggotaAndCycle($anggota);
                 $jenis = isset($data['jenis_simpanan_id'])
-                    ? $this->activeSukarelaJenis((int) $data['jenis_simpanan_id'])
-                    : $this->activeSukarelaJenis();
+                    ? $this->activeManasukaJenis((int) $data['jenis_simpanan_id'])
+                    : $this->activeManasukaJenis();
                 $dompet = DompetKoperasi::query()
                     ->with('akun')
                     ->lockForUpdate()
@@ -313,7 +313,7 @@ class SimpananSukarelaService
                 if ($jenisTransaksi === Simpanan::JENIS_PENARIKAN) {
                     if ($jumlahCents > $saldoSebelumCents) {
                         throw ValidationException::withMessages([
-                            'jumlah' => 'Nominal penarikan tidak boleh melebihi saldo Simpanan Sukarela.',
+                            'jumlah' => 'Nominal penarikan tidak boleh melebihi saldo Simpanan Manasuka.',
                         ]);
                     }
 
@@ -327,7 +327,7 @@ class SimpananSukarelaService
 
                 $simpanan = Simpanan::query()->create([
                     'idempotency_key' => $idempotencyKey,
-                    'kode_transaksi' => $this->nextCode('simpanan_sukarela', 'SSK', $tanggal),
+                    'kode_transaksi' => $this->nextCode('simpanan_manasuka', 'SMN', $tanggal),
                     'anggota_id' => $anggota->id,
                     'karyawan_id' => $anggota->karyawan_id,
                     'siklus_keanggotaan_id' => $siklus->id,
@@ -355,8 +355,8 @@ class SimpananSukarelaService
                     'tipe' => $mutasiTipe,
                     'jumlah' => $jumlah,
                     'keterangan' => $jenisTransaksi === Simpanan::JENIS_SETORAN
-                        ? 'Setoran Simpanan Sukarela'
-                        : 'Penarikan Simpanan Sukarela',
+                        ? 'Setoran Simpanan Manasuka'
+                        : 'Penarikan Simpanan Manasuka',
                     'referensi_tipe' => Simpanan::class,
                     'referensi_id' => $simpanan->id,
                     'tanggal' => $tanggal->toDateString(),
@@ -369,7 +369,7 @@ class SimpananSukarelaService
                         $userId,
                         $this->jurnalIdempotencyKey($simpanan, $idempotencyKey)
                     )
-                    : $this->akuntansiService->recordSimpananSukarelaPenarikan(
+                    : $this->akuntansiService->recordSimpananManasukaPenarikan(
                         $simpanan->fresh('jenisSimpanan.akun'),
                         $dompet->akun,
                         $userId,
@@ -392,7 +392,7 @@ class SimpananSukarelaService
             }
 
             throw ValidationException::withMessages([
-                'simpanan' => 'Transaksi Simpanan Sukarela gagal karena kode atau idempotency bertabrakan. Muat ulang form lalu coba lagi.',
+                'simpanan' => 'Transaksi Simpanan Manasuka gagal karena kode atau idempotency bertabrakan. Muat ulang form lalu coba lagi.',
             ]);
         }
     }
@@ -401,7 +401,7 @@ class SimpananSukarelaService
     {
         if ($anggota->status !== Anggota::STATUS_AKTIF || $anggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {
             throw ValidationException::withMessages([
-                'anggota_id' => 'Simpanan Sukarela hanya dapat diproses untuk Anggota aktif dengan Karyawan aktif.',
+                'anggota_id' => 'Simpanan Manasuka hanya dapat diproses untuk Anggota aktif dengan Karyawan aktif.',
             ]);
         }
 
@@ -420,7 +420,7 @@ class SimpananSukarelaService
         return $siklus;
     }
 
-    private function activeSukarelaJenis(?int $jenisSimpananId = null): JenisSimpanan
+    private function activeManasukaJenis(?int $jenisSimpananId = null): JenisSimpanan
     {
         $query = JenisSimpanan::query()
             ->with('akun')
@@ -443,9 +443,9 @@ class SimpananSukarelaService
         return $jenis;
     }
 
-    private function saldoRow(Anggota $anggota, int $siklusId, int $jenisId, bool $lock = false): SaldoSimpananSukarela
+    private function saldoRow(Anggota $anggota, int $siklusId, int $jenisId, bool $lock = false): SaldoSimpananManasuka
     {
-        $query = SaldoSimpananSukarela::query()
+        $query = SaldoSimpananManasuka::query()
             ->where('anggota_id', $anggota->id)
             ->where('siklus_keanggotaan_id', $siklusId)
             ->where('jenis_simpanan_id', $jenisId);
@@ -461,7 +461,7 @@ class SimpananSukarelaService
         }
 
         try {
-            SaldoSimpananSukarela::query()->create([
+            SaldoSimpananManasuka::query()->create([
                 'anggota_id' => $anggota->id,
                 'siklus_keanggotaan_id' => $siklusId,
                 'jenis_simpanan_id' => $jenisId,
@@ -470,7 +470,7 @@ class SimpananSukarelaService
         } catch (QueryException) {
         }
 
-        $query = SaldoSimpananSukarela::query()
+        $query = SaldoSimpananManasuka::query()
             ->where('anggota_id', $anggota->id)
             ->where('siklus_keanggotaan_id', $siklusId)
             ->where('jenis_simpanan_id', $jenisId);
@@ -482,7 +482,7 @@ class SimpananSukarelaService
         $saldo = $query->first();
 
         if (! $saldo) {
-            throw new RuntimeException('Saldo Simpanan Sukarela tidak dapat dibuat.');
+            throw new RuntimeException('Saldo Simpanan Manasuka tidak dapat dibuat.');
         }
 
         return $saldo;
@@ -492,7 +492,7 @@ class SimpananSukarelaService
     {
         if (! $akun || ! $akun->is_aktif || ! in_array($akun->kategori, ['kewajiban', 'ekuitas'], true) || $akun->posisi_saldo !== 'kredit') {
             throw ValidationException::withMessages([
-                'jenis_simpanan_id' => 'COA Simpanan Sukarela wajib aktif, kategori Kewajiban/Ekuitas, dan saldo normal Kredit.',
+                'jenis_simpanan_id' => 'COA Simpanan Manasuka wajib aktif, kategori Kewajiban/Ekuitas, dan saldo normal Kredit.',
             ]);
         }
     }
@@ -548,14 +548,14 @@ class SimpananSukarelaService
         $kredit = $jurnal->details->sum(fn ($detail) => (float) $detail->kredit);
 
         if (abs($debit - $kredit) > 0.01) {
-            throw new RuntimeException('Jurnal Simpanan Sukarela tidak berimbang.');
+            throw new RuntimeException('Jurnal Simpanan Manasuka tidak berimbang.');
         }
     }
 
     private function assertReversalMutasi(MutasiKas $mutasi, DompetKoperasi $dompet, string $tipe): void
     {
         if ((int) $mutasi->dompet_id !== (int) $dompet->id || $mutasi->tipe !== $tipe) {
-            throw new RuntimeException('Mutasi Kas Simpanan Sukarela tidak konsisten dengan transaksi.');
+            throw new RuntimeException('Mutasi Kas Simpanan Manasuka tidak konsisten dengan transaksi.');
         }
     }
 
@@ -583,7 +583,7 @@ class SimpananSukarelaService
             ->first();
 
         if (! $counter) {
-            throw new RuntimeException('Counter nomor transaksi Simpanan Sukarela tidak dapat dibuat.');
+            throw new RuntimeException('Counter nomor transaksi Simpanan Manasuka tidak dapat dibuat.');
         }
 
         $next = ((int) $counter->last_number) + 1;
@@ -604,7 +604,7 @@ class SimpananSukarelaService
             return 'simpanan:manual:mutasi:' . $idempotencyKey;
         }
 
-        return 'simpanan-sukarela:penarikan:mutasi:' . $idempotencyKey;
+        return 'simpanan-manasuka:penarikan:mutasi:' . $idempotencyKey;
     }
 
     private function jurnalIdempotencyKey(Simpanan $simpanan, string $idempotencyKey): string
@@ -613,10 +613,10 @@ class SimpananSukarelaService
             return 'simpanan:manual:jurnal:' . $idempotencyKey;
         }
 
-        return 'simpanan-sukarela:penarikan:jurnal:' . $idempotencyKey;
+        return 'simpanan-manasuka:penarikan:jurnal:' . $idempotencyKey;
     }
 
-    private function simpananSukarelaQuery(array $filters = [])
+    private function simpananManasukaQuery(array $filters = [])
     {
         return Simpanan::query()
             ->whereHas('jenisSimpanan', fn ($query) => $query
@@ -634,7 +634,7 @@ class SimpananSukarelaService
     {
         $normalized = trim((string) $key);
 
-        return $normalized !== '' ? $normalized : 'simpanan-sukarela:' . (string) Str::uuid();
+        return $normalized !== '' ? $normalized : 'simpanan-manasuka:' . (string) Str::uuid();
     }
 
     private function normalizeTanggal(CarbonInterface|string $tanggal): CarbonImmutable

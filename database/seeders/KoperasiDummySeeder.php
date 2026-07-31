@@ -38,7 +38,7 @@ use App\Services\PosCheckoutService;
 use App\Services\PotongGajiBulananService;
 use App\Services\SewaMobilService;
 use App\Services\SewaPrinterService;
-use App\Services\SimpananSukarelaService;
+use App\Services\SimpananManasukaService;
 use App\Services\SimpananWajibService;
 use App\Services\TransaksiReversalService;
 use Carbon\Carbon;
@@ -58,7 +58,7 @@ class KoperasiDummySeeder extends Seeder
             $mutasiKasService = app(MutasiKasService::class);
             $masterDataService = app(MasterDataKoperasiService::class);
             $jenisSimpananService = app(JenisSimpananService::class);
-            $simpananSukarelaService = app(SimpananSukarelaService::class);
+            $simpananManasukaService = app(SimpananManasukaService::class);
             $pinjamanService = app(PinjamanKoperasiService::class);
             $asetKoperasiService = app(AsetKoperasiService::class);
             $karyawanAccountService = app(KaryawanAccountService::class);
@@ -85,40 +85,40 @@ class KoperasiDummySeeder extends Seeder
             $this->seedAsetKoperasi($asetKoperasiService, $keuangan);
             $this->seedKaryawanAccounts($karyawanAccountService, $karyawan, $keuangan);
 
-            $this->seedSimpanan($simpananSukarelaService, $karyawan, $jenisSimpanan, $dompet, $keuangan, [
+            $this->seedSimpanan($simpananManasukaService, $karyawan, $jenisSimpanan, $dompet, $keuangan, [
                 [
                     'anggota' => 'agus',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_SETORAN,
                     'metode_pembayaran' => Simpanan::METODE_TUNAI,
                     'jumlah' => 150000,
                     'tanggal' => $awalBulanLalu->copy()->addDays(18),
                     'dompet' => 'kas_operasional',
-                    'keterangan' => 'Titip simpanan sukarela untuk cadangan lebaran [dummy-koperasi-bita]',
+                    'keterangan' => 'Titip simpanan manasuka untuk cadangan lebaran [dummy-koperasi-bita]',
                 ],
                 [
                     'anggota' => 'dewi',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_SETORAN,
                     'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
                     'jumlah' => 200000,
                     'tanggal' => $awalBulanIni->copy()->addDays(6),
                     'dompet' => 'bank_bca',
-                    'keterangan' => 'Setoran simpanan sukarela melalui Bank [dummy-koperasi-bita]',
+                    'keterangan' => 'Setoran simpanan manasuka melalui Bank [dummy-koperasi-bita]',
                 ],
                 [
                     'anggota' => 'dewi',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_PENARIKAN,
                     'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
                     'jumlah' => 50000,
                     'tanggal' => $awalBulanIni->copy()->addDays(9),
                     'dompet' => 'bank_bca',
-                    'keterangan' => 'Penarikan sebagian simpanan sukarela [dummy-koperasi-bita]',
+                    'keterangan' => 'Penarikan sebagian simpanan manasuka [dummy-koperasi-bita]',
                 ],
                 [
                     'anggota' => 'fitri',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_SETORAN,
                     'metode_pembayaran' => Simpanan::METODE_TUNAI,
                     'jumlah' => 75000,
@@ -128,7 +128,7 @@ class KoperasiDummySeeder extends Seeder
                 ],
                 [
                     'anggota' => 'fitri',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_PENARIKAN,
                     'metode_pembayaran' => Simpanan::METODE_TUNAI,
                     'jumlah' => 75000,
@@ -138,7 +138,7 @@ class KoperasiDummySeeder extends Seeder
                 ],
                 [
                     'anggota' => 'lilis',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_SETORAN,
                     'metode_pembayaran' => Simpanan::METODE_TUNAI,
                     'jumlah' => 120000,
@@ -146,17 +146,17 @@ class KoperasiDummySeeder extends Seeder
                     'dompet' => 'kas_operasional',
                     'keterangan' => 'Setoran salah untuk contoh koreksi [dummy-koperasi-bita]',
                     'koreksi' => true,
-                    'alasan_koreksi' => 'Dummy koreksi setoran Sukarela salah input.',
+                    'alasan_koreksi' => 'Dummy koreksi setoran Manasuka salah input.',
                 ],
                 [
                     'anggota' => 'nina',
-                    'jenis' => 'sukarela',
+                    'jenis' => 'manasuka',
                     'jenis_transaksi' => Simpanan::JENIS_SETORAN,
                     'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
                     'jumlah' => 125000,
                     'tanggal' => $awalBulanLalu->copy()->addDays(9),
                     'dompet' => 'bank_bca',
-                    'keterangan' => 'Saldo Sukarela untuk contoh refund penyelesaian keanggotaan SP-4 [dummy-koperasi-bita]',
+                    'keterangan' => 'Saldo Manasuka untuk contoh refund penyelesaian keanggotaan SP-4 [dummy-koperasi-bita]',
                 ],
             ]);
 
@@ -208,7 +208,7 @@ class KoperasiDummySeeder extends Seeder
                 'telepon' => $karyawan['agus']->telepon,
                 'jabatan' => $karyawan['agus']->jabatan,
                 'status_kerja' => Karyawan::STATUS_BERHENTI,
-                'tanggal_berhenti' => '2026-06-30',
+                'tanggal_berhenti' => $awalBulanIni->copy()->subDay()->toDateString(),
             ]);
 
             $this->seedPotongGaji2C($potongGajiService, $karyawan, $keuangan, $awalBulanIni, $pinjaman);
@@ -825,7 +825,7 @@ class KoperasiDummySeeder extends Seeder
         $akunIds = [
             'pokok' => $this->akunId('simpanan_pokok'),
             'wajib' => $this->akunId('simpanan_wajib'),
-            'sukarela' => $this->akunId('simpanan_sukarela'),
+            'manasuka' => $this->akunId('simpanan_manasuka'),
         ];
 
         $rows = [
@@ -853,17 +853,17 @@ class KoperasiDummySeeder extends Seeder
                 'keterangan' => 'Setoran wajib per penagihan tiga bulanan untuk menjaga likuiditas koperasi.',
                 'alasan_perubahan' => 'Setup dummy Master Simpanan Wajib per 3 bulan.',
             ],
-            'sukarela' => [
-                'akun_id' => $akunIds['sukarela'],
-                'kode' => JenisSimpanan::KODE_SIMPANAN_SUKARELA,
-                'kategori' => JenisSimpanan::KATEGORI_SUKARELA,
-                'nama_jenis' => 'Simpanan Sukarela',
+            'manasuka' => [
+                'akun_id' => $akunIds['manasuka'],
+                'kode' => JenisSimpanan::KODE_SIMPANAN_MANASUKA,
+                'kategori' => JenisSimpanan::KATEGORI_MANASUKA,
+                'nama_jenis' => 'Simpanan Manasuka',
                 'aktif' => true,
                 'nominal_default' => 0,
                 'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran sukarela anggota di luar kewajiban rutin.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Sukarela.',
+                'keterangan' => 'Setoran manasuka anggota di luar kewajiban rutin.',
+                'alasan_perubahan' => 'Setup dummy Master Simpanan Manasuka.',
             ],
         ];
 
@@ -1508,7 +1508,7 @@ class KoperasiDummySeeder extends Seeder
     }
 
     private function seedSimpanan(
-        SimpananSukarelaService $simpananSukarelaService,
+        SimpananManasukaService $simpananManasukaService,
         array $karyawan,
         array $jenisSimpanan,
         array $dompet,
@@ -1520,7 +1520,7 @@ class KoperasiDummySeeder extends Seeder
             $jenis = $jenisSimpanan[$row['jenis']];
             $idempotencyKey = 'dummy-simpanan:' . $row['anggota'] . ':' . $row['jenis'] . ':' . ($row['jenis_transaksi'] ?? 'setoran') . ':' . $row['dompet'] . ':' . $row['tanggal']->format('Ymd');
 
-            $simpanan = $simpananSukarelaService->create([
+            $simpanan = $simpananManasukaService->create([
                 'idempotency_key' => $idempotencyKey,
                 'anggota_id' => $anggotaModel?->id,
                 'jenis_simpanan_id' => $jenis->id,
@@ -1544,9 +1544,9 @@ class KoperasiDummySeeder extends Seeder
             }
 
             if (($row['koreksi'] ?? false) && $simpanan->status !== Simpanan::STATUS_REVERSED) {
-                $reversal = $simpananSukarelaService->koreksi(
+                $reversal = $simpananManasukaService->koreksi(
                     $simpanan,
-                    $row['alasan_koreksi'] ?? 'Koreksi dummy Simpanan Sukarela.',
+                    $row['alasan_koreksi'] ?? 'Koreksi dummy Simpanan Manasuka.',
                     $keuangan->id
                 );
 

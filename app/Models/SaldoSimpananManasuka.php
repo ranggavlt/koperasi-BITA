@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 
-class SaldoSimpananSukarela extends Model
+class SaldoSimpananManasuka extends Model
 {
     use HasFactory;
 
-    protected $table = 'saldo_simpanan_sukarela';
+    protected $table = 'saldo_simpanan_manasuka';
 
     protected $fillable = [
         'anggota_id',
@@ -28,14 +28,14 @@ class SaldoSimpananSukarela extends Model
 
     protected static function booted(): void
     {
-        static::saving(function (SaldoSimpananSukarela $saldo): void {
+        static::saving(function (SaldoSimpananManasuka $saldo): void {
             if ((float) $saldo->saldo < 0) {
-                throw new RuntimeException('Saldo Simpanan Sukarela tidak boleh negatif.');
+                throw new RuntimeException('Saldo Simpanan Manasuka tidak boleh negatif.');
             }
         });
 
         static::deleting(function (): void {
-            throw new RuntimeException('Saldo Simpanan Sukarela tidak boleh dihapus permanen.');
+            throw new RuntimeException('Saldo Simpanan Manasuka tidak boleh dihapus permanen.');
         });
     }
 

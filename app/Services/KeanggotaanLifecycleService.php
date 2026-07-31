@@ -19,7 +19,7 @@ use App\Models\PenyelesaianKeanggotaan;
 use App\Models\PenyelesaianKeanggotaanDetail;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
@@ -124,7 +124,7 @@ class KeanggotaanLifecycleService
 
             if ($existing) {
                 $this->cancelUnpaidWajibForExit($existing, $userId);
-                $this->freezeSukarelaSaldo($existing);
+                $this->freezeManasukaSaldo($existing);
 
                 return $this->refreshSnapshot($existing);
             }
@@ -148,7 +148,7 @@ class KeanggotaanLifecycleService
             ]);
 
             $this->cancelUnpaidWajibForExit($penyelesaian, $userId);
-            $this->freezeSukarelaSaldo($penyelesaian);
+            $this->freezeManasukaSaldo($penyelesaian);
 
             return $this->refreshSnapshot($penyelesaian);
         });
@@ -170,7 +170,7 @@ class KeanggotaanLifecycleService
             }
 
             $this->cancelUnpaidWajibForExit($locked, $locked->processed_by ?? $locked->created_by);
-            $this->freezeSukarelaSaldo($locked);
+            $this->freezeManasukaSaldo($locked);
 
             $rights = $this->rightSources($locked);
             foreach ($rights as $index => $right) {
@@ -401,8 +401,8 @@ class KeanggotaanLifecycleService
                 throw ValidationException::withMessages(['penyelesaian' => 'Refund wajib diproses sebelum penyelesaian completed.']);
             }
 
-            if ($this->oldSukarelaSaldoCents($locked) > 0) {
-                throw ValidationException::withMessages(['penyelesaian' => 'Saldo Simpanan Sukarela siklus lama wajib nol sebelum penyelesaian completed.']);
+            if ($this->oldManasukaSaldoCents($locked) > 0) {
+                throw ValidationException::withMessages(['penyelesaian' => 'Saldo Simpanan Manasuka siklus lama wajib nol sebelum penyelesaian completed.']);
             }
 
             $locked->update([
@@ -469,7 +469,7 @@ class KeanggotaanLifecycleService
             $siklus = SiklusKeanggotaan::query()->lockForUpdate()->findOrFail($locked->siklus_keanggotaan_id);
 
             $this->restoreCancelledWajibForDeactivation($locked, $userId, $reason);
-            $this->unfreezeSukarelaSaldo($locked);
+            $this->unfreezeManasukaSaldo($locked);
 
             $siklus->update([
                 'status' => SiklusKeanggotaan::STATUS_ACTIVE,
@@ -524,7 +524,7 @@ class KeanggotaanLifecycleService
                 ->findOrFail($penyelesaian->id);
 
             if ($locked->re_registered_cycle_id) {
-                return $locked->anggota->fresh(['karyawan', 'siklusAktif', 'saldoSimpananSukarela', 'simpanan']);
+                return $locked->anggota->fresh(['karyawan', 'siklusAktif', 'saldoSimpananManasuka', 'simpanan']);
             }
 
             $blockers = $this->reRegistrationBlockers($locked, $tanggal);
@@ -542,7 +542,7 @@ class KeanggotaanLifecycleService
             ]);
 
             $cycle = $this->createReRegistrationCycle($anggota->fresh(), $tanggal, $userId);
-            $this->ensureZeroSukarelaSaldoForCycle($anggota->fresh(), $cycle);
+            $this->ensureZeroManasukaSaldoForCycle($anggota->fresh(), $cycle);
             $this->createSimpananPokokForCycle($anggota->fresh(), $cycle, $userId);
             app(SimpananWajibService::class)->generateUntil($tanggal, $anggota->fresh(), $userId);
 
@@ -556,7 +556,7 @@ class KeanggotaanLifecycleService
                 're_registration_idempotency_key' => 'keanggotaan:daftar-ulang:' . $locked->id,
             ]);
 
-            return $anggota->fresh(['karyawan', 'siklusAktif', 'saldoSimpananSukarela', 'simpanan']);
+            return $anggota->fresh(['karyawan', 'siklusAktif', 'saldoSimpananManasuka', 'simpanan']);
         });
     }
 
@@ -714,8 +714,8 @@ class KeanggotaanLifecycleService
             $reasons[] = 'Masih ada hak Anggota pada penyelesaian lama yang belum dialokasikan/refund.';
         }
 
-        if ($this->oldSukarelaSaldoCents($penyelesaian) > 0) {
-            $reasons[] = 'Saldo Simpanan Sukarela siklus lama belum nol.';
+        if ($this->oldManasukaSaldoCents($penyelesaian) > 0) {
+            $reasons[] = 'Saldo Simpanan Manasuka siklus lama belum nol.';
         }
 
         if ($anggota && $this->hasActiveOldPayrollReservations($anggota->id, $penyelesaian->siklus_keanggotaan_id)) {
@@ -833,9 +833,9 @@ class KeanggotaanLifecycleService
         }
     }
 
-    private function unfreezeSukarelaSaldo(PenyelesaianKeanggotaan $penyelesaian): void
+    private function unfreezeManasukaSaldo(PenyelesaianKeanggotaan $penyelesaian): void
     {
-        SaldoSimpananSukarela::query()
+        SaldoSimpananManasuka::query()
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
             ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
@@ -916,7 +916,7 @@ class KeanggotaanLifecycleService
                 );
             });
 
-        $saldoRows = SaldoSimpananSukarela::query()
+        $saldoRows = SaldoSimpananManasuka::query()
             ->with('jenisSimpanan.akun')
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
@@ -928,9 +928,9 @@ class KeanggotaanLifecycleService
             ->orderBy('id')
             ->lockForUpdate()
             ->get()
-            ->map(fn (SaldoSimpananSukarela $saldo): array => $this->rightPayload(
-                PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_SUKARELA,
-                SaldoSimpananSukarela::class,
+            ->map(fn (SaldoSimpananManasuka $saldo): array => $this->rightPayload(
+                PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_MANASUKA,
+                SaldoSimpananManasuka::class,
                 $saldo->id,
                 $this->decimalToCents($saldo->saldo),
                 $saldo->jenisSimpanan?->akun
@@ -978,7 +978,7 @@ class KeanggotaanLifecycleService
         return match ($kategori) {
             PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_POKOK => app(AkunResolver::class)->posting('keanggotaan.simpanan_pokok'),
             PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_WAJIB => app(AkunResolver::class)->posting('keanggotaan.simpanan_wajib'),
-            PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_SUKARELA => app(AkunResolver::class)->posting('keanggotaan.simpanan_sukarela'),
+            PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_MANASUKA => app(AkunResolver::class)->posting('keanggotaan.simpanan_manasuka'),
             PenyelesaianKeanggotaanDetail::KATEGORI_KREDIT_REFUND => app(AkunResolver::class)->posting('keanggotaan.utang_refund_anggota'),
             default => throw new RuntimeException('Kategori hak Anggota tidak dikenal.'),
         };
@@ -1254,8 +1254,8 @@ class KeanggotaanLifecycleService
             return;
         }
 
-        if ($detail->source_type === SaldoSimpananSukarela::class) {
-            $saldo = SaldoSimpananSukarela::query()->lockForUpdate()->find($detail->source_id);
+        if ($detail->source_type === SaldoSimpananManasuka::class) {
+            $saldo = SaldoSimpananManasuka::query()->lockForUpdate()->find($detail->source_id);
             if (! $saldo) {
                 return;
             }
@@ -1290,9 +1290,9 @@ class KeanggotaanLifecycleService
         }
     }
 
-    private function oldSukarelaSaldoCents(PenyelesaianKeanggotaan $penyelesaian): int
+    private function oldManasukaSaldoCents(PenyelesaianKeanggotaan $penyelesaian): int
     {
-        return $this->decimalToCents((string) SaldoSimpananSukarela::query()
+        return $this->decimalToCents((string) SaldoSimpananManasuka::query()
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
             ->sum('saldo'));
@@ -1654,9 +1654,9 @@ class KeanggotaanLifecycleService
         );
     }
 
-    private function freezeSukarelaSaldo(PenyelesaianKeanggotaan $penyelesaian): void
+    private function freezeManasukaSaldo(PenyelesaianKeanggotaan $penyelesaian): void
     {
-        SaldoSimpananSukarela::query()
+        SaldoSimpananManasuka::query()
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
             ->where(function ($query) use ($penyelesaian): void {
@@ -1665,7 +1665,7 @@ class KeanggotaanLifecycleService
             })
             ->lockForUpdate()
             ->get()
-            ->each(function (SaldoSimpananSukarela $saldo) use ($penyelesaian): void {
+            ->each(function (SaldoSimpananManasuka $saldo) use ($penyelesaian): void {
                 $saldo->update([
                     'penyelesaian_keanggotaan_id' => $penyelesaian->id,
                     'frozen_at' => $saldo->frozen_at ?? $this->now(),
@@ -1673,7 +1673,7 @@ class KeanggotaanLifecycleService
             });
     }
 
-    private function ensureZeroSukarelaSaldoForCycle(Anggota $anggota, SiklusKeanggotaan $cycle): void
+    private function ensureZeroManasukaSaldoForCycle(Anggota $anggota, SiklusKeanggotaan $cycle): void
     {
         $jenis = JenisSimpanan::query()
             ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
@@ -1686,7 +1686,7 @@ class KeanggotaanLifecycleService
         }
 
         try {
-            SaldoSimpananSukarela::query()->firstOrCreate(
+            SaldoSimpananManasuka::query()->firstOrCreate(
                 [
                     'anggota_id' => $anggota->id,
                     'siklus_keanggotaan_id' => $cycle->id,

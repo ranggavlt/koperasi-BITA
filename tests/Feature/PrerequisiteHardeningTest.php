@@ -33,13 +33,13 @@ class PrerequisiteHardeningTest extends TestCase
         $this->assertTrue($user->fresh()->karyawan->is($karyawan));
     }
 
-    public function test_simpanan_sukarela_compatibility_alias_delegates_to_manasuka(): void
+    public function test_simpanan_manasuka_canonical_method_without_legacy_alias(): void
     {
         $simpanan = new Simpanan([
             'kode_jenis_snapshot' => \App\Models\JenisSimpanan::KODE_SIMPANAN_MANASUKA,
         ]);
 
         $this->assertTrue($simpanan->isSimpananManasuka());
-        $this->assertTrue($simpanan->isSimpananSukarela());
+        $this->assertFalse(method_exists($simpanan, 'isSimpananSukarela'));
     }
 }

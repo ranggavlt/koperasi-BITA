@@ -55,9 +55,9 @@ return [
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Hak reseller atas barang konsinyasi yang telah terjual dan belum dibayar.',
         ],
-        'simpanan_sukarela' => [
+        'simpanan_manasuka' => [
             'kode_akun' => '202',
-            'nama_akun' => 'Simpanan Sukarela Anggota',
+            'nama_akun' => 'Simpanan Manasuka Anggota',
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Simpanan anggota yang dapat ditarik sesuai ketentuan koperasi.',
@@ -273,8 +273,8 @@ return [
                 'wajib' => 'simpanan_wajib',
                 'simpanan-wajib' => 'simpanan_wajib',
                 'simpanan-wajib-bulanan' => 'simpanan_wajib',
-                'sukarela' => 'simpanan_sukarela',
-                'simpanan-sukarela' => 'simpanan_sukarela',
+                'manasuka' => 'simpanan_manasuka',
+                'simpanan-manasuka' => 'simpanan_manasuka',
                 'hari-raya' => 'simpanan_khusus',
                 'simpanan-hari-raya' => 'simpanan_khusus',
                 'simpanan-khusus' => 'simpanan_khusus',
@@ -311,7 +311,7 @@ return [
         'keanggotaan' => [
             'simpanan_pokok' => 'simpanan_pokok',
             'simpanan_wajib' => 'simpanan_wajib',
-            'simpanan_sukarela' => 'simpanan_sukarela',
+            'simpanan_manasuka' => 'simpanan_manasuka',
             'utang_refund_anggota' => 'utang_refund_anggota',
             'piutang_pinjaman' => 'piutang_pinjaman',
             'piutang_anggota' => 'piutang_anggota',

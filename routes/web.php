@@ -30,6 +30,7 @@ use App\Http\Controllers\BukuBesarController;
 use App\Http\Controllers\AkunController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnggotaController;
+use App\Http\Controllers\JenisSimpananController;
 
 use App\Http\Controllers\AsetPrinterController;
 use App\Http\Controllers\PeriodePotongGajiController;
@@ -110,10 +111,11 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::patch('/pengurus-koperasi/{pengurusKoperasi}/aktifkan', [PengurusKoperasiController::class, 'activate'])
         ->name('pengurus-koperasi.activate');
 
+    Route::resource('jenis-simpanan', JenisSimpananController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update']);
+
     Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
         ->name('simpanan.saldo-manasuka');
-    Route::get('/simpanan/saldo-sukarela/{anggota}', [SimpananController::class, 'saldoManasuka'])
-        ->name('simpanan.saldo-sukarela');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
 
 

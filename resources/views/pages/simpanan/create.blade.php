@@ -18,7 +18,7 @@
     </div>
   @endif
 
-  @if (! $jenisManasuka && ! $jenisWajib)
+  @if (! $jenisManasuka)
     <div class="kbsm-business-alert kbsm-business-alert--danger">
       Master Simpanan aktif belum dikonfigurasi. Aktifkan satu master Simpanan terlebih dahulu.
     </div>
@@ -27,7 +27,7 @@
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
-      <h1 class="kbsm-business-title">Transaksi Simpanan Sukarela / Manasuka</h1>
+      <h1 class="kbsm-business-title">Transaksi Simpanan Manasuka</h1>
       <p class="kbsm-business-subtitle">Finance mencatat setoran atau penarikan Simpanan langsung melalui Kas/Bank. Transaksi posted tidak bisa diedit atau dihapus.</p>
     </div>
     <a href="{{ route('simpanan.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Simpanan</a>
@@ -35,7 +35,7 @@
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Form Transaksi Simpanan Sukarela / Manasuka</h2>
+      <h2 class="kbsm-business-panel__title">Form Transaksi Simpanan Manasuka</h2>
       <p class="kbsm-business-panel__copy">Server tetap menghitung saldo akhir dan memvalidasi Dompet, COA, status Anggota, serta saldo tersedia.</p>
     </div>
 
@@ -62,9 +62,6 @@
             <label class="kbsm-business-label">Jenis Simpanan</label>
             <select name="jenis_simpanan_id" required class="kbsm-business-control">
               <option value="">Pilih Jenis</option>
-              @if($jenisWajib)
-                <option value="{{ $jenisWajib->id }}" {{ old('jenis_simpanan_id') == $jenisWajib->id ? 'selected' : '' }}>{{ $jenisWajib->nama_jenis }}</option>
-              @endif
               @if($jenisManasuka)
                 <option value="{{ $jenisManasuka->id }}" {{ old('jenis_simpanan_id') == $jenisManasuka->id ? 'selected' : '' }}>{{ $jenisManasuka->nama_jenis }}</option>
               @endif

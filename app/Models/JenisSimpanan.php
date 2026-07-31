@@ -14,15 +14,11 @@ class JenisSimpanan extends Model
 
     public const KODE_SIMPANAN_WAJIB = 'SIMPANAN_WAJIB';
 
-    public const KODE_SIMPANAN_SUKARELA = 'SIMPANAN_MANASUKA';
-
     public const KODE_SIMPANAN_MANASUKA = 'SIMPANAN_MANASUKA';
 
     public const KATEGORI_POKOK = 'pokok';
 
     public const KATEGORI_WAJIB = 'wajib';
-
-    public const KATEGORI_SUKARELA = 'manasuka';
 
     public const KATEGORI_MANASUKA = 'manasuka';
 
@@ -87,9 +83,9 @@ class JenisSimpanan extends Model
         return $this->hasMany(Simpanan::class, 'jenis_simpanan_id');
     }
 
-    public function saldoSimpananSukarela()
+    public function saldoSimpananManasuka()
     {
-        return $this->hasMany(SaldoSimpananSukarela::class, 'jenis_simpanan_id');
+        return $this->hasMany(SaldoSimpananManasuka::class, 'jenis_simpanan_id');
     }
 
     public function riwayat()
@@ -137,7 +133,7 @@ class JenisSimpanan extends Model
         return match ($this->kategori) {
             self::KATEGORI_POKOK => 'Sekali saat menjadi Anggota',
             self::KATEGORI_WAJIB => 'Setiap ' . (int) $this->interval_bulan . ' bulan',
-            self::KATEGORI_SUKARELA => 'Sesuai transaksi',
+            self::KATEGORI_MANASUKA => 'Sesuai transaksi',
             default => '-',
         };
     }

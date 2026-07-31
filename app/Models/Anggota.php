@@ -62,9 +62,9 @@ class Anggota extends Model
         return $this->hasMany(Simpanan::class);
     }
 
-    public function saldoSimpananSukarela()
+    public function saldoSimpananManasuka()
     {
-        return $this->hasMany(SaldoSimpananSukarela::class, 'anggota_id');
+        return $this->hasMany(SaldoSimpananManasuka::class, 'anggota_id');
     }
 
     public function jadwalSimpananWajib()

@@ -153,7 +153,7 @@ class PenyelesaianKeanggotaanController extends Controller
             (int) auth()->id()
         );
 
-        return back()->with('success', 'Anggota berhasil didaftarkan kembali dengan siklus baru, Simpanan Pokok baru, dan saldo Sukarela Rp0.');
+        return back()->with('success', 'Anggota berhasil didaftarkan kembali dengan siklus baru, Simpanan Pokok baru, dan saldo Manasuka Rp0.');
     }
 
     private function decimalToRupiahInt(int|string|null $value): int

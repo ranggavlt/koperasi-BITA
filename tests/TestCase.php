@@ -39,7 +39,7 @@ abstract class TestCase extends BaseTestCase
         $accounts = [
             JenisSimpanan::KATEGORI_POKOK => Akun::query()->where('kode_akun', config('account_map.accounts.simpanan_pokok.kode_akun'))->value('id'),
             JenisSimpanan::KATEGORI_WAJIB => Akun::query()->where('kode_akun', config('account_map.accounts.simpanan_wajib.kode_akun'))->value('id'),
-            JenisSimpanan::KATEGORI_SUKARELA => Akun::query()->where('kode_akun', config('account_map.accounts.simpanan_sukarela.kode_akun'))->value('id'),
+            JenisSimpanan::KATEGORI_MANASUKA => Akun::query()->where('kode_akun', config('account_map.accounts.simpanan_manasuka.kode_akun'))->value('id'),
         ];
 
         if (in_array(null, $accounts, true)) {
@@ -61,9 +61,9 @@ abstract class TestCase extends BaseTestCase
                 'interval_bulan' => 3,
                 'wajib' => true,
             ],
-            JenisSimpanan::KATEGORI_SUKARELA => [
-                'kode' => JenisSimpanan::KODE_SIMPANAN_SUKARELA,
-                'nama_jenis' => 'Simpanan Sukarela',
+            JenisSimpanan::KATEGORI_MANASUKA => [
+                'kode' => JenisSimpanan::KODE_SIMPANAN_MANASUKA,
+                'nama_jenis' => 'Simpanan Manasuka',
                 'nominal_default' => '0.00',
                 'interval_bulan' => null,
                 'wajib' => false,

@@ -16,6 +16,7 @@ use App\Services\MasterDataKoperasiService;
 use App\Services\SimpananManualService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -91,11 +92,10 @@ class JenisSimpananSp1Test extends TestCase
         $this->assertSame('125000.00', $wajib->fresh()->nominal_default);
     }
 
-    public function test_master_terpakai_tidak_dapat_dihapus_permanen(): void
+    public function test_master_terpakai_tidak_menyediakan_route_hard_delete(): void
     {
-        $finance = $this->finance();
         $anggota = $this->anggota();
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_SUKARELA);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
 
         Simpanan::query()->create([
             'anggota_id' => $anggota->id,
@@ -105,10 +105,7 @@ class JenisSimpananSp1Test extends TestCase
             'tanggal' => '2026-07-10',
         ]);
 
-        $this->actingAs($finance)
-            ->delete(route('jenis-simpanan.destroy', $jenis))
-            ->assertSessionHasErrors('jenis_simpanan');
-
+        $this->assertFalse(Route::has('jenis-simpanan.destroy'));
         $this->assertDatabaseHas('jenis_simpanan', ['id' => $jenis->id]);
     }
 
@@ -163,7 +160,7 @@ class JenisSimpananSp1Test extends TestCase
         $finance = $this->finance();
         $anggotaKas = $this->anggota();
         $anggotaBank = $this->anggota();
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_SUKARELA);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
         $kas = $this->dompet('Kas Unit Test', 'kas', 'kas');
         $bank = $this->dompet('Bank Unit Test', 'bank', 'bank');
         $service = app(SimpananManualService::class);
@@ -207,7 +204,7 @@ class JenisSimpananSp1Test extends TestCase
     {
         $finance = $this->finance();
         $anggota = $this->anggota();
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_SUKARELA);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
         $kas = $this->dompet('Kas Retry', 'kas', 'kas');
         $service = app(SimpananManualService::class);
         $payload = [

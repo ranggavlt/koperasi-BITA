@@ -225,7 +225,7 @@ class JenisSimpananService
 
         if ($payload['kategori'] === JenisSimpanan::KATEGORI_MANASUKA && $payload['nominal_default'] < 0) {
             throw ValidationException::withMessages([
-                'nominal_default' => 'Nominal default Simpanan Sukarela tidak boleh negatif.',
+                'nominal_default' => 'Nominal default Simpanan Manasuka tidak boleh negatif.',
             ]);
         }
     }
@@ -249,7 +249,7 @@ class JenisSimpananService
         if ($expectedKategori !== null && $akun->kategori !== $expectedKategori) {
             throw ValidationException::withMessages([
                 'akun_id' => $kategori === JenisSimpanan::KATEGORI_MANASUKA
-                    ? 'Simpanan Sukarela wajib memakai akun Kewajiban aktif.'
+                    ? 'Simpanan Manasuka wajib memakai akun Kewajiban aktif.'
                     : 'Simpanan Pokok/Wajib wajib memakai akun Ekuitas aktif.',
             ]);
         }

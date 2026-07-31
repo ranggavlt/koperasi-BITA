@@ -84,7 +84,7 @@ class PreflightPotongGajiCommand extends Command
             $this->check('jenis_simpanan_kategori_invalid', 'Kategori Jenis Simpanan null/tidak dikenal', $this->jenisSimpananKategoriInvalid()),
             $this->check('jenis_simpanan_kode_mismatch', 'Kode sistem tidak sesuai kategori Jenis Simpanan', $this->jenisSimpananKodeMismatch()),
             $this->check('jenis_simpanan_interval_invalid', 'Interval Simpanan Wajib di luar 1-12 bulan', $this->jenisSimpananIntervalInvalid()),
-            $this->check('jenis_simpanan_interval_terlarang', 'Simpanan Pokok/Sukarela mempunyai interval', $this->jenisSimpananIntervalTerlarang()),
+            $this->check('jenis_simpanan_interval_terlarang', 'Simpanan Pokok/Manasuka mempunyai interval', $this->jenisSimpananIntervalTerlarang()),
             $this->check('jenis_simpanan_nominal_invalid', 'Simpanan Pokok/Wajib tanpa nominal valid', $this->jenisSimpananNominalInvalid()),
             $this->check('jenis_simpanan_coa_invalid', 'Master aktif tanpa COA valid', $this->jenisSimpananCoaInvalid()),
             $this->check('simpanan_reference_invalid', 'Transaksi Simpanan tanpa Jenis/Anggota/Dompet valid', $this->simpananReferenceInvalid()),

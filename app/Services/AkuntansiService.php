@@ -366,9 +366,9 @@ class AkuntansiService
         ]);
     }
 
-    public function recordSimpananSukarelaPenarikan(Simpanan $simpanan, Akun $akunDompet, ?int $userId = null, ?string $idempotencyKey = null): JurnalUmum
+    public function recordSimpananManasukaPenarikan(Simpanan $simpanan, Akun $akunDompet, ?int $userId = null, ?string $idempotencyKey = null): JurnalUmum
     {
-        $idempotencyKey ??= 'simpanan-sukarela:penarikan:jurnal:' . $simpanan->id;
+        $idempotencyKey ??= 'simpanan-manasuka:penarikan:jurnal:' . $simpanan->id;
 
         $existing = JurnalUmum::query()
             ->where('idempotency_key', $idempotencyKey)
@@ -382,11 +382,11 @@ class AkuntansiService
         $akunSimpanan = $simpanan->jenisSimpanan?->akun;
 
         if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
-            throw new RuntimeException('Akun Simpanan Sukarela harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
+            throw new RuntimeException('Akun Simpanan Manasuka harus aktif, kategori kewajiban/ekuitas, dan saldo normal Kredit.');
         }
 
         if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
-            throw new RuntimeException('Akun Dompet penarikan Simpanan Sukarela harus aktif, kategori Aset, dan saldo normal Debit.');
+            throw new RuntimeException('Akun Dompet penarikan Simpanan Manasuka harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
         $jumlah = $this->rupiahDecimal($simpanan->jumlah ?? 0);
@@ -395,8 +395,8 @@ class AkuntansiService
         return $this->record([
             'idempotency_key' => $idempotencyKey,
             'tanggal' => $tanggal,
-            'nomor_bukti' => $simpanan->kode_transaksi ?: 'SSK-' . $simpanan->id,
-            'keterangan' => 'Penarikan Simpanan Sukarela',
+            'nomor_bukti' => $simpanan->kode_transaksi ?: 'SMN-' . $simpanan->id,
+            'keterangan' => 'Penarikan Simpanan Manasuka',
             'referensi_tipe' => Simpanan::class,
             'referensi_id' => $simpanan->id,
             'created_by' => $userId ?? auth()->id(),
@@ -406,7 +406,7 @@ class AkuntansiService
         ]);
     }
 
-    public function recordSimpananSukarelaCorrection(ReversalTransaksi $reversal, Simpanan $simpanan, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    public function recordSimpananManasukaCorrection(ReversalTransaksi $reversal, Simpanan $simpanan, Akun $akunDompet, ?int $userId = null): JurnalUmum
     {
         $existing = JurnalUmum::query()
             ->where('idempotency_key', 'reversal:jurnal:' . $reversal->id)
@@ -420,11 +420,11 @@ class AkuntansiService
         $akunSimpanan = $simpanan->jenisSimpanan?->akun;
 
         if (! $akunSimpanan || ! $akunSimpanan->is_aktif || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true) || $akunSimpanan->posisi_saldo !== 'kredit') {
-            throw new RuntimeException('Akun Simpanan Sukarela tidak valid untuk koreksi.');
+            throw new RuntimeException('Akun Simpanan Manasuka tidak valid untuk koreksi.');
         }
 
         if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
-            throw new RuntimeException('Akun Dompet koreksi Simpanan Sukarela harus aktif, kategori Aset, dan saldo normal Debit.');
+            throw new RuntimeException('Akun Dompet koreksi Simpanan Manasuka harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
         $jumlah = (float) $reversal->nominal;
@@ -443,7 +443,7 @@ class AkuntansiService
             'idempotency_key' => 'reversal:jurnal:' . $reversal->id,
             'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
             'nomor_bukti' => $reversal->kode_reversal,
-            'keterangan' => 'Koreksi Transaksi Simpanan Sukarela ' . ($simpanan->kode_transaksi ?: ('#' . $simpanan->id)),
+            'keterangan' => 'Koreksi Transaksi Simpanan Manasuka ' . ($simpanan->kode_transaksi ?: ('#' . $simpanan->id)),
             'referensi_tipe' => ReversalTransaksi::class,
             'referensi_id' => $reversal->id,
             'created_by' => $userId ?? auth()->id(),

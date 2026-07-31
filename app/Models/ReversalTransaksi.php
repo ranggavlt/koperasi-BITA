@@ -21,7 +21,7 @@ class ReversalTransaksi extends Model
 
     public const JENIS_SIMPANAN_POKOK_CORRECTION = 'simpanan_pokok_correction';
 
-    public const JENIS_SIMPANAN_SUKARELA_CORRECTION = 'simpanan_sukarela_correction';
+    public const JENIS_SIMPANAN_MANASUKA_CORRECTION = 'simpanan_manasuka_correction';
 
     public const JENIS_SIMPANAN_WAJIB_EXIT_CANCEL = 'simpanan_wajib_exit_cancel';
 
