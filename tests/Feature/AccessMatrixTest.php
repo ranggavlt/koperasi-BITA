@@ -36,7 +36,9 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($finance)->get(route('karyawan.index'))->assertOk();
         $this->actingAs($finance)->get(route('periode-potong-gaji.index'))->assertOk();
         $this->actingAs($finance)->get(route('pinjaman.index'))->assertOk();
-        $this->actingAs($finance)->get(route('aset-mobil.index'))->assertOk();
+        if (Route::has('aset-mobil.index')) {
+            $this->actingAs($finance)->get(route('aset-mobil.index'))->assertOk();
+        }
         $this->actingAs($finance)->get(route('sewa-printer.index'))->assertOk();
         $this->actingAs($finance)->get(route('beban-operasional.index'))->assertOk();
         $this->actingAs($finance)->get(route('laporan.potong-gaji'))->assertOk();
@@ -67,9 +69,14 @@ class AccessMatrixTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSee('Karyawan')
-            ->assertSee('Sewa Printer')
+            ->assertSee('Sewa Hardware')
+            ->assertDontSee('Sewa Printer')
             ->assertSee('Laporan Potong Gaji')
+            ->assertSee('Tagihan Tunai')
+            ->assertSee('Riwayat Koreksi Transaksi')
+            ->assertSee('Daftar Akun / COA')
             ->assertDontSee('Transaksi SHU')
+            ->assertDontSee('Klaim Dana Sosial')
             ->assertDontSee('Jasa Print')
             ->assertDontSee('atau SHU');
 
@@ -77,8 +84,12 @@ class AccessMatrixTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSee('Penjualan / Kasir')
+            ->assertSee('Pembayaran Konsinyasi')
+            ->assertSee('Laporan Konsinyasi')
             ->assertDontSee('Periode Potong Gaji')
+            ->assertDontSee('Karyawan')
             ->assertDontSee('Transaksi SHU')
+            ->assertDontSee('Klaim Dana Sosial')
             ->assertDontSee('Jasa Print');
 
         $this->actingAs($employee)
