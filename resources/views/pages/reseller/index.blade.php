@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
 
@@ -33,7 +33,7 @@
           {{-- Tombol Toggle hanya muncul jika BUKAN mode Edit --}}
           @if(!isset($data))
             <button type="button" onclick="toggleForm()" id="btn-toggle-form"
-              class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+              class="kbsm-btn kbsm-btn--navy shadow-soft-md transition-all hover:scale-105">
               {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
             </button>
           @endif
@@ -74,13 +74,13 @@
 
             <div class="mt-6 flex flex-wrap gap-2">
               <button type="submit"
-                class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                class="kbsm-btn kbsm-btn--navy shadow-soft-md transition-all">
                 {{ isset($data) ? 'Update' : 'Simpan' }}
               </button>
 
               @if(isset($data))
                 <a href="{{ route('reseller.index') }}"
-                  class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                  class="kbsm-btn kbsm-btn--outline-slate shadow-soft-md transition-all">
                   Batal
                 </a>
               @endif
@@ -163,7 +163,7 @@
                     <td class="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center justify-center gap-2 px-4">
                         <a href="{{ route('reseller.edit', $r->id) }}"
-                           class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                           class="kbsm-btn kbsm-btn--outline-navy shadow-soft-md transition-all hover:scale-105">
                           Edit
                         </a>
 
@@ -172,7 +172,7 @@
                           @csrf
                           @method('DELETE')
                           <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                            class="kbsm-btn kbsm-btn--red shadow-soft-md transition-all hover:scale-105">
                             Hapus
                           </button>
                         </form>

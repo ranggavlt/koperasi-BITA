@@ -47,8 +47,7 @@
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="role">Hak Akses (Role)</label>
           <select id="role" name="role" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
             <option value="kasir" {{ old('role') === 'kasir' ? 'selected' : '' }}>Kasir</option>
-            <option value="karyawan" {{ old('role') === 'karyawan' ? 'selected' : '' }}>Karyawan</option>
-            <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Admin</option>
+            <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Keuangan / Admin</option>
           </select>
         </div>
         <div>
@@ -61,18 +60,7 @@
           <input id="avatar" name="avatar" type="file" accept="image/*"
             class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm bg-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
         </div>
-        <div class="md:col-span-2">
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="karyawan_id">Hubungkan ke Profil Karyawan (Opsional)</label>
-          <select id="karyawan_id" name="karyawan_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-            <option value="">-- Tidak Terhubung ke Karyawan --</option>
-            @foreach($karyawans as $kry)
-              <option value="{{ $kry->id }}" {{ old('karyawan_id') == $kry->id ? 'selected' : '' }}>
-                {{ $kry->nama }} ({{ $kry->jabatan }})
-              </option>
-            @endforeach
-          </select>
-          <p class="mt-1 text-xs text-slate-400">Pilih karyawan jika akun ini butuh mengakses layanan khusus karyawan (seperti pengajuan sewa mobil).</p>
-        </div>
+
       </div>
       <div class="mt-6 flex gap-3">
         <button class="rounded-xl px-6 py-3 text-xs font-bold uppercase text-white shadow-lg" style="background-color: #2f8f3a;" onmouseover="this.style.backgroundColor='#267832'" onmouseout="this.style.backgroundColor='#2f8f3a'" type="submit">
@@ -94,7 +82,7 @@
             <th class="px-6 py-4">Nama</th>
             <th class="px-6 py-4">Email</th>
             <th class="px-6 py-4">Role</th>
-            <th class="px-6 py-4">Status / Profil Karyawan</th>
+            <th class="px-6 py-4">Status</th>
             <th class="px-6 py-4 text-center">Aksi</th>
           </tr>
         </thead>
@@ -105,11 +93,9 @@
               <td class="px-6 py-4 text-slate-600">{{ $user->email }}</td>
               <td class="px-6 py-4">
                 @if($user->role === 'admin')
-                  <span class="rounded-md bg-purple-100 px-2 py-1 text-xs font-bold text-purple-700">Admin</span>
+                  <span class="rounded-md bg-purple-100 px-2 py-1 text-xs font-bold text-purple-700">Keuangan / Admin</span>
                 @elseif($user->role === 'kasir')
                   <span class="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">Kasir</span>
-                @else
-                  <span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Karyawan</span>
                 @endif
               </td>
               <td class="px-6 py-4">
@@ -120,17 +106,10 @@
                     <span class="rounded-md bg-red-100 px-2 py-1 text-xs font-bold text-red-700">Nonaktif</span>
                   @endif
                 </div>
-                <div class="text-xs text-slate-500">
-                  @if($user->karyawan)
-                    Terhubung: {{ $user->karyawan->nama }}
-                  @else
-                    <span class="text-slate-400 italic">Tidak terhubung profil</span>
-                  @endif
-                </div>
               </td>
               <td class="px-6 py-4 text-center">
                 <div class="flex flex-wrap items-center justify-center gap-2">
-                  <button type="button" onclick="openEditModal({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ addslashes($user->email) }}', '{{ $user->role }}', '{{ $user->karyawan_id }}')" class="rounded-lg px-3 py-2 text-xs font-bold text-white" style="background-color: #073b5c;">Edit</button>
+                  <button type="button" onclick="openEditModal({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ addslashes($user->email) }}', '{{ $user->role }}')" class="rounded-lg px-3 py-2 text-xs font-bold text-white" style="background-color: #073b5c;">Edit</button>
                   <button type="button" onclick="openResetModal({{ $user->id }}, '{{ addslashes($user->name) }}')" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600">Reset Sandi</button>
                   <form action="{{ route('users.toggle-status', $user) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin mengubah status akun ini?');">
                     @csrf @method('PATCH')
@@ -170,19 +149,10 @@
           <label class="mb-1 block text-xs font-bold uppercase text-slate-600">Hak Akses (Role)</label>
           <select id="edit_role" name="role" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm">
             <option value="kasir">Kasir</option>
-            <option value="karyawan">Karyawan</option>
-            <option value="admin">Admin</option>
+            <option value="admin">Keuangan / Admin</option>
           </select>
         </div>
-        <div>
-          <label class="mb-1 block text-xs font-bold uppercase text-slate-600">Hubungkan Karyawan</label>
-          <select id="edit_karyawan_id" name="karyawan_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm">
-            <option value="">-- Tidak Terhubung --</option>
-            @foreach($karyawans as $kry)
-              <option value="{{ $kry->id }}">{{ $kry->nama }}</option>
-            @endforeach
-          </select>
-        </div>
+
         <div>
           <label class="mb-1 block text-xs font-bold uppercase text-slate-600">Ganti Foto Profil (Opsional)</label>
           <input id="edit_avatar" name="avatar" type="file" accept="image/*"
@@ -224,11 +194,10 @@
     button.textContent = panel.classList.contains('hidden') ? '+ Buat Akun Baru' : 'Tutup Form';
   }
 
-  function openEditModal(id, name, email, role, karyawan_id) {
+  function openEditModal(id, name, email, role) {
     document.getElementById('edit_name').value = name;
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_role').value = role;
-    document.getElementById('edit_karyawan_id').value = karyawan_id || '';
     document.getElementById('edit-form').action = `/users/${id}`;
     document.getElementById('edit-modal').classList.remove('hidden');
   }

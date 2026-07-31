@@ -1,4 +1,4 @@
-@extends('layout.app')
+@extends('layout.main')
 @section('content')
 <div class="flex flex-wrap -mx-3">
   <div class="flex-none w-full max-w-full px-3">

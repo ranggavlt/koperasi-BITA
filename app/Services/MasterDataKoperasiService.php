@@ -198,6 +198,19 @@ class MasterDataKoperasiService
                 return $locked->fresh('karyawan');
             }
 
+            $hasUnpaidWajib = $locked->jadwalSimpananWajib()
+                ->whereIn('status', [
+                    \App\Models\JadwalSimpananWajib::STATUS_OUTSTANDING,
+                    \App\Models\JadwalSimpananWajib::STATUS_RESERVED,
+                ])
+                ->exists();
+
+            if ($hasUnpaidWajib) {
+                throw ValidationException::withMessages([
+                    'anggota' => 'Anggota tidak bisa dinonaktifkan karena masih memiliki tagihan Simpanan Wajib yang belum dibayar lunas.',
+                ]);
+            }
+
             $locked->update([
                 'status' => Anggota::STATUS_NONAKTIF,
                 'tanggal_nonaktif' => today(),

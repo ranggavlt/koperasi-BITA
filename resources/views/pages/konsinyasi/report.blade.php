@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
 
@@ -30,7 +30,7 @@
           </select>
         </div>
 
-        <button class="rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white">
+        <button class="kbsm-btn kbsm-btn--navy">
           Tampilkan
         </button>
       </form>

@@ -13,10 +13,9 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with('karyawan')->orderBy('name')->paginate(15);
-        $karyawans = Karyawan::where('status_kerja', 'aktif')->orderBy('nama')->get();
+        $users = User::orderBy('name')->paginate(15);
 
-        return view('pages.users.index', compact('users', 'karyawans'));
+        return view('pages.users.index', compact('users'));
     }
 
     public function store(Request $request)
@@ -24,8 +23,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'role' => ['required', 'string', 'in:admin,kasir,karyawan'],
-            'karyawan_id' => ['nullable', 'exists:karyawan,id'],
+            'role' => ['required', 'string', 'in:admin,kasir'],
             'password' => ['required', 'string', 'min:8'],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
@@ -52,8 +50,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'role' => ['required', 'string', 'in:admin,kasir,karyawan'],
-            'karyawan_id' => ['nullable', 'exists:karyawan,id'],
+            'role' => ['required', 'string', 'in:admin,kasir'],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 

@@ -84,7 +84,18 @@
               <td class="px-6 py-4"><div class="flex flex-wrap justify-center gap-2">
                 <a href="{{ route('anggota.edit', $item) }}" class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Edit</a>
                 @if($item->status === 'aktif')
-                  <form method="POST" action="{{ route('anggota.deactivate', $item) }}" onsubmit="return confirm('Nonaktifkan Anggota ini dan jabatan Pengurus aktif terkait?')">@csrf @method('PATCH')<button class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700">Nonaktifkan</button></form>
+                  @php
+                    $hasUnpaidWajib = $item->jadwalSimpananWajib()
+                      ->whereIn('status', [
+                          \App\Models\JadwalSimpananWajib::STATUS_OUTSTANDING,
+                          \App\Models\JadwalSimpananWajib::STATUS_RESERVED,
+                      ])->exists();
+                  @endphp
+                  @if($hasUnpaidWajib)
+                    <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-400 cursor-not-allowed" title="Masih ada tagihan Simpanan Wajib">Nonaktifkan</button>
+                  @else
+                    <form method="POST" action="{{ route('anggota.deactivate', $item) }}" onsubmit="return confirm('Nonaktifkan Anggota ini dan jabatan Pengurus aktif terkait?')">@csrf @method('PATCH')<button class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700">Nonaktifkan</button></form>
+                  @endif
                 @elseif($item->karyawan->status_kerja === 'aktif')
                   <form method="POST" action="{{ route('anggota.activate', $item) }}">@csrf @method('PATCH')<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Aktifkan</button></form>
                 @endif

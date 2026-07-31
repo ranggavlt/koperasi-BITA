@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
@@ -69,7 +69,7 @@
                   Aksi
                 </label>
                 <button type="submit"
-                  class="inline-block w-full rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all">
+                  class="kbsm-btn kbsm-btn--navy w-full transition-all">
                   Tampilkan Ringkasan
                 </button>
               </div>
@@ -178,7 +178,7 @@
 
                   <div class="mt-6 flex flex-wrap gap-2">
                     <button type="submit"
-                      class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all"
+                      class="kbsm-btn kbsm-btn--navy transition-all"
                       style="{{ $hasDompet ? '' : 'opacity: 0.5; cursor: not-allowed;' }}"
                       {{ $hasDompet ? '' : 'disabled' }}>
                       Bayar Rp {{ number_format($ringkasan['total_bayar'], 0, ',', '.') }}

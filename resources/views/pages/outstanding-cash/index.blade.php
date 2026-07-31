@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -18,8 +18,8 @@
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Filter Outstanding Cash</h2>
     </div>
-    <form method="GET" class="kbsm-business-filter kbsm-business-filter--compact">
-      <div class="kbsm-business-field">
+    <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end p-5 border-b border-slate-100">
+      <div class="kbsm-business-field !mb-0">
         <label class="kbsm-business-label">Status</label>
         <select name="status" class="kbsm-business-control">
           <option value="">Semua status</option>
@@ -28,7 +28,7 @@
           @endforeach
         </select>
       </div>
-      <div class="kbsm-business-field">
+      <div class="kbsm-business-field !mb-0">
         <label class="kbsm-business-label">Anggota</label>
         <select name="anggota_id" class="kbsm-business-control">
           <option value="">Semua Anggota</option>
@@ -37,9 +37,9 @@
           @endforeach
         </select>
       </div>
-      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split">
-        <button class="kbsm-btn kbsm-btn--navy">Filter</button>
-        <a href="{{ route('outstanding-cash.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
+      <div class="flex items-center gap-3">
+        <button class="kbsm-btn kbsm-btn--navy flex-1">Filter</button>
+        <a href="{{ route('outstanding-cash.index') }}" class="kbsm-btn kbsm-btn--outline-slate flex-1 text-center">Reset</a>
       </div>
     </form>
   </section>

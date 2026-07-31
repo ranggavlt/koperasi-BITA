@@ -22,7 +22,6 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'karyawan_id',
         'is_active',
         'must_change_password',
         'password_changed_at',
@@ -58,11 +57,6 @@ class User extends Authenticatable
             'password_changed_at' => 'datetime',
             'account_deactivated_at' => 'datetime',
         ];
-    }
-
-    public function karyawan()
-    {
-        return $this->belongsTo(Karyawan::class);
     }
 
     public function createdEmployeeAccounts()

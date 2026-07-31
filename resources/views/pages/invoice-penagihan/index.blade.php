@@ -46,7 +46,7 @@
           <input type="number" name="tahun" required value="{{ date('Y') }}" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
         <div class="flex items-end">
-            <button type="submit" class="w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700">Generate Invoice</button>
+            <button type="submit" class="kbsm-btn kbsm-btn--navy w-full">Generate Invoice</button>
         </div>
       </div>
     </form>

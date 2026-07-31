@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
@@ -32,7 +32,7 @@
 
           @if(!isset($data))
             <button type="button" onclick="toggleForm()" id="btn-toggle-form"
-              class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+              class="kbsm-btn kbsm-btn--navy shadow-soft-md transition-all hover:scale-105">
               {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
             </button>
           @endif
@@ -197,7 +197,7 @@
                     <td class="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
                       <div class="flex items-center justify-center gap-2 px-4">
                         <a href="{{ route('dompet-koperasi.edit', $item->id) }}"
-                           class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                           class="kbsm-btn kbsm-btn--outline-navy shadow-soft-md transition-all hover:scale-105">
                           Edit
                         </a>
 
@@ -206,7 +206,7 @@
                           @csrf
                           @method('DELETE')
                           <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
+                            class="kbsm-btn kbsm-btn--red shadow-soft-md transition-all hover:scale-105">
                             Hapus
                           </button>
                         </form>

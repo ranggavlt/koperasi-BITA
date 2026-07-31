@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 @php
@@ -28,12 +28,12 @@
       <h2 class="kbsm-business-panel__title">Filter Laporan</h2>
       <p class="kbsm-business-panel__copy">Filter mempertahankan query saat berpindah halaman.</p>
     </div>
-    <form method="GET" action="{{ route('laporan.potong-gaji') }}" class="kbsm-business-filter kbsm-business-filter--wajib">
-      <div class="kbsm-business-field">
+    <form method="GET" action="{{ route('laporan.potong-gaji') }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end p-5 border-b border-slate-100">
+      <div class="kbsm-business-field !mb-0">
         <label class="kbsm-business-label">Periode</label>
         <input type="month" name="periode" value="{{ $periode }}" class="kbsm-business-control">
       </div>
-      <div class="kbsm-business-field">
+      <div class="kbsm-business-field !mb-0">
         <label class="kbsm-business-label">Anggota</label>
         <select name="anggota_id" class="kbsm-business-control">
           <option value="">Semua</option>
@@ -44,7 +44,7 @@
           @endforeach
         </select>
       </div>
-      <div class="kbsm-business-field">
+      <div class="kbsm-business-field !mb-0">
         <label class="kbsm-business-label">Status</label>
         <select name="status" class="kbsm-business-control">
           <option value="">Semua</option>
@@ -53,7 +53,7 @@
           @endforeach
         </select>
       </div>
-      <div class="kbsm-business-field">
+      <div class="kbsm-business-field !mb-0">
         <label class="kbsm-business-label">Kategori</label>
         <select name="kategori" class="kbsm-business-control">
           <option value="">Semua</option>
@@ -62,9 +62,9 @@
           @endforeach
         </select>
       </div>
-      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split">
-        <button class="kbsm-btn kbsm-btn--navy">Filter</button>
-        <a href="{{ route('laporan.potong-gaji') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
+      <div class="flex items-center gap-3">
+        <button class="kbsm-btn kbsm-btn--navy flex-1">Filter</button>
+        <a href="{{ route('laporan.potong-gaji') }}" class="kbsm-btn kbsm-btn--outline-slate flex-1 text-center">Reset</a>
       </div>
     </form>
   </section>
