@@ -27,7 +27,7 @@
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
-      <h1 class="kbsm-business-title">Transaksi Simpanan</h1>
+      <h1 class="kbsm-business-title">Transaksi Simpanan Sukarela / Manasuka</h1>
       <p class="kbsm-business-subtitle">Finance mencatat setoran atau penarikan Simpanan langsung melalui Kas/Bank. Transaksi posted tidak bisa diedit atau dihapus.</p>
     </div>
     <a href="{{ route('simpanan.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Simpanan</a>
@@ -35,7 +35,7 @@
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Form Transaksi Simpanan</h2>
+      <h2 class="kbsm-business-panel__title">Form Transaksi Simpanan Sukarela / Manasuka</h2>
       <p class="kbsm-business-panel__copy">Server tetap menghitung saldo akhir dan memvalidasi Dompet, COA, status Anggota, serta saldo tersedia.</p>
     </div>
 

@@ -112,6 +112,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
         ->name('simpanan.saldo-manasuka');
+    Route::get('/simpanan/saldo-sukarela/{anggota}', [SimpananController::class, 'saldoManasuka'])
+        ->name('simpanan.saldo-sukarela');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
 
 

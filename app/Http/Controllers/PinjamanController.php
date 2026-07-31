@@ -87,9 +87,15 @@ class PinjamanController extends Controller
                 ->withErrors(['pinjaman' => 'Hanya draft Pinjaman yang dapat diedit.']);
         }
 
+        $dompet = DompetKoperasi::query()
+            ->with('akun')
+            ->orderBy('nama_dompet')
+            ->get();
+
         return view('pages.pinjaman.form', [
             'pinjaman' => $pinjaman->load('anggota.karyawan'),
             'anggota' => $this->availableAnggota($pinjaman),
+            'dompet' => $dompet,
         ]);
     }
 

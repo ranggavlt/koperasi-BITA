@@ -53,7 +53,7 @@ class ReversalTransaksiController extends Controller
             'nominal_pengganti' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        if ($simpanan->isSimpananSukarela()) {
+        if ($simpanan->isSimpananManasuka()) {
             $this->simpananSukarelaService->koreksi($simpanan, $validated['alasan'], (int) $request->user()->id);
             return back()->with('success', 'Koreksi Transaksi Simpanan Sukarela berhasil diproses.');
         }

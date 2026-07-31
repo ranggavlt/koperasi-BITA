@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\JenisSimpanan;
 use App\Models\PembayaranSewaMobil;
 use App\Models\PembayaranSewaPrinter;
 use App\Models\SewaMobil;
@@ -1024,7 +1025,7 @@ class PreflightPotongGajiCommand extends Command
         return DB::table('jenis_simpanan')
             ->select('kategori', DB::raw('COUNT(*) as total'))
             ->where('aktif', true)
-            ->whereIn('kategori', ['pokok', 'wajib', 'sukarela'])
+            ->whereIn('kategori', $this->jenisSimpananKategoriResmi())
             ->groupBy('kategori')
             ->having('total', '>', 1)
             ->get()
@@ -1040,7 +1041,7 @@ class PreflightPotongGajiCommand extends Command
         return DB::table('jenis_simpanan')
             ->where(function ($query): void {
                 $query->whereNull('kategori')
-                    ->orWhereNotIn('kategori', ['pokok', 'wajib', 'sukarela']);
+                    ->orWhereNotIn('kategori', $this->jenisSimpananKategoriResmi());
             })
             ->count();
     }
@@ -1052,12 +1053,12 @@ class PreflightPotongGajiCommand extends Command
         }
 
         return DB::table('jenis_simpanan')
-            ->whereIn('kategori', ['pokok', 'wajib', 'sukarela'])
+            ->whereIn('kategori', $this->jenisSimpananKategoriResmi())
             ->where(function ($query): void {
                 $query->where(function ($subQuery): void {
-                    $subQuery->where('kategori', 'pokok')->where('kode', '!=', 'SIMPANAN_POKOK');
+                    $subQuery->where('kategori', JenisSimpanan::KATEGORI_POKOK)->where('kode', '!=', JenisSimpanan::KODE_SIMPANAN_POKOK);
                 })->orWhere(function ($subQuery): void {
-                    $subQuery->where('kategori', 'wajib')->where('kode', '!=', 'SIMPANAN_WAJIB');
+                    $subQuery->where('kategori', JenisSimpanan::KATEGORI_WAJIB)->where('kode', '!=', JenisSimpanan::KODE_SIMPANAN_WAJIB);
                 })->orWhere(function ($subQuery): void {
                     $subQuery->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)->where('kode', '!=', JenisSimpanan::KODE_SIMPANAN_MANASUKA);
                 })->orWhereNull('kode');
@@ -1072,7 +1073,7 @@ class PreflightPotongGajiCommand extends Command
         }
 
         return DB::table('jenis_simpanan')
-            ->where('kategori', 'wajib')
+            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
             ->where(function ($query): void {
                 $query->whereNull('interval_bulan')
                     ->orWhere('interval_bulan', '<', 1)
@@ -1088,7 +1089,7 @@ class PreflightPotongGajiCommand extends Command
         }
 
         return DB::table('jenis_simpanan')
-            ->whereIn('kategori', ['pokok', 'sukarela'])
+            ->whereIn('kategori', [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_MANASUKA])
             ->whereNotNull('interval_bulan')
             ->count();
     }
@@ -1100,7 +1101,7 @@ class PreflightPotongGajiCommand extends Command
         }
 
         return DB::table('jenis_simpanan')
-            ->whereIn('kategori', ['pokok', 'wajib'])
+            ->whereIn('kategori', [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB])
             ->where(function ($query): void {
                 $query->whereNull('nominal_default')
                     ->orWhere('nominal_default', '<=', 0);
@@ -1117,21 +1118,30 @@ class PreflightPotongGajiCommand extends Command
         return DB::table('jenis_simpanan as js')
             ->leftJoin('akun as a', 'a.id', '=', 'js.akun_id')
             ->where('js.aktif', true)
-            ->whereIn('js.kategori', ['pokok', 'wajib', 'sukarela'])
+            ->whereIn('js.kategori', $this->jenisSimpananKategoriResmi())
             ->where(function ($query): void {
                 $query->whereNull('a.id')
                     ->orWhere('a.is_aktif', false)
                     ->orWhere('a.posisi_saldo', '!=', 'kredit')
                     ->orWhere(function ($subQuery): void {
-                        $subQuery->whereIn('js.kategori', ['pokok', 'wajib'])
+                        $subQuery->whereIn('js.kategori', [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB])
                             ->where('a.kategori', '!=', 'ekuitas');
                     })
                     ->orWhere(function ($subQuery): void {
-                        $subQuery->where('js.kategori', 'sukarela')
+                        $subQuery->where('js.kategori', JenisSimpanan::KATEGORI_MANASUKA)
                             ->where('a.kategori', '!=', 'kewajiban');
                     });
             })
             ->count('js.id');
+    }
+
+    private function jenisSimpananKategoriResmi(): array
+    {
+        return [
+            JenisSimpanan::KATEGORI_POKOK,
+            JenisSimpanan::KATEGORI_WAJIB,
+            JenisSimpanan::KATEGORI_MANASUKA,
+        ];
     }
 
     private function simpananReferenceInvalid(): int

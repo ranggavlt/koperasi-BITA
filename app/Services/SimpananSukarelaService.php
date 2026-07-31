@@ -65,7 +65,7 @@ class SimpananSukarelaService
                     ->lockForUpdate()
                     ->findOrFail($simpanan->id);
 
-                if (! $locked->isSimpananSukarela()) {
+                if (! $locked->isSimpananManasuka()) {
                     throw ValidationException::withMessages([
                         'simpanan' => 'Koreksi Transaksi hanya tersedia untuk Simpanan Sukarela.',
                     ]);
@@ -190,6 +190,11 @@ class SimpananSukarelaService
             ->value('saldo');
 
         return intdiv($this->decimalToCents($saldo ?? '0.00'), 100);
+    }
+
+    public function getSaldoCached(Anggota $anggota): int
+    {
+        return $this->saldoTersedia($anggota);
     }
 
     public function recalculateSaldoCents(int $anggotaId, int $siklusId, int $jenisSimpananId): int

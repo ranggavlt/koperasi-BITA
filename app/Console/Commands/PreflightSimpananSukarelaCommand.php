@@ -23,7 +23,7 @@ class PreflightSimpananSukarelaCommand extends Command
         $checks = [
             $this->check('schema_missing', 'Schema SP-3 Simpanan Sukarela belum lengkap', $this->schemaMissing()),
             $this->check('jenis_duplicate_active', 'Master Jenis Simpanan aktif duplikat per kategori', $this->duplicateActiveJenisSimpananKategori()),
-            $this->check('legacy_manasuka_master', 'Master Manasuka legacy terpisah dari Sukarela canonical', $this->legacyManasukaMaster()),
+            $this->check('legacy_sukarela_master', 'Master Sukarela legacy terpisah dari Manasuka canonical', $this->legacySukarelaMaster()),
             $this->check('sukarela_without_master', 'Transaksi Sukarela tanpa master Sukarela aktif', $this->sukarelaTransactionWithoutActiveMaster()),
             $this->check('saldo_sukarela_orphan', 'Saldo Sukarela orphan atau memakai master non-Sukarela', $this->orphanSaldoSukarelaMaster()),
             $this->check('saldo_duplicate', 'Saldo duplikat per Anggota/Siklus/Jenis', $this->duplicateSaldo()),
@@ -114,7 +114,7 @@ class PreflightSimpananSukarelaCommand extends Command
             ->count();
     }
 
-    private function legacyManasukaMaster(): int
+    private function legacySukarelaMaster(): int
     {
         if (! Schema::hasTable('jenis_simpanan')) {
             return 0;
@@ -122,9 +122,8 @@ class PreflightSimpananSukarelaCommand extends Command
 
         return DB::table('jenis_simpanan')
             ->where(function ($query): void {
-                $query->where('kode', 'SIMPANAN_MANASUKA')
-                    ->orWhere('kategori', 'manasuka')
-                    ->orWhere('nama_jenis', 'like', '%Manasuka%');
+                $query->where('kode', 'SIMPANAN_SUKARELA')
+                    ->orWhere('kategori', 'sukarela');
             })
             ->count();
     }

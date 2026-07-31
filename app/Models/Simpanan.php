@@ -184,6 +184,11 @@ class Simpanan extends Model
             || $this->jenisSimpanan?->kategori === JenisSimpanan::KATEGORI_SUKARELA;
     }
 
+    public function isSimpananSukarela(): bool
+    {
+        return $this->isSimpananManasuka();
+    }
+
     public function getJenisTransaksiLabelAttribute(): string
     {
         return match ($this->jenis_transaksi) {

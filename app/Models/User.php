@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'karyawan_id',
         'is_active',
         'must_change_password',
         'password_changed_at',
@@ -62,5 +63,10 @@ class User extends Authenticatable
     public function createdEmployeeAccounts()
     {
         return $this->hasMany(User::class, 'account_created_by');
+    }
+
+    public function karyawan()
+    {
+        return $this->belongsTo(Karyawan::class, 'karyawan_id');
     }
 }

@@ -6,9 +6,21 @@ use App\Models\Akun;
 use App\Models\JenisSimpanan;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Schema;
+use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
+    public function createApplication()
+    {
+        $this->forceIsolatedTestingEnvironment();
+
+        $app = parent::createApplication();
+
+        $this->guardTestingDatabaseIsolation();
+
+        return $app;
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -74,5 +86,40 @@ abstract class TestCase extends BaseTestCase
                 ]
             );
         }
+    }
+
+    private function forceIsolatedTestingEnvironment(): void
+    {
+        $values = [
+            'APP_ENV' => 'testing',
+            'APP_CONFIG_CACHE' => 'bootstrap/cache/config.testing.php',
+            'DB_CONNECTION' => 'sqlite',
+            'DB_DATABASE' => ':memory:',
+        ];
+
+        foreach ($values as $key => $value) {
+            putenv($key.'='.$value);
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+        }
+    }
+
+    private function guardTestingDatabaseIsolation(): void
+    {
+        $connection = config('database.default');
+        $database = config("database.connections.{$connection}.database");
+        $environment = app()->environment();
+
+        if ($environment === 'testing' && $connection === 'sqlite' && $database === ':memory:') {
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'KBSM testing database guard blocked test boot. Expected APP_ENV=testing, DB_CONNECTION=sqlite, DB_DATABASE=:memory:. Actual APP_ENV=%s, DB_CONNECTION=%s, DB_DATABASE=%s, APP_CONFIG_CACHE=%s.',
+            $environment ?: '(empty)',
+            $connection ?: '(empty)',
+            is_scalar($database) ? (string) $database : gettype($database),
+            getenv('APP_CONFIG_CACHE') ?: '(empty)'
+        ));
     }
 }
