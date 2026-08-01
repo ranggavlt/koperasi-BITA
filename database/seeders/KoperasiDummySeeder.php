@@ -976,63 +976,8 @@ class KoperasiDummySeeder extends Seeder
             return;
         }
 
-        $mobilRows = [
-            [
-                'plat_nomor' => 'B 1234 KBS',
-                'merek' => 'Toyota',
-                'model' => 'Avanza',
-                'tahun' => 2022,
-                'warna' => 'Hitam',
-                'tarif_sewa_harian' => 500000,
-                'harga_dasar_vendor' => 500000,
-                'keterangan' => 'Mobil operasional koperasi [dummy-koperasi-bita]',
-                'status' => AsetKoperasi::STATUS_TERSEDIA,
-            ],
-            [
-                'plat_nomor' => 'B 5678 KBS',
-                'merek' => 'Daihatsu',
-                'model' => 'Gran Max',
-                'tahun' => 2021,
-                'warna' => 'Putih',
-                'tarif_sewa_harian' => 650000,
-                'harga_dasar_vendor' => 650000,
-                'keterangan' => 'Dummy status digunakan/disewa untuk kesiapan modul sewa [dummy-koperasi-bita]',
-                'status' => AsetKoperasi::STATUS_DIGUNAKAN_DISEWA,
-            ],
-            [
-                'plat_nomor' => 'D 9012 KBS',
-                'merek' => 'Suzuki',
-                'model' => 'Ertiga',
-                'tahun' => 2020,
-                'warna' => 'Abu-abu',
-                'tarif_sewa_harian' => 475000,
-                'harga_dasar_vendor' => 475000,
-                'keterangan' => 'Dummy status perawatan tanpa transaksi maintenance [dummy-koperasi-bita]',
-                'status' => AsetKoperasi::STATUS_PERAWATAN,
-            ],
-            [
-                'plat_nomor' => 'F 3456 KBS',
-                'merek' => 'Honda',
-                'model' => 'Brio',
-                'tahun' => 2019,
-                'warna' => 'Merah',
-                'tarif_sewa_harian' => 350000,
-                'harga_dasar_vendor' => 350000,
-                'keterangan' => 'Dummy mobil nonaktif [dummy-koperasi-bita]',
-                'status' => AsetKoperasi::STATUS_NONAKTIF,
-            ],
-        ];
-
-        foreach ($mobilRows as $row) {
-            $status = $row['status'];
-            unset($row['status']);
-
-            $aset = $service->createMobil($row, $keuangan->id);
-            $this->applyDummyAsetStatus($service, $aset, $status, $keuangan);
-        }
-
-        // Master Printer sengaja tidak dibuat di demo final:
-        // transaksi Sewa Hardware memakai snapshot vendor eksternal, bukan aset koperasi.
+        // Master Mobil dan Master Printer sengaja tidak dibuat di demo final:
+        // Sewa Mobil dan Sewa Hardware memakai snapshot vendor eksternal, bukan aset koperasi.
     }
 
     private function applyDummyAsetStatus(
@@ -1080,120 +1025,177 @@ class KoperasiDummySeeder extends Seeder
             return;
         }
 
-        $mobil = AsetKoperasi::query()
-            ->where('kode_aset', 'MBL-0001')
-            ->firstOrFail();
-
         $pengurus = PengurusKoperasi::query()
             ->aktif()
             ->with('anggota.karyawan')
             ->firstOrFail();
 
-        $draft = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['maya'], $awalBulanIni->copy()->addDays(20), [
+        $base = $awalBulanIni->copy()->day(10);
+
+        $draft = $service->createDraft($this->sewaMobilPayload($karyawan['maya'], $base->copy(), [
             'nama_kegiatan' => 'Survey Lokasi Vendor',
             'lokasi_kegiatan' => 'Cikarang',
+            'tanggal_selesai' => $base->copy()->addDays(2)->toDateString(),
+            'plat_nomor_snapshot' => null,
+            'total_harga_vendor' => 1200000,
+            'total_markup' => 225000,
             'keterangan' => 'Contoh draft sewa mobil [dummy-koperasi-bita]',
         ]), $keuangan->id);
 
-        $diajukan = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['fitri'], $awalBulanIni->copy()->addDays(21), [
+        $diajukan = $service->createDraft($this->sewaMobilPayload($karyawan['fitri'], $base->copy()->addDays(3), [
             'nama_kegiatan' => 'Pengambilan Dokumen',
             'lokasi_kegiatan' => 'Bekasi',
+            'plat_nomor_snapshot' => 'B 7001 KBS',
         ]), $keuangan->id);
         $service->submit($diajukan, $keuangan->id);
 
-        $approvedUnpaid = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['dewi'], $awalBulanIni->copy()->addDays(22), [
+        $approvedUnpaid = $service->createDraft($this->sewaMobilPayload($karyawan['dewi'], $base->copy()->addDays(4), [
             'nama_kegiatan' => 'Kunjungan Supplier',
             'lokasi_kegiatan' => 'Karawang',
+            'plat_nomor_snapshot' => 'B 7002 KBS',
         ]), $keuangan->id);
         $approvedUnpaid = $service->submit($approvedUnpaid, $keuangan->id);
         $service->approve($approvedUnpaid, [
             'pengurus_penyetuju_id' => $pengurus->id,
         ], $keuangan->id);
 
-        $paid = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['siti'], $awalBulanIni->copy()->addDays(23), [
+        $paid = $service->createDraft($this->sewaMobilPayload($karyawan['siti'], $base->copy()->addDays(5), [
             'nama_kegiatan' => 'Kegiatan CSR',
             'lokasi_kegiatan' => 'Bogor',
+            'plat_nomor_snapshot' => 'B 7003 KBS',
         ]), $keuangan->id);
         $paid = $service->submit($paid, $keuangan->id);
         $paid = $service->approve($paid, [
             'pengurus_penyetuju_id' => $pengurus->id,
         ], $keuangan->id);
-        $service->pay($paid, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $dompet['kas_operasional']->id,
-            'jumlah_bayar' => $paid->total_sewa,
-            'paid_at' => $awalBulanIni->copy()->addDays(18)->setTime(9, 0),
-        ], $keuangan->id);
+        $service->pay($paid, $this->sewaMobilPaymentPayload(
+            $paid,
+            $dompet['kas_operasional'],
+            $dompet['kas_operasional'],
+            PembayaranSewaMobil::METODE_TUNAI,
+            PembayaranSewaMobil::METODE_TUNAI,
+            $base->copy()->addDays(5)->setTime(9, 0)
+        ), $keuangan->id);
 
-        $selesai = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['lilis'], $awalBulanIni->copy()->addDays(18), [
+        $selesai = $service->createDraft($this->sewaMobilPayload($karyawan['lilis'], $base->copy()->addDays(6), [
             'nama_kegiatan' => 'Distribusi Bantuan',
             'lokasi_kegiatan' => 'Jakarta',
-            'tanggal_selesai' => $awalBulanIni->copy()->addDays(19)->toDateString(),
+            'tanggal_selesai' => $base->copy()->addDays(7)->toDateString(),
+            'plat_nomor_snapshot' => 'B 7004 KBS',
+            'total_harga_vendor' => 1500000,
+            'total_markup' => 300000,
         ]), $keuangan->id);
         $selesai = $service->submit($selesai, $keuangan->id);
         $selesai = $service->approve($selesai, [
             'pengurus_penyetuju_id' => $pengurus->id,
         ], $keuangan->id);
-        $selesai = $service->pay($selesai, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TRANSFER_BANK,
-            'dompet_id' => $dompet['bank_bca']->id,
-            'jumlah_bayar' => $selesai->total_sewa,
-            'paid_at' => $awalBulanIni->copy()->addDays(18)->setTime(13, 0),
-        ], $keuangan->id);
+        $selesai = $service->pay($selesai, $this->sewaMobilPaymentPayload(
+            $selesai,
+            $dompet['bank_bca'],
+            $dompet['bank_bca'],
+            PembayaranSewaMobil::METODE_TRANSFER_BANK,
+            PembayaranSewaMobil::METODE_TRANSFER_BANK,
+            $base->copy()->addDays(6)->setTime(13, 0)
+        ), $keuangan->id);
         $selesai = $service->start($selesai, $keuangan->id);
         $service->complete($selesai, $keuangan->id);
 
-        $ditolak = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['rina'], $awalBulanIni->copy()->addDays(21), [
+        $ditolak = $service->createDraft($this->sewaMobilPayload($karyawan['rina'], $base->copy()->addDays(8), [
             'nama_kegiatan' => 'Permohonan Jadwal Bentrok',
             'lokasi_kegiatan' => 'Tangerang',
+            'plat_nomor_snapshot' => 'B 7005 KBS',
         ]), $keuangan->id);
         $ditolak = $service->submit($ditolak, $keuangan->id);
         $service->reject($ditolak, 'Jadwal tidak disetujui oleh Pengurus di luar aplikasi [dummy].', $keuangan->id);
 
-        $refunded = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['andi'], $awalBulanIni->copy()->addDays(26), [
+        $refunded = $service->createDraft($this->sewaMobilPayload($karyawan['andi'], $base->copy()->addDays(9), [
             'nama_kegiatan' => 'Rapat Koordinasi Proyek',
             'lokasi_kegiatan' => 'Bandung',
+            'plat_nomor_snapshot' => 'B 7006 KBS',
         ]), $keuangan->id);
         $refunded = $service->submit($refunded, $keuangan->id);
         $refunded = $service->approve($refunded, [
             'pengurus_penyetuju_id' => $pengurus->id,
         ], $keuangan->id);
-        $refunded = $service->pay($refunded, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $dompet['kas_operasional']->id,
-            'jumlah_bayar' => $refunded->total_sewa,
-            'paid_at' => $awalBulanIni->copy()->addDays(24)->setTime(10, 0),
-        ], $keuangan->id);
+        $refunded = $service->pay($refunded, $this->sewaMobilPaymentPayload(
+            $refunded,
+            $dompet['kas_operasional'],
+            $dompet['kas_operasional'],
+            PembayaranSewaMobil::METODE_TUNAI,
+            PembayaranSewaMobil::METODE_TUNAI,
+            $base->copy()->addDays(9)->setTime(10, 0)
+        ), $keuangan->id);
         $service->cancelByFinance($refunded, 'Kegiatan dibatalkan sebelum berjalan dan dana direfund penuh [dummy].', $keuangan->id);
 
-        $running = $service->createDraft($this->sewaMobilPayload($mobil, $karyawan['budi'], $awalBulanIni->copy()->addDays(24), [
+        $running = $service->createDraft($this->sewaMobilPayload($karyawan['budi'], $base->copy()->addDays(10), [
             'nama_kegiatan' => 'Kunjungan Audit Lapangan',
             'lokasi_kegiatan' => 'Purwakarta',
+            'tanggal_selesai' => $base->copy()->addDays(11)->toDateString(),
+            'plat_nomor_snapshot' => 'B 7007 KBS',
         ]), $keuangan->id);
         $running = $service->submit($running, $keuangan->id);
         $running = $service->approve($running, [
             'pengurus_penyetuju_id' => $pengurus->id,
         ], $keuangan->id);
-        $running = $service->pay($running, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TRANSFER_BANK,
-            'dompet_id' => $dompet['bank_bca']->id,
-            'jumlah_bayar' => $running->total_sewa,
-            'paid_at' => $awalBulanIni->copy()->addDays(23)->setTime(15, 0),
-        ], $keuangan->id);
+        $running = $service->pay($running, $this->sewaMobilPaymentPayload(
+            $running,
+            $dompet['bank_bca'],
+            $dompet['bank_bca'],
+            PembayaranSewaMobil::METODE_TRANSFER_BANK,
+            PembayaranSewaMobil::METODE_TRANSFER_BANK,
+            $base->copy()->addDays(10)->setTime(15, 0)
+        ), $keuangan->id);
         $service->start($running, $keuangan->id);
+
+        $dibatalkan = $service->createDraft($this->sewaMobilPayload($karyawan['maya'], $base->copy()->addDays(12), [
+            'nama_kegiatan' => 'Rencana Kunjungan Vendor',
+            'lokasi_kegiatan' => 'Serang',
+            'plat_nomor_snapshot' => null,
+        ]), $keuangan->id);
+        $service->cancelByFinance($dibatalkan, 'Draft dibatalkan sebelum diajukan [dummy].', $keuangan->id);
     }
 
-    private function sewaMobilPayload(AsetKoperasi $mobil, Karyawan $karyawan, Carbon $tanggal, array $overrides = []): array
+    private function sewaMobilPayload(Karyawan $karyawan, Carbon $tanggal, array $overrides = []): array
     {
         return array_merge([
             'karyawan_id' => $karyawan->id,
-            'aset_koperasi_id' => $mobil->id,
             'nama_kegiatan' => 'Kegiatan Operasional',
             'lokasi_kegiatan' => 'Area Jabodetabek',
             'tanggal_mulai' => $tanggal->toDateString(),
             'tanggal_selesai' => $tanggal->toDateString(),
+            'vendor_nama' => 'CV Rental Mobil Nusantara',
+            'vendor_kontak' => '0812-7000-0000',
+            'vendor_alamat' => 'Jl. Raya Rental No. 10, Jakarta',
+            'jenis_kendaraan' => 'MPV',
+            'merek_kendaraan' => 'Toyota',
+            'model_kendaraan' => 'Innova Reborn',
+            'plat_nomor_snapshot' => 'B 7000 KBS',
+            'tahun_kendaraan' => 2022,
+            'warna_kendaraan' => 'Hitam',
+            'keterangan_kendaraan' => 'Kendaraan vendor dengan sopir [dummy-koperasi-bita]',
+            'total_harga_vendor' => 1000000,
+            'total_markup' => 150000,
             'keterangan' => 'Data dummy sewa mobil [dummy-koperasi-bita]',
         ], $overrides);
+    }
+
+    private function sewaMobilPaymentPayload(
+        SewaMobil $sewaMobil,
+        DompetKoperasi $dompetPenerimaan,
+        DompetKoperasi $dompetVendor,
+        string $metodePenerimaan,
+        string $metodePembayaranVendor,
+        Carbon $paidAt
+    ): array {
+        return [
+            'metode_penerimaan' => $metodePenerimaan,
+            'dompet_penerimaan_id' => $dompetPenerimaan->id,
+            'jumlah_diterima' => $sewaMobil->total_tagihan_perusahaan,
+            'metode_pembayaran_vendor' => $metodePembayaranVendor,
+            'dompet_vendor_id' => $dompetVendor->id,
+            'jumlah_bayar_vendor' => $sewaMobil->total_harga_vendor,
+            'paid_at' => $paidAt,
+        ];
     }
 
     private function seedSewaHardware(

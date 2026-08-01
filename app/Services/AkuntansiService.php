@@ -543,23 +543,68 @@ class AkuntansiService
             throw new RuntimeException('Akun Dompet pembayaran sewa harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
-        $jumlah = (float) $pembayaran->jumlah_bayar;
+        $totalTagihan = (float) ($sewaMobil->total_tagihan_perusahaan ?? $pembayaran->jumlah_diterima ?? $pembayaran->jumlah_bayar ?? 0);
+        $hargaVendor = (float) ($sewaMobil->total_harga_vendor ?? $pembayaran->jumlah_bayar_vendor ?? 0);
+        $margin = (float) ($sewaMobil->total_markup ?? max(0, $totalTagihan - $hargaVendor));
 
         return $this->record([
             'idempotency_key' => 'sewa-mobil:pembayaran-dimuka:jurnal:' . $pembayaran->id,
-            'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
+            'tanggal' => optional($pembayaran->received_at ?? $pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
             'nomor_bukti' => $sewaMobil->kode_sewa,
             'keterangan' => 'Pembayaran dimuka sewa mobil ' . $sewaMobil->kode_sewa,
             'referensi_tipe' => PembayaranSewaMobil::class,
             'referensi_id' => $pembayaran->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
-            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line($akunDompet, 'debit', $totalTagihan),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_mobil.utang_vendor'),
                 'kredit',
-                $jumlah
+                $hargaVendor
             ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka_margin'),
+                'kredit',
+                $margin
+            ),
+        ]);
+    }
+
+    public function recordPembayaranVendorSewaMobil(
+        SewaMobil $sewaMobil,
+        PembayaranSewaMobil $pembayaran,
+        Akun $akunDompetVendor,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-mobil:pembayaran-vendor:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompetVendor->is_aktif || $akunDompetVendor->kategori !== 'aset' || $akunDompetVendor->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet pembayaran vendor sewa mobil harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlahVendor = (float) ($sewaMobil->total_harga_vendor ?? $pembayaran->jumlah_bayar_vendor ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'sewa-mobil:pembayaran-vendor:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->vendor_paid_at ?? $pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaMobil->kode_sewa,
+            'keterangan' => 'Pembayaran vendor sewa mobil ' . $sewaMobil->kode_sewa,
+            'referensi_tipe' => PembayaranSewaMobil::class,
+            'referensi_id' => $pembayaran->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.utang_vendor'),
+                'debit',
+                $jumlahVendor
+            ),
+            $this->akunResolver->line($akunDompetVendor, 'kredit', $jumlahVendor),
         ]);
     }
 
@@ -573,7 +618,7 @@ class AkuntansiService
             return $existing;
         }
 
-        $jumlah = (float) $sewaMobil->total_sewa;
+        $jumlah = (float) ($sewaMobil->total_markup ?? $sewaMobil->total_sewa ?? 0);
 
         return $this->record([
             'idempotency_key' => 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $sewaMobil->id,
@@ -585,12 +630,12 @@ class AkuntansiService
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka_margin'),
                 'debit',
                 $jumlah
             ),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_mobil.pendapatan'),
+                $this->akunResolver->posting('sewa_mobil.pendapatan_margin'),
                 'kredit',
                 $jumlah
             ),
@@ -632,6 +677,91 @@ class AkuntansiService
                 $jumlah
             ),
             $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+        ]);
+    }
+
+    public function recordRefundVendorSewaMobil(
+        SewaMobil $sewaMobil,
+        PembayaranSewaMobil $pembayaran,
+        Akun $akunDompetVendor,
+        ReversalTransaksi $reversal,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-mobil:refund-vendor:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompetVendor->is_aktif || $akunDompetVendor->kategori !== 'aset' || $akunDompetVendor->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund vendor sewa mobil harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlahVendor = (float) ($pembayaran->jumlah_bayar_vendor ?? $sewaMobil->total_harga_vendor ?? 0);
+
+        return $this->record([
+            'idempotency_key' => 'sewa-mobil:refund-vendor:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->refunded_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Refund vendor atas sewa mobil ' . $sewaMobil->kode_sewa,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunDompetVendor, 'debit', $jumlahVendor),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.utang_vendor'),
+                'kredit',
+                $jumlahVendor
+            ),
+        ]);
+    }
+
+    public function recordRefundPerusahaanSewaMobil(
+        SewaMobil $sewaMobil,
+        PembayaranSewaMobil $pembayaran,
+        Akun $akunDompetPenerimaan,
+        ReversalTransaksi $reversal,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-mobil:refund-perusahaan:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompetPenerimaan->is_aktif || $akunDompetPenerimaan->kategori !== 'aset' || $akunDompetPenerimaan->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund perusahaan sewa mobil harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlahDiterima = (float) ($pembayaran->jumlah_diterima ?? $pembayaran->jumlah_bayar ?? $sewaMobil->total_tagihan_perusahaan ?? 0);
+        $jumlahVendor = (float) ($pembayaran->jumlah_bayar_vendor ?? $sewaMobil->total_harga_vendor ?? 0);
+        $margin = (float) ($sewaMobil->total_markup ?? max(0, $jumlahDiterima - $jumlahVendor));
+
+        return $this->record([
+            'idempotency_key' => 'sewa-mobil:refund-perusahaan:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->refunded_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Refund perusahaan atas sewa mobil ' . $sewaMobil->kode_sewa,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.utang_vendor'),
+                'debit',
+                $jumlahVendor
+            ),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka_margin'),
+                'debit',
+                $margin
+            ),
+            $this->akunResolver->line($akunDompetPenerimaan, 'kredit', $jumlahDiterima),
         ]);
     }
 

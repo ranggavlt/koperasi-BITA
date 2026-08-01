@@ -7,13 +7,13 @@ use App\Http\Requests\PaySewaMobilRequest;
 use App\Http\Requests\RejectSewaMobilRequest;
 use App\Http\Requests\StoreSewaMobilRequest;
 use App\Http\Requests\UpdateSewaMobilRequest;
-use App\Models\AsetKoperasi;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\PengurusKoperasi;
 use App\Models\SewaMobil;
 use App\Services\SewaMobilService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class FinanceSewaMobilController extends Controller
@@ -25,8 +25,10 @@ class FinanceSewaMobilController extends Controller
     public function index(Request $request)
     {
         $filters = $request->validate([
-            'aset_koperasi_id' => ['nullable', 'integer', 'exists:aset_koperasi,id'],
             'karyawan_id' => ['nullable', 'integer', 'exists:karyawan,id'],
+            'status' => ['nullable', 'string', Rule::in(array_keys(SewaMobil::statusLabels()))],
+            'vendor' => ['nullable', 'string', 'max:150'],
+            'plat_nomor' => ['nullable', 'string', 'max:30'],
             'tanggal_dari' => ['nullable', 'date'],
             'tanggal_sampai' => ['nullable', 'date'],
         ]);
@@ -40,22 +42,34 @@ class FinanceSewaMobilController extends Controller
 
         $query = SewaMobil::query()
             ->with([
-                'aset.mobil',
                 'karyawan',
                 'pemohon',
                 'recorder',
                 'pengurusPenyetuju.anggota.karyawan',
                 'approvalRecorder',
                 'pembayaran.dompet.akun',
+                'pembayaran.dompetPenerimaan.akun',
+                'pembayaran.dompetVendor.akun',
+                'pembayaran.mutasiKas',
+                'pembayaran.jurnal.details',
                 'jurnal.details',
+                'reversal',
             ]);
-
-        if (! empty($filters['aset_koperasi_id'])) {
-            $query->where('aset_koperasi_id', $filters['aset_koperasi_id']);
-        }
 
         if (! empty($filters['karyawan_id'])) {
             $query->where('karyawan_id', $filters['karyawan_id']);
+        }
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (! empty($filters['vendor'])) {
+            $query->where('vendor_nama', 'like', '%' . $filters['vendor'] . '%');
+        }
+
+        if (! empty($filters['plat_nomor'])) {
+            $query->where('plat_nomor_normalized', SewaMobilService::normalizePlatNomor($filters['plat_nomor']));
         }
 
         if (! empty($filters['tanggal_dari'])) {
@@ -67,7 +81,6 @@ class FinanceSewaMobilController extends Controller
         }
 
         $sewaMobil = $query->latest()->paginate(10)->withQueryString();
-        $mobilOptions = AsetKoperasi::query()->mobil()->with('mobil')->orderBy('kode_aset')->get();
         $karyawanOptions = Karyawan::query()->orderBy('nama')->get();
         $pengurusOptions = PengurusKoperasi::query()
             ->aktif()
@@ -79,7 +92,6 @@ class FinanceSewaMobilController extends Controller
 
         return view('pages.sewa-mobil.finance.index', compact(
             'sewaMobil',
-            'mobilOptions',
             'karyawanOptions',
             'pengurusOptions',
             'dompetOptions'
@@ -103,7 +115,7 @@ class FinanceSewaMobilController extends Controller
     {
         abort_unless($sewaMobil->status === SewaMobil::STATUS_DRAFT, 404);
 
-        return view('pages.sewa-mobil.finance.form', $this->formOptions($sewaMobil->load(['aset.mobil', 'karyawan'])));
+        return view('pages.sewa-mobil.finance.form', $this->formOptions($sewaMobil->load(['karyawan'])));
     }
 
     public function update(UpdateSewaMobilRequest $request, SewaMobil $sewaMobil)
@@ -153,7 +165,7 @@ class FinanceSewaMobilController extends Controller
         $this->service->start($sewaMobil, auth()->id());
 
         return redirect()->route('sewa-mobil.finance.index')
-            ->with('success', 'Kegiatan Sewa Mobil dimulai dan status mobil menjadi digunakan/disewa.');
+            ->with('success', 'Kegiatan Sewa Mobil dimulai.');
     }
 
     public function complete(SewaMobil $sewaMobil)
@@ -161,7 +173,7 @@ class FinanceSewaMobilController extends Controller
         $this->service->complete($sewaMobil, auth()->id());
 
         return redirect()->route('sewa-mobil.finance.index')
-            ->with('success', 'Sewa Mobil selesai, mobil kembali tersedia, dan pendapatan diakui.');
+            ->with('success', 'Sewa Mobil selesai dan margin pendapatan diakui.');
     }
 
     public function cancel(RejectSewaMobilRequest $request, SewaMobil $sewaMobil)
@@ -176,19 +188,6 @@ class FinanceSewaMobilController extends Controller
     {
         return [
             'editData' => $editData,
-            'mobilOptions' => AsetKoperasi::query()
-                ->mobil()
-                ->with('mobil')
-                ->where(function ($query) use ($editData) {
-                    $query->where('status', AsetKoperasi::STATUS_TERSEDIA);
-
-                    if ($editData?->aset_koperasi_id) {
-                        $query->orWhere('id', $editData->aset_koperasi_id);
-                    }
-                })
-                ->where('harga_dasar_vendor', '>', 0)
-                ->orderBy('kode_aset')
-                ->get(),
             'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
         ];
     }

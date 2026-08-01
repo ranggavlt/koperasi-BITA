@@ -104,6 +104,13 @@ return [
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa hardware.',
         ],
+        'utang_vendor_sewa_mobil' => [
+            'kode_akun' => '209',
+            'nama_akun' => 'Utang Vendor Sewa Mobil',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa mobil vendor-based.',
+        ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
             'nama_akun' => 'Simpanan Anggota Belum Terklasifikasi',
@@ -180,6 +187,13 @@ return [
             'kategori' => 'pendapatan',
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Pendapatan margin 15% dari kontrak sewa hardware.',
+        ],
+        'pendapatan_margin_sewa_mobil' => [
+            'kode_akun' => '407',
+            'nama_akun' => 'Pendapatan Margin Sewa Mobil',
+            'kategori' => 'pendapatan',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Pendapatan margin koperasi dari kontrak sewa mobil vendor-based.',
         ],
         'harga_pokok_penjualan' => [
             'kode_akun' => '501',
@@ -298,6 +312,9 @@ return [
             'utang_konsinyasi' => 'utang_reseller_konsinyasi',
         ],
         'sewa_mobil' => [
+            'utang_vendor' => 'utang_vendor_sewa_mobil',
+            'pendapatan_diterima_dimuka_margin' => 'pendapatan_diterima_dimuka_sewa_mobil',
+            'pendapatan_margin' => 'pendapatan_margin_sewa_mobil',
             'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_mobil',
             'pendapatan' => 'pendapatan_sewa_mobil',
         ],

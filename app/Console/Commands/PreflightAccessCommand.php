@@ -297,7 +297,6 @@ class PreflightAccessCommand extends Command
             'jenis-simpanan',
             'jenis-pinjaman',
             'dompet-koperasi',
-            'aset-mobil',
             'aset-printer',
             'pengurus-koperasi',
             'simpanan',

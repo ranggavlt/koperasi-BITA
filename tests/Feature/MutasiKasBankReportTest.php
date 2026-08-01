@@ -158,7 +158,7 @@ class MutasiKasBankReportTest extends TestCase
         $groups = collect(config('navigation.groups', []))->keyBy('key');
         $groupLabel = fn (string $route): string => $groups[$modules[$route]['group']]['label'];
 
-        $this->assertSame('Master Data', $groupLabel('aset-mobil.index'));
+        $this->assertFalse($modules->has('aset-mobil.index'));
         $this->assertSame('Master Data', $groupLabel('aset-printer.index'));
         $this->assertSame('master_printer_enabled', $modules['aset-printer.index']['feature']);
         $this->assertSame('Kas & Bank', $groupLabel('dompet-koperasi.index'));
@@ -215,6 +215,7 @@ class MutasiKasBankReportTest extends TestCase
                 'Penyelesaian Keanggotaan',
                 'Riwayat Koreksi Transaksi',
             ], false)
+            ->assertDontSee('Mobil Koperasi')
             ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Klaim Dana Sosial')

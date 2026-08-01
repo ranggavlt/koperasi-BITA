@@ -35,6 +35,8 @@ class ReversalTransaksi extends Model
 
     public const JENIS_SEWA_HARDWARE_REFUND = 'sewa_hardware_refund';
 
+    public const JENIS_SEWA_MOBIL_REFUND = 'sewa_mobil_refund';
+
     protected $table = 'reversal_transaksi';
 
     protected $fillable = [
