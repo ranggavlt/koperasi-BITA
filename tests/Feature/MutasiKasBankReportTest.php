@@ -165,8 +165,8 @@ class MutasiKasBankReportTest extends TestCase
         $this->assertSame('Kas & Bank', $groupLabel('mutasi-kas.index'));
         $this->assertSame('Mutasi Kas & Bank', $modules['mutasi-kas.index']['label']);
         $this->assertSame('Usaha Koperasi', $groupLabel('sewa-mobil.finance.index'));
-        $this->assertSame('Usaha Koperasi', $groupLabel('sewa-printer.index'));
-        $this->assertSame('Sewa Hardware', $modules['sewa-printer.index']['label']);
+        $this->assertSame('Usaha Koperasi', $groupLabel('sewa-hardware.index'));
+        $this->assertSame('Sewa Hardware', $modules['sewa-hardware.index']['label']);
         $this->assertSame('Operasional', $groupLabel('beban-operasional.index'));
         $this->assertSame('Akuntansi', $groupLabel('akun.index'));
         $this->assertSame('Daftar Akun / COA', $modules['akun.index']['label']);

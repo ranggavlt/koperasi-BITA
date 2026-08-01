@@ -33,6 +33,8 @@ class ReversalTransaksi extends Model
 
     public const JENIS_SIMPANAN_POKOK_EXIT_CANCEL = 'simpanan_pokok_exit_cancel';
 
+    public const JENIS_SEWA_HARDWARE_REFUND = 'sewa_hardware_refund';
+
     protected $table = 'reversal_transaksi';
 
     protected $fillable = [

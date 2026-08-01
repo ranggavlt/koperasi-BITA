@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 
-class PembayaranSewaPrinter extends Model
+class PembayaranSewaHardware extends Model
 {
     use HasFactory;
 
@@ -18,10 +18,10 @@ class PembayaranSewaPrinter extends Model
 
     public const STATUS_REFUNDED = 'refunded';
 
-    protected $table = 'pembayaran_sewa_printer';
+    protected $table = 'pembayaran_sewa_hardware';
 
     protected $fillable = [
-        'sewa_printer_id',
+        'sewa_hardware_id',
         'dompet_penerimaan_id',
         'dompet_vendor_id',
         'metode_penerimaan',
@@ -30,6 +30,10 @@ class PembayaranSewaPrinter extends Model
         'jumlah_bayar_vendor',
         'status',
         'paid_at',
+        'refunded_at',
+        'refunded_by',
+        'refund_reason',
+        'reversal_transaksi_id',
         'created_by',
         'idempotency_key',
     ];
@@ -38,18 +42,34 @@ class PembayaranSewaPrinter extends Model
         'jumlah_diterima' => 'integer',
         'jumlah_bayar_vendor' => 'integer',
         'paid_at' => 'datetime',
+        'refunded_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::deleting(function (): void {
-            throw new RuntimeException('Pembayaran Sewa Printer tidak boleh dihapus permanen. Gunakan refund.');
+            throw new RuntimeException('Pembayaran Sewa Hardware tidak boleh dihapus permanen. Gunakan refund.');
         });
     }
 
-    public function sewaPrinter()
+    public function sewaHardware()
     {
-        return $this->belongsTo(SewaPrinter::class, 'sewa_printer_id');
+        return $this->belongsTo(SewaHardware::class, 'sewa_hardware_id');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function refundedBy()
+    {
+        return $this->belongsTo(User::class, 'refunded_by');
+    }
+
+    public function reversal()
+    {
+        return $this->belongsTo(ReversalTransaksi::class, 'reversal_transaksi_id');
     }
 
     public function dompet()

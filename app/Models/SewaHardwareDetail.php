@@ -6,17 +6,26 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 
-class SewaPrinterDetail extends Model
+class SewaHardwareDetail extends Model
 {
     use HasFactory;
 
     public const MARGIN_PERSEN = 15;
 
-    protected $table = 'sewa_printer_detail';
+    public const JENIS_PRINTER = 'printer';
+
+    public const JENIS_LAPTOP = 'laptop';
+
+    public const JENIS_KAMERA = 'kamera';
+
+    public const JENIS_LAINNYA = 'lainnya';
+
+    protected $table = 'sewa_hardware_detail';
 
     protected $fillable = [
-        'sewa_printer_id',
-        'jenis_model_printer',
+        'sewa_hardware_id',
+        'jenis_hardware',
+        'nama_model_hardware',
         'spesifikasi_kebutuhan',
         'kuantitas',
         'harga_vendor_per_unit',
@@ -41,18 +50,28 @@ class SewaPrinterDetail extends Model
 
     protected static function booted(): void
     {
-        static::deleting(function (SewaPrinterDetail $detail): void {
-            $detail->loadMissing('sewaPrinter');
+        static::deleting(function (SewaHardwareDetail $detail): void {
+            $detail->loadMissing('sewaHardware');
 
-            if ($detail->sewaPrinter && $detail->sewaPrinter->status !== SewaPrinter::STATUS_DRAFT) {
-                throw new RuntimeException('Detail Sewa Printer tidak boleh dihapus setelah kontrak dikonfirmasi.');
+            if ($detail->sewaHardware && $detail->sewaHardware->status !== SewaHardware::STATUS_DRAFT) {
+                throw new RuntimeException('Detail Sewa Hardware tidak boleh dihapus setelah kontrak dikonfirmasi.');
             }
         });
     }
 
-    public function sewaPrinter()
+    public static function jenisOptions(): array
     {
-        return $this->belongsTo(SewaPrinter::class, 'sewa_printer_id');
+        return [
+            self::JENIS_PRINTER => 'Printer',
+            self::JENIS_LAPTOP => 'Laptop',
+            self::JENIS_KAMERA => 'Kamera',
+            self::JENIS_LAINNYA => 'Lainnya',
+        ];
+    }
+
+    public function sewaHardware()
+    {
+        return $this->belongsTo(SewaHardware::class, 'sewa_hardware_id');
     }
 
     public function getHargaDasarAttribute(): int

@@ -5,25 +5,26 @@ namespace App\Services;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\MutasiKas;
-use App\Models\PembayaranSewaPrinter;
-use App\Models\SewaPrinter;
-use App\Models\SewaPrinterDetail;
+use App\Models\PembayaranSewaHardware;
+use App\Models\ReversalTransaksi;
+use App\Models\SewaHardware;
+use App\Models\SewaHardwareDetail;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-class SewaPrinterService
+class SewaHardwareService
 {
     public function __construct(
         private readonly AkuntansiService $akuntansiService
     ) {
     }
 
-    public function createDraft(array $data, int $financeUserId): SewaPrinter
+    public function createDraft(array $data, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($data, $financeUserId): SewaPrinter {
+        return DB::transaction(function () use ($data, $financeUserId): SewaHardware {
             [$mulai, $selesai] = $this->normalizePeriod($data['mulai_tanggal'], $data['selesai_tanggal']);
             $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
@@ -32,10 +33,10 @@ class SewaPrinterService
             $totals = $this->calculateTotals($detailRows);
             $createdAt = CarbonImmutable::now(config('app.timezone', 'Asia/Jakarta'));
 
-            $sewa = SewaPrinter::query()->create([
+            $sewa = SewaHardware::query()->create([
                 'kode_sewa' => $this->nextKodeSewa($createdAt),
                 'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
-                'karyawan_pic_id' => $karyawan->id,
+                'karyawan_id' => $karyawan->id,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),
@@ -45,8 +46,8 @@ class SewaPrinterService
                 'total_harga_vendor' => $totals['harga_vendor'],
                 'total_margin' => $totals['margin'],
                 'total_tagihan_perusahaan' => $totals['tagihan'],
-                'status' => SewaPrinter::STATUS_DRAFT,
-                'status_pembayaran' => SewaPrinter::PEMBAYARAN_BELUM_BAYAR,
+                'status' => SewaHardware::STATUS_DRAFT,
+                'status_pembayaran' => SewaHardware::PEMBAYARAN_BELUM_BAYAR,
                 'keterangan' => $this->nullableText($data['keterangan'] ?? null),
                 'recorded_by' => $financeUserId,
                 'created_by' => $financeUserId,
@@ -60,15 +61,15 @@ class SewaPrinterService
         });
     }
 
-    public function updateDraft(SewaPrinter $sewaPrinter, array $data, int $financeUserId): SewaPrinter
+    public function updateDraft(SewaHardware $sewaHardware, array $data, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($sewaPrinter, $data, $financeUserId): SewaPrinter {
-            $locked = SewaPrinter::query()
+        return DB::transaction(function () use ($sewaHardware, $data, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
                 ->with('details')
                 ->lockForUpdate()
-                ->findOrFail($sewaPrinter->id);
+                ->findOrFail($sewaHardware->id);
 
-            $this->assertStatus($locked, [SewaPrinter::STATUS_DRAFT], 'Kontrak yang sudah dikonfirmasi tidak dapat diedit.');
+            $this->assertStatus($locked, [SewaHardware::STATUS_DRAFT], 'Kontrak yang sudah dikonfirmasi tidak dapat diedit.');
 
             [$mulai, $selesai] = $this->normalizePeriod($data['mulai_tanggal'], $data['selesai_tanggal']);
             $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
@@ -81,7 +82,7 @@ class SewaPrinterService
             $locked->details()->createMany($detailRows);
 
             $locked->update([
-                'karyawan_pic_id' => $karyawan->id,
+                'karyawan_id' => $karyawan->id,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),
@@ -99,24 +100,24 @@ class SewaPrinterService
         });
     }
 
-    public function confirm(SewaPrinter $sewaPrinter, int $financeUserId): SewaPrinter
+    public function confirm(SewaHardware $sewaHardware, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
-            $locked = SewaPrinter::query()
+        return DB::transaction(function () use ($sewaHardware, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
                 ->with(['details', 'karyawan'])
                 ->lockForUpdate()
-                ->findOrFail($sewaPrinter->id);
+                ->findOrFail($sewaHardware->id);
 
-            $this->assertStatus($locked, [SewaPrinter::STATUS_DRAFT], 'Hanya draft Sewa Printer yang dapat dikonfirmasi.');
+            $this->assertStatus($locked, [SewaHardware::STATUS_DRAFT], 'Hanya draft Sewa Hardware yang dapat dikonfirmasi.');
             $this->assertActiveKaryawan($locked->karyawan);
 
             if ($locked->details->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'details' => 'Kontrak Sewa Printer wajib mempunyai minimal satu detail printer.',
+                    'details' => 'Kontrak Sewa Hardware wajib mempunyai minimal satu detail hardware.',
                 ]);
             }
 
-            $totals = $this->calculateTotals($locked->details->map(fn (SewaPrinterDetail $detail): array => [
+            $totals = $this->calculateTotals($locked->details->map(fn (SewaHardwareDetail $detail): array => [
                 'subtotal_harga_vendor' => $this->rupiahInt($detail->subtotal_harga_vendor),
                 'subtotal_margin' => $this->rupiahInt($detail->subtotal_margin),
                 'subtotal_tagihan' => $this->rupiahInt($detail->subtotal_tagihan),
@@ -126,7 +127,7 @@ class SewaPrinterService
                 'total_harga_vendor' => $totals['harga_vendor'],
                 'total_margin' => $totals['margin'],
                 'total_tagihan_perusahaan' => $totals['tagihan'],
-                'status' => SewaPrinter::STATUS_DIKONFIRMASI,
+                'status' => SewaHardware::STATUS_DIKONFIRMASI,
                 'confirmed_at' => now(),
                 'confirmed_by' => $financeUserId,
                 'updated_by' => $financeUserId,
@@ -136,17 +137,17 @@ class SewaPrinterService
         });
     }
 
-    public function pay(SewaPrinter $sewaPrinter, array $data, int $financeUserId): SewaPrinter
+    public function pay(SewaHardware $sewaHardware, array $data, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($sewaPrinter, $data, $financeUserId): SewaPrinter {
-            $locked = SewaPrinter::query()
+        return DB::transaction(function () use ($sewaHardware, $data, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
                 ->with('pembayaran')
                 ->lockForUpdate()
-                ->findOrFail($sewaPrinter->id);
+                ->findOrFail($sewaHardware->id);
 
-            $this->assertStatus($locked, [SewaPrinter::STATUS_DIKONFIRMASI], 'Pembayaran hanya untuk kontrak yang sudah dikonfirmasi.');
+            $this->assertStatus($locked, [SewaHardware::STATUS_DIKONFIRMASI], 'Pembayaran hanya untuk kontrak yang sudah dikonfirmasi.');
 
-            if ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_BELUM_BAYAR || $locked->pembayaran) {
+            if ($locked->status_pembayaran !== SewaHardware::PEMBAYARAN_BELUM_BAYAR || $locked->pembayaran) {
                 throw ValidationException::withMessages([
                     'pembayaran' => 'Kontrak ini sudah mempunyai pembayaran final.',
                 ]);
@@ -192,18 +193,18 @@ class SewaPrinterService
                 ? $this->normalizeDateTime($data['paid_at'])
                 : CarbonImmutable::now(config('app.timezone', 'Asia/Jakarta'));
 
-            $pembayaran = PembayaranSewaPrinter::query()->create([
-                'sewa_printer_id' => $locked->id,
+            $pembayaran = PembayaranSewaHardware::query()->create([
+                'sewa_hardware_id' => $locked->id,
                 'dompet_penerimaan_id' => $dompetPenerimaan->id,
                 'dompet_vendor_id' => $dompetVendor->id,
                 'metode_penerimaan' => $data['metode_penerimaan'],
                 'metode_pembayaran_vendor' => $data['metode_pembayaran_vendor'],
                 'jumlah_diterima' => $jumlahDiterima,
                 'jumlah_bayar_vendor' => $jumlahBayarVendor,
-                'status' => PembayaranSewaPrinter::STATUS_PAID,
+                'status' => PembayaranSewaHardware::STATUS_PAID,
                 'paid_at' => $paidAt->toDateTimeString(),
                 'created_by' => $financeUserId,
-                'idempotency_key' => 'sewa-printer:pembayaran:' . $locked->id,
+                'idempotency_key' => 'sewa-hardware:pembayaran:' . $locked->id,
             ]);
 
             if ((int) $dompetPenerimaan->id === (int) $dompetVendor->id) {
@@ -215,11 +216,11 @@ class SewaPrinterService
 
             $this->recordCompanyReceiptMutasi($locked, $pembayaran, $dompetPenerimaan, $jumlahDiterima);
             $this->recordVendorPaymentMutasi($locked, $pembayaran, $dompetVendor, $jumlahBayarVendor);
-            $this->akuntansiService->recordPembayaranDimukaSewaPrinter($locked, $pembayaran, $dompetPenerimaan->akun, $financeUserId);
-            $this->akuntansiService->recordPembayaranVendorSewaPrinter($locked, $pembayaran, $dompetVendor->akun, $financeUserId);
+            $this->akuntansiService->recordPembayaranDimukaSewaHardware($locked, $pembayaran, $dompetPenerimaan->akun, $financeUserId);
+            $this->akuntansiService->recordPembayaranVendorSewaHardware($locked, $pembayaran, $dompetVendor->akun, $financeUserId);
 
             $locked->update([
-                'status_pembayaran' => SewaPrinter::PEMBAYARAN_PAID,
+                'status_pembayaran' => SewaHardware::PEMBAYARAN_PAID,
                 'updated_by' => $financeUserId,
             ]);
 
@@ -227,26 +228,27 @@ class SewaPrinterService
         });
     }
 
-    public function start(SewaPrinter $sewaPrinter, int $financeUserId): SewaPrinter
+    public function start(SewaHardware $sewaHardware, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
-            $locked = SewaPrinter::query()
+        return DB::transaction(function () use ($sewaHardware, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
                 ->with(['karyawan', 'pembayaran'])
                 ->lockForUpdate()
-                ->findOrFail($sewaPrinter->id);
+                ->findOrFail($sewaHardware->id);
 
-            $this->assertStatus($locked, [SewaPrinter::STATUS_DIKONFIRMASI], 'Hanya kontrak dikonfirmasi yang dapat dimulai.');
+            $this->assertStatus($locked, [SewaHardware::STATUS_DIKONFIRMASI], 'Hanya kontrak dikonfirmasi yang dapat dimulai.');
             $this->assertActiveKaryawan($locked->karyawan);
 
-            if ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if ($locked->status_pembayaran !== SewaHardware::PEMBAYARAN_PAID || ! $locked->pembayaran) {
                 throw ValidationException::withMessages([
                     'pembayaran' => 'Kontrak wajib dibayar penuh sebelum periode dimulai.',
                 ]);
             }
 
             $locked->update([
-                'status' => SewaPrinter::STATUS_BERJALAN,
+                'status' => SewaHardware::STATUS_BERJALAN,
                 'started_at' => now(),
+                'started_by' => $financeUserId,
                 'updated_by' => $financeUserId,
             ]);
 
@@ -254,70 +256,72 @@ class SewaPrinterService
         });
     }
 
-    public function complete(SewaPrinter $sewaPrinter, int $financeUserId): SewaPrinter
+    public function complete(SewaHardware $sewaHardware, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
-            $locked = SewaPrinter::query()
+        return DB::transaction(function () use ($sewaHardware, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
                 ->with(['details', 'pembayaran'])
                 ->lockForUpdate()
-                ->findOrFail($sewaPrinter->id);
+                ->findOrFail($sewaHardware->id);
 
-            if ($locked->status === SewaPrinter::STATUS_SELESAI) {
+            if ($locked->status === SewaHardware::STATUS_SELESAI) {
                 return $locked->fresh(['details', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
             }
 
-            $this->assertStatus($locked, [SewaPrinter::STATUS_BERJALAN], 'Hanya kontrak berjalan yang dapat diselesaikan.');
+            $this->assertStatus($locked, [SewaHardware::STATUS_BERJALAN], 'Hanya kontrak berjalan yang dapat diselesaikan.');
 
-            if ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if ($locked->status_pembayaran !== SewaHardware::PEMBAYARAN_PAID || ! $locked->pembayaran) {
                 throw ValidationException::withMessages([
                     'pembayaran' => 'Kontrak wajib paid sebelum diselesaikan.',
                 ]);
             }
 
             $locked->update([
-                'status' => SewaPrinter::STATUS_SELESAI,
+                'status' => SewaHardware::STATUS_SELESAI,
                 'completed_at' => now(),
+                'completed_by' => $financeUserId,
                 'updated_by' => $financeUserId,
             ]);
 
-            $this->akuntansiService->recordPengakuanPendapatanSewaPrinter($locked->fresh(), $financeUserId);
+            $this->akuntansiService->recordPengakuanPendapatanSewaHardware($locked->fresh(), $financeUserId);
 
             return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
         });
     }
 
-    public function cancelByFinance(SewaPrinter $sewaPrinter, string $reason, int $financeUserId): SewaPrinter
+    public function cancelByFinance(SewaHardware $sewaHardware, string $reason, int $financeUserId): SewaHardware
     {
-        return DB::transaction(function () use ($sewaPrinter, $reason, $financeUserId): SewaPrinter {
-            $locked = SewaPrinter::query()
+        return DB::transaction(function () use ($sewaHardware, $reason, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
                 ->with('pembayaran')
                 ->lockForUpdate()
-                ->findOrFail($sewaPrinter->id);
+                ->findOrFail($sewaHardware->id);
 
-            if ($locked->status === SewaPrinter::STATUS_DIBATALKAN) {
+            if ($locked->status === SewaHardware::STATUS_DIBATALKAN) {
                 throw ValidationException::withMessages([
-                    'sewa_printer' => 'Kontrak Sewa Printer ini sudah dibatalkan.',
+                    'sewa_hardware' => 'Kontrak Sewa Hardware ini sudah dibatalkan.',
                 ]);
             }
 
-            if ($locked->status_pembayaran === SewaPrinter::PEMBAYARAN_PAID || $locked->pembayaran) {
+            if ($locked->status_pembayaran === SewaHardware::PEMBAYARAN_PAID || $locked->pembayaran) {
                 throw ValidationException::withMessages([
-                    'sewa_printer' => 'Kontrak yang sudah paid tidak dapat dibatalkan/refund otomatis. Gunakan proses koreksi Finance manual.',
+                    'sewa_hardware' => 'Kontrak yang sudah paid tidak dapat dibatalkan/refund otomatis. Gunakan proses koreksi Finance manual.',
                 ]);
             }
 
-            if (in_array($locked->status, [SewaPrinter::STATUS_BERJALAN, SewaPrinter::STATUS_SELESAI], true)) {
+            if (in_array($locked->status, [SewaHardware::STATUS_BERJALAN, SewaHardware::STATUS_SELESAI], true)) {
                 throw ValidationException::withMessages([
-                    'sewa_printer' => 'Kontrak berjalan atau selesai bersifat immutable dan tidak dapat dibatalkan otomatis.',
+                    'sewa_hardware' => 'Kontrak berjalan atau selesai bersifat immutable dan tidak dapat dibatalkan otomatis.',
                 ]);
             }
 
-            $this->assertStatus($locked, [SewaPrinter::STATUS_DRAFT, SewaPrinter::STATUS_DIKONFIRMASI], 'Hanya draft atau kontrak confirmed yang belum dibayar dapat dibatalkan.');
+            $this->assertStatus($locked, [SewaHardware::STATUS_DRAFT, SewaHardware::STATUS_DIKONFIRMASI], 'Hanya draft atau kontrak confirmed yang belum dibayar dapat dibatalkan.');
 
             $locked->update([
-                'status' => SewaPrinter::STATUS_DIBATALKAN,
+                'status' => SewaHardware::STATUS_DIBATALKAN,
                 'cancelled_at' => now(),
                 'alasan_pembatalan' => $this->normalizeText($reason),
+                'cancelled_by' => $financeUserId,
                 'updated_by' => $financeUserId,
             ]);
 
@@ -325,29 +329,137 @@ class SewaPrinterService
         });
     }
 
+    public function refundByFinance(SewaHardware $sewaHardware, string $reason, int $financeUserId): SewaHardware
+    {
+        return DB::transaction(function () use ($sewaHardware, $reason, $financeUserId): SewaHardware {
+            $locked = SewaHardware::query()
+                ->with(['pembayaran', 'details'])
+                ->lockForUpdate()
+                ->findOrFail($sewaHardware->id);
+
+            if ($locked->status === SewaHardware::STATUS_REFUNDED || $locked->status_pembayaran === SewaHardware::PEMBAYARAN_REFUNDED) {
+                return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'reversal']);
+            }
+
+            $this->assertStatus($locked, [SewaHardware::STATUS_DIKONFIRMASI], 'Refund otomatis hanya untuk kontrak paid yang belum berjalan.');
+
+            $pembayaran = PembayaranSewaHardware::query()
+                ->where('sewa_hardware_id', $locked->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $pembayaran || $locked->status_pembayaran !== SewaHardware::PEMBAYARAN_PAID || $pembayaran->status !== PembayaranSewaHardware::STATUS_PAID) {
+                throw ValidationException::withMessages([
+                    'pembayaran' => 'Refund hanya dapat diproses untuk kontrak yang sudah paid penuh.',
+                ]);
+            }
+
+            if ($pembayaran->reversal_transaksi_id || ReversalTransaksi::query()->where('source_type', SewaHardware::class)->where('source_id', $locked->id)->exists()) {
+                return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'reversal']);
+            }
+
+            $jumlahDiterima = $this->rupiahInt($pembayaran->jumlah_diterima);
+            $jumlahBayarVendor = $this->rupiahInt($pembayaran->jumlah_bayar_vendor);
+
+            $dompets = $this->lockDompets([
+                (int) $pembayaran->dompet_penerimaan_id,
+                (int) $pembayaran->dompet_vendor_id,
+            ]);
+            $dompetPenerimaan = $dompets->get((int) $pembayaran->dompet_penerimaan_id);
+            $dompetVendor = $dompets->get((int) $pembayaran->dompet_vendor_id);
+
+            $availableRefundSaldo = $this->rupiahInt($dompetPenerimaan->saldo)
+                + ((int) $dompetPenerimaan->id === (int) $dompetVendor->id ? $jumlahBayarVendor : 0);
+
+            if ($availableRefundSaldo < $jumlahDiterima) {
+                throw ValidationException::withMessages([
+                    'dompet_penerimaan_id' => 'Saldo Dompet penerimaan tidak cukup untuk refund penuh kepada perusahaan.',
+                ]);
+            }
+
+            $refundedAt = CarbonImmutable::now(config('app.timezone', 'Asia/Jakarta'));
+            $normalizedReason = $this->normalizeText($reason);
+            $pembayaran->forceFill(['refunded_at' => $refundedAt]);
+
+            $reversal = ReversalTransaksi::query()->create([
+                'kode_reversal' => $this->nextCode('reversal', 'REV', $refundedAt),
+                'source_type' => SewaHardware::class,
+                'source_id' => $locked->id,
+                'jenis_reversal' => ReversalTransaksi::JENIS_SEWA_HARDWARE_REFUND,
+                'nominal' => $this->rupiahDecimal($jumlahDiterima),
+                'alasan' => $normalizedReason,
+                'status' => ReversalTransaksi::STATUS_PROCESSED,
+                'dompet_refund_id' => $dompetPenerimaan->id,
+                'created_by' => $financeUserId,
+                'processed_by' => $financeUserId,
+                'processed_at' => $refundedAt->toDateTimeString(),
+                'idempotency_key' => 'sewa-hardware:refund:reversal:' . $locked->id,
+            ]);
+
+            if ((int) $dompetPenerimaan->id === (int) $dompetVendor->id) {
+                $this->setSaldoDompet($dompetPenerimaan, $this->rupiahInt($dompetPenerimaan->saldo) + $jumlahBayarVendor - $jumlahDiterima);
+            } else {
+                $this->setSaldoDompet($dompetVendor, $this->rupiahInt($dompetVendor->saldo) + $jumlahBayarVendor);
+                $this->setSaldoDompet($dompetPenerimaan, $this->rupiahInt($dompetPenerimaan->saldo) - $jumlahDiterima);
+            }
+
+            $this->recordVendorRefundMutasi($locked, $pembayaran, $dompetVendor, $jumlahBayarVendor, $refundedAt);
+            $this->recordCompanyRefundMutasi($locked, $pembayaran, $dompetPenerimaan, $jumlahDiterima, $refundedAt);
+            $this->akuntansiService->recordRefundVendorSewaHardware($locked, $pembayaran, $dompetVendor->akun, $reversal, $financeUserId);
+            $this->akuntansiService->recordRefundPerusahaanSewaHardware($locked, $pembayaran, $dompetPenerimaan->akun, $reversal, $financeUserId);
+
+            $pembayaran->update([
+                'status' => PembayaranSewaHardware::STATUS_REFUNDED,
+                'refunded_at' => $refundedAt->toDateTimeString(),
+                'refunded_by' => $financeUserId,
+                'refund_reason' => $normalizedReason,
+                'reversal_transaksi_id' => $reversal->id,
+            ]);
+
+            $locked->update([
+                'status' => SewaHardware::STATUS_REFUNDED,
+                'status_pembayaran' => SewaHardware::PEMBAYARAN_REFUNDED,
+                'refunded_at' => $refundedAt->toDateTimeString(),
+                'refunded_by' => $financeUserId,
+                'refund_reason' => $normalizedReason,
+                'reversal_transaksi_id' => $reversal->id,
+                'updated_by' => $financeUserId,
+            ]);
+
+            return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'reversal']);
+        });
+    }
+
     private function buildDetailRows(array $details): array
     {
         if ($details === []) {
             throw ValidationException::withMessages([
-                'details' => 'Kontrak Sewa Printer wajib mempunyai minimal satu detail kebutuhan printer.',
+                'details' => 'Kontrak Sewa Hardware wajib mempunyai minimal satu detail kebutuhan hardware.',
             ]);
         }
 
         return collect($details)
             ->map(function (array $detail): array {
-                $jenisModel = $this->normalizeText($detail['jenis_model_printer'] ?? '');
+                $jenisHardware = $this->normalizeText($detail['jenis_hardware'] ?? '');
+                $namaModel = $this->normalizeText($detail['nama_model_hardware'] ?? '');
                 $kuantitas = (int) ($detail['kuantitas'] ?? 0);
                 $hargaVendorPerUnit = $this->rupiahInt($detail['harga_vendor_per_unit'] ?? 0);
 
-                if ($jenisModel === '') {
+                if (! array_key_exists($jenisHardware, SewaHardwareDetail::jenisOptions())) {
                     throw ValidationException::withMessages([
-                        'details' => 'Jenis/model printer wajib diisi pada setiap baris.',
+                        'details' => 'Jenis hardware wajib dipilih pada setiap baris.',
+                    ]);
+                }
+
+                if ($namaModel === '') {
+                    throw ValidationException::withMessages([
+                        'details' => 'Nama/model hardware wajib diisi pada setiap baris.',
                     ]);
                 }
 
                 if ($kuantitas <= 0) {
                     throw ValidationException::withMessages([
-                        'details' => 'Kuantitas printer wajib lebih besar dari nol.',
+                        'details' => 'Kuantitas hardware wajib lebih besar dari nol.',
                     ]);
                 }
 
@@ -361,11 +473,12 @@ class SewaPrinterService
                 $hargaTagihanPerUnit = $hargaVendorPerUnit + $marginPerUnit;
 
                 return [
-                    'jenis_model_printer' => $jenisModel,
+                    'jenis_hardware' => $jenisHardware,
+                    'nama_model_hardware' => $namaModel,
                     'spesifikasi_kebutuhan' => $this->nullableText($detail['spesifikasi_kebutuhan'] ?? null),
                     'kuantitas' => $kuantitas,
                     'harga_vendor_per_unit' => $hargaVendorPerUnit,
-                    'margin_persen_snapshot' => SewaPrinterDetail::MARGIN_PERSEN,
+                    'margin_persen_snapshot' => SewaHardwareDetail::MARGIN_PERSEN,
                     'margin_per_unit' => $marginPerUnit,
                     'harga_tagihan_per_unit' => $hargaTagihanPerUnit,
                     'subtotal_harga_vendor' => $hargaVendorPerUnit * $kuantitas,
@@ -398,7 +511,7 @@ class SewaPrinterService
 
     private function calculateMargin(int $hargaVendorPerUnit): int
     {
-        return intdiv(($hargaVendorPerUnit * SewaPrinterDetail::MARGIN_PERSEN) + 50, 100);
+        return intdiv(($hargaVendorPerUnit * SewaHardwareDetail::MARGIN_PERSEN) + 50, 100);
     }
 
     private function nextKodeSewa(CarbonImmutable $createdAt): string
@@ -408,7 +521,7 @@ class SewaPrinterService
             ->format('Ym');
 
         DB::table('nomor_urut_transaksi')->insertOrIgnore([
-            'jenis' => 'sewa_printer',
+            'jenis' => 'sewa_hardware',
             'periode' => $periode,
             'last_number' => 0,
             'created_at' => now(),
@@ -416,7 +529,7 @@ class SewaPrinterService
         ]);
 
         $counter = DB::table('nomor_urut_transaksi')
-            ->where('jenis', 'sewa_printer')
+            ->where('jenis', 'sewa_hardware')
             ->where('periode', $periode)
             ->lockForUpdate()
             ->first();
@@ -424,28 +537,61 @@ class SewaPrinterService
         $next = ((int) $counter->last_number) + 1;
 
         DB::table('nomor_urut_transaksi')
-            ->where('jenis', 'sewa_printer')
+            ->where('jenis', 'sewa_hardware')
             ->where('periode', $periode)
             ->update([
                 'last_number' => $next,
                 'updated_at' => now(),
             ]);
 
-        return sprintf('SWP-%s-%06d', $periode, $next);
+        return sprintf('SWH-%s-%06d', $periode, $next);
+    }
+
+    private function nextCode(string $jenis, string $prefix, CarbonImmutable $tanggal): string
+    {
+        $periode = $tanggal
+            ->setTimezone(config('app.timezone', 'Asia/Jakarta'))
+            ->format('Ym');
+
+        DB::table('nomor_urut_transaksi')->insertOrIgnore([
+            'jenis' => $jenis,
+            'periode' => $periode,
+            'last_number' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $counter = DB::table('nomor_urut_transaksi')
+            ->where('jenis', $jenis)
+            ->where('periode', $periode)
+            ->lockForUpdate()
+            ->first();
+
+        $next = ((int) $counter->last_number) + 1;
+
+        DB::table('nomor_urut_transaksi')
+            ->where('jenis', $jenis)
+            ->where('periode', $periode)
+            ->update([
+                'last_number' => $next,
+                'updated_at' => now(),
+            ]);
+
+        return sprintf('%s-%s-%06d', $prefix, $periode, $next);
     }
 
     private function assertActiveKaryawan(?Karyawan $karyawan): void
     {
         if (! $karyawan || $karyawan->status_kerja !== Karyawan::STATUS_AKTIF) {
             throw ValidationException::withMessages([
-                'karyawan_id' => 'Sewa Printer hanya untuk Karyawan aktif.',
+                'karyawan_id' => 'Sewa Hardware hanya untuk Karyawan aktif.',
             ]);
         }
     }
 
-    private function assertStatus(SewaPrinter $sewaPrinter, array $allowed, string $message): void
+    private function assertStatus(SewaHardware $sewaHardware, array $allowed, string $message): void
     {
-        if (! in_array($sewaPrinter->status, $allowed, true)) {
+        if (! in_array($sewaHardware->status, $allowed, true)) {
             throw ValidationException::withMessages([
                 'status' => $message,
             ]);
@@ -476,14 +622,14 @@ class SewaPrinterService
     private function assertDompetForPayment(DompetKoperasi $dompet, string $metode, string $field): void
     {
         $expected = match ($metode) {
-            PembayaranSewaPrinter::METODE_TUNAI => DompetKoperasi::JENIS_KAS,
-            PembayaranSewaPrinter::METODE_TRANSFER_BANK => DompetKoperasi::JENIS_BANK,
-            default => throw ValidationException::withMessages([$field => 'Metode pembayaran Sewa Printer tidak valid.']),
+            PembayaranSewaHardware::METODE_TUNAI => DompetKoperasi::JENIS_KAS,
+            PembayaranSewaHardware::METODE_TRANSFER_BANK => DompetKoperasi::JENIS_BANK,
+            default => throw ValidationException::withMessages([$field => 'Metode pembayaran Sewa Hardware tidak valid.']),
         };
 
         if ($dompet->jenis_dompet !== $expected) {
             throw ValidationException::withMessages([
-                $field => $metode === PembayaranSewaPrinter::METODE_TUNAI
+                $field => $metode === PembayaranSewaHardware::METODE_TUNAI
                     ? 'Metode tunai harus memakai Dompet Kas.'
                     : 'Transfer Bank harus memakai Dompet Bank.',
             ]);
@@ -497,19 +643,19 @@ class SewaPrinterService
     }
 
     private function recordCompanyReceiptMutasi(
-        SewaPrinter $sewaPrinter,
-        PembayaranSewaPrinter $pembayaran,
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
         DompetKoperasi $dompet,
         int $jumlah
     ): MutasiKas {
         return MutasiKas::query()->firstOrCreate(
-            ['idempotency_key' => 'sewa-printer:penerimaan:mutasi:' . $pembayaran->id],
+            ['idempotency_key' => 'sewa-hardware:penerimaan:mutasi:' . $pembayaran->id],
             [
                 'dompet_id' => $dompet->id,
                 'tipe' => 'masuk',
                 'jumlah' => $this->rupiahDecimal($jumlah),
-                'keterangan' => 'Penerimaan perusahaan atas sewa printer ' . $sewaPrinter->kode_sewa,
-                'referensi_tipe' => PembayaranSewaPrinter::class,
+                'keterangan' => 'Penerimaan perusahaan atas sewa hardware ' . $sewaHardware->kode_sewa,
+                'referensi_tipe' => PembayaranSewaHardware::class,
                 'referensi_id' => $pembayaran->id,
                 'tanggal' => $pembayaran->paid_at->toDateString(),
             ]
@@ -517,21 +663,63 @@ class SewaPrinterService
     }
 
     private function recordVendorPaymentMutasi(
-        SewaPrinter $sewaPrinter,
-        PembayaranSewaPrinter $pembayaran,
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
         DompetKoperasi $dompet,
         int $jumlah
     ): MutasiKas {
         return MutasiKas::query()->firstOrCreate(
-            ['idempotency_key' => 'sewa-printer:pembayaran-vendor:mutasi:' . $pembayaran->id],
+            ['idempotency_key' => 'sewa-hardware:pembayaran-vendor:mutasi:' . $pembayaran->id],
             [
                 'dompet_id' => $dompet->id,
                 'tipe' => 'keluar',
                 'jumlah' => $this->rupiahDecimal($jumlah),
-                'keterangan' => 'Pembayaran vendor sewa printer ' . $sewaPrinter->kode_sewa,
-                'referensi_tipe' => PembayaranSewaPrinter::class,
+                'keterangan' => 'Pembayaran vendor sewa hardware ' . $sewaHardware->kode_sewa,
+                'referensi_tipe' => PembayaranSewaHardware::class,
                 'referensi_id' => $pembayaran->id,
                 'tanggal' => $pembayaran->paid_at->toDateString(),
+            ]
+        );
+    }
+
+    private function recordVendorRefundMutasi(
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
+        DompetKoperasi $dompet,
+        int $jumlah,
+        CarbonImmutable $tanggal
+    ): MutasiKas {
+        return MutasiKas::query()->firstOrCreate(
+            ['idempotency_key' => 'sewa-hardware:refund-vendor:mutasi:' . $pembayaran->id],
+            [
+                'dompet_id' => $dompet->id,
+                'tipe' => 'masuk',
+                'jumlah' => $this->rupiahDecimal($jumlah),
+                'keterangan' => 'Refund vendor atas sewa hardware ' . $sewaHardware->kode_sewa,
+                'referensi_tipe' => PembayaranSewaHardware::class,
+                'referensi_id' => $pembayaran->id,
+                'tanggal' => $tanggal->toDateString(),
+            ]
+        );
+    }
+
+    private function recordCompanyRefundMutasi(
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
+        DompetKoperasi $dompet,
+        int $jumlah,
+        CarbonImmutable $tanggal
+    ): MutasiKas {
+        return MutasiKas::query()->firstOrCreate(
+            ['idempotency_key' => 'sewa-hardware:refund-perusahaan:mutasi:' . $pembayaran->id],
+            [
+                'dompet_id' => $dompet->id,
+                'tipe' => 'keluar',
+                'jumlah' => $this->rupiahDecimal($jumlah),
+                'keterangan' => 'Refund perusahaan atas sewa hardware ' . $sewaHardware->kode_sewa,
+                'referensi_tipe' => PembayaranSewaHardware::class,
+                'referensi_id' => $pembayaran->id,
+                'tanggal' => $tanggal->toDateString(),
             ]
         );
     }

@@ -90,19 +90,19 @@ return [
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Penerimaan sewa mobil sebelum kegiatan selesai.',
         ],
-        'pendapatan_diterima_dimuka_sewa_printer' => [
+        'pendapatan_diterima_dimuka_sewa_hardware' => [
             'kode_akun' => '207',
-            'nama_akun' => 'Pendapatan Diterima Dimuka Margin Sewa Printer',
+            'nama_akun' => 'Pendapatan Diterima Dimuka Margin Sewa Hardware',
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Margin sewa printer yang diterima sebelum kontrak selesai.',
+            'keterangan' => 'Margin sewa hardware yang diterima sebelum kontrak selesai.',
         ],
-        'utang_vendor_sewa_printer' => [
+        'utang_vendor_sewa_hardware' => [
             'kode_akun' => '208',
-            'nama_akun' => 'Utang Vendor Sewa Printer',
+            'nama_akun' => 'Utang Vendor Sewa Hardware',
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa printer.',
+            'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa hardware.',
         ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
@@ -167,19 +167,19 @@ return [
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Pendapatan koperasi dari kegiatan sewa mobil setelah kegiatan selesai.',
         ],
-        'pendapatan_sewa_printer_dasar' => [
+        'pendapatan_sewa_hardware_dasar' => [
             'kode_akun' => '405',
-            'nama_akun' => 'Pendapatan Sewa Printer - Komponen Dasar',
+            'nama_akun' => 'Pendapatan Sewa Hardware - Komponen Dasar',
             'kategori' => 'pendapatan',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Pendapatan komponen dasar dari kontrak sewa printer.',
+            'keterangan' => 'Pendapatan komponen dasar dari kontrak sewa hardware.',
         ],
-        'pendapatan_margin_sewa_printer' => [
+        'pendapatan_margin_sewa_hardware' => [
             'kode_akun' => '406',
-            'nama_akun' => 'Pendapatan Margin Sewa Printer 15%',
+            'nama_akun' => 'Pendapatan Margin Sewa Hardware 15%',
             'kategori' => 'pendapatan',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Pendapatan margin 15% dari kontrak sewa printer.',
+            'keterangan' => 'Pendapatan margin 15% dari kontrak sewa hardware.',
         ],
         'harga_pokok_penjualan' => [
             'kode_akun' => '501',
@@ -301,12 +301,12 @@ return [
             'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_mobil',
             'pendapatan' => 'pendapatan_sewa_mobil',
         ],
-        'sewa_printer' => [
-            'utang_vendor' => 'utang_vendor_sewa_printer',
-            'pendapatan_diterima_dimuka_margin' => 'pendapatan_diterima_dimuka_sewa_printer',
-            'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_printer',
-            'pendapatan_dasar' => 'pendapatan_sewa_printer_dasar',
-            'pendapatan_margin' => 'pendapatan_margin_sewa_printer',
+        'sewa_hardware' => [
+            'utang_vendor' => 'utang_vendor_sewa_hardware',
+            'pendapatan_diterima_dimuka_margin' => 'pendapatan_diterima_dimuka_sewa_hardware',
+            'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_hardware',
+            'pendapatan_dasar' => 'pendapatan_sewa_hardware_dasar',
+            'pendapatan_margin' => 'pendapatan_margin_sewa_hardware',
         ],
         'keanggotaan' => [
             'simpanan_pokok' => 'simpanan_pokok',

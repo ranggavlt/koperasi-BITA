@@ -4,9 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\JenisSimpanan;
 use App\Models\PembayaranSewaMobil;
-use App\Models\PembayaranSewaPrinter;
+use App\Models\PembayaranSewaHardware;
+use App\Models\ReversalTransaksi;
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
+use App\Models\SewaHardware;
 use App\Services\PotongGajiReportService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -1804,8 +1805,9 @@ class PreflightPotongGajiCommand extends Command
         return [
             PembayaranSewaMobil::class,
             SewaMobil::class,
-            PembayaranSewaPrinter::class,
-            SewaPrinter::class,
+            PembayaranSewaHardware::class,
+            SewaHardware::class,
+            ReversalTransaksi::class,
         ];
     }
 

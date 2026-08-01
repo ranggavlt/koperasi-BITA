@@ -405,8 +405,8 @@ return [
         [
             'key' => 'sewa_hardware',
             'label' => 'Sewa Hardware',
-            'route' => 'sewa-printer.index',
-            'route_patterns' => ['sewa-printer.*'],
+            'route' => 'sewa-hardware.index',
+            'route_patterns' => ['sewa-hardware.*'],
             'icon' => 'hardware',
             'group' => 'usaha_koperasi',
             'order' => 20,

@@ -314,7 +314,7 @@ class PreflightAccessCommand extends Command
             'reversal-transaksi',
             'penyelesaian-keanggotaan',
             'sewa-mobil',
-            'sewa-printer',
+            'sewa-hardware',
             'beban-operasional',
             'akun',
             'akuntansi',

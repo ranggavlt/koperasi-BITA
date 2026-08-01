@@ -8,8 +8,21 @@
     'berjalan'     => 'kbsm-status kbsm-status--amber',
     'selesai'      => 'kbsm-status kbsm-status--emerald',
     'dibatalkan'   => 'kbsm-status kbsm-status--slate',
+    'refunded'      => 'kbsm-status kbsm-status--slate',
     default        => 'kbsm-status kbsm-status--slate',
   };
+  $paymentLabel = fn(?string $value) => match ($value) {
+    'belum_bayar' => 'Belum Bayar',
+    'paid' => 'Paid',
+    'refunded' => 'Refunded',
+    default => $value ? ucfirst(str_replace('_', ' ', $value)) : '-',
+  };
+  $methodLabel = fn(?string $value) => match ($value) {
+    'tunai' => 'Tunai',
+    'transfer_bank' => 'Transfer Bank',
+    default => $value ? ucfirst(str_replace('_', ' ', $value)) : '-',
+  };
+  $hardwareTypeLabel = fn(?string $value) => $jenisHardwareOptions[$value] ?? ucfirst((string) $value);
 @endphp
 
 <div class="kbsm-business-page">
@@ -35,7 +48,7 @@
       <h2 class="kbsm-business-panel__title">Filter Sewa Hardware</h2>
       <p class="kbsm-business-panel__copy">Filter transaksi vendor-based berdasarkan status, karyawan, dan rentang tanggal yang overlap dengan periode sewa.</p>
     </div>
-    <form method="GET" action="{{ route('sewa-printer.index') }}" class="kbsm-business-filter kbsm-business-filter--sewa">
+    <form method="GET" action="{{ route('sewa-hardware.index') }}" class="kbsm-business-filter kbsm-business-filter--sewa">
       <div class="kbsm-business-field">
         <label class="kbsm-business-label">Status</label>
         <select name="status" class="kbsm-business-control">
@@ -64,6 +77,9 @@
       </div>
       <div class="kbsm-business-filter__actions">
         <button class="kbsm-btn kbsm-btn--navy">Filter</button>
+        @if(request()->hasAny(['status', 'karyawan_id', 'tanggal_dari', 'tanggal_sampai']))
+          <a href="{{ route('sewa-hardware.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
+        @endif
       </div>
     </form>
   </section>
@@ -72,19 +88,19 @@
     <div class="kbsm-business-panel__header kbsm-business-panel__header--action">
       <div>
         <h2 class="kbsm-business-panel__title">Daftar Sewa Hardware</h2>
-        <p class="kbsm-business-panel__copy">Kontrak paid, berjalan, dan selesai tidak dapat diedit/hapus. Pembatalan hanya tersedia sebelum paid.</p>
+        <p class="kbsm-business-panel__copy">Kontrak paid, berjalan, selesai, dan refunded bersifat immutable. Pembatalan hanya tersedia sebelum paid; refund penuh hanya sebelum berjalan.</p>
       </div>
-      <a href="{{ route('sewa-printer.create') }}" class="kbsm-business-add-button">+ TAMBAH SEWA HARDWARE</a>
+      <a href="{{ route('sewa-hardware.create') }}" class="kbsm-business-add-button">+ Buat Sewa Hardware</a>
     </div>
     <div class="kbsm-business-table-wrap">
       <table class="kbsm-business-table">
         <thead>
           <tr>
-            <th>Kode</th><th>Pemohon/Vendor</th><th>Periode</th><th>Detail Printer</th><th>Nominal</th><th>Status</th><th>Pembayaran</th><th>Posting</th><th>Aksi</th>
+            <th>Kode</th><th>Pemohon/Vendor</th><th>Periode</th><th>Detail Hardware</th><th>Nominal</th><th>Status</th><th>Pembayaran</th><th>Posting</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          @forelse($sewaPrinter as $item)
+          @forelse($sewaHardware as $item)
             <tr>
               <td class="kbsm-business-code">{{ $item->kode_sewa }}</td>
               <td>
@@ -102,7 +118,7 @@
                 <ul class="mt-2 space-y-1">
                   @foreach($item->details as $detail)
                     <li>
-                      <span class="kbsm-business-strong">{{ $detail->kuantitas }} x {{ $detail->jenis_model_printer }}</span>
+                      <span class="kbsm-business-strong">{{ $detail->kuantitas }} x {{ $hardwareTypeLabel($detail->jenis_hardware) }} - {{ $detail->nama_model_hardware }}</span>
                       <span class="kbsm-business-muted"> @ Rp {{ number_format((int) $detail->harga_vendor_per_unit, 0, ',', '.') }} + margin Rp {{ number_format((int) $detail->margin_per_unit, 0, ',', '.') }}</span>
                     </li>
                   @endforeach
@@ -115,13 +131,16 @@
               </td>
               <td>
                 <span class="{{ $badge($item->status) }}">{{ $item->status_label }}</span>
-                <div class="kbsm-business-muted">Payment: {{ $item->status_pembayaran }}</div>
+                <div class="kbsm-business-muted">Payment: {{ $paymentLabel($item->status_pembayaran) }}</div>
               </td>
               <td class="kbsm-business-muted">
                 @if($item->pembayaran)
-                  Terima: {{ $item->pembayaran->metode_penerimaan }} / {{ $item->pembayaran->dompetPenerimaan->nama_dompet ?? '-' }}<br>
-                  Vendor: {{ $item->pembayaran->metode_pembayaran_vendor }} / {{ $item->pembayaran->dompetVendor->nama_dompet ?? '-' }}<br>
+                  Terima: {{ $methodLabel($item->pembayaran->metode_penerimaan) }} / {{ $item->pembayaran->dompetPenerimaan->nama_dompet ?? '-' }}<br>
+                  Vendor: {{ $methodLabel($item->pembayaran->metode_pembayaran_vendor) }} / {{ $item->pembayaran->dompetVendor->nama_dompet ?? '-' }}<br>
                   {{ $item->pembayaran->paid_at->format('d/m/Y H:i') }}
+                  @if($item->pembayaran->status === 'refunded')
+                    <br>Refund: {{ $item->pembayaran->refunded_at?->format('d/m/Y H:i') ?? '-' }}
+                  @endif
                 @else
                   Belum bayar
                 @endif
@@ -135,10 +154,10 @@
                 <div class="kbsm-business-inline-actions">
                   @if($item->status === 'draft')
                     <div class="kbsm-business-inline-row">
-                      <a href="{{ route('sewa-printer.edit', $item) }}" class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Edit Draft</a>
-                      <form method="POST" action="{{ route('sewa-printer.confirm', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Konfirmasi</button></form>
+                      <a href="{{ route('sewa-hardware.edit', $item) }}" class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Edit Draft</a>
+                      <form method="POST" action="{{ route('sewa-hardware.confirm', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Konfirmasi</button></form>
                     </div>
-                    <form method="POST" action="{{ route('sewa-printer.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Batalkan draft kontrak ini?')">
+                    <form method="POST" action="{{ route('sewa-hardware.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Batalkan draft kontrak ini?')">
                       @csrf
                       <input name="alasan" required placeholder="Alasan pembatalan" class="kbsm-business-control">
                       <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batalkan</button>
@@ -146,7 +165,7 @@
                   @endif
 
                   @if($item->status === 'dikonfirmasi' && $item->status_pembayaran === 'belum_bayar')
-                    <form method="POST" action="{{ route('sewa-printer.pay', $item) }}" class="kbsm-business-inline-row">
+                    <form method="POST" action="{{ route('sewa-hardware.pay', $item) }}" class="kbsm-business-inline-row">
                       @csrf
                       <select name="metode_penerimaan" required class="kbsm-business-control">
                         <option value="tunai">Terima Tunai</option>
@@ -172,7 +191,7 @@
                       <input type="number" name="jumlah_bayar_vendor" readonly value="{{ (int) $item->total_harga_vendor }}" class="kbsm-business-control">
                       <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Pelunasan</button>
                     </form>
-                    <form method="POST" action="{{ route('sewa-printer.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Batalkan kontrak yang belum dibayar ini?')">
+                    <form method="POST" action="{{ route('sewa-hardware.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Batalkan kontrak yang belum dibayar ini?')">
                       @csrf
                       <input name="alasan" required placeholder="Alasan pembatalan" class="kbsm-business-control">
                       <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batalkan</button>
@@ -180,11 +199,16 @@
                   @endif
 
                   @if($item->status === 'dikonfirmasi' && $item->status_pembayaran === 'paid')
-                    <form method="POST" action="{{ route('sewa-printer.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
+                    <form method="POST" action="{{ route('sewa-hardware.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
+                    <form method="POST" action="{{ route('sewa-hardware.refund', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Refund penuh kontrak ini?')">
+                      @csrf
+                      <input name="alasan" required placeholder="Alasan refund penuh" class="kbsm-business-control">
+                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Refund Penuh</button>
+                    </form>
                   @endif
 
                   @if($item->status === 'berjalan')
-                    <form method="POST" action="{{ route('sewa-printer.complete', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Selesai</button></form>
+                    <form method="POST" action="{{ route('sewa-hardware.complete', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Selesai</button></form>
                   @endif
                 </div>
               </td>
@@ -195,7 +219,7 @@
         </tbody>
       </table>
     </div>
-    <div class="kbsm-business-pagination">{{ $sewaPrinter->links() }}</div>
+    <div class="kbsm-business-pagination">{{ $sewaHardware->links() }}</div>
   </section>
 </div>
 @endsection

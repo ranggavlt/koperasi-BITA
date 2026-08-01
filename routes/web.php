@@ -13,7 +13,7 @@ use App\Http\Controllers\SimpananController;
 use App\Http\Controllers\PinjamanController;
 use App\Http\Controllers\CicilanPinjamanController;
 use App\Http\Controllers\FinanceSewaMobilController;
-use App\Http\Controllers\FinanceSewaPrinterController;
+use App\Http\Controllers\FinanceSewaHardwareController;
 use App\Http\Controllers\FinanceBebanOperasionalController;
 use App\Http\Controllers\MutasiKasController;
 use App\Http\Controllers\WaserbaController;
@@ -254,26 +254,28 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::post('/sewa-mobil/{sewaMobil}/cancel', [FinanceSewaMobilController::class, 'cancel'])
         ->name('sewa-mobil.finance.cancel');
 
-    Route::get('/sewa-printer', [FinanceSewaPrinterController::class, 'index'])
-        ->name('sewa-printer.index');
-    Route::get('/sewa-printer/create', [FinanceSewaPrinterController::class, 'create'])
-        ->name('sewa-printer.create');
-    Route::post('/sewa-printer', [FinanceSewaPrinterController::class, 'store'])
-        ->name('sewa-printer.store');
-    Route::get('/sewa-printer/{sewaPrinter}/edit', [FinanceSewaPrinterController::class, 'edit'])
-        ->name('sewa-printer.edit');
-    Route::put('/sewa-printer/{sewaPrinter}', [FinanceSewaPrinterController::class, 'update'])
-        ->name('sewa-printer.update');
-    Route::post('/sewa-printer/{sewaPrinter}/confirm', [FinanceSewaPrinterController::class, 'confirm'])
-        ->name('sewa-printer.confirm');
-    Route::post('/sewa-printer/{sewaPrinter}/pay', [FinanceSewaPrinterController::class, 'pay'])
-        ->name('sewa-printer.pay');
-    Route::post('/sewa-printer/{sewaPrinter}/start', [FinanceSewaPrinterController::class, 'start'])
-        ->name('sewa-printer.start');
-    Route::post('/sewa-printer/{sewaPrinter}/complete', [FinanceSewaPrinterController::class, 'complete'])
-        ->name('sewa-printer.complete');
-    Route::post('/sewa-printer/{sewaPrinter}/cancel', [FinanceSewaPrinterController::class, 'cancel'])
-        ->name('sewa-printer.cancel');
+    Route::get('/sewa-hardware', [FinanceSewaHardwareController::class, 'index'])
+        ->name('sewa-hardware.index');
+    Route::get('/sewa-hardware/create', [FinanceSewaHardwareController::class, 'create'])
+        ->name('sewa-hardware.create');
+    Route::post('/sewa-hardware', [FinanceSewaHardwareController::class, 'store'])
+        ->name('sewa-hardware.store');
+    Route::get('/sewa-hardware/{sewaHardware}/edit', [FinanceSewaHardwareController::class, 'edit'])
+        ->name('sewa-hardware.edit');
+    Route::put('/sewa-hardware/{sewaHardware}', [FinanceSewaHardwareController::class, 'update'])
+        ->name('sewa-hardware.update');
+    Route::post('/sewa-hardware/{sewaHardware}/confirm', [FinanceSewaHardwareController::class, 'confirm'])
+        ->name('sewa-hardware.confirm');
+    Route::post('/sewa-hardware/{sewaHardware}/pay', [FinanceSewaHardwareController::class, 'pay'])
+        ->name('sewa-hardware.pay');
+    Route::post('/sewa-hardware/{sewaHardware}/start', [FinanceSewaHardwareController::class, 'start'])
+        ->name('sewa-hardware.start');
+    Route::post('/sewa-hardware/{sewaHardware}/complete', [FinanceSewaHardwareController::class, 'complete'])
+        ->name('sewa-hardware.complete');
+    Route::post('/sewa-hardware/{sewaHardware}/cancel', [FinanceSewaHardwareController::class, 'cancel'])
+        ->name('sewa-hardware.cancel');
+    Route::post('/sewa-hardware/{sewaHardware}/refund', [FinanceSewaHardwareController::class, 'refund'])
+        ->name('sewa-hardware.refund');
 
     Route::get('/beban-operasional', [FinanceBebanOperasionalController::class, 'index'])
         ->name('beban-operasional.index');

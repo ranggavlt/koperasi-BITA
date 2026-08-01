@@ -39,7 +39,7 @@ class AccessMatrixTest extends TestCase
         if (Route::has('aset-mobil.index')) {
             $this->actingAs($finance)->get(route('aset-mobil.index'))->assertOk();
         }
-        $this->actingAs($finance)->get(route('sewa-printer.index'))->assertOk();
+        $this->actingAs($finance)->get(route('sewa-hardware.index'))->assertOk();
         $this->actingAs($finance)->get(route('beban-operasional.index'))->assertOk();
         $this->actingAs($finance)->get(route('laporan.potong-gaji'))->assertOk();
         $this->actingAs($finance)->get(route('users.index'))->assertOk();
@@ -70,7 +70,7 @@ class AccessMatrixTest extends TestCase
             ->assertOk()
             ->assertSee('Karyawan')
             ->assertSee('Sewa Hardware')
-            ->assertDontSee('Sewa Printer')
+            ->assertDontSee('Printer Koperasi')
             ->assertSee('Laporan Potong Gaji')
             ->assertSee('Tagihan Tunai')
             ->assertSee('Riwayat Koreksi Transaksi')

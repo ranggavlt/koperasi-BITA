@@ -9,7 +9,7 @@ use App\Models\JurnalUmum;
 use App\Models\PembayaranKonsinyasi;
 use App\Models\PembayaranOutstandingCash;
 use App\Models\PembayaranSewaMobil;
-use App\Models\PembayaranSewaPrinter;
+use App\Models\PembayaranSewaHardware;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\PenyelesaianKeanggotaan;
@@ -17,7 +17,7 @@ use App\Models\PenyelesaianKeanggotaanDetail;
 use App\Models\Pinjaman;
 use App\Models\ReversalTransaksi;
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
+use App\Models\SewaHardware;
 use App\Models\Simpanan;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -635,14 +635,14 @@ class AkuntansiService
         ]);
     }
 
-    public function recordPembayaranDimukaSewaPrinter(
-        SewaPrinter $sewaPrinter,
-        PembayaranSewaPrinter $pembayaran,
+    public function recordPembayaranDimukaSewaHardware(
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
         Akun $akunDompet,
         ?int $userId = null
     ): JurnalUmum {
         $existing = JurnalUmum::query()
-            ->where('idempotency_key', 'sewa-printer:pembayaran-dimuka:jurnal:' . $pembayaran->id)
+            ->where('idempotency_key', 'sewa-hardware:pembayaran-dimuka:jurnal:' . $pembayaran->id)
             ->first();
 
         if ($existing) {
@@ -650,44 +650,44 @@ class AkuntansiService
         }
 
         if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
-            throw new RuntimeException('Akun Dompet pembayaran sewa printer harus aktif, kategori Aset, dan saldo normal Debit.');
+            throw new RuntimeException('Akun Dompet pembayaran sewa hardware harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
-        $totalTagihan = (float) $sewaPrinter->total_tagihan_perusahaan;
-        $hargaVendor = (float) $sewaPrinter->total_harga_vendor;
-        $margin = (float) $sewaPrinter->total_margin;
+        $totalTagihan = (float) $sewaHardware->total_tagihan_perusahaan;
+        $hargaVendor = (float) $sewaHardware->total_harga_vendor;
+        $margin = (float) $sewaHardware->total_margin;
 
         return $this->record([
-            'idempotency_key' => 'sewa-printer:pembayaran-dimuka:jurnal:' . $pembayaran->id,
+            'idempotency_key' => 'sewa-hardware:pembayaran-dimuka:jurnal:' . $pembayaran->id,
             'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
-            'nomor_bukti' => $sewaPrinter->kode_sewa,
-            'keterangan' => 'Pembayaran dimuka sewa printer ' . $sewaPrinter->kode_sewa,
-            'referensi_tipe' => PembayaranSewaPrinter::class,
+            'nomor_bukti' => $sewaHardware->kode_sewa,
+            'keterangan' => 'Pembayaran dimuka sewa hardware ' . $sewaHardware->kode_sewa,
+            'referensi_tipe' => PembayaranSewaHardware::class,
             'referensi_id' => $pembayaran->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line($akunDompet, 'debit', $totalTagihan),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.utang_vendor'),
+                $this->akunResolver->posting('sewa_hardware.utang_vendor'),
                 'kredit',
                 $hargaVendor
             ),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'),
+                $this->akunResolver->posting('sewa_hardware.pendapatan_diterima_dimuka_margin'),
                 'kredit',
                 $margin
             ),
         ]);
     }
 
-    public function recordPembayaranVendorSewaPrinter(
-        SewaPrinter $sewaPrinter,
-        PembayaranSewaPrinter $pembayaran,
+    public function recordPembayaranVendorSewaHardware(
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
         Akun $akunDompetVendor,
         ?int $userId = null
     ): JurnalUmum {
         $existing = JurnalUmum::query()
-            ->where('idempotency_key', 'sewa-printer:pembayaran-vendor:jurnal:' . $pembayaran->id)
+            ->where('idempotency_key', 'sewa-hardware:pembayaran-vendor:jurnal:' . $pembayaran->id)
             ->first();
 
         if ($existing) {
@@ -695,22 +695,22 @@ class AkuntansiService
         }
 
         if (! $akunDompetVendor->is_aktif || $akunDompetVendor->kategori !== 'aset' || $akunDompetVendor->posisi_saldo !== 'debit') {
-            throw new RuntimeException('Akun Dompet pembayaran vendor printer harus aktif, kategori Aset, dan saldo normal Debit.');
+            throw new RuntimeException('Akun Dompet pembayaran vendor hardware harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
-        $jumlahVendor = (float) $sewaPrinter->total_harga_vendor;
+        $jumlahVendor = (float) $sewaHardware->total_harga_vendor;
 
         return $this->record([
-            'idempotency_key' => 'sewa-printer:pembayaran-vendor:jurnal:' . $pembayaran->id,
+            'idempotency_key' => 'sewa-hardware:pembayaran-vendor:jurnal:' . $pembayaran->id,
             'tanggal' => optional($pembayaran->paid_at)->toDateString() ?? now()->toDateString(),
-            'nomor_bukti' => $sewaPrinter->kode_sewa,
-            'keterangan' => 'Pembayaran vendor sewa printer ' . $sewaPrinter->kode_sewa,
-            'referensi_tipe' => PembayaranSewaPrinter::class,
+            'nomor_bukti' => $sewaHardware->kode_sewa,
+            'keterangan' => 'Pembayaran vendor sewa hardware ' . $sewaHardware->kode_sewa,
+            'referensi_tipe' => PembayaranSewaHardware::class,
             'referensi_id' => $pembayaran->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.utang_vendor'),
+                $this->akunResolver->posting('sewa_hardware.utang_vendor'),
                 'debit',
                 $jumlahVendor
             ),
@@ -718,75 +718,122 @@ class AkuntansiService
         ]);
     }
 
-    public function recordPengakuanPendapatanSewaPrinter(SewaPrinter $sewaPrinter, ?int $userId = null): JurnalUmum
+    public function recordPengakuanPendapatanSewaHardware(SewaHardware $sewaHardware, ?int $userId = null): JurnalUmum
     {
         $existing = JurnalUmum::query()
-            ->where('idempotency_key', 'sewa-printer:pengakuan-pendapatan:jurnal:' . $sewaPrinter->id)
+            ->where('idempotency_key', 'sewa-hardware:pengakuan-pendapatan:jurnal:' . $sewaHardware->id)
             ->first();
 
         if ($existing) {
             return $existing;
         }
 
-        $margin = (float) $sewaPrinter->total_margin;
+        $margin = (float) $sewaHardware->total_margin;
 
         return $this->record([
-            'idempotency_key' => 'sewa-printer:pengakuan-pendapatan:jurnal:' . $sewaPrinter->id,
-            'tanggal' => optional($sewaPrinter->completed_at)->toDateString() ?? now()->toDateString(),
-            'nomor_bukti' => $sewaPrinter->kode_sewa,
-            'keterangan' => 'Pengakuan pendapatan sewa printer ' . $sewaPrinter->kode_sewa,
-            'referensi_tipe' => SewaPrinter::class,
-            'referensi_id' => $sewaPrinter->id,
+            'idempotency_key' => 'sewa-hardware:pengakuan-pendapatan:jurnal:' . $sewaHardware->id,
+            'tanggal' => optional($sewaHardware->completed_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $sewaHardware->kode_sewa,
+            'keterangan' => 'Pengakuan pendapatan sewa hardware ' . $sewaHardware->kode_sewa,
+            'referensi_tipe' => SewaHardware::class,
+            'referensi_id' => $sewaHardware->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'),
+                $this->akunResolver->posting('sewa_hardware.pendapatan_diterima_dimuka_margin'),
                 'debit',
                 $margin
             ),
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_margin'),
+                $this->akunResolver->posting('sewa_hardware.pendapatan_margin'),
                 'kredit',
                 $margin
             ),
         ]);
     }
 
-    public function recordRefundSewaPrinter(
-        SewaPrinter $sewaPrinter,
-        PembayaranSewaPrinter $pembayaran,
-        Akun $akunDompet,
+    public function recordRefundVendorSewaHardware(
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
+        Akun $akunDompetVendor,
+        ReversalTransaksi $reversal,
         ?int $userId = null
     ): JurnalUmum {
         $existing = JurnalUmum::query()
-            ->where('idempotency_key', 'sewa-printer:refund:jurnal:' . $pembayaran->id)
+            ->where('idempotency_key', 'sewa-hardware:refund-vendor:jurnal:' . $pembayaran->id)
             ->first();
 
         if ($existing) {
             return $existing;
         }
 
-        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
-            throw new RuntimeException('Akun Dompet refund sewa printer harus aktif, kategori Aset, dan saldo normal Debit.');
+        if (! $akunDompetVendor->is_aktif || $akunDompetVendor->kategori !== 'aset' || $akunDompetVendor->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund vendor hardware harus aktif, kategori Aset, dan saldo normal Debit.');
         }
 
-        $jumlah = (float) $pembayaran->jumlah_bayar;
+        $jumlahVendor = (int) $pembayaran->jumlah_bayar_vendor;
 
         return $this->record([
-            'idempotency_key' => 'sewa-printer:refund:jurnal:' . $pembayaran->id,
+            'idempotency_key' => 'sewa-hardware:refund-vendor:jurnal:' . $pembayaran->id,
             'tanggal' => optional($pembayaran->refunded_at)->toDateString() ?? now()->toDateString(),
-            'nomor_bukti' => $sewaPrinter->kode_sewa,
-            'keterangan' => 'Refund penuh pembayaran sewa printer ' . $sewaPrinter->kode_sewa,
-            'referensi_tipe' => PembayaranSewaPrinter::class,
-            'referensi_id' => $pembayaran->id,
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Refund vendor atas sewa hardware ' . $sewaHardware->kode_sewa,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($akunDompetVendor, 'debit', $jumlahVendor),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_hardware.utang_vendor'),
+                'kredit',
+                $jumlahVendor
+            ),
+        ]);
+    }
+
+    public function recordRefundPerusahaanSewaHardware(
+        SewaHardware $sewaHardware,
+        PembayaranSewaHardware $pembayaran,
+        Akun $akunDompetPenerimaan,
+        ReversalTransaksi $reversal,
+        ?int $userId = null
+    ): JurnalUmum {
+        $existing = JurnalUmum::query()
+            ->where('idempotency_key', 'sewa-hardware:refund-perusahaan:jurnal:' . $pembayaran->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompetPenerimaan->is_aktif || $akunDompetPenerimaan->kategori !== 'aset' || $akunDompetPenerimaan->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet refund perusahaan hardware harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $jumlahDiterima = (int) $pembayaran->jumlah_diterima;
+        $jumlahVendor = (int) $pembayaran->jumlah_bayar_vendor;
+        $margin = (int) $sewaHardware->total_margin;
+
+        return $this->record([
+            'idempotency_key' => 'sewa-hardware:refund-perusahaan:jurnal:' . $pembayaran->id,
+            'tanggal' => optional($pembayaran->refunded_at)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Refund perusahaan atas sewa hardware ' . $sewaHardware->kode_sewa,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(
-                $this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka'),
+                $this->akunResolver->posting('sewa_hardware.utang_vendor'),
                 'debit',
-                $jumlah
+                $jumlahVendor
             ),
-            $this->akunResolver->line($akunDompet, 'kredit', $jumlah),
+            $this->akunResolver->line(
+                $this->akunResolver->posting('sewa_hardware.pendapatan_diterima_dimuka_margin'),
+                'debit',
+                $margin
+            ),
+            $this->akunResolver->line($akunDompetPenerimaan, 'kredit', $jumlahDiterima),
         ]);
     }
 

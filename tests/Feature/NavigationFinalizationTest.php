@@ -42,7 +42,7 @@ class NavigationFinalizationTest extends TestCase
         ], $groups->values()->all());
 
         $this->assertSame('Sewa Hardware', $modules['sewa_hardware']['label']);
-        $this->assertSame('sewa-printer.index', $modules['sewa_hardware']['route']);
+        $this->assertSame('sewa-hardware.index', $modules['sewa_hardware']['route']);
         $this->assertSame('Tagihan Tunai', $modules['tagihan_tunai']['label']);
         $this->assertSame('Riwayat Koreksi Transaksi', $modules['riwayat_koreksi_transaksi']['label']);
         $this->assertSame('Daftar Akun / COA', $modules['coa']['label']);
@@ -113,10 +113,9 @@ class NavigationFinalizationTest extends TestCase
                 'Penyelesaian Keanggotaan',
                 'Riwayat Koreksi Transaksi',
             ], false)
-            ->assertDontSee('Sewa Printer')
+            ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Outstanding Cash')
             ->assertDontSee('Audit Reversal')
-            ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Klaim Dana Sosial')
             ->assertDontSee('Jasa Print');

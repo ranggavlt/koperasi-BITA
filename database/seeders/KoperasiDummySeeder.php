@@ -16,14 +16,14 @@ use App\Models\KategoriProduk;
 use App\Models\MutasiKas;
 use App\Models\Pembayaran;
 use App\Models\PembayaranSewaMobil;
-use App\Models\PembayaranSewaPrinter;
+use App\Models\PembayaranSewaHardware;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
 use App\Models\PengurusKoperasi;
 use App\Models\Produk;
 use App\Models\Reseller;
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
+use App\Models\SewaHardware;
 use App\Models\Simpanan;
 use App\Models\User;
 use App\Services\MutasiKasService;
@@ -37,7 +37,7 @@ use App\Services\PinjamanKoperasiService;
 use App\Services\PosCheckoutService;
 use App\Services\PotongGajiBulananService;
 use App\Services\SewaMobilService;
-use App\Services\SewaPrinterService;
+use App\Services\SewaHardwareService;
 use App\Services\SimpananManasukaService;
 use App\Services\SimpananWajibService;
 use App\Services\TransaksiReversalService;
@@ -63,7 +63,7 @@ class KoperasiDummySeeder extends Seeder
             $asetKoperasiService = app(AsetKoperasiService::class);
             $karyawanAccountService = app(KaryawanAccountService::class);
             $sewaMobilService = app(SewaMobilService::class);
-            $sewaPrinterService = app(SewaPrinterService::class);
+            $sewaHardwareService = app(SewaHardwareService::class);
             $bebanOperasionalService = app(BebanOperasionalService::class);
             $keanggotaanLifecycleService = app(KeanggotaanLifecycleService::class);
             $posCheckoutService = app(PosCheckoutService::class);
@@ -317,7 +317,7 @@ class KoperasiDummySeeder extends Seeder
             );
 
             $this->seedSewaMobil($sewaMobilService, $karyawan, $dompet, $keuangan, $awalBulanIni);
-            $this->seedSewaPrinter($sewaPrinterService, $karyawan, $dompet, $keuangan, $awalBulanIni);
+            $this->seedSewaHardware($sewaHardwareService, $karyawan, $dompet, $keuangan, $awalBulanIni);
             $this->seedBebanOperasional($bebanOperasionalService, $dompet, $keuangan, $awalBulanIni);
             $this->seedStage3FExamples(
                 $keanggotaanLifecycleService,
@@ -1032,7 +1032,7 @@ class KoperasiDummySeeder extends Seeder
         }
 
         // Master Printer sengaja tidak dibuat di demo final:
-        // transaksi Sewa Printer memakai snapshot vendor eksternal, bukan aset koperasi.
+        // transaksi Sewa Hardware memakai snapshot vendor eksternal, bukan aset koperasi.
     }
 
     private function applyDummyAsetStatus(
@@ -1196,40 +1196,43 @@ class KoperasiDummySeeder extends Seeder
         ], $overrides);
     }
 
-    private function seedSewaPrinter(
-        SewaPrinterService $service,
+    private function seedSewaHardware(
+        SewaHardwareService $service,
         array $karyawan,
         array $dompet,
         User $keuangan,
         Carbon $awalBulanIni
     ): void {
-        if (! Schema::hasTable('sewa_printer') || SewaPrinter::query()->exists()) {
+        if (! Schema::hasTable('sewa_hardware') || SewaHardware::query()->exists()) {
             return;
         }
 
-        $draft = $service->createDraft($this->sewaPrinterPayload($karyawan['maya'], $awalBulanIni->copy()->addDays(40), [
+        $draft = $service->createDraft($this->sewaHardwarePayload($karyawan['maya'], $awalBulanIni->copy()->addDays(40), [
             'details' => [
                 [
-                    'jenis_model_printer' => 'Epson EcoTank L3210',
+                    'jenis_hardware' => 'printer',
+                    'nama_model_hardware' => 'Epson EcoTank L3210',
                     'spesifikasi_kebutuhan' => 'Printer warna untuk administrasi proyek',
                     'kuantitas' => 2,
                     'harga_vendor_per_unit' => 1000000,
                 ],
                 [
-                    'jenis_model_printer' => 'Canon G2010',
-                    'spesifikasi_kebutuhan' => 'Backup printer dokumen lapangan',
+                    'jenis_hardware' => 'laptop',
+                    'nama_model_hardware' => 'Lenovo ThinkPad T14',
+                    'spesifikasi_kebutuhan' => 'Laptop presentasi dan administrasi lapangan',
                     'kuantitas' => 1,
-                    'harga_vendor_per_unit' => 850000,
+                    'harga_vendor_per_unit' => 800000,
                 ],
             ],
-            'keterangan' => 'Contoh draft multi-printer [dummy-koperasi-bita]',
+            'keterangan' => 'Contoh draft multi-hardware [dummy-koperasi-bita]',
         ]), $keuangan->id);
 
-        $confirmed = $service->createDraft($this->sewaPrinterPayload($karyawan['fitri'], $awalBulanIni->copy()->addDays(41), [
+        $confirmed = $service->createDraft($this->sewaHardwarePayload($karyawan['fitri'], $awalBulanIni->copy()->addDays(41), [
             'details' => [
                 [
-                    'jenis_model_printer' => 'Brother HL-L2320D',
-                    'spesifikasi_kebutuhan' => 'Cetak dokumen HR hitam-putih',
+                    'jenis_hardware' => 'kamera',
+                    'nama_model_hardware' => 'Sony Alpha A6400',
+                    'spesifikasi_kebutuhan' => 'Dokumentasi site visit proyek',
                     'kuantitas' => 1,
                     'harga_vendor_per_unit' => 750000,
                 ],
@@ -1238,11 +1241,12 @@ class KoperasiDummySeeder extends Seeder
         ]), $keuangan->id);
         $service->confirm($confirmed, $keuangan->id);
 
-        $paid = $service->createDraft($this->sewaPrinterPayload($karyawan['dewi'], $awalBulanIni->copy()->addDays(45), [
+        $paid = $service->createDraft($this->sewaHardwarePayload($karyawan['dewi'], $awalBulanIni->copy()->addDays(45), [
             'details' => [
                 [
-                    'jenis_model_printer' => 'HP LaserJet Pro',
-                    'spesifikasi_kebutuhan' => 'Printer invoice proyek',
+                    'jenis_hardware' => 'lainnya',
+                    'nama_model_hardware' => 'Portable Projector HDMI',
+                    'spesifikasi_kebutuhan' => 'Proyektor portable untuk presentasi vendor',
                     'kuantitas' => 1,
                     'harga_vendor_per_unit' => 900000,
                 ],
@@ -1251,37 +1255,39 @@ class KoperasiDummySeeder extends Seeder
         ]), $keuangan->id);
         $paid = $service->confirm($paid, $keuangan->id);
         $service->pay($paid, [
-            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TRANSFER_BANK,
+            'metode_penerimaan' => PembayaranSewaHardware::METODE_TRANSFER_BANK,
             'dompet_penerimaan_id' => $dompet['bank_bca']->id,
-            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TUNAI,
+            'metode_pembayaran_vendor' => PembayaranSewaHardware::METODE_TUNAI,
             'dompet_vendor_id' => $dompet['kas_operasional']->id,
             'jumlah_diterima' => $paid->total_tagihan_perusahaan,
             'jumlah_bayar_vendor' => $paid->total_harga_vendor,
             'paid_at' => $awalBulanIni->copy()->addDays(10)->setTime(9, 30),
         ], $keuangan->id);
 
-        $completed = $service->createDraft($this->sewaPrinterPayload($karyawan['siti'], $awalBulanIni->copy()->addDays(35), [
+        $completed = $service->createDraft($this->sewaHardwarePayload($karyawan['siti'], $awalBulanIni->copy()->addDays(35), [
             'details' => [
                 [
-                    'jenis_model_printer' => 'Fuji Xerox DocuPrint',
+                    'jenis_hardware' => 'printer',
+                    'nama_model_hardware' => 'Fuji Xerox DocuPrint',
                     'spesifikasi_kebutuhan' => 'Multifunction untuk tender',
                     'kuantitas' => 1,
                     'harga_vendor_per_unit' => 1250000,
                 ],
                 [
-                    'jenis_model_printer' => 'Epson WorkForce',
-                    'spesifikasi_kebutuhan' => 'Print warna volume sedang',
+                    'jenis_hardware' => 'laptop',
+                    'nama_model_hardware' => 'Asus Zenbook',
+                    'spesifikasi_kebutuhan' => 'Laptop kerja tim tender',
                     'kuantitas' => 2,
                     'harga_vendor_per_unit' => 1100000,
                 ],
             ],
-            'keterangan' => 'Contoh selesai multi-printer [dummy-koperasi-bita]',
+            'keterangan' => 'Contoh selesai multi-hardware [dummy-koperasi-bita]',
         ]), $keuangan->id);
         $completed = $service->confirm($completed, $keuangan->id);
         $completed = $service->pay($completed, [
-            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TUNAI,
+            'metode_penerimaan' => PembayaranSewaHardware::METODE_TUNAI,
             'dompet_penerimaan_id' => $dompet['kas_operasional']->id,
-            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TRANSFER_BANK,
+            'metode_pembayaran_vendor' => PembayaranSewaHardware::METODE_TRANSFER_BANK,
             'dompet_vendor_id' => $dompet['bank_bca']->id,
             'jumlah_diterima' => $completed->total_tagihan_perusahaan,
             'jumlah_bayar_vendor' => $completed->total_harga_vendor,
@@ -1290,11 +1296,12 @@ class KoperasiDummySeeder extends Seeder
         $completed = $service->start($completed, $keuangan->id);
         $service->complete($completed, $keuangan->id);
 
-        $running = $service->createDraft($this->sewaPrinterPayload($karyawan['budi'], $awalBulanIni->copy()->addDays(45), [
+        $running = $service->createDraft($this->sewaHardwarePayload($karyawan['budi'], $awalBulanIni->copy()->addDays(45), [
             'details' => [
                 [
-                    'jenis_model_printer' => 'Canon ImageClass',
-                    'spesifikasi_kebutuhan' => 'Printer dokumen QC',
+                    'jenis_hardware' => 'kamera',
+                    'nama_model_hardware' => 'Canon EOS M50',
+                    'spesifikasi_kebutuhan' => 'Kamera dokumentasi QC',
                     'kuantitas' => 1,
                     'harga_vendor_per_unit' => 650000,
                 ],
@@ -1303,9 +1310,9 @@ class KoperasiDummySeeder extends Seeder
         ]), $keuangan->id);
         $running = $service->confirm($running, $keuangan->id);
         $running = $service->pay($running, [
-            'metode_penerimaan' => PembayaranSewaPrinter::METODE_TRANSFER_BANK,
+            'metode_penerimaan' => PembayaranSewaHardware::METODE_TRANSFER_BANK,
             'dompet_penerimaan_id' => $dompet['bank_bca']->id,
-            'metode_pembayaran_vendor' => PembayaranSewaPrinter::METODE_TRANSFER_BANK,
+            'metode_pembayaran_vendor' => PembayaranSewaHardware::METODE_TRANSFER_BANK,
             'dompet_vendor_id' => $dompet['bank_bca']->id,
             'jumlah_diterima' => $running->total_tagihan_perusahaan,
             'jumlah_bayar_vendor' => $running->total_harga_vendor,
@@ -1313,10 +1320,11 @@ class KoperasiDummySeeder extends Seeder
         ], $keuangan->id);
         $service->start($running, $keuangan->id);
 
-        $cancelled = $service->createDraft($this->sewaPrinterPayload($karyawan['andi'], $awalBulanIni->copy()->addDays(48), [
+        $cancelled = $service->createDraft($this->sewaHardwarePayload($karyawan['andi'], $awalBulanIni->copy()->addDays(48), [
             'details' => [
                 [
-                    'jenis_model_printer' => 'Vendor Thermal Receipt',
+                    'jenis_hardware' => 'printer',
+                    'nama_model_hardware' => 'Vendor Thermal Receipt',
                     'spesifikasi_kebutuhan' => 'Uji coba printer receipt kantor',
                     'kuantitas' => 1,
                     'harga_vendor_per_unit' => 800000,
@@ -1326,27 +1334,52 @@ class KoperasiDummySeeder extends Seeder
         ]), $keuangan->id);
         $cancelled = $service->confirm($cancelled, $keuangan->id);
         $service->cancelByFinance($cancelled, 'Kontrak dibatalkan sebelum paid [dummy].', $keuangan->id);
+
+        $refunded = $service->createDraft($this->sewaHardwarePayload($karyawan['lilis'], $awalBulanIni->copy()->addDays(49), [
+            'details' => [
+                [
+                    'jenis_hardware' => 'laptop',
+                    'nama_model_hardware' => 'Dell Latitude 5420',
+                    'spesifikasi_kebutuhan' => 'Laptop training proyek yang dibatalkan',
+                    'kuantitas' => 1,
+                    'harga_vendor_per_unit' => 700000,
+                ],
+            ],
+            'keterangan' => 'Contoh refund penuh sebelum berjalan [dummy-koperasi-bita]',
+        ]), $keuangan->id);
+        $refunded = $service->confirm($refunded, $keuangan->id);
+        $refunded = $service->pay($refunded, [
+            'metode_penerimaan' => PembayaranSewaHardware::METODE_TRANSFER_BANK,
+            'dompet_penerimaan_id' => $dompet['bank_bca']->id,
+            'metode_pembayaran_vendor' => PembayaranSewaHardware::METODE_TUNAI,
+            'dompet_vendor_id' => $dompet['kas_operasional']->id,
+            'jumlah_diterima' => $refunded->total_tagihan_perusahaan,
+            'jumlah_bayar_vendor' => $refunded->total_harga_vendor,
+            'paid_at' => $awalBulanIni->copy()->addDays(12)->setTime(9, 0),
+        ], $keuangan->id);
+        $service->refundByFinance($refunded, 'Kontrak training dibatalkan sebelum perangkat digunakan [dummy].', $keuangan->id);
     }
 
-    private function sewaPrinterPayload(Karyawan $pic, Carbon $tanggal, array $overrides = []): array
+    private function sewaHardwarePayload(Karyawan $pic, Carbon $tanggal, array $overrides = []): array
     {
         return array_merge([
             'karyawan_id' => $pic->id,
             'mulai_tanggal' => $tanggal->toDateString(),
             'selesai_tanggal' => $tanggal->copy()->addDays(2)->toDateString(),
-            'kebutuhan' => 'Kebutuhan printer vendor untuk pekerjaan proyek',
-            'vendor_nama' => 'Vendor Printer Nusantara',
+            'kebutuhan' => 'Kebutuhan hardware vendor untuk pekerjaan proyek',
+            'vendor_nama' => 'Vendor Hardware Nusantara',
             'vendor_kontak' => '0812-0000-8899',
             'vendor_alamat' => 'Jl. Vendor Dummy No. 15, Jakarta',
             'details' => [
                 [
-                    'jenis_model_printer' => 'Epson EcoTank L3210',
+                    'jenis_hardware' => 'printer',
+                    'nama_model_hardware' => 'Epson EcoTank L3210',
                     'spesifikasi_kebutuhan' => 'Printer warna A4',
                     'kuantitas' => 1,
                     'harga_vendor_per_unit' => 1000000,
                 ],
             ],
-            'keterangan' => 'Data dummy sewa printer [dummy-koperasi-bita]',
+            'keterangan' => 'Data dummy sewa hardware [dummy-koperasi-bita]',
         ], $overrides);
     }
 

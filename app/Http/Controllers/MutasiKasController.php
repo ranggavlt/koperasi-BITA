@@ -10,7 +10,7 @@ use App\Models\Pembayaran;
 use App\Models\PembayaranKonsinyasi;
 use App\Models\PembayaranOutstandingCash;
 use App\Models\PembayaranSewaMobil;
-use App\Models\PembayaranSewaPrinter;
+use App\Models\PembayaranSewaHardware;
 use App\Models\PemakaianPotongGaji;
 use App\Models\Penjualan;
 use App\Models\PenyelesaianKeanggotaan;
@@ -119,7 +119,7 @@ class MutasiKasController extends Controller
             ReversalTransaksi::class => 'Refund/Reversal',
             PembayaranOutstandingCash::class => 'Outstanding Cash',
             PembayaranSewaMobil::class => 'Sewa Mobil',
-            PembayaranSewaPrinter::class => 'Sewa Printer',
+            PembayaranSewaHardware::class => 'Sewa Hardware',
             BebanOperasional::class => 'Beban Operasional',
             PenyelesaianKeanggotaan::class => 'Penyelesaian Keanggotaan',
         ];

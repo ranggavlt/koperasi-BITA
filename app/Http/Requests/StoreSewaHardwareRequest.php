@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Models\SewaHardwareDetail;
 
-class StoreSewaPrinterRequest extends FormRequest
+class StoreSewaHardwareRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,9 +16,14 @@ class StoreSewaPrinterRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $details = collect($this->input('details', []))
-            ->filter(fn ($row) => is_array($row) && trim((string) ($row['jenis_model_printer'] ?? '')) !== '')
+            ->filter(fn ($row) => is_array($row) && (
+                trim((string) ($row['jenis_hardware'] ?? '')) !== ''
+                || trim((string) ($row['nama_model_hardware'] ?? '')) !== ''
+                || trim((string) ($row['harga_vendor_per_unit'] ?? '')) !== ''
+            ))
             ->map(fn (array $row): array => [
-                'jenis_model_printer' => $this->normalizeText($row['jenis_model_printer'] ?? null),
+                'jenis_hardware' => $this->normalizeText($row['jenis_hardware'] ?? null),
+                'nama_model_hardware' => $this->normalizeText($row['nama_model_hardware'] ?? null),
                 'spesifikasi_kebutuhan' => $this->nullableText($row['spesifikasi_kebutuhan'] ?? null),
                 'kuantitas' => (int) ($row['kuantitas'] ?? 0),
                 'harga_vendor_per_unit' => $this->normalizeMoney($row['harga_vendor_per_unit'] ?? 0),
@@ -29,7 +36,7 @@ class StoreSewaPrinterRequest extends FormRequest
             'kebutuhan' => $this->nullableText($this->input('kebutuhan')),
             'vendor_nama' => $this->normalizeText($this->input('vendor_nama')),
             'vendor_kontak' => $this->normalizeText($this->input('vendor_kontak')),
-            'vendor_alamat' => $this->nullableText($this->input('vendor_alamat')),
+            'vendor_alamat' => $this->normalizeText($this->input('vendor_alamat')),
             'keterangan' => $this->nullableText($this->input('keterangan')),
         ]);
     }
@@ -45,7 +52,8 @@ class StoreSewaPrinterRequest extends FormRequest
             'vendor_kontak' => ['required', 'string', 'max:80'],
             'vendor_alamat' => ['required', 'string', 'max:1000'],
             'details' => ['required', 'array', 'min:1'],
-            'details.*.jenis_model_printer' => ['required', 'string', 'max:150'],
+            'details.*.jenis_hardware' => ['required', Rule::in(array_keys(SewaHardwareDetail::jenisOptions()))],
+            'details.*.nama_model_hardware' => ['required', 'string', 'max:150'],
             'details.*.spesifikasi_kebutuhan' => ['nullable', 'string', 'max:1000'],
             'details.*.kuantitas' => ['required', 'integer', 'min:1'],
             'details.*.harga_vendor_per_unit' => ['required', 'integer', 'min:1'],
@@ -55,7 +63,9 @@ class StoreSewaPrinterRequest extends FormRequest
             'status' => ['prohibited'],
             'status_pembayaran' => ['prohibited'],
             'karyawan_pic_id' => ['prohibited'],
+            'vendor_id' => ['prohibited'],
             'aset_koperasi_id' => ['prohibited'],
+            'aset_printer_id' => ['prohibited'],
             'total_harga_vendor' => ['prohibited'],
             'total_harga_dasar' => ['prohibited'],
             'total_margin' => ['prohibited'],
@@ -76,12 +86,14 @@ class StoreSewaPrinterRequest extends FormRequest
             'vendor_nama.required' => 'Nama vendor wajib diisi.',
             'vendor_kontak.required' => 'Kontak vendor wajib diisi.',
             'vendor_alamat.required' => 'Alamat vendor wajib diisi.',
-            'details.required' => 'Minimal satu detail kebutuhan printer wajib diisi.',
-            'details.min' => 'Minimal satu detail kebutuhan printer wajib diisi.',
-            'details.*.jenis_model_printer.required' => 'Jenis/model printer wajib diisi.',
-            'details.*.kuantitas.min' => 'Kuantitas printer wajib minimal 1.',
+            'details.required' => 'Minimal satu detail kebutuhan hardware wajib diisi.',
+            'details.min' => 'Minimal satu detail kebutuhan hardware wajib diisi.',
+            'details.*.jenis_hardware.required' => 'Jenis hardware wajib dipilih.',
+            'details.*.jenis_hardware.in' => 'Jenis hardware harus printer, laptop, kamera, atau lainnya.',
+            'details.*.nama_model_hardware.required' => 'Nama/model hardware wajib diisi.',
+            'details.*.kuantitas.min' => 'Kuantitas hardware wajib minimal 1.',
             'details.*.harga_vendor_per_unit.min' => 'Harga vendor per unit wajib lebih besar dari nol.',
-            '*.prohibited' => 'Field status, kode, margin, total, atau aset printer lama tidak boleh dikirim dari browser.',
+            '*.prohibited' => 'Field status, kode, margin, total, vendor master, atau aset lama tidak boleh dikirim dari browser.',
         ];
     }
 
