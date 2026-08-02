@@ -179,6 +179,7 @@ class PotongGajiTahap2ETest extends TestCase
 
     public function test_outstanding_cash_dibayar_penuh_dan_kasir_ditolak_route_keuangan(): void
     {
+        Carbon::setTestNow(Carbon::parse('2026-07-12 09:00:00', 'Asia/Jakarta'));
         $user = $this->user('admin');
         $kasir = $this->user('kasir');
         $anggota = $this->anggota();

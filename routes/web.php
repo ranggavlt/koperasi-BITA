@@ -39,6 +39,7 @@ use App\Http\Controllers\RekonsiliasiPotongGajiController;
 use App\Http\Controllers\ReversalTransaksiController;
 use App\Http\Controllers\PenyelesaianKeanggotaanController;
 use App\Http\Controllers\InvoicePenagihanController;
+use App\Http\Controllers\JadwalSimpananWajibController;
 use App\Http\Controllers\VendorController;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
@@ -117,6 +118,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
         ->name('simpanan.saldo-manasuka');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
+    Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
+        ->name('jadwal-simpanan-wajib.index');
 
 
     Route::resource('pinjaman', PinjamanController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
@@ -143,10 +146,24 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('periode-potong-gaji.create');
     Route::post('/periode-potong-gaji', [PeriodePotongGajiController::class, 'storePeriode'])
         ->name('periode-potong-gaji.store');
+    Route::patch('/periode-potong-gaji/kebijakan-limit', [PeriodePotongGajiController::class, 'updateGlobalPolicy'])
+        ->name('periode-potong-gaji.kebijakan-limit.update');
+    Route::post('/periode-potong-gaji/{periode}/generate-limits', [PeriodePotongGajiController::class, 'bulkGenerate'])
+        ->name('periode-potong-gaji.bulk-generate');
+    Route::post('/periode-potong-gaji/{periode}/activate-limits', [PeriodePotongGajiController::class, 'bulkActivate'])
+        ->name('periode-potong-gaji.bulk-activate');
     Route::post('/periode-potong-gaji/limit', [PeriodePotongGajiController::class, 'storeLimit'])
         ->name('periode-potong-gaji.limit.store');
     Route::patch('/periode-potong-gaji/limit/{limit}', [PeriodePotongGajiController::class, 'updateLimit'])
         ->name('periode-potong-gaji.limit.update');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/limit-khusus', [PeriodePotongGajiController::class, 'setOverride'])
+        ->name('periode-potong-gaji.anggota.override.store');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/limit-khusus/reset', [PeriodePotongGajiController::class, 'resetOverride'])
+        ->name('periode-potong-gaji.anggota.override.reset');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/kredit-waserba/nonaktifkan', [PeriodePotongGajiController::class, 'disableWaserba'])
+        ->name('periode-potong-gaji.anggota.kredit-waserba.disable');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/kredit-waserba/aktifkan', [PeriodePotongGajiController::class, 'enableWaserba'])
+        ->name('periode-potong-gaji.anggota.kredit-waserba.enable');
     Route::patch('/periode-potong-gaji/limit/{limit}/aktifkan', [PeriodePotongGajiController::class, 'activate'])
         ->name('periode-potong-gaji.limit.activate');
     Route::patch('/periode-potong-gaji/limit/{limit}/tutup', [PeriodePotongGajiController::class, 'close'])

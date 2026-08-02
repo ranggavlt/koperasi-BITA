@@ -184,6 +184,8 @@ class PosCheckoutService
             ]);
         }
 
+        $this->potongGajiService->assertWaserbaCreditAllowed($anggota);
+
         $limit = \App\Models\LimitPotongGajiAnggota::query()->lockForUpdate()->findOrFail($limit->id);
 
         if ($limit->status !== \App\Models\LimitPotongGajiAnggota::STATUS_ACTIVE) {

@@ -49,6 +49,17 @@ class PreflightPotongGajiCommand extends Command
             $this->check('bank_default_payroll_hilang', 'Tidak ada Bank default payroll', $this->bankDefaultPayrollMissing()),
             $this->check('bank_default_payroll_ganda', 'Lebih dari satu Bank default payroll', $this->bankDefaultPayrollMultiple()),
             $this->check('bank_default_payroll_coa_invalid', 'Bank default payroll tanpa COA valid', $this->bankDefaultPayrollInvalidCoa()),
+            $this->check('kebijakan_limit_umum_hilang', 'Kebijakan limit umum potong gaji tidak tersedia', $this->kebijakanLimitUmumMissing()),
+            $this->check('kebijakan_limit_umum_ganda', 'Lebih dari satu kebijakan limit umum aktif terbuka', $this->kebijakanLimitUmumMultiple()),
+            $this->check('anggota_aktif_tanpa_limit_periode_terbuka', 'Anggota aktif tanpa limit pada periode terbuka', $this->anggotaAktifTanpaLimitPeriodeTerbuka()),
+            $this->check('limit_anggota_periode_duplikat', 'Duplicate limit Anggota/periode', $this->duplicateLimitAnggotaPeriode()),
+            $this->check('karyawan_aktif_tanpa_perusahaan', 'Karyawan aktif tanpa perusahaan', $this->karyawanAktifTanpaPerusahaan()),
+            $this->check('override_limit_aktif_ganda', 'Override limit aktif ganda per Anggota', $this->overrideLimitAktifGanda()),
+            $this->check('limit_khusus_tanpa_audit', 'Limit khusus tanpa audit atau alasan', $this->limitKhususTanpaAudit()),
+            $this->check('kredit_waserba_nonaktif_tanpa_alasan', 'Kredit Waserba nonaktif tanpa alasan', $this->kreditWaserbaNonaktifTanpaAlasan()),
+            $this->check('limit_terpakai_berubah', 'Limit yang sudah dipakai berubah setelah ledger dibuat', $this->limitTerpakaiBerubah()),
+            $this->check('manasuka_masuk_payroll', 'Simpanan Manasuka masuk payroll', $this->manasukaMasukPayroll()),
+            $this->check('prioritas_payroll_invalid', 'Prioritas Cicilan/Wajib/POS tidak sesuai', $this->payrollPriorityInvalid()),
             $this->check('mutasi_pencairan_pinjaman', 'Mutasi pencairan Pinjaman ganda/hilang', $this->pinjamanPostingIssues('mutasi_kas')),
             $this->check('jurnal_pencairan_pinjaman', 'Jurnal pencairan Pinjaman ganda/hilang', $this->pinjamanPostingIssues('jurnal_umum')),
             $this->check('reservasi_tanpa_limit', 'Reservasi Cicilan tanpa limit', $this->reservasiTanpaLimit()),
@@ -1825,6 +1836,177 @@ class PreflightPotongGajiCommand extends Command
         }
 
         return $type::query()->whereKey($id)->exists();
+    }
+
+    private function kebijakanLimitUmumMissing(): int
+    {
+        if (! Schema::hasTable('kebijakan_limit_potong_gaji')) {
+            return 1;
+        }
+
+        return DB::table('kebijakan_limit_potong_gaji')
+            ->where('status', 'active')
+            ->count() === 0 ? 1 : 0;
+    }
+
+    private function kebijakanLimitUmumMultiple(): int
+    {
+        if (! Schema::hasTable('kebijakan_limit_potong_gaji')) {
+            return 0;
+        }
+
+        return max(0, DB::table('kebijakan_limit_potong_gaji')
+            ->where('status', 'active')
+            ->whereNull('berlaku_sampai_periode')
+            ->count() - 1);
+    }
+
+    private function anggotaAktifTanpaLimitPeriodeTerbuka(): int
+    {
+        if (! $this->hasTables(['anggota', 'karyawan', 'periode_potong_gaji', 'limit_potong_gaji_anggota'])) {
+            return 0;
+        }
+
+        return DB::table('periode_potong_gaji as p')
+            ->join('anggota as a', function ($join): void {
+                $join->where('a.status', 'aktif');
+            })
+            ->join('karyawan as k', function ($join): void {
+                $join->on('k.id', '=', 'a.karyawan_id')
+                    ->where('k.status_kerja', 'aktif');
+            })
+            ->leftJoin('limit_potong_gaji_anggota as l', function ($join): void {
+                $join->on('l.periode_potong_gaji_id', '=', 'p.id')
+                    ->on('l.anggota_id', '=', 'a.id');
+            })
+            ->whereIn('p.status', ['draft', 'active'])
+            ->whereNull('l.id')
+            ->count();
+    }
+
+    private function duplicateLimitAnggotaPeriode(): int
+    {
+        if (! Schema::hasTable('limit_potong_gaji_anggota')) {
+            return 0;
+        }
+
+        return DB::query()
+            ->fromSub(
+                DB::table('limit_potong_gaji_anggota')
+                    ->select('periode_potong_gaji_id', 'anggota_id', DB::raw('COUNT(*) as total'))
+                    ->groupBy('periode_potong_gaji_id', 'anggota_id')
+                    ->havingRaw('COUNT(*) > 1'),
+                'dupes'
+            )
+            ->count();
+    }
+
+    private function karyawanAktifTanpaPerusahaan(): int
+    {
+        if (! Schema::hasTable('karyawan') || ! Schema::hasColumn('karyawan', 'perusahaan_id')) {
+            return 0;
+        }
+
+        return DB::table('karyawan')
+            ->where('status_kerja', 'aktif')
+            ->whereNull('perusahaan_id')
+            ->count();
+    }
+
+    private function overrideLimitAktifGanda(): int
+    {
+        if (! Schema::hasTable('override_limit_potong_gaji_anggota')) {
+            return 0;
+        }
+
+        return DB::query()
+            ->fromSub(
+                DB::table('override_limit_potong_gaji_anggota')
+                    ->select('anggota_id', DB::raw('COUNT(*) as total'))
+                    ->where('status', 'active')
+                    ->groupBy('anggota_id')
+                    ->havingRaw('COUNT(*) > 1'),
+                'dupes'
+            )
+            ->count();
+    }
+
+    private function limitKhususTanpaAudit(): int
+    {
+        if (! Schema::hasTable('override_limit_potong_gaji_anggota')) {
+            return 0;
+        }
+
+        return DB::table('override_limit_potong_gaji_anggota')
+            ->where('status', 'active')
+            ->where(function ($query): void {
+                $query->whereNull('nominal_override')
+                    ->orWhereNull('berlaku_mulai_periode')
+                    ->orWhereNull('override_updated_by')
+                    ->orWhereNull('override_updated_at')
+                    ->orWhereNull('alasan_limit_override')
+                    ->orWhere('alasan_limit_override', '');
+            })
+            ->count();
+    }
+
+    private function kreditWaserbaNonaktifTanpaAlasan(): int
+    {
+        if (! Schema::hasTable('override_limit_potong_gaji_anggota')) {
+            return 0;
+        }
+
+        return DB::table('override_limit_potong_gaji_anggota')
+            ->where('kredit_waserba_enabled', false)
+            ->where(function ($query): void {
+                $query->whereNull('kredit_waserba_disabled_by')
+                    ->orWhereNull('kredit_waserba_disabled_at')
+                    ->orWhereNull('kredit_waserba_disabled_reason')
+                    ->orWhere('kredit_waserba_disabled_reason', '');
+            })
+            ->count();
+    }
+
+    private function limitTerpakaiBerubah(): int
+    {
+        if (! $this->hasTables(['limit_potong_gaji_anggota', 'pemakaian_potong_gaji', 'riwayat_limit_potong_gaji'])) {
+            return 0;
+        }
+
+        $firstUsage = DB::table('pemakaian_potong_gaji')
+            ->select('limit_potong_gaji_anggota_id', DB::raw('MIN(created_at) as first_used_at'))
+            ->groupBy('limit_potong_gaji_anggota_id');
+
+        return DB::table('riwayat_limit_potong_gaji as r')
+            ->joinSub($firstUsage, 'u', 'u.limit_potong_gaji_anggota_id', '=', 'r.limit_potong_gaji_anggota_id')
+            ->whereColumn('r.changed_at', '>', 'u.first_used_at')
+            ->count();
+    }
+
+    private function manasukaMasukPayroll(): int
+    {
+        if (! $this->hasTables(['simpanan', 'jenis_simpanan'])) {
+            return 0;
+        }
+
+        $query = DB::table('simpanan as s')
+            ->join('jenis_simpanan as j', 'j.id', '=', 's.jenis_simpanan_id')
+            ->where('j.kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+            ->where(function ($query): void {
+                if (Schema::hasColumn('simpanan', 'pemakaian_potong_gaji_id')) {
+                    $query->whereNotNull('s.pemakaian_potong_gaji_id');
+                }
+
+                $query->orWhere('s.metode_pembayaran', 'potong_gaji')
+                    ->orWhere('s.status', 'pending_payroll');
+            });
+
+        return $query->count();
+    }
+
+    private function payrollPriorityInvalid(): int
+    {
+        return $this->posPayrollSaatCicilanUnreserved();
     }
 
     private function hasTables(array $tables): bool

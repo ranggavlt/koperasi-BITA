@@ -52,6 +52,11 @@ class Anggota extends Model
         return $this->hasMany(LimitPotongGajiAnggota::class);
     }
 
+    public function overrideLimitPotongGaji()
+    {
+        return $this->hasOne(OverrideLimitPotongGajiAnggota::class);
+    }
+
     public function penjualan()
     {
         return $this->hasMany(Penjualan::class);

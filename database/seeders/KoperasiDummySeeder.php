@@ -20,6 +20,7 @@ use App\Models\PembayaranSewaHardware;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
 use App\Models\PengurusKoperasi;
+use App\Models\Perusahaan;
 use App\Models\Produk;
 use App\Models\Reseller;
 use App\Models\SewaMobil;
@@ -73,7 +74,10 @@ class KoperasiDummySeeder extends Seeder
 
             $keuangan = $this->seedUserDummy();
 
-            $karyawan = $this->seedKaryawan($masterDataService);
+            $perusahaan = $this->seedPerusahaan();
+            $potongGajiService->createDefaultGlobalPolicyIfMissing($keuangan->id);
+
+            $karyawan = $this->seedKaryawan($masterDataService, $perusahaan);
             $jenisSimpanan = $this->seedJenisSimpanan($jenisSimpananService, $keuangan->id);
             $anggota = $this->seedAnggota($karyawan, $masterDataService);
             $kategori = $this->seedKategoriProduk();
@@ -212,6 +216,8 @@ class KoperasiDummySeeder extends Seeder
             ]);
 
             $this->seedPotongGaji2C($potongGajiService, $karyawan, $keuangan, $awalBulanIni, $pinjaman);
+            $potongGajiService->bulkGenerateLimitsForPeriod($awalBulanIni, $keuangan->id);
+            $potongGajiService->bulkGenerateLimitsForPeriod($awalBulanIni->copy()->addMonth(), $keuangan->id);
 
             $this->seedPenjualan($posCheckoutService, $karyawan, $produk, $dompet, $keuangan, [
                 [
@@ -364,7 +370,26 @@ class KoperasiDummySeeder extends Seeder
         return $finance;
     }
 
-    private function seedKaryawan(MasterDataKoperasiService $service): array
+    private function seedPerusahaan(): array
+    {
+        $rows = [
+            'BEE' => 'Bita Enarcon Engineering',
+            'BBS' => 'Bita Bina Semesta',
+            'BKM' => 'Bamko Karsa Mandiri',
+        ];
+
+        $result = [];
+        foreach ($rows as $kode => $nama) {
+            $result[$kode] = Perusahaan::query()->updateOrCreate(
+                ['kode' => $kode],
+                ['nama' => $nama]
+            );
+        }
+
+        return $result;
+    }
+
+    private function seedKaryawan(MasterDataKoperasiService $service, array $perusahaan): array
     {
         $rows = [
             'andi' => [
@@ -470,6 +495,11 @@ class KoperasiDummySeeder extends Seeder
             $data = $row + [
                 'status_kerja' => Karyawan::STATUS_AKTIF,
                 'tanggal_berhenti' => null,
+                'perusahaan_id' => match ($key) {
+                    'dewi', 'fitri', 'nina', 'lina_sp5_ditolak' => $perusahaan['BBS']->id,
+                    'budi', 'rina', 'maya', 'farhan_sp5_disetujui', 'toni_sp5_dibatalkan' => $perusahaan['BKM']->id,
+                    default => $perusahaan['BEE']->id,
+                },
             ];
             $existing = Karyawan::query()->where('email', $row['email'])->first();
 
