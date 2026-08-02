@@ -3549,6 +3549,210 @@ textarea.kbsm-business-control {
   font-weight: 900;
 }
 
+/* Manajemen User */
+.user-management-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.user-management-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  color: var(--kbsm-text);
+  font-size: 0.84rem;
+}
+
+.user-management-table th {
+  padding: 0.8rem 1.2rem;
+  color: var(--kbsm-white);
+  background: var(--kbsm-navy);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.user-management-table td {
+  padding: 0.85rem 1.2rem;
+  border-bottom: 1px solid rgba(7, 59, 92, 0.08);
+  vertical-align: middle;
+}
+
+.user-management-table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.user-management-table tbody tr:nth-child(even) {
+  background: rgba(245, 248, 245, 0.58);
+}
+
+.user-management-table tbody tr:hover {
+  background: var(--kbsm-green-soft);
+}
+
+.user-management-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.user-management-table__actions-heading,
+.user-management-table__actions-cell {
+  text-align: right;
+}
+
+.user-management-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 15rem;
+}
+
+.user-management-identity__avatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  color: var(--kbsm-navy);
+  background: rgba(47, 143, 58, 0.12);
+  border: 1px solid rgba(47, 143, 58, 0.18);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.user-management-identity__name,
+.user-management-identity__email {
+  margin: 0;
+}
+
+.user-management-identity__name {
+  overflow: hidden;
+  color: var(--kbsm-navy-dark);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-management-identity__email {
+  margin-top: 0.12rem;
+  overflow: hidden;
+  color: var(--kbsm-muted);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-management-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.58rem;
+  border-radius: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.user-management-badge--admin {
+  color: #7e22ce;
+  background: #f3e8ff;
+}
+
+.user-management-badge--kasir {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.user-management-badge--active {
+  color: #248234;
+  background: #e5f4e6;
+}
+
+.user-management-badge--inactive {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.user-management-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.user-management-actions form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.user-management-action {
+  min-height: 2rem;
+  padding: 0.4rem 0.62rem;
+  color: var(--kbsm-muted);
+  background: var(--kbsm-white);
+  border: 1px solid rgba(7, 59, 92, 0.16);
+  border-radius: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.user-management-action:hover {
+  color: var(--kbsm-navy);
+  background: #f7faf7;
+  border-color: rgba(7, 59, 92, 0.3);
+}
+
+.user-management-action:focus-visible {
+  outline: 3px solid rgba(47, 143, 58, 0.24);
+  outline-offset: 2px;
+}
+
+.user-management-action--primary {
+  color: var(--kbsm-white);
+  background: var(--kbsm-navy);
+  border-color: var(--kbsm-navy);
+}
+
+.user-management-action--primary:hover {
+  color: var(--kbsm-white);
+  background: var(--kbsm-navy-dark);
+  border-color: var(--kbsm-navy-dark);
+}
+
+.user-management-action--deactivate {
+  color: #c2410c;
+  border-color: #f7c96b;
+}
+
+.user-management-action--deactivate:hover {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #f59e0b;
+}
+
+.user-management-action--activate {
+  color: #248234;
+  border-color: #8fce96;
+}
+
+.user-management-action--activate:hover {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #4caf50;
+}
+
+.user-management-table__empty {
+  padding: 2.5rem 1rem !important;
+  color: var(--kbsm-muted);
+  text-align: center;
+}
+
 @media (max-width: 1199px) {
   .kbsm-cashier-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3560,6 +3764,29 @@ textarea.kbsm-business-control {
 }
 
 @media (max-width: 767px) {
+  .user-management-table {
+    min-width: 760px;
+  }
+
+  .user-management-table th,
+  .user-management-table td {
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
+  }
+
+  .user-management-identity {
+    min-width: 13rem;
+  }
+
+  .user-management-actions {
+    gap: 0.3rem;
+  }
+
+  .user-management-action {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+  }
+
   .kbsm-cashier-dashboard {
     padding: 1rem;
   }
