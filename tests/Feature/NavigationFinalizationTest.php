@@ -76,12 +76,8 @@ class NavigationFinalizationTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSee('data-sidebar-accordion', false)
-            ->assertSee('kbsm_sidebar_groups:' . $admin->id, false)
+            ->assertSee('kbsm_sidebar_groups:'.$admin->id, false)
             ->assertSeeInOrder([
-                'POS / Kasir',
-                'Penjualan / Kasir',
-                'Pembayaran Konsinyasi',
-                'Laporan Konsinyasi',
                 'Master Data',
                 'Manajemen User',
                 'Karyawan',
@@ -113,6 +109,10 @@ class NavigationFinalizationTest extends TestCase
                 'Penyelesaian Keanggotaan',
                 'Riwayat Koreksi Transaksi',
             ], false)
+            ->assertDontSee('POS / Kasir')
+            ->assertDontSee('Penjualan / Kasir')
+            ->assertDontSee('Pembayaran Konsinyasi')
+            ->assertDontSee('Laporan Konsinyasi')
             ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Outstanding Cash')
             ->assertDontSee('Audit Reversal')
@@ -223,5 +223,4 @@ class NavigationFinalizationTest extends TestCase
             'must_change_password' => false,
         ]);
     }
-
 }

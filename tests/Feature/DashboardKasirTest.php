@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\DetailPenjualan;
-use App\Models\KategoriProduk;
 use App\Models\Karyawan;
+use App\Models\KategoriProduk;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\Produk;
@@ -51,6 +51,9 @@ class DashboardKasirTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSee('Pendapatan Hari Ini')
+            ->assertSee('Lihat Mutasi Kas & Bank')
+            ->assertDontSee('Buka Mesin Kasir')
+            ->assertDontSee(route('waserba.index'), false)
             ->assertDontSee('Metode Pembayaran Hari Ini');
     }
 
@@ -194,7 +197,7 @@ class DashboardKasirTest extends TestCase
     private function user(string $role, string $email): User
     {
         return User::factory()->create([
-            'name' => ucfirst($role) . ' Dashboard',
+            'name' => ucfirst($role).' Dashboard',
             'email' => $email,
             'password' => Hash::make('Kbsm12345!'),
             'role' => $role,
@@ -212,7 +215,7 @@ class DashboardKasirTest extends TestCase
 
         return Produk::query()->create([
             'nama_produk' => $nama,
-            'foto' => Produk::DEMO_PHOTO_PREFIX . 'fallback-produk.svg',
+            'foto' => Produk::DEMO_PHOTO_PREFIX.'fallback-produk.svg',
             'kategori_id' => $kategori->id,
             'harga_beli' => max(0, $hargaJual - 1000),
             'harga_jual' => $hargaJual,
@@ -236,7 +239,7 @@ class DashboardKasirTest extends TestCase
         $karyawan = Karyawan::factory()->create();
 
         $penjualan = Penjualan::query()->create([
-            'idempotency_key' => 'dashboard-' . strtolower($kode),
+            'idempotency_key' => 'dashboard-'.strtolower($kode),
             'kode_transaksi' => $kode,
             'tipe_pelanggan' => Penjualan::TIPE_UMUM,
             'karyawan_id' => $karyawan->id,
@@ -264,7 +267,7 @@ class DashboardKasirTest extends TestCase
         }
 
         Pembayaran::query()->create([
-            'idempotency_key' => 'dashboard-payment-' . strtolower($kode),
+            'idempotency_key' => 'dashboard-payment-'.strtolower($kode),
             'penjualan_id' => $penjualan->id,
             'metode_pembayaran' => $metodePembayaran,
             'status' => $statusPembayaran,

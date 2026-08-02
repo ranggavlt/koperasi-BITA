@@ -97,10 +97,10 @@
                 <div class="relative h-full overflow-hidden bg-cover rounded-xl" style="background-image: url('../assets/img/ivancik.jpg')">
                     <span class="kbsm-gradient-brand absolute top-0 left-0 w-full h-full bg-center bg-cover opacity-90"></span>
                     <div class="relative z-10 flex flex-col flex-auto h-full p-4">
-                        <h5 class="pt-2 mb-6 font-bold text-white">Sistem POS Koperasi</h5>
-                        <p class="text-white">Kelola transaksi kasbon karyawan dan produk konsinyasi secara efisien.</p>
-                        <a class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm" href="{{ route('waserba.index') }}">
-                            Buka Mesin Kasir
+                        <h5 class="pt-2 mb-6 font-bold text-white">Ringkasan Keuangan</h5>
+                        <p class="text-white">Pantau arus kas dan transaksi koperasi melalui laporan keuangan yang terintegrasi.</p>
+                        <a class="mt-auto mb-0 font-semibold leading-normal text-white group text-sm" href="{{ route('mutasi-kas.index') }}">
+                            Lihat Mutasi Kas &amp; Bank
                             <i class="fas fa-arrow-right ease-bounce text-sm group-hover:translate-x-1.25 ml-1 transition-all duration-200"></i>
                         </a>
                     </div>

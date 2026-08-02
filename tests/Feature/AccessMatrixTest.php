@@ -43,6 +43,9 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($finance)->get(route('beban-operasional.index'))->assertOk();
         $this->actingAs($finance)->get(route('laporan.potong-gaji'))->assertOk();
         $this->actingAs($finance)->get(route('users.index'))->assertOk();
+        $this->actingAs($finance)->get(route('waserba.index'))->assertForbidden();
+        $this->actingAs($finance)->get(route('pembayaran-konsinyasi.index'))->assertForbidden();
+        $this->actingAs($finance)->get(route('konsinyasi.report'))->assertForbidden();
         $this->actingAs($finance)->get(route('shu-koperasi.index'))->assertNotFound();
         $this->assertFalse(Route::has('users.destroy'));
 
@@ -75,6 +78,10 @@ class AccessMatrixTest extends TestCase
             ->assertSee('Tagihan Tunai')
             ->assertSee('Riwayat Koreksi Transaksi')
             ->assertSee('Daftar Akun / COA')
+            ->assertDontSee('POS / Kasir')
+            ->assertDontSee('Penjualan / Kasir')
+            ->assertDontSee('Pembayaran Konsinyasi')
+            ->assertDontSee('Laporan Konsinyasi')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Klaim Dana Sosial')
             ->assertDontSee('Jasa Print')
@@ -303,12 +310,11 @@ class AccessMatrixTest extends TestCase
 
         return User::factory()->create([
             'name' => $karyawan->nama,
-            'email' => 'user-' . $email,
+            'email' => 'user-'.$email,
             'role' => 'karyawan',
             'karyawan_id' => $karyawan->id,
             'is_active' => true,
             'must_change_password' => false,
         ]);
     }
-
 }

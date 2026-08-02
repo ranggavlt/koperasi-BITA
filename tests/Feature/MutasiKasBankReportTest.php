@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\DompetKoperasi;
 use App\Models\MutasiKas;
-use App\Models\PembayaranSewaMobil;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
 use App\Models\User;
@@ -101,7 +100,7 @@ class MutasiKasBankReportTest extends TestCase
         $kas = $this->dompet('Kas Pagination', DompetKoperasi::JENIS_KAS, 0);
 
         for ($i = 1; $i <= 16; $i++) {
-            $this->mutasi($kas, 'masuk', '1000.00', '2026-07-' . str_pad((string) min($i, 28), 2, '0', STR_PAD_LEFT), Penjualan::class, 'POS Page ' . $i);
+            $this->mutasi($kas, 'masuk', '1000.00', '2026-07-'.str_pad((string) min($i, 28), 2, '0', STR_PAD_LEFT), Penjualan::class, 'POS Page '.$i);
         }
 
         $this->actingAs($finance)
@@ -115,7 +114,7 @@ class MutasiKasBankReportTest extends TestCase
             ->assertOk()
             ->assertSee('page=2', false)
             ->assertSee('tipe=masuk', false)
-            ->assertSee('dompet_id=' . $kas->id, false);
+            ->assertSee('dompet_id='.$kas->id, false);
     }
 
     public function test_finance_boleh_mengakses_dan_role_lain_ditolak(): void
@@ -177,10 +176,6 @@ class MutasiKasBankReportTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSeeInOrder([
-                'POS / Kasir',
-                'Penjualan / Kasir',
-                'Pembayaran Konsinyasi',
-                'Laporan Konsinyasi',
                 'Master Data',
                 'Karyawan',
                 'Anggota',
@@ -214,6 +209,10 @@ class MutasiKasBankReportTest extends TestCase
                 'Penyelesaian Keanggotaan',
                 'Riwayat Koreksi Transaksi',
             ], false)
+            ->assertDontSee('POS / Kasir')
+            ->assertDontSee('Penjualan / Kasir')
+            ->assertDontSee('Pembayaran Konsinyasi')
+            ->assertDontSee('Laporan Konsinyasi')
             ->assertDontSee('Mobil Koperasi')
             ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Transaksi SHU')
@@ -268,7 +267,7 @@ class MutasiKasBankReportTest extends TestCase
         return DompetKoperasi::query()->create([
             'nama_dompet' => $name,
             'jenis_dompet' => $jenis,
-            'saldo' => $saldo . '.00',
+            'saldo' => $saldo.'.00',
         ]);
     }
 
@@ -281,7 +280,7 @@ class MutasiKasBankReportTest extends TestCase
         string $keterangan
     ): MutasiKas {
         return MutasiKas::query()->create([
-            'idempotency_key' => 'test:mutasi:' . md5($dompet->id . $tipe . $jumlah . $tanggal . $referensiTipe . $keterangan),
+            'idempotency_key' => 'test:mutasi:'.md5($dompet->id.$tipe.$jumlah.$tanggal.$referensiTipe.$keterangan),
             'dompet_id' => $dompet->id,
             'tipe' => $tipe,
             'jumlah' => $jumlah,
