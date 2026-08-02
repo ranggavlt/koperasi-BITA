@@ -11,6 +11,9 @@
   --kbsm-white: #ffffff;
   --kbsm-green-ring: rgba(47, 143, 58, 0.18);
   --kbsm-navy-shadow: rgba(5, 44, 70, 0.16);
+  --kbsm-sidebar-width: 224px;
+  --kbsm-sidebar-gap: 16px;
+  --kbsm-content-offset: calc(var(--kbsm-sidebar-width) + (var(--kbsm-sidebar-gap) * 2));
 }
 
 .kbsm-app {
@@ -18,6 +21,7 @@
     radial-gradient(circle at 100% 0%, rgba(99, 181, 50, 0.08), transparent 24rem),
     var(--kbsm-surface);
   color: var(--kbsm-muted);
+  overflow-x: hidden;
 }
 
 .kbsm-app h1,
@@ -111,12 +115,44 @@
   outline-color: var(--kbsm-green);
 }
 
+/* Global layout shell: one source of truth for sidebar/content spacing. */
+.kbsm-layout-main {
+  min-width: 0;
+  width: 100%;
+  overflow-x: clip;
+}
+
+.kbsm-navbar {
+  min-width: 0;
+}
+
+.kbsm-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 980;
+  background: rgba(5, 44, 70, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.kbsm-sidebar-backdrop--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.kbsm-sidebar-drawer-open {
+  overflow: hidden;
+}
+
 /* Final KBSM navigation sidebar */
 .kbsm-sidebar {
   display: flex;
   flex-direction: column;
-  max-width: 224px;
-  max-height: calc(100vh - 2rem);
+  width: var(--kbsm-sidebar-width);
+  max-width: var(--kbsm-sidebar-width);
+  max-height: calc(100vh - (var(--kbsm-sidebar-gap) * 2));
+  left: var(--kbsm-sidebar-gap);
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(7, 59, 92, 0.28) transparent;
@@ -370,7 +406,20 @@
 
 @media (max-width: 1199px) {
   .kbsm-sidebar {
-    max-width: 232px;
+    width: min(88vw, 232px);
+    max-width: min(88vw, 232px);
+    left: var(--kbsm-sidebar-gap);
+  }
+}
+
+@media (min-width: 1200px) {
+  .kbsm-layout-main {
+    margin-left: var(--kbsm-content-offset);
+    width: calc(100% - var(--kbsm-content-offset));
+  }
+
+  .kbsm-sidebar-backdrop {
+    display: none !important;
   }
 }
 

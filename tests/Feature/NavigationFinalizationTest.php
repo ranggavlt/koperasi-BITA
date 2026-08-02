@@ -123,6 +123,54 @@ class NavigationFinalizationTest extends TestCase
         $response->assertSee('Cari modul');
     }
 
+    public function test_layout_global_memakai_offset_sidebar_semantik_dan_backdrop(): void
+    {
+        $admin = $this->user('admin');
+
+        $this->actingAs($admin)
+            ->get(route('invoice-penagihan.index'))
+            ->assertOk()
+            ->assertSee('kbsm-layout-main', false)
+            ->assertSee('kbsm-navbar', false)
+            ->assertSee('data-kbsm-sidebar', false)
+            ->assertSee('data-kbsm-sidebar-backdrop', false)
+            ->assertSee('data-sidebar-accordion', false)
+            ->assertDontSee('xl:ml-68.5', false)
+            ->assertDontSee('main.xl\\:ml-68\\.5', false)
+            ->assertDontSee('max-w-62.5', false);
+    }
+
+    public function test_css_layout_sidebar_memiliki_satu_sumber_ukuran_desktop_mobile(): void
+    {
+        $css = file_get_contents(public_path('assets/css/kbsm-theme.css'));
+        $sidebar = file_get_contents(resource_path('views/layout/sidebar.blade.php'));
+
+        $this->assertStringContainsString('--kbsm-sidebar-width: 224px;', $css);
+        $this->assertStringContainsString('--kbsm-sidebar-gap: 16px;', $css);
+        $this->assertStringContainsString('--kbsm-content-offset:', $css);
+        $this->assertStringContainsString('.kbsm-layout-main', $css);
+        $this->assertStringContainsString('.kbsm-sidebar-backdrop--visible', $css);
+        $this->assertStringContainsString('.kbsm-sidebar-drawer-open', $css);
+        $this->assertMatchesRegularExpression('/@media\s*\(min-width:\s*1200px\)[\s\S]*?\.kbsm-layout-main\s*\{[\s\S]*?margin-left:\s*var\(--kbsm-content-offset\)/', $css);
+        $this->assertMatchesRegularExpression('/@media\s*\(max-width:\s*1199px\)[\s\S]*?\.kbsm-sidebar\s*\{[\s\S]*?width:\s*min\(88vw,\s*232px\)/', $css);
+        $this->assertStringNotContainsString('main.xl\\:ml-68\\.5', $css);
+        $this->assertStringNotContainsString('max-w-62.5', $sidebar);
+        $this->assertStringNotContainsString('xl:ml-68.5', file_get_contents(resource_path('views/layout/main.blade.php')));
+    }
+
+    public function test_sidebar_drawer_script_menutup_backdrop_escape_dan_body_scroll(): void
+    {
+        $js = file_get_contents(public_path('assets/js/sidenav-burger.js'));
+
+        $this->assertStringContainsString('[data-kbsm-sidebar-backdrop]', $js);
+        $this->assertStringContainsString('kbsm-sidebar-backdrop--visible', $js);
+        $this->assertStringContainsString('kbsm-sidebar-drawer-open', $js);
+        $this->assertStringContainsString('event.key === "Escape"', $js);
+        $this->assertStringContainsString('window.matchMedia("(min-width: 1200px)")', $js);
+        $this->assertStringNotContainsString('var burger = sidenav_trigger.firstElementChild;', $js);
+        $this->assertStringNotContainsString('sidenav_trigger.click();', $js);
+    }
+
     public function test_kasir_hanya_melihat_menu_kasir_dan_konsinyasi(): void
     {
         $kasir = $this->user('kasir');

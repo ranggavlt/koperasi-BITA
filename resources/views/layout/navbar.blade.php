@@ -10,7 +10,7 @@
     $brandName = config('navigation.brand.name', 'Koperasi BITA');
 @endphp
 
-<nav class="flex flex-wrap items-center justify-between px-0 py-2 mx-6 mt-3 mb-2 transition-all duration-250 ease-soft-in rounded-2xl lg:flex-nowrap lg:justify-start bg-white shadow-soft-xl" navbar-main>
+<nav class="kbsm-navbar flex flex-wrap items-center justify-between px-0 py-2 mx-6 mt-3 mb-2 transition-all duration-250 ease-soft-in rounded-2xl lg:flex-nowrap lg:justify-start bg-white shadow-soft-xl" navbar-main>
     <div class="flex items-center justify-between w-full px-4 py-1 mx-auto flex-wrap lg:flex-nowrap" data-navbar-shell>
         
         <!-- BREADCRUMBS (LEFT) -->
@@ -75,7 +75,7 @@
             @endauth
 
             <!-- Hamburger Menu (Mobile) -->
-            <a href="javascript:;" class="block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden" sidenav-trigger>
+            <a href="javascript:;" class="block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden" sidenav-trigger aria-controls="kbsm-sidebar" aria-expanded="false" aria-label="Buka sidebar">
                 <div class="w-4.5 overflow-hidden">
                     <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
                     <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>

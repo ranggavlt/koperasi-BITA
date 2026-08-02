@@ -11,13 +11,14 @@
 @endphp
 
 <aside
-  class="kbsm-sidebar max-w-62.5 ease-nav-brand z-990 fixed inset-y-0 my-4 ml-4 block w-full -translate-x-full flex-wrap items-stretch overflow-y-auto overflow-x-hidden rounded-2xl border-0 bg-white p-0 antialiased shadow-soft-xl transition-transform duration-200 xl:left-0 xl:translate-x-0 xl:bg-white"
+  id="kbsm-sidebar"
+  class="kbsm-sidebar ease-nav-brand z-990 fixed inset-y-0 my-4 block -translate-x-full flex-wrap items-stretch overflow-y-auto overflow-x-hidden rounded-2xl border-0 bg-white p-0 antialiased shadow-soft-xl transition-transform duration-200 xl:translate-x-0 xl:bg-white"
   data-kbsm-sidebar
   data-group-storage-key="{{ $stateKeys['groups'] }}"
   data-scroll-storage-key="{{ $stateKeys['scroll'] }}"
   data-storage-prefixes='@json($stateKeys['prefixes'])'>
 
-  <button type="button" class="kbsm-sidebar-close xl:hidden" sidenav-close aria-label="Tutup sidebar">
+  <button type="button" class="kbsm-sidebar-close hidden xl:hidden" sidenav-close aria-label="Tutup sidebar" aria-controls="kbsm-sidebar">
     <span aria-hidden="true">&times;</span>
   </button>
 
