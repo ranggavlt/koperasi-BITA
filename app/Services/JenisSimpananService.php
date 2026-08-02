@@ -202,24 +202,15 @@ class JenisSimpananService
             ]);
         }
 
-        if (in_array($payload['kategori'], [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_MANASUKA], true)
-            && $payload['interval_bulan'] !== null) {
+        if ($payload['interval_bulan'] !== null) {
             throw ValidationException::withMessages([
-                'interval_bulan' => 'Interval hanya boleh diisi untuk Simpanan Wajib.',
+                'interval_bulan' => 'SP-7 tidak lagi memakai interval. Simpanan Wajib dibayar satu kali per siklus, Manasuka sesuai transaksi.',
             ]);
         }
 
-        if ($payload['kategori'] === JenisSimpanan::KATEGORI_WAJIB
-            && ($payload['interval_bulan'] < 1 || $payload['interval_bulan'] > 12)) {
+        if ($payload['kategori'] === JenisSimpanan::KATEGORI_WAJIB && $payload['nominal_default'] !== 10000) {
             throw ValidationException::withMessages([
-                'interval_bulan' => 'Interval Simpanan Wajib wajib antara 1 sampai 12 bulan.',
-            ]);
-        }
-
-        if (in_array($payload['kategori'], [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB], true)
-            && $payload['nominal_default'] <= 0) {
-            throw ValidationException::withMessages([
-                'nominal_default' => 'Nominal default Simpanan Pokok/Wajib wajib lebih besar dari nol.',
+                'nominal_default' => 'Nominal Simpanan Wajib final wajib tepat Rp10.000.',
             ]);
         }
 
@@ -241,7 +232,7 @@ class JenisSimpananService
         }
 
         $expectedKategori = match ($kategori) {
-            JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB => 'ekuitas',
+            JenisSimpanan::KATEGORI_WAJIB => 'ekuitas',
             JenisSimpanan::KATEGORI_MANASUKA => 'kewajiban',
             default => null,
         };
@@ -250,7 +241,7 @@ class JenisSimpananService
             throw ValidationException::withMessages([
                 'akun_id' => $kategori === JenisSimpanan::KATEGORI_MANASUKA
                     ? 'Simpanan Manasuka wajib memakai akun Kewajiban aktif.'
-                    : 'Simpanan Pokok/Wajib wajib memakai akun Ekuitas aktif.',
+                    : 'Simpanan Wajib wajib memakai akun Ekuitas aktif.',
             ]);
         }
     }

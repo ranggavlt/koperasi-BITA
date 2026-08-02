@@ -71,7 +71,7 @@ class PotongGajiTahap2ETest extends TestCase
         $this->assertSame(10, $produk->fresh()->stok);
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', ReversalTransaksi::class)->where('referensi_id', $reversal->id)->count());
         $this->assertBalanced($reversal);
-        $this->assertSame(20000000, $limit->fresh()->sisaLimitCents());
+        $this->assertSame(59000000, $limit->fresh()->sisaLimitCents());
 
         $this->expectValidation(fn () => app(TransaksiReversalService::class)->cancelPendingPayrollPos($penjualan->fresh(), 'Duplikat reversal.', $user->id));
     }

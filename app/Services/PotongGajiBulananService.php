@@ -75,8 +75,6 @@ class PotongGajiBulananService
                 ->first();
 
             if ($existing) {
-                app(SimpananWajibService::class)->generateUntil($existing->periode, null, $userId);
-
                 return $existing;
             }
 
@@ -85,8 +83,6 @@ class PotongGajiBulananService
                 'status' => PeriodePotongGaji::STATUS_DRAFT,
                 'created_by' => $userId,
             ]);
-
-            app(SimpananWajibService::class)->generateUntil($periode->periode, null, $userId);
 
             return $periode;
         });
@@ -698,7 +694,6 @@ class PotongGajiBulananService
             }
 
             $this->reserveDueInstallmentsForLimit($locked, $userId);
-            $this->allocatePendingSimpananPokokForLimit($locked, $userId);
             app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $userId);
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
@@ -759,7 +754,7 @@ class PotongGajiBulananService
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
                         $subQuery->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-                            ->where('source_type', JadwalSimpananWajib::class)
+                            ->whereIn('source_type', [Simpanan::class, JadwalSimpananWajib::class])
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
                         $subQuery->whereIn('kategori', [
@@ -1097,7 +1092,7 @@ class PotongGajiBulananService
                 app(SimpananWajibService::class)->releaseReservationsForLimit(
                     $limit,
                     $userId,
-                    'Karyawan berhenti sebelum payroll confirmed; tagihan Simpanan Wajib tetap outstanding.'
+                    'Karyawan berhenti sebelum payroll confirmed; Simpanan Wajib final kembali pending untuk dibatalkan pada settlement.'
                 );
 
                 $usages = PemakaianPotongGaji::query()
@@ -1792,9 +1787,9 @@ class PotongGajiBulananService
     {
         $priority = [
             PemakaianPotongGaji::KATEGORI_CICILAN => 10,
-            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 20,
-            PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 30,
-            PemakaianPotongGaji::KATEGORI_POS => 40,
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 20,
+            PemakaianPotongGaji::KATEGORI_POS => 30,
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 90,
         ];
 
         return $entries

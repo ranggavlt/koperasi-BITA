@@ -8,6 +8,7 @@ use App\Models\PembayaranSewaHardware;
 use App\Models\ReversalTransaksi;
 use App\Models\SewaMobil;
 use App\Models\SewaHardware;
+use App\Models\Simpanan;
 use App\Services\PotongGajiReportService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -95,9 +96,9 @@ class PreflightPotongGajiCommand extends Command
             $this->check('jenis_simpanan_aktif_ganda', 'Master aktif ganda per kategori Simpanan', $this->jenisSimpananAktifGanda()),
             $this->check('jenis_simpanan_kategori_invalid', 'Kategori Jenis Simpanan null/tidak dikenal', $this->jenisSimpananKategoriInvalid()),
             $this->check('jenis_simpanan_kode_mismatch', 'Kode sistem tidak sesuai kategori Jenis Simpanan', $this->jenisSimpananKodeMismatch()),
-            $this->check('jenis_simpanan_interval_invalid', 'Interval Simpanan Wajib di luar 1-12 bulan', $this->jenisSimpananIntervalInvalid()),
+            $this->check('jenis_simpanan_interval_invalid', 'Simpanan Wajib final masih mempunyai interval', $this->jenisSimpananIntervalInvalid()),
             $this->check('jenis_simpanan_interval_terlarang', 'Simpanan Pokok/Manasuka mempunyai interval', $this->jenisSimpananIntervalTerlarang()),
-            $this->check('jenis_simpanan_nominal_invalid', 'Simpanan Pokok/Wajib tanpa nominal valid', $this->jenisSimpananNominalInvalid()),
+            $this->check('jenis_simpanan_nominal_invalid', 'Simpanan Wajib final bukan Rp10.000 atau nominal legacy invalid', $this->jenisSimpananNominalInvalid()),
             $this->check('jenis_simpanan_coa_invalid', 'Master aktif tanpa COA valid', $this->jenisSimpananCoaInvalid()),
             $this->check('simpanan_reference_invalid', 'Transaksi Simpanan tanpa Jenis/Anggota/Dompet valid', $this->simpananReferenceInvalid()),
             $this->check('simpanan_posting_dompet_mismatch', 'Mutasi dan Jurnal Simpanan memakai Dompet/COA debit berbeda', $this->simpananPostingDompetMismatch()),
@@ -1086,11 +1087,8 @@ class PreflightPotongGajiCommand extends Command
 
         return DB::table('jenis_simpanan')
             ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
-            ->where(function ($query): void {
-                $query->whereNull('interval_bulan')
-                    ->orWhere('interval_bulan', '<', 1)
-                    ->orWhere('interval_bulan', '>', 12);
-            })
+            ->where('aktif', true)
+            ->whereNotNull('interval_bulan')
             ->count();
     }
 
@@ -1112,13 +1110,24 @@ class PreflightPotongGajiCommand extends Command
             return 0;
         }
 
-        return DB::table('jenis_simpanan')
-            ->whereIn('kategori', [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB])
+        $legacyInvalid = DB::table('jenis_simpanan')
+            ->where('kategori', JenisSimpanan::KATEGORI_POKOK)
             ->where(function ($query): void {
                 $query->whereNull('nominal_default')
                     ->orWhere('nominal_default', '<=', 0);
             })
             ->count();
+
+        $finalWajibInvalid = DB::table('jenis_simpanan')
+            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
+            ->where('aktif', true)
+            ->where(function ($query): void {
+                $query->whereNull('nominal_default')
+                    ->orWhereRaw('ABS(nominal_default - 10000) > 0.01');
+            })
+            ->count();
+
+        return $legacyInvalid + $finalWajibInvalid;
     }
 
     private function jenisSimpananCoaInvalid(): int
@@ -1819,6 +1828,7 @@ class PreflightPotongGajiCommand extends Command
             PembayaranSewaHardware::class,
             SewaHardware::class,
             ReversalTransaksi::class,
+            Simpanan::class,
         ];
     }
 

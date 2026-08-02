@@ -280,6 +280,10 @@ class PreflightSimpananManasukaCommand extends Command
             ->join('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')
             ->whereIn('js.kategori', [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB])
             ->whereIn('s.jenis_transaksi', [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])
+            ->where(function ($query): void {
+                $query->where('s.kode_transaksi', 'like', 'SMN-%')
+                    ->orWhere('s.idempotency_key', 'like', 'simpanan-manasuka:%');
+            })
             ->count('s.id');
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreAnggotaRequest;
 use App\Http\Requests\UpdateAnggotaRequest;
 use App\Models\Anggota;
+use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Services\MasterDataKoperasiService;
 
@@ -76,6 +77,18 @@ class AnggotaController extends Controller
             ->orderBy('nama')
             ->get();
 
-        return view('pages.anggota.index', compact('anggota', 'karyawanTersedia', 'data'));
+        $dompetKas = DompetKoperasi::query()
+            ->with('akun')
+            ->kas()
+            ->orderBy('nama_dompet')
+            ->get();
+
+        $dompetBank = DompetKoperasi::query()
+            ->with('akun')
+            ->bank()
+            ->orderBy('nama_dompet')
+            ->get();
+
+        return view('pages.anggota.index', compact('anggota', 'karyawanTersedia', 'data', 'dompetKas', 'dompetBank'));
     }
 }

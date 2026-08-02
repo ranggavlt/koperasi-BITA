@@ -47,6 +47,7 @@ class Simpanan extends Model
         'replacement_simpanan_id',
         'simpanan_pokok_anggota_id',
         'simpanan_pokok_siklus_id',
+        'simpanan_wajib_siklus_id',
         'siklus_keanggotaan_id',
         'penyelesaian_keanggotaan_id',
         'jenis_simpanan_id',
@@ -89,6 +90,13 @@ class Simpanan extends Model
                     : null;
 
                 $simpanan->simpanan_pokok_siklus_id = $activeSimpananPokok
+                    ? $simpanan->siklus_keanggotaan_id
+                    : null;
+
+                $activeSimpananWajib = $simpanan->kode_jenis_snapshot === JenisSimpanan::KODE_SIMPANAN_WAJIB
+                    && ! in_array($simpanan->status, [self::STATUS_REVERSED, self::STATUS_REVERSED_DUE_TO_EXIT], true);
+
+                $simpanan->simpanan_wajib_siklus_id = $activeSimpananWajib
                     ? $simpanan->siklus_keanggotaan_id
                     : null;
             }

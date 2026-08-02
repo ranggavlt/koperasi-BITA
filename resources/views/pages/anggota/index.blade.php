@@ -6,6 +6,10 @@
   @if ($errors->any())
     <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><ul class="mb-0 list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
   @endif
+  @php
+    $selectedWajibMethod = old('simpanan_wajib_metode_pembayaran', 'potong_gaji');
+    $selectedWajibDompet = old('simpanan_wajib_dompet_id');
+  @endphp
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
@@ -59,6 +63,47 @@
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="alamat">Alamat rumah lengkap</label>
           <textarea id="alamat" name="alamat" rows="3" required class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">{{ old('alamat', $data->alamat ?? '') }}</textarea>
         </div>
+        @if(!isset($data))
+          <div class="md:col-span-2 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+            <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p class="mb-1 text-xs font-bold uppercase tracking-widest text-emerald-700">Pembayaran Simpanan Wajib</p>
+                <h3 class="m-0 text-sm font-bold text-slate-700">Simpanan Wajib Rp10.000 satu kali per siklus</h3>
+                <p class="mb-0 mt-1 text-xs text-slate-500">Potong gaji menjadi default. Tunai wajib memakai Dompet Kas, transfer wajib memakai Dompet Bank.</p>
+              </div>
+              <div class="rounded-xl bg-white px-4 py-3 text-right shadow-sm">
+                <div class="text-[10px] font-bold uppercase text-slate-400">Nominal readonly</div>
+                <div class="text-base font-extrabold text-[#073b5c]">Rp 10.000</div>
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="simpanan_wajib_metode_pembayaran">Metode pembayaran</label>
+                <select id="simpanan_wajib_metode_pembayaran" name="simpanan_wajib_metode_pembayaran" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                  <option value="potong_gaji" {{ $selectedWajibMethod === 'potong_gaji' ? 'selected' : '' }}>Potong Gaji</option>
+                  <option value="tunai" {{ $selectedWajibMethod === 'tunai' ? 'selected' : '' }}>Tunai - Dompet Kas</option>
+                  <option value="transfer_bank" {{ $selectedWajibMethod === 'transfer_bank' ? 'selected' : '' }}>Transfer Bank - Dompet Bank</option>
+                </select>
+              </div>
+              <div id="simpanan-wajib-dompet-field">
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="simpanan_wajib_dompet_id">Dompet</label>
+                <select id="simpanan_wajib_dompet_id" name="simpanan_wajib_dompet_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                  <option value="">Tidak perlu untuk Potong Gaji</option>
+                  <optgroup label="Dompet Kas">
+                    @foreach(($dompetKas ?? collect()) as $dompet)
+                      <option value="{{ $dompet->id }}" data-kind="tunai" {{ (string) $selectedWajibDompet === (string) $dompet->id ? 'selected' : '' }}>{{ $dompet->nama_dompet }} @if($dompet->akun) - {{ $dompet->akun->kode_akun }} @endif</option>
+                    @endforeach
+                  </optgroup>
+                  <optgroup label="Dompet Bank">
+                    @foreach(($dompetBank ?? collect()) as $dompet)
+                      <option value="{{ $dompet->id }}" data-kind="transfer_bank" {{ (string) $selectedWajibDompet === (string) $dompet->id ? 'selected' : '' }}>{{ $dompet->nama_dompet }} @if($dompet->akun) - {{ $dompet->akun->kode_akun }} @endif</option>
+                    @endforeach
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+          </div>
+        @endif
       </div>
       <div class="mt-6 flex gap-3">
         <button type="submit" class="rounded-xl bg-[#2f8f3a] px-6 py-3 text-xs font-bold uppercase text-white shadow-lg hover:bg-[#267832]">{{ isset($data) ? 'Simpan Perubahan' : 'Simpan Anggota' }}</button>
@@ -84,18 +129,7 @@
               <td class="px-6 py-4"><div class="flex flex-wrap justify-center gap-2">
                 <a href="{{ route('anggota.edit', $item) }}" class="rounded-lg bg-[#073b5c] px-3 py-2 text-xs font-bold text-white">Edit</a>
                 @if($item->status === 'aktif')
-                  @php
-                    $hasUnpaidWajib = $item->jadwalSimpananWajib()
-                      ->whereIn('status', [
-                          \App\Models\JadwalSimpananWajib::STATUS_OUTSTANDING,
-                          \App\Models\JadwalSimpananWajib::STATUS_RESERVED,
-                      ])->exists();
-                  @endphp
-                  @if($hasUnpaidWajib)
-                    <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-400 cursor-not-allowed" title="Masih ada tagihan Simpanan Wajib">Nonaktifkan</button>
-                  @else
-                    <form method="POST" action="{{ route('anggota.deactivate', $item) }}" onsubmit="return confirm('Nonaktifkan Anggota ini dan jabatan Pengurus aktif terkait?')">@csrf @method('PATCH')<button class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700">Nonaktifkan</button></form>
-                  @endif
+                  <form method="POST" action="{{ route('anggota.deactivate', $item) }}" onsubmit="return confirm('Nonaktifkan Anggota ini dan jabatan Pengurus aktif terkait? Simpanan Wajib pending akan dibatalkan lewat settlement.')">@csrf @method('PATCH')<button class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700">Nonaktifkan</button></form>
                 @elseif($item->karyawan->status_kerja === 'aktif')
                   <form method="POST" action="{{ route('anggota.activate', $item) }}">@csrf @method('PATCH')<button class="rounded-lg bg-[#2f8f3a] px-3 py-2 text-xs font-bold text-white">Aktifkan</button></form>
                 @endif
@@ -117,5 +151,34 @@
     panel.classList.toggle('hidden');
     button.textContent = panel.classList.contains('hidden') ? '+ Daftarkan Anggota' : 'Tutup Form';
   }
+
+  (function () {
+    const method = document.getElementById('simpanan_wajib_metode_pembayaran');
+    const dompet = document.getElementById('simpanan_wajib_dompet_id');
+    const wrapper = document.getElementById('simpanan-wajib-dompet-field');
+    if (!method || !dompet || !wrapper) return;
+
+    function syncDompetVisibility() {
+      const value = method.value || 'potong_gaji';
+      wrapper.style.display = value === 'potong_gaji' ? 'none' : '';
+      Array.from(dompet.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          return;
+        }
+
+        option.hidden = option.dataset.kind !== value;
+      });
+
+      if (value === 'potong_gaji') {
+        dompet.value = '';
+      } else if (dompet.selectedOptions[0]?.dataset.kind !== value) {
+        dompet.value = '';
+      }
+    }
+
+    method.addEventListener('change', syncDompetVisibility);
+    syncDompetVisibility();
+  })();
 </script>
 @endsection

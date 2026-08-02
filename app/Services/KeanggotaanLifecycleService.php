@@ -510,9 +510,16 @@ class KeanggotaanLifecycleService
         });
     }
 
-    public function reRegisterMember(PenyelesaianKeanggotaan $penyelesaian, CarbonInterface|string $tanggalBergabung, string $reason, ?int $userId): Anggota
+    public function reRegisterMember(
+        PenyelesaianKeanggotaan $penyelesaian,
+        CarbonInterface|string $tanggalBergabung,
+        string $reason,
+        ?int $userId,
+        string $metodePembayaran = Simpanan::METODE_POTONG_GAJI,
+        ?int $dompetId = null
+    ): Anggota
     {
-        return DB::transaction(function () use ($penyelesaian, $tanggalBergabung, $reason, $userId): Anggota {
+        return DB::transaction(function () use ($penyelesaian, $tanggalBergabung, $reason, $userId, $metodePembayaran, $dompetId): Anggota {
             $tanggal = $this->normalizeDate($tanggalBergabung);
             if ($tanggal->greaterThan(CarbonImmutable::now($this->timezone())->startOfDay())) {
                 throw ValidationException::withMessages(['tanggal_bergabung' => 'Tanggal bergabung baru tidak boleh melebihi hari ini.']);
@@ -543,8 +550,14 @@ class KeanggotaanLifecycleService
 
             $cycle = $this->createReRegistrationCycle($anggota->fresh(), $tanggal, $userId);
             $this->ensureZeroManasukaSaldoForCycle($anggota->fresh(), $cycle);
-            $this->createSimpananPokokForCycle($anggota->fresh(), $cycle, $userId);
-            app(SimpananWajibService::class)->generateUntil($tanggal, $anggota->fresh(), $userId);
+            app(SimpananWajibService::class)->createForCycle(
+                $anggota->fresh(),
+                $cycle,
+                $metodePembayaran,
+                $dompetId,
+                $userId,
+                $tanggal
+            );
 
             $this->syncLegacyIsAnggotaForLifecycle($karyawan->fresh(), $anggota->fresh());
 
@@ -787,6 +800,30 @@ class KeanggotaanLifecycleService
 
     private function restoreCancelledWajibForDeactivation(PenyelesaianKeanggotaan $penyelesaian, ?int $userId, string $reason): void
     {
+        $simpananRows = Simpanan::query()
+            ->with(['jenisSimpanan.akun'])
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('status', Simpanan::STATUS_REVERSED_DUE_TO_EXIT)
+            ->where('penyelesaian_keanggotaan_id', $penyelesaian->id)
+            ->orderBy('tanggal')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($simpananRows as $simpanan) {
+            $this->akuntansiService->recordSimpananWajibExitRecovery($simpanan, $userId);
+
+            $simpanan->update([
+                'status' => Simpanan::STATUS_PENDING_PAYROLL,
+                'pemakaian_potong_gaji_id' => null,
+                'reversal_transaksi_id' => null,
+                'penyelesaian_keanggotaan_id' => null,
+                'metode_pembayaran' => Simpanan::METODE_POTONG_GAJI,
+            ]);
+        }
+
         $jadwals = JadwalSimpananWajib::query()
             ->with(['simpanan.jenisSimpanan.akun', 'simpanan.jadwalSimpananWajib'])
             ->where('anggota_id', $penyelesaian->anggota_id)
@@ -887,17 +924,27 @@ class KeanggotaanLifecycleService
 
     private function rightSources(PenyelesaianKeanggotaan $penyelesaian): Collection
     {
+        $hasFinalWajib = Simpanan::query()
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereIn('status', [Simpanan::STATUS_SETTLED, Simpanan::STATUS_SETTLED_CASH])
+            ->whereNull('penyelesaian_keanggotaan_id')
+            ->exists();
+
+        $rightCodes = [JenisSimpanan::KODE_SIMPANAN_WAJIB];
+        if (! $hasFinalWajib) {
+            $rightCodes[] = JenisSimpanan::KODE_SIMPANAN_POKOK;
+        }
+
         $simpananRows = Simpanan::query()
             ->with('jenisSimpanan.akun')
             ->where('anggota_id', $penyelesaian->anggota_id)
             ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
-            ->whereIn('kode_jenis_snapshot', [
-                JenisSimpanan::KODE_SIMPANAN_POKOK,
-                JenisSimpanan::KODE_SIMPANAN_WAJIB,
-            ])
+            ->whereIn('kode_jenis_snapshot', $rightCodes)
             ->whereIn('status', [Simpanan::STATUS_SETTLED, Simpanan::STATUS_SETTLED_CASH])
             ->whereNull('penyelesaian_keanggotaan_id')
-            ->orderByRaw("case when kode_jenis_snapshot = 'SIMPANAN_POKOK' then 1 else 2 end")
+            ->orderByRaw("case when kode_jenis_snapshot = 'SIMPANAN_WAJIB' then 1 else 2 end")
             ->orderBy('tanggal')
             ->orderBy('id')
             ->lockForUpdate()
@@ -1535,6 +1582,8 @@ class KeanggotaanLifecycleService
 
     private function cancelUnpaidWajibForExit(PenyelesaianKeanggotaan $penyelesaian, ?int $userId): void
     {
+        $this->cancelFinalWajibForExit($penyelesaian, $userId);
+
         $jadwals = JadwalSimpananWajib::query()
             ->with(['simpanan.jurnal', 'simpanan.ledger', 'jenisSimpanan.akun', 'activeLedger'])
             ->where('anggota_id', $penyelesaian->anggota_id)
@@ -1622,6 +1671,111 @@ class KeanggotaanLifecycleService
 
             $this->upsertWajibCancellationDetail($penyelesaian, $jadwal->fresh(['jenisSimpanan.akun']), $userId);
         }
+    }
+
+    private function cancelFinalWajibForExit(PenyelesaianKeanggotaan $penyelesaian, ?int $userId): void
+    {
+        $simpananRows = Simpanan::query()
+            ->with(['ledger', 'jurnal', 'jenisSimpanan.akun'])
+            ->where('anggota_id', $penyelesaian->anggota_id)
+            ->where('siklus_keanggotaan_id', $penyelesaian->siklus_keanggotaan_id)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereIn('status', [
+                Simpanan::STATUS_PENDING_PAYROLL,
+                Simpanan::STATUS_ALLOCATED,
+                Simpanan::STATUS_OUTSTANDING_CASH,
+                Simpanan::STATUS_REVERSED_DUE_TO_EXIT,
+            ])
+            ->orderBy('tanggal')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($simpananRows as $simpanan) {
+            if ($simpanan->status === Simpanan::STATUS_REVERSED_DUE_TO_EXIT) {
+                $this->upsertFinalWajibCancellationDetail($penyelesaian, $simpanan, $userId);
+                continue;
+            }
+
+            $ledger = $simpanan->ledger;
+            if ($ledger && $ledger->status === PemakaianPotongGaji::STATUS_RESERVED) {
+                $ledger->update([
+                    'status' => PemakaianPotongGaji::STATUS_RELEASED,
+                    'released_at' => $this->now(),
+                    'released_by' => $userId,
+                    'release_reason' => 'Keanggotaan berakhir; Simpanan Wajib final dibatalkan.',
+                    'updated_by' => $userId,
+                ]);
+            }
+
+            if ($ledger && in_array($ledger->status, [PemakaianPotongGaji::STATUS_CONSUMED, PemakaianPotongGaji::STATUS_SETTLED], true)) {
+                continue;
+            }
+
+            $reversal = ReversalTransaksi::query()
+                ->where('source_type', Simpanan::class)
+                ->where('source_id', $simpanan->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $reversal) {
+                $reversal = ReversalTransaksi::query()->create([
+                    'kode_reversal' => $this->nextCode('reversal', 'REV'),
+                    'source_type' => Simpanan::class,
+                    'source_id' => $simpanan->id,
+                    'jenis_reversal' => ReversalTransaksi::JENIS_SIMPANAN_WAJIB_EXIT_CANCEL,
+                    'nominal' => $simpanan->nominal_snapshot ?? $simpanan->jumlah,
+                    'alasan' => 'Simpanan Wajib belum dibayar saat keanggotaan berakhir.',
+                    'status' => ReversalTransaksi::STATUS_PROCESSED,
+                    'original_ledger_id' => $simpanan->pemakaian_potong_gaji_id,
+                    'original_jurnal_id' => $simpanan->jurnal?->id,
+                    'created_by' => $userId,
+                    'processed_by' => $userId,
+                    'processed_at' => $this->now(),
+                    'idempotency_key' => 'reversal:simpanan-wajib-exit:' . $simpanan->id,
+                ]);
+            }
+
+            $this->akuntansiService->recordSimpananWajibExitCancellation($simpanan->fresh('jenisSimpanan.akun'), $reversal, $userId);
+
+            $simpanan->update([
+                'status' => Simpanan::STATUS_REVERSED_DUE_TO_EXIT,
+                'reversal_transaksi_id' => $reversal->id,
+                'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+            ]);
+
+            $this->upsertFinalWajibCancellationDetail($penyelesaian, $simpanan->fresh('jenisSimpanan.akun'), $userId);
+        }
+    }
+
+    private function upsertFinalWajibCancellationDetail(PenyelesaianKeanggotaan $penyelesaian, Simpanan $simpanan, ?int $userId): void
+    {
+        $akun = $simpanan->jenisSimpanan?->akun ?: $this->accountForRightCategory(PenyelesaianKeanggotaanDetail::KATEGORI_SIMPANAN_WAJIB);
+        $nominalCents = $this->decimalToCents($simpanan->nominal_snapshot ?? $simpanan->jumlah);
+
+        PenyelesaianKeanggotaanDetail::query()->updateOrCreate(
+            [
+                'penyelesaian_keanggotaan_id' => $penyelesaian->id,
+                'source_type' => Simpanan::class,
+                'source_id' => $simpanan->id,
+            ],
+            [
+                'tipe_detail' => PenyelesaianKeanggotaanDetail::TIPE_PEMBATALAN_WAJIB,
+                'kategori_sumber' => PenyelesaianKeanggotaanDetail::KATEGORI_PEMBATALAN_WAJIB,
+                'akun_id' => $akun->id,
+                'akun_kode_snapshot' => $akun->kode_akun,
+                'akun_nama_snapshot' => $akun->nama_akun,
+                'nominal_dibatalkan' => $this->decimalFromCents($nominalCents),
+                'nominal_hak_awal' => '0.00',
+                'nominal_kewajiban_awal' => '0.00',
+                'nominal_sisa' => '0.00',
+                'urutan_alokasi' => 8900 + (int) $simpanan->id,
+                'status' => PenyelesaianKeanggotaanDetail::STATUS_CANCELLED,
+                'processed_by' => $userId,
+                'processed_at' => $this->now(),
+                'idempotency_key' => 'penyelesaian:pembatalan-wajib-final:' . $penyelesaian->id . ':' . $simpanan->id,
+            ]
+        );
     }
 
     private function upsertWajibCancellationDetail(PenyelesaianKeanggotaan $penyelesaian, JadwalSimpananWajib $jadwal, ?int $userId): void

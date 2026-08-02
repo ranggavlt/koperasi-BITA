@@ -22,7 +22,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Master Data</p>
       <h1 class="kbsm-business-title">{{ $title }}</h1>
-      <p class="kbsm-business-subtitle">Gunakan kategori resmi. Kode sistem akan diselaraskan server-side sesuai kategori.</p>
+      <p class="kbsm-business-subtitle">Gunakan dua kategori final: Wajib satu kali per siklus dan Manasuka sesuai transaksi.</p>
     </div>
     <a href="{{ route('jenis-simpanan.index') }}" class="kbsm-business-back-link">Kembali ke Master Jenis Simpanan</a>
   </div>
@@ -73,11 +73,6 @@
           </div>
 
           <div class="kbsm-business-field">
-            <label class="kbsm-business-label">Interval Bulan</label>
-            <input type="number" name="interval_bulan" min="1" max="12" value="{{ old('interval_bulan', $jenis->interval_bulan) }}" class="kbsm-business-control" placeholder="Diisi hanya untuk Wajib">
-          </div>
-
-          <div class="kbsm-business-field">
             <label class="kbsm-business-label">Berlaku Mulai</label>
             <input type="date" name="berlaku_mulai" required value="{{ old('berlaku_mulai', $jenis->berlaku_mulai?->toDateString() ?? now(config('app.timezone', 'Asia/Jakarta'))->toDateString()) }}" class="kbsm-business-control">
           </div>
@@ -88,6 +83,13 @@
               <option value="1" {{ (string) $selectedAktif === '1' ? 'selected' : '' }}>Aktif</option>
               <option value="0" {{ (string) $selectedAktif === '0' ? 'selected' : '' }}>Nonaktif</option>
             </select>
+          </div>
+
+          <div class="kbsm-business-field kbsm-business-field--full">
+            <label class="kbsm-business-label">Aturan Final</label>
+            <div class="kbsm-business-note">
+              Simpanan Wajib dibayar Rp10.000 satu kali setiap siklus keanggotaan. Simpanan Manasuka adalah tabungan pilihan dan tidak memakai payroll pada SP-7.
+            </div>
           </div>
 
           <div class="kbsm-business-field kbsm-business-field--full">

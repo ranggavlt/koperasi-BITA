@@ -24,7 +24,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Master Data</p>
       <h1 class="kbsm-business-title">Master Jenis Simpanan</h1>
-      <p class="kbsm-business-subtitle">Konfigurasi resmi Simpanan Pokok, Wajib, dan Manasuka. Tidak ada hard delete; nonaktifkan master dengan alasan perubahan.</p>
+      <p class="kbsm-business-subtitle">Konfigurasi final hanya Simpanan Wajib satu kali per siklus dan Simpanan Manasuka. Histori lama tetap tersimpan tanpa hard delete.</p>
     </div>
     <a href="{{ route('jenis-simpanan.create') }}" class="kbsm-business-add-button">+ Tambah Jenis Simpanan</a>
   </div>
@@ -52,7 +52,7 @@
             <th>Nama</th>
             <th>Kategori</th>
             <th>Nominal Default</th>
-            <th>Interval</th>
+            <th>Aturan</th>
             <th>COA</th>
             <th>Status</th>
             <th>Riwayat Terakhir</th>

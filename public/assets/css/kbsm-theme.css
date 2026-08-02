@@ -2049,6 +2049,17 @@ textarea.kbsm-business-control {
   line-height: 1.38;
 }
 
+.kbsm-business-note {
+  padding: 0.8rem 0.9rem;
+  color: var(--kbsm-text);
+  background: rgba(47, 143, 58, 0.08);
+  border: 1px solid rgba(47, 143, 58, 0.18);
+  border-left: 4px solid var(--kbsm-green);
+  border-radius: 0.75rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
 .kbsm-business-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

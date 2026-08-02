@@ -19,7 +19,8 @@ class JenisSimpananController extends Controller
         $jenisSimpanan = JenisSimpanan::query()
             ->with(['akun', 'latestRiwayat.changedBy'])
             ->withCount('simpanan')
-            ->orderByRaw("case kategori when 'pokok' then 1 when 'wajib' then 2 when 'manasuka' then 3 else 99 end")
+            ->whereIn('kategori', array_keys(JenisSimpanan::KATEGORI))
+            ->orderByRaw("case kategori when 'wajib' then 1 when 'manasuka' then 2 else 99 end")
             ->orderBy('nama_jenis')
             ->paginate(12)
             ->withQueryString();
@@ -66,6 +67,8 @@ class JenisSimpananController extends Controller
 
     public function edit(JenisSimpanan $jenisSimpanan): View
     {
+        abort_unless(array_key_exists($jenisSimpanan->kategori, JenisSimpanan::KATEGORI), 404);
+
         return view('pages.jenis-simpanan.form', [
             'jenis' => $jenisSimpanan->load('akun', 'latestRiwayat.changedBy'),
             'akunOptions' => $this->akunOptions(),

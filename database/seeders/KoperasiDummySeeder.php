@@ -40,7 +40,6 @@ use App\Services\PotongGajiBulananService;
 use App\Services\SewaMobilService;
 use App\Services\SewaHardwareService;
 use App\Services\SimpananManasukaService;
-use App\Services\SimpananWajibService;
 use App\Services\TransaksiReversalService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -69,7 +68,6 @@ class KoperasiDummySeeder extends Seeder
             $keanggotaanLifecycleService = app(KeanggotaanLifecycleService::class);
             $posCheckoutService = app(PosCheckoutService::class);
             $potongGajiService = app(PotongGajiBulananService::class);
-            $simpananWajibService = app(SimpananWajibService::class);
             $reversalService = app(TransaksiReversalService::class);
 
             $keuangan = $this->seedUserDummy();
@@ -79,11 +77,11 @@ class KoperasiDummySeeder extends Seeder
 
             $karyawan = $this->seedKaryawan($masterDataService, $perusahaan);
             $jenisSimpanan = $this->seedJenisSimpanan($jenisSimpananService, $keuangan->id);
-            $anggota = $this->seedAnggota($karyawan, $masterDataService);
+            $dompet = $this->seedDompetKoperasi();
+            $anggota = $this->seedAnggota($karyawan, $masterDataService, $dompet);
             $kategori = $this->seedKategoriProduk();
             $reseller = $this->seedReseller();
             $produk = $this->seedProduk($kategori, $reseller);
-            $dompet = $this->seedDompetKoperasi();
             $this->seedJenisPinjaman();
             $this->seedPengurusKoperasi($anggota, $masterDataService);
             $this->seedAsetKoperasi($asetKoperasiService, $keuangan);
@@ -195,15 +193,13 @@ class KoperasiDummySeeder extends Seeder
             ]);
             $this->seedPinjamanLifecycleSp5($pinjamanService, $karyawan, $dompet, $keuangan, $awalBulanIni);
 
-            $simpananWajibService->generateUntil($awalBulanIni->copy()->subMonth(), null, $keuangan->id);
-
             $this->confirmDummyPayrollLimit(
                 $potongGajiService,
                 $karyawan['agus']->anggota()->firstOrFail(),
                 Carbon::parse('2026-01-01'),
                 200000,
                 $keuangan,
-                'Limit dummy untuk Pokok dan Wajib Januari paid sebelum Agus keluar.'
+                'Limit dummy untuk Simpanan Wajib Januari paid sebelum Agus keluar.'
             );
 
             $masterDataService->updateKaryawan($karyawan['agus'], [
@@ -511,7 +507,7 @@ class KoperasiDummySeeder extends Seeder
         return $result;
     }
 
-    private function seedAnggota(array $karyawan, MasterDataKoperasiService $service): array
+    private function seedAnggota(array $karyawan, MasterDataKoperasiService $service, array $dompet): array
     {
         $rows = [
             'andi' => ['tanggal_bergabung' => '2026-01-05', 'alamat' => 'Jl. Dummy Melati No. 1', 'plafon_pinjaman' => 3000000],
@@ -519,8 +515,20 @@ class KoperasiDummySeeder extends Seeder
             'budi' => ['tanggal_bergabung' => '2026-01-07', 'alamat' => 'Jl. Dummy Kenanga No. 3', 'plafon_pinjaman' => 2500000],
             'rina' => ['tanggal_bergabung' => '2026-01-08', 'alamat' => 'Jl. Dummy Kenanga No. 4', 'plafon_pinjaman' => 2000000],
             'agus' => ['tanggal_bergabung' => '2026-01-09', 'alamat' => 'Jl. Dummy Mawar No. 5', 'plafon_pinjaman' => 1500000],
-            'dewi' => ['tanggal_bergabung' => '2026-01-10', 'alamat' => 'Jl. Dummy Mawar No. 6', 'plafon_pinjaman' => 5000000],
-            'fitri' => ['tanggal_bergabung' => '2026-01-11', 'alamat' => 'Jl. Dummy Anggrek No. 7', 'plafon_pinjaman' => 2500000],
+            'dewi' => [
+                'tanggal_bergabung' => '2026-01-10',
+                'alamat' => 'Jl. Dummy Mawar No. 6',
+                'plafon_pinjaman' => 5000000,
+                'simpanan_wajib_metode_pembayaran' => Simpanan::METODE_TUNAI,
+                'simpanan_wajib_dompet_id' => $dompet['kas_operasional']->id,
+            ],
+            'fitri' => [
+                'tanggal_bergabung' => '2026-01-11',
+                'alamat' => 'Jl. Dummy Anggrek No. 7',
+                'plafon_pinjaman' => 2500000,
+                'simpanan_wajib_metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
+                'simpanan_wajib_dompet_id' => $dompet['bank_bca']->id,
+            ],
             'lilis' => ['tanggal_bergabung' => '2026-01-12', 'alamat' => 'Jl. Dummy Anggrek No. 8', 'plafon_pinjaman' => 3500000],
             'nina' => ['tanggal_bergabung' => '2026-01-13', 'alamat' => 'Jl. Dummy Cendana No. 9', 'plafon_pinjaman' => 1500000],
             'wawan_sp5_draft' => ['tanggal_bergabung' => '2026-01-14', 'alamat' => 'Jl. Dummy SP5 No. 1', 'plafon_pinjaman' => 2500000],
@@ -853,35 +861,34 @@ class KoperasiDummySeeder extends Seeder
     private function seedJenisSimpanan(JenisSimpananService $service, int $userId): array
     {
         $akunIds = [
-            'pokok' => $this->akunId('simpanan_pokok'),
             'wajib' => $this->akunId('simpanan_wajib'),
             'manasuka' => $this->akunId('simpanan_manasuka'),
         ];
 
-        $rows = [
-            'pokok' => [
-                'akun_id' => $akunIds['pokok'],
-                'kode' => JenisSimpanan::KODE_SIMPANAN_POKOK,
-                'kategori' => JenisSimpanan::KATEGORI_POKOK,
-                'nama_jenis' => 'Simpanan Pokok',
-                'aktif' => true,
-                'nominal_default' => 100000,
+        JenisSimpanan::query()
+            ->where(function ($query): void {
+                $query->where('kategori', JenisSimpanan::KATEGORI_POKOK)
+                    ->orWhere('kode', JenisSimpanan::KODE_SIMPANAN_POKOK);
+            })
+            ->update([
+                'aktif' => false,
                 'interval_bulan' => null,
-                'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran awal saat anggota mulai aktif di koperasi.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Pokok.',
-            ],
+                'keterangan' => 'Legacy SP-7: fungsi satu kali digantikan oleh Simpanan Wajib final.',
+                'updated_by' => $userId,
+            ]);
+
+        $rows = [
             'wajib' => [
                 'akun_id' => $akunIds['wajib'],
                 'kode' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
                 'kategori' => JenisSimpanan::KATEGORI_WAJIB,
                 'nama_jenis' => 'Simpanan Wajib',
                 'aktif' => true,
-                'nominal_default' => 100000,
-                'interval_bulan' => 3,
+                'nominal_default' => 10000,
+                'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran wajib per penagihan tiga bulanan untuk menjaga likuiditas koperasi.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Wajib per 3 bulan.',
+                'keterangan' => 'Dibayar Rp10.000 satu kali setiap siklus keanggotaan.',
+                'alasan_perubahan' => 'Setup dummy SP-7 Simpanan Wajib final satu kali per siklus.',
             ],
             'manasuka' => [
                 'akun_id' => $akunIds['manasuka'],
@@ -892,8 +899,8 @@ class KoperasiDummySeeder extends Seeder
                 'nominal_default' => 0,
                 'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran manasuka anggota di luar kewajiban rutin.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Manasuka.',
+                'keterangan' => 'Tabungan pilihan Anggota yang dapat disetor dan ditarik.',
+                'alasan_perubahan' => 'Setup dummy Master Simpanan Manasuka final.',
             ],
         ];
 

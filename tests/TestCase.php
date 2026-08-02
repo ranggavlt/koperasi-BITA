@@ -49,17 +49,19 @@ abstract class TestCase extends BaseTestCase
         $rows = [
             JenisSimpanan::KATEGORI_POKOK => [
                 'kode' => JenisSimpanan::KODE_SIMPANAN_POKOK,
-                'nama_jenis' => 'Simpanan Pokok',
+                'nama_jenis' => 'Simpanan Pokok Legacy',
                 'nominal_default' => '100000.00',
                 'interval_bulan' => null,
                 'wajib' => true,
+                'aktif' => false,
             ],
             JenisSimpanan::KATEGORI_WAJIB => [
                 'kode' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
                 'nama_jenis' => 'Simpanan Wajib',
-                'nominal_default' => '100000.00',
-                'interval_bulan' => 3,
+                'nominal_default' => '10000.00',
+                'interval_bulan' => null,
                 'wajib' => true,
+                'aktif' => true,
             ],
             JenisSimpanan::KATEGORI_MANASUKA => [
                 'kode' => JenisSimpanan::KODE_SIMPANAN_MANASUKA,
@@ -67,6 +69,7 @@ abstract class TestCase extends BaseTestCase
                 'nominal_default' => '0.00',
                 'interval_bulan' => null,
                 'wajib' => false,
+                'aktif' => true,
             ],
         ];
 
@@ -78,7 +81,7 @@ abstract class TestCase extends BaseTestCase
                     'kategori' => $kategori,
                     'nama_jenis' => $row['nama_jenis'],
                     'wajib' => $row['wajib'],
-                    'aktif' => true,
+                    'aktif' => $row['aktif'],
                     'interval_bulan' => $row['interval_bulan'],
                     'berlaku_mulai' => '2026-01-01',
                     'nominal_default' => $row['nominal_default'],

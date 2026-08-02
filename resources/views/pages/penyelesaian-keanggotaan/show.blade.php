@@ -76,7 +76,7 @@
           <div class="kbsm-business-field kbsm-business-field--full">
             <label class="kbsm-business-label">Alasan Batalkan Penonaktifan</label>
             <textarea name="alasan" minlength="5" required class="kbsm-business-control" rows="3" placeholder="Contoh: Karyawan/Anggota tidak sengaja dinonaktifkan oleh Finance."></textarea>
-            <p class="kbsm-business-help">Siklus lama akan dipulihkan. Tidak membuat siklus baru, tidak membuat Simpanan Pokok baru, dan tidak membuat Mutasi Kas.</p>
+            <p class="kbsm-business-help">Siklus lama akan dipulihkan. Tidak membuat siklus baru, tidak membuat Simpanan Wajib baru, dan tidak membuat Mutasi Kas.</p>
           </div>
           <div class="kbsm-business-field">
             <button class="kbsm-btn kbsm-btn--outline-slate">Batalkan Penonaktifan</button>
@@ -96,10 +96,35 @@
             <label class="kbsm-business-label">Tanggal Bergabung Baru</label>
             <input type="date" name="tanggal_bergabung" value="{{ old('tanggal_bergabung', now(config('app.timezone', 'Asia/Jakarta'))->toDateString()) }}" max="{{ now(config('app.timezone', 'Asia/Jakarta'))->toDateString() }}" required class="kbsm-business-control">
           </div>
+          <div class="kbsm-business-field">
+            <label class="kbsm-business-label">Metode Simpanan Wajib Baru</label>
+            <select id="re_register_wajib_method" name="simpanan_wajib_metode_pembayaran" class="kbsm-business-control">
+              <option value="potong_gaji" {{ old('simpanan_wajib_metode_pembayaran', 'potong_gaji') === 'potong_gaji' ? 'selected' : '' }}>Potong Gaji</option>
+              <option value="tunai" {{ old('simpanan_wajib_metode_pembayaran') === 'tunai' ? 'selected' : '' }}>Tunai - Dompet Kas</option>
+              <option value="transfer_bank" {{ old('simpanan_wajib_metode_pembayaran') === 'transfer_bank' ? 'selected' : '' }}>Transfer Bank - Dompet Bank</option>
+            </select>
+          </div>
+          <div id="re_register_wajib_dompet_wrap" class="kbsm-business-field">
+            <label class="kbsm-business-label">Dompet Simpanan Wajib Baru</label>
+            <select id="re_register_wajib_dompet" name="simpanan_wajib_dompet_id" class="kbsm-business-control">
+              <option value="">Tidak perlu untuk Potong Gaji</option>
+              @foreach($dompetOptions as $dompet)
+                @php($dompetMethod = $dompet->jenis_dompet === \App\Models\DompetKoperasi::JENIS_KAS ? 'tunai' : 'transfer_bank')
+                <option value="{{ $dompet->id }}" data-kind="{{ $dompetMethod }}" {{ (string) old('simpanan_wajib_dompet_id') === (string) $dompet->id ? 'selected' : '' }}>
+                  {{ $dompet->nama_dompet }} - {{ ucfirst($dompet->jenis_dompet) }} @if($dompet->akun) ({{ $dompet->akun->kode_akun }}) @endif
+                </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="kbsm-business-field kbsm-business-field--full">
+            <div class="kbsm-business-readonly">
+              Nominal Simpanan Wajib baru: <strong>Rp 10.000</strong>. Server tetap menghitung ulang nominal dan memvalidasi Dompet.
+            </div>
+          </div>
           <div class="kbsm-business-field kbsm-business-field--full">
             <label class="kbsm-business-label">Alasan Daftarkan Kembali</label>
             <textarea name="alasan" minlength="5" required class="kbsm-business-control" rows="3" placeholder="Contoh: Karyawan aktif kembali menjadi Anggota koperasi."></textarea>
-            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Pokok baru dari master aktif, jadwal Wajib baru, dan saldo Manasuka awal Rp0. Histori siklus lama tetap immutable.</p>
+            <p class="kbsm-business-help">Aksi ini membuat siklus baru, Simpanan Wajib Rp10.000 baru sesuai metode yang dipilih, dan saldo Manasuka awal Rp0. Histori siklus lama tetap immutable.</p>
           </div>
           <label class="kbsm-business-field kbsm-business-field--full">
             <input type="checkbox" name="konfirmasi_siklus_baru" value="1" required>
@@ -263,4 +288,32 @@
     </div>
   </section>
 </div>
+<script>
+  (function () {
+    const method = document.getElementById('re_register_wajib_method');
+    const dompet = document.getElementById('re_register_wajib_dompet');
+    const wrapper = document.getElementById('re_register_wajib_dompet_wrap');
+    if (!method || !dompet || !wrapper) return;
+
+    function sync() {
+      const value = method.value || 'potong_gaji';
+      wrapper.style.display = value === 'potong_gaji' ? 'none' : '';
+      Array.from(dompet.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          return;
+        }
+        option.hidden = option.dataset.kind !== value;
+      });
+      if (value === 'potong_gaji') {
+        dompet.value = '';
+      } else if (dompet.selectedOptions[0]?.dataset.kind !== value) {
+        dompet.value = '';
+      }
+    }
+
+    method.addEventListener('change', sync);
+    sync();
+  })();
+</script>
 @endsection

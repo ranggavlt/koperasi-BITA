@@ -1361,7 +1361,9 @@ class AkuntansiService
 
     public function recordSimpananWajibExitRecovery(Simpanan $simpanan, ?int $userId = null): JurnalUmum
     {
-        $idempotencyKey = 'keanggotaan:wajib-recovery:jurnal:' . $simpanan->jadwal_simpanan_wajib_id;
+        $idempotencyKey = $simpanan->jadwal_simpanan_wajib_id
+            ? 'keanggotaan:wajib-recovery:jurnal:' . $simpanan->jadwal_simpanan_wajib_id
+            : 'keanggotaan:wajib-final-recovery:jurnal:' . $simpanan->id;
         $existing = JurnalUmum::query()
             ->where('idempotency_key', $idempotencyKey)
             ->first();
@@ -1378,19 +1380,15 @@ class AkuntansiService
         }
 
         $jadwal = $simpanan->jadwalSimpananWajib;
-        if (! $jadwal) {
-            throw new RuntimeException('Simpanan Wajib tidak memiliki jadwal untuk jurnal pemulihan.');
-        }
-
         $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah ?? 0);
 
         return $this->record([
             'idempotency_key' => $idempotencyKey,
             'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
-            'nomor_bukti' => 'REC-' . $jadwal->kode_tagihan,
+            'nomor_bukti' => $jadwal ? 'REC-' . $jadwal->kode_tagihan : 'REC-SWJ-' . $simpanan->id,
             'keterangan' => 'Pemulihan tagihan Simpanan Wajib karena penonaktifan dibatalkan #' . $simpanan->id,
-            'referensi_tipe' => \App\Models\JadwalSimpananWajib::class,
-            'referensi_id' => $jadwal->id,
+            'referensi_tipe' => $jadwal ? \App\Models\JadwalSimpananWajib::class : Simpanan::class,
+            'referensi_id' => $jadwal?->id ?? $simpanan->id,
             'created_by' => $userId ?? auth()->id(),
         ], [
             $this->akunResolver->line(

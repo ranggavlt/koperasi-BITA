@@ -12,7 +12,6 @@ use App\Models\Pembayaran;
 use App\Models\PemakaianPotongGaji;
 use App\Models\Penjualan;
 use App\Models\Produk;
-use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
@@ -196,21 +195,9 @@ class PosCheckoutService
 
         $this->potongGajiService->assertNoUnreservedDueInstallmentsForPayroll($anggota, $tanggal);
 
-        $pendingPokok = Simpanan::query()
-            ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', \App\Models\JenisSimpanan::KODE_SIMPANAN_POKOK)
-            ->where('status', Simpanan::STATUS_PENDING_PAYROLL)
-            ->exists();
-
-        if ($pendingPokok) {
-            throw ValidationException::withMessages([
-                'limit' => 'Simpanan Pokok pending harus dialokasikan pada limit sebelum POS potong gaji.',
-            ]);
-        }
-
         if ($this->simpananWajibService->hasBlockingOutstandingBeforePos($anggota, $tanggal)) {
             throw ValidationException::withMessages([
-                'limit' => 'Simpanan Wajib jatuh tempo harus dialokasikan penuh sebelum POS potong gaji.',
+                'limit' => 'Simpanan Wajib pending harus dialokasikan penuh sebelum POS potong gaji.',
             ]);
         }
 
