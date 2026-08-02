@@ -25,7 +25,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
       <h1 class="kbsm-business-title">Transaksi Simpanan</h1>
-      <p class="kbsm-business-subtitle">Daftar immutable untuk Simpanan Pokok, Wajib, dan Manasuka. Koreksi Manasuka dilakukan dengan audit trail, bukan edit/hapus.</p>
+      <p class="kbsm-business-subtitle">Daftar immutable untuk Simpanan Wajib final, Manasuka, dan histori legacy. Koreksi Manasuka dilakukan dengan audit trail, bukan edit/hapus.</p>
     </div>
     <a href="{{ route('simpanan.create') }}" class="kbsm-business-add-button">+ Transaksi Simpanan Manasuka</a>
   </div>

@@ -13,7 +13,7 @@ return new class extends Migration
             ->where('nama', 'Bita Enercoon Engineering')
             ->update(['nama' => 'Bita Enarcon Engineering', 'updated_at' => now()]);
 
-        foreach (['sewa_mobil', 'sewa_printer', 'invoice_penagihan', 'limit_potong_gaji_anggota', 'kebijakan_limit_potong_gaji'] as $table) {
+        foreach (['sewa_mobil', 'sewa_hardware', 'invoice_penagihan', 'limit_potong_gaji_anggota', 'kebijakan_limit_potong_gaji'] as $table) {
             if (Schema::hasTable($table) && Schema::hasColumn($table, 'nama_perusahaan_snapshot')) {
                 DB::table($table)
                     ->where('nama_perusahaan_snapshot', 'Bita Enercoon Engineering')

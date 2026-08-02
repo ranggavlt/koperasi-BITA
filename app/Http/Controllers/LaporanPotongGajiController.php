@@ -18,7 +18,7 @@ class LaporanPotongGajiController extends Controller
         $periode = $request->get('periode', now(config('app.timezone'))->format('Y-m'));
         $kategoriOptions = [
             PemakaianPotongGaji::KATEGORI_CICILAN => 'Cicilan',
-            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 'Simpanan Pokok',
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 'Legacy Pokok',
             PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 'Simpanan Wajib',
             PemakaianPotongGaji::KATEGORI_POS => 'POS',
         ];

@@ -42,8 +42,8 @@ class JurnalUmum extends Model
                 PembayaranOutstandingCash::class,
                 PembayaranSewaMobil::class,
                 SewaMobil::class,
-                PembayaranSewaPrinter::class,
-                SewaPrinter::class,
+                PembayaranSewaHardware::class,
+                SewaHardware::class,
                 BebanOperasional::class,
                 PenyelesaianKeanggotaan::class,
             ], true)) {

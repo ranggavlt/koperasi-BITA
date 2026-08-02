@@ -8,7 +8,7 @@ use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\KonfigurasiManasukaRutin;
 use App\Models\PemakaianPotongGaji;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use App\Models\User;
@@ -72,7 +72,7 @@ class ManasukaRutinPg2Test extends TestCase
             $payroll = app(PotongGajiBulananService::class);
 
             $limitKurang = $payroll->activateLimit(
-                $payroll->createLimit($anggota, '2026-07', 149999, $finance->id, 'Limit kurang satu rupiah untuk Manasuka'),
+                $payroll->createLimit($anggota, '2026-07', 49999, $finance->id, 'Limit kurang satu rupiah untuk Manasuka'),
                 $finance->id
             );
 
@@ -83,7 +83,7 @@ class ManasukaRutinPg2Test extends TestCase
             [$anggotaCukup] = $this->anggotaDenganSiklus();
             $this->aktifkanRutin($anggotaCukup, $finance, 50000, 'full-only-b');
             $limitCukup = $payroll->activateLimit(
-                $payroll->createLimit($anggotaCukup, '2026-07', 150000, $finance->id, 'Limit tepat untuk Wajib dan Manasuka'),
+                $payroll->createLimit($anggotaCukup, '2026-07', 50000, $finance->id, 'Limit tepat untuk Manasuka'),
                 $finance->id
             );
             $payroll->activateLimit($limitCukup->fresh(), $finance->id);
@@ -116,7 +116,7 @@ class ManasukaRutinPg2Test extends TestCase
             $bank = $this->bankPayroll();
             $payroll = app(PotongGajiBulananService::class);
             $limit = $payroll->activateLimit(
-                $payroll->createLimit($anggota, '2026-07', 150000, $finance->id, 'Settlement Wajib dan Manasuka'),
+                $payroll->createLimit($anggota, '2026-07', 50000, $finance->id, 'Settlement Manasuka'),
                 $finance->id
             );
             $ledger = $limit->pemakaian()
@@ -127,7 +127,7 @@ class ManasukaRutinPg2Test extends TestCase
             $payroll->confirmLimit($payroll->closeLimit($limit, $finance->id), $finance->id);
             $simpanan->refresh();
 
-            $saldo = SaldoSimpananSukarela::query()
+            $saldo = SaldoSimpananManasuka::query()
                 ->where('anggota_id', $anggota->id)
                 ->where('siklus_keanggotaan_id', $simpanan->siklus_keanggotaan_id)
                 ->where('jenis_simpanan_id', $simpanan->jenis_simpanan_id)
@@ -150,7 +150,7 @@ class ManasukaRutinPg2Test extends TestCase
                 $jurnal->details->sum(fn ($detail) => (float) $detail->kredit),
                 0.01
             );
-            $this->assertSame('150000.00', $bank->fresh()->saldo);
+            $this->assertSame('50000.00', $bank->fresh()->saldo);
             $this->artisan('koperasi:preflight-manasuka-rutin')->assertExitCode(0);
         } finally {
             Carbon::setTestNow();

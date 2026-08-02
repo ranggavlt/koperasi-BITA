@@ -71,9 +71,9 @@ class Karyawan extends Model
         return $this->hasMany(SewaMobil::class);
     }
 
-    public function sewaPrinter()
+    public function sewaHardware()
     {
-        return $this->hasMany(SewaPrinter::class, 'karyawan_id');
+        return $this->hasMany(SewaHardware::class, 'karyawan_id');
     }
 
     public function scopeAktif($query)
@@ -98,6 +98,6 @@ class Karyawan extends Model
             || $this->pinjaman()->exists()
             || $this->pembagianShu()->exists()
             || $this->sewaMobil()->exists()
-            || $this->sewaPrinter()->exists();
+            || $this->sewaHardware()->exists();
     }
 }

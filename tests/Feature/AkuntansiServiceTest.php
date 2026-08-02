@@ -18,7 +18,7 @@ class AkuntansiServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_setoran_simpanan_pokok_memakai_akun_master_dan_balance(): void
+    public function test_setoran_simpanan_wajib_memakai_akun_master_dan_balance(): void
     {
         $karyawan = Karyawan::query()->create([
             'nama' => 'Anggota Uji',
@@ -26,18 +26,18 @@ class AkuntansiServiceTest extends TestCase
         $this->daftarkanAnggota($karyawan);
 
         $jurnal = JurnalUmum::query()
-            ->where('idempotency_key', 'like', 'simpanan-pokok:pengakuan:jurnal:%')
+            ->where('idempotency_key', 'like', 'simpanan-wajib:pengakuan:jurnal:%')
             ->with('details.akun')
             ->firstOrFail();
         $piutangPotongGaji = $jurnal->details->firstWhere('akun_kode', '103');
-        $simpananPokok = $jurnal->details->firstWhere('akun_kode', '301');
+        $simpananWajib = $jurnal->details->firstWhere('akun_kode', '301');
 
         $this->assertNotNull($piutangPotongGaji);
-        $this->assertNotNull($simpananPokok);
-        $this->assertSame('100000.00', $piutangPotongGaji->debit);
-        $this->assertSame('100000.00', $simpananPokok->kredit);
+        $this->assertNotNull($simpananWajib);
+        $this->assertSame('10000.00', $piutangPotongGaji->debit);
+        $this->assertSame('10000.00', $simpananWajib->kredit);
         $this->assertSame($piutangPotongGaji->akun_id, $piutangPotongGaji->akun->id);
-        $this->assertSame($simpananPokok->akun_id, $simpananPokok->akun->id);
+        $this->assertSame($simpananWajib->akun_id, $simpananWajib->akun->id);
         $this->assertEquals(
             (float) $jurnal->details->sum('debit'),
             (float) $jurnal->details->sum('kredit')

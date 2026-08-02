@@ -13,6 +13,7 @@ use App\Models\PengurusKoperasi;
 use App\Models\SewaMobil;
 use App\Services\SewaMobilService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class FinanceSewaMobilController extends Controller
@@ -25,6 +26,9 @@ class FinanceSewaMobilController extends Controller
     {
         $filters = $request->validate([
             'karyawan_id' => ['nullable', 'integer', 'exists:karyawan,id'],
+            'status' => ['nullable', 'string', Rule::in(array_keys(SewaMobil::statusLabels()))],
+            'vendor' => ['nullable', 'string', 'max:150'],
+            'plat_nomor' => ['nullable', 'string', 'max:30'],
             'tanggal_dari' => ['nullable', 'date'],
             'tanggal_sampai' => ['nullable', 'date'],
         ]);
@@ -38,20 +42,34 @@ class FinanceSewaMobilController extends Controller
 
         $query = SewaMobil::query()
             ->with([
-                'perusahaan',
                 'karyawan',
                 'pemohon',
                 'recorder',
                 'pengurusPenyetuju.anggota.karyawan',
                 'approvalRecorder',
                 'pembayaran.dompet.akun',
-                'pembayaranVendor.dompet.akun',
-                'invoiceDetail.invoice',
+                'pembayaran.dompetPenerimaan.akun',
+                'pembayaran.dompetVendor.akun',
+                'pembayaran.mutasiKas',
+                'pembayaran.jurnal.details',
                 'jurnal.details',
+                'reversal',
             ]);
 
         if (! empty($filters['karyawan_id'])) {
             $query->where('karyawan_id', $filters['karyawan_id']);
+        }
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (! empty($filters['vendor'])) {
+            $query->where('vendor_nama', 'like', '%' . $filters['vendor'] . '%');
+        }
+
+        if (! empty($filters['plat_nomor'])) {
+            $query->where('plat_nomor_normalized', SewaMobilService::normalizePlatNomor($filters['plat_nomor']));
         }
 
         if (! empty($filters['tanggal_dari'])) {
@@ -63,7 +81,7 @@ class FinanceSewaMobilController extends Controller
         }
 
         $sewaMobil = $query->latest()->paginate(10)->withQueryString();
-        $karyawanOptions = Karyawan::query()->orderBy('nama')->get();
+        $karyawanOptions = $this->officialKaryawanQuery()->get();
         $pengurusOptions = PengurusKoperasi::query()
             ->aktif()
             ->with('anggota.karyawan')
@@ -104,7 +122,7 @@ class FinanceSewaMobilController extends Controller
     {
         abort_unless($sewaMobil->status === SewaMobil::STATUS_DRAFT, 404);
 
-        return view('pages.sewa-mobil.finance.form', $this->formOptions($sewaMobil->load(['karyawan.perusahaan'])));
+        return view('pages.sewa-mobil.finance.form', $this->formOptions($sewaMobil->load(['karyawan'])));
     }
 
     public function update(UpdateSewaMobilRequest $request, SewaMobil $sewaMobil)
@@ -154,7 +172,7 @@ class FinanceSewaMobilController extends Controller
         $this->service->start($sewaMobil, auth()->id());
 
         return redirect()->route('sewa-mobil.finance.index')
-            ->with('success', 'Kegiatan Sewa Mobil dimulai dan status mobil menjadi digunakan/disewa.');
+            ->with('success', 'Kegiatan Sewa Mobil dimulai.');
     }
 
     public function complete(SewaMobil $sewaMobil)
@@ -162,7 +180,7 @@ class FinanceSewaMobilController extends Controller
         $this->service->complete($sewaMobil, auth()->id());
 
         return redirect()->route('sewa-mobil.finance.index')
-            ->with('success', 'Sewa Mobil selesai, mobil kembali tersedia, dan pendapatan diakui.');
+            ->with('success', 'Sewa Mobil selesai dan margin pendapatan diakui.');
     }
 
     public function cancel(RejectSewaMobilRequest $request, SewaMobil $sewaMobil)
@@ -177,12 +195,16 @@ class FinanceSewaMobilController extends Controller
     {
         return [
             'editData' => $editData,
-            'karyawanOptions' => Karyawan::query()
-                ->aktif()
-                ->with('perusahaan')
-                ->whereHas('perusahaan', fn ($query) => $query->whereIn('kode', ['BEE', 'BBS', 'BKM']))
-                ->orderBy('nama')
-                ->get(),
+            'karyawanOptions' => $this->officialKaryawanQuery()->get(),
         ];
+    }
+
+    private function officialKaryawanQuery()
+    {
+        return Karyawan::query()
+            ->aktif()
+            ->whereHas('perusahaan', fn ($query) => $query->whereIn('kode', ['BEE', 'BBS', 'BKM']))
+            ->with('perusahaan')
+            ->orderBy('nama');
     }
 }

@@ -52,8 +52,8 @@ class StoreJenisSimpananRequest extends FormRequest
             'nama_jenis.required' => 'Nama Jenis Simpanan wajib diisi.',
             'kategori.required' => 'Kategori Jenis Simpanan wajib dipilih.',
             'kategori.in' => 'Kategori Jenis Simpanan tidak dikenal.',
-            'interval_bulan.min' => 'Interval Simpanan Wajib wajib 1-12 bulan.',
-            'interval_bulan.max' => 'Interval Simpanan Wajib wajib 1-12 bulan.',
+            'interval_bulan.min' => 'Interval tidak digunakan pada dua jenis Simpanan final.',
+            'interval_bulan.max' => 'Interval tidak digunakan pada dua jenis Simpanan final.',
             'berlaku_mulai.required' => 'Tanggal Berlaku Mulai wajib diisi.',
             'nominal_default.required' => 'Nominal default wajib diisi.',
         ];

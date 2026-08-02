@@ -27,15 +27,15 @@
   <div class="kbsm-business-header">
     <div>
       <p class="kbsm-business-eyebrow">Simpan Pinjam</p>
-      <h1 class="kbsm-business-title">Jadwal Simpanan Wajib</h1>
-      <p class="kbsm-business-subtitle">Read-only tagihan Simpanan Wajib payroll. Jadwal dibuat oleh service payroll resmi, bukan input manual.</p>
+      <h1 class="kbsm-business-title">Histori Jadwal Wajib Lama</h1>
+      <p class="kbsm-business-subtitle">Read-only histori Wajib berkala legacy. SP-7 tidak lagi membuat jadwal Wajib baru; Simpanan Wajib final dibuat satu kali per siklus.</p>
     </div>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Filter Jadwal</h2>
-      <p class="kbsm-business-panel__copy">Gunakan filter tanpa membuat, mengedit, atau menghapus jadwal.</p>
+      <h2 class="kbsm-business-panel__title">Filter Histori Jadwal Legacy</h2>
+      <p class="kbsm-business-panel__copy">Gunakan filter hanya untuk membaca histori lama, tanpa membuat, mengedit, atau menghapus jadwal.</p>
     </div>
     <form method="GET" action="{{ route('jadwal-simpanan-wajib.index') }}" class="kbsm-business-filter kbsm-business-filter--wajib">
       <div class="kbsm-business-field">
@@ -75,7 +75,7 @@
 
   <section class="kbsm-business-summary kbsm-business-summary--wajib">
     <div class="kbsm-business-summary-card kbsm-business-summary-card--navy">
-      <p class="kbsm-business-summary-label">Total Tagihan</p>
+      <p class="kbsm-business-summary-label">Total Tagihan Legacy</p>
       <p class="kbsm-business-summary-value">{{ $fmt($summary['total_tagihan']) }}</p>
     </div>
     <div class="kbsm-business-summary-card kbsm-business-summary-card--gold">
@@ -87,15 +87,15 @@
       <p class="kbsm-business-summary-value">{{ $fmt($summary['sudah_dibayar']) }}</p>
     </div>
     <div class="kbsm-business-summary-card kbsm-business-summary-card--gold">
-      <p class="kbsm-business-summary-label">Tunggakan</p>
+      <p class="kbsm-business-summary-label">Tunggakan Legacy</p>
       <p class="kbsm-business-summary-value">{{ $fmt($summary['tunggakan']) }}</p>
     </div>
   </section>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Daftar Tagihan Wajib</h2>
-      <p class="kbsm-business-panel__copy">Tidak tersedia tombol create/edit/delete manual. Perubahan terjadi hanya lewat lifecycle payroll.</p>
+      <h2 class="kbsm-business-panel__title">Daftar Histori Jadwal Wajib Legacy</h2>
+      <p class="kbsm-business-panel__copy">Tidak tersedia tombol create/edit/delete manual. Jadwal ini tidak lagi menjadi sumber transaksi baru setelah SP-7.</p>
     </div>
     <div class="kbsm-business-table-wrap">
       <table class="kbsm-business-table kbsm-business-table--wajib">
@@ -143,7 +143,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="9" class="kbsm-business-empty">Belum ada Jadwal Simpanan Wajib sesuai filter.</td>
+              <td colspan="9" class="kbsm-business-empty">Belum ada histori Jadwal Wajib lama sesuai filter.</td>
             </tr>
           @endforelse
         </tbody>

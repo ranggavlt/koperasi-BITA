@@ -6,6 +6,25 @@ use Symfony\Component\Console\Input\ArgvInput;
 
 define('LARAVEL_START', microtime(true));
 
+// Keep `php artisan test` isolated from the local application's cached config.
+// The PHPUnit process also sets this in phpunit.xml, but the Artisan parent
+// process boots Laravel before PHPUnit reads that file.
+$argv = $_SERVER['argv'] ?? [];
+if (in_array('test', array_slice($argv, 1), true)) {
+    $testingEnv = [
+        'APP_ENV' => 'testing',
+        'APP_CONFIG_CACHE' => 'bootstrap/cache/config.testing.php',
+        'DB_CONNECTION' => 'sqlite',
+        'DB_DATABASE' => ':memory:',
+    ];
+
+    foreach ($testingEnv as $key => $value) {
+        putenv($key.'='.$value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}
+
 // Register the Composer autoloader...
 require __DIR__.'/vendor/autoload.php';
 

@@ -9,7 +9,7 @@ use App\Models\Karyawan;
 use App\Models\KonfigurasiManasukaRutin;
 use App\Models\LimitPotongGajiAnggota;
 use App\Models\PemakaianPotongGaji;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
@@ -489,9 +489,9 @@ class ManasukaRutinService
         return $jenis;
     }
 
-    private function saldoRow(int $anggotaId, int $siklusId, int $jenisId): SaldoSimpananSukarela
+    private function saldoRow(int $anggotaId, int $siklusId, int $jenisId): SaldoSimpananManasuka
     {
-        $query = fn () => SaldoSimpananSukarela::query()
+        $query = fn () => SaldoSimpananManasuka::query()
             ->where('anggota_id', $anggotaId)
             ->where('siklus_keanggotaan_id', $siklusId)
             ->where('jenis_simpanan_id', $jenisId)
@@ -503,7 +503,7 @@ class ManasukaRutinService
         }
 
         try {
-            SaldoSimpananSukarela::query()->create([
+            SaldoSimpananManasuka::query()->create([
                 'anggota_id' => $anggotaId,
                 'siklus_keanggotaan_id' => $siklusId,
                 'jenis_simpanan_id' => $jenisId,

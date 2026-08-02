@@ -366,7 +366,7 @@ class PinjamanPayrollSp6ATest extends TestCase
 
         Simpanan::query()
             ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
             ->update(['status' => Simpanan::STATUS_SETTLED, 'settled_at' => now()]);
 
         return $anggota->fresh(['karyawan', 'siklusAktif']);

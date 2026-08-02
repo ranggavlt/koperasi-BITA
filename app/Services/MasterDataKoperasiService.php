@@ -159,7 +159,14 @@ class MasterDataKoperasiService
             $this->syncLegacyIsAnggota($karyawan);
             $cycle = app(KeanggotaanLifecycleService::class)
                 ->ensureActiveCycle($anggota, auth()->id(), $data['tanggal_bergabung']);
-            $this->createInitialMembershipSaving($anggota, $cycle);
+            app(SimpananWajibService::class)->createForCycle(
+                $anggota,
+                $cycle,
+                $data['simpanan_wajib_metode_pembayaran'] ?? Simpanan::METODE_POTONG_GAJI,
+                $data['simpanan_wajib_dompet_id'] ?? null,
+                auth()->id(),
+                $data['tanggal_bergabung']
+            );
 
             return $anggota->fresh(['karyawan', 'simpanan']);
         });
@@ -227,25 +234,6 @@ class MasterDataKoperasiService
 
                 return $locked->fresh('karyawan');
             }
-
-            $hasUnpaidWajib = $locked->jadwalSimpananWajib()
-                ->whereIn('status', [
-                    \App\Models\JadwalSimpananWajib::STATUS_OUTSTANDING,
-                    \App\Models\JadwalSimpananWajib::STATUS_RESERVED,
-                ])
-                ->exists();
-
-            if ($hasUnpaidWajib) {
-                throw ValidationException::withMessages([
-                    'anggota' => 'Anggota tidak bisa dinonaktifkan karena masih memiliki tagihan Simpanan Wajib yang belum dibayar lunas.',
-                ]);
-            }
-
-            app(ManasukaRutinService::class)->pauseForInactive(
-                $locked,
-                auth()->id(),
-                'Dijeda otomatis karena Anggota dinonaktifkan.'
-            );
 
             $locked->update([
                 'status' => Anggota::STATUS_NONAKTIF,

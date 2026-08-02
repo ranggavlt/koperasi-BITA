@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
+use App\Models\SewaHardware;
 use App\Services\B2BRentalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,9 +16,9 @@ class B2BPaymentController extends Controller
         return back()->with('success', 'Vendor Sewa Mobil berhasil dibayar dari Kas Operasional.');
     }
 
-    public function payHardwareVendor(Request $request, SewaPrinter $sewaPrinter, B2BRentalService $service): RedirectResponse
+    public function payHardwareVendor(Request $request, SewaHardware $sewaHardware, B2BRentalService $service): RedirectResponse
     {
-        $service->payVendor($sewaPrinter, $this->validated($request), $request->user()->id);
+        $service->payVendor($sewaHardware, $this->validated($request), $request->user()->id);
         return back()->with('success', 'Vendor Sewa Hardware berhasil dibayar dari Kas Operasional.');
     }
 

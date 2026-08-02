@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Models\PembayaranInvoicePerusahaan;
 use App\Models\PembayaranVendorSewa;
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
+use App\Models\SewaHardware;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +20,7 @@ class PreflightB2BCommand extends Command
         if (! Schema::hasTable('pembayaran_vendor_sewa')) return self::FAILURE;
         $issues = [];
         $issues['snapshot_mobil_invalid'] = DB::table('sewa_mobil')->where('model_sumber', 'vendor')->where(fn ($q) => $q->whereNull('perusahaan_id')->orWhereNull('vendor_nama_snapshot')->orWhereNull('nomor_polisi_snapshot')->orWhereRaw('harga_vendor_total <= 0')->orWhereRaw('total_tagihan_perusahaan <> harga_vendor_total + markup_total'))->count();
-        $issues['snapshot_hardware_invalid'] = DB::table('sewa_printer')->where('model_sumber', 'vendor')->where(fn ($q) => $q->whereNull('perusahaan_id')->orWhereNull('vendor_nama')->orWhereRaw('total_harga_vendor <= 0')->orWhereRaw('total_tagihan_perusahaan <> total_harga_vendor + total_margin'))->count();
+        $issues['snapshot_hardware_invalid'] = DB::table('sewa_hardware')->where('model_sumber', 'vendor')->where(fn ($q) => $q->whereNull('perusahaan_id')->orWhereNull('vendor_nama')->orWhereRaw('total_harga_vendor <= 0')->orWhereRaw('total_tagihan_perusahaan <> total_harga_vendor + total_margin'))->count();
         $issues['vendor_wallet_invalid'] = DB::table('pembayaran_vendor_sewa as p')->join('dompet_koperasi as d', 'd.id', '=', 'p.dompet_id')->where(fn ($q) => $q->where('d.jenis_dompet', '!=', 'kas')->orWhere('d.is_kas_operasional', false))->count();
         $issues['vendor_artifact_missing'] = PembayaranVendorSewa::query()->get()->filter(fn ($p) => ! DB::table('mutasi_kas')->where('idempotency_key', 'b2b:vendor:mutasi:'.$p->id)->exists() || ! DB::table('jurnal_umum')->where('idempotency_key', 'b2b:vendor:jurnal:'.$p->id)->exists())->count();
         $issues['invoice_total_invalid'] = DB::table('invoice_penagihan')->get()->filter(function ($i) { $detail=(int)DB::table('invoice_penagihan_detail')->where('invoice_penagihan_id',$i->id)->sum('nominal'); $paid=(int)DB::table('pembayaran_invoice_perusahaan')->where('invoice_penagihan_id',$i->id)->where('status','paid')->sum('jumlah_bayar'); return $detail!==(int)$i->total_tagihan || $paid!==(int)$i->jumlah_dibayar || max(0,(int)$i->total_tagihan-$paid)!==(int)$i->sisa_tagihan; })->count();

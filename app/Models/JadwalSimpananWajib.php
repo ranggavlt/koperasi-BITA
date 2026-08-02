@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 
 class JadwalSimpananWajib extends Model
@@ -44,6 +44,7 @@ class JadwalSimpananWajib extends Model
         'recovered_at',
         'recovered_by',
         'recovery_reason',
+        'sp7_archived_at',
     ];
 
     protected $casts = [
@@ -54,6 +55,7 @@ class JadwalSimpananWajib extends Model
         'settled_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'recovered_at' => 'datetime',
+        'sp7_archived_at' => 'datetime',
     ];
 
     protected static function booted(): void

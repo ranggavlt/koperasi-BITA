@@ -291,7 +291,17 @@ class PotongGajiBulananTest extends TestCase
         $this->assertSame(0, Pinjaman::query()->where('tenor_bulan', '>', 12)->count());
         $this->assertSame(0, Pinjaman::query()->where('jumlah_pinjaman', '>', 5000000)->count());
         $this->assertSame(0, JenisSimpanan::query()
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('kategori', JenisSimpanan::KATEGORI_POKOK)
+            ->where('aktif', true)
+            ->count());
+        $this->assertSame(1, JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('aktif', true)
+            ->whereNull('interval_bulan')
+            ->where('nominal_default', '10000.00')
+            ->count());
+        $this->assertSame(1, JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
             ->where('aktif', true)
             ->count());
         $this->assertSame(2, JenisSimpanan::query()->where('aktif', true)->count());

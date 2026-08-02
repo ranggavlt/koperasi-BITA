@@ -3,21 +3,33 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use RuntimeException;
 
 class KebijakanLimitPotongGaji extends Model
 {
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_INACTIVE = 'inactive';
+
     protected $table = 'kebijakan_limit_potong_gaji';
 
-    protected $fillable = ['perusahaan_id', 'limit_nominal', 'berlaku_mulai', 'berlaku_sampai', 'aktif', 'kode_perusahaan_snapshot', 'nama_perusahaan_snapshot', 'alasan', 'created_by', 'idempotency_key'];
+    protected $fillable = [
+        'nominal_limit',
+        'status',
+        'berlaku_mulai_periode',
+        'berlaku_sampai_periode',
+        'alasan',
+        'created_by',
+        'updated_by',
+    ];
 
-    protected $casts = ['limit_nominal' => 'decimal:2', 'berlaku_mulai' => 'date', 'berlaku_sampai' => 'date', 'aktif' => 'boolean'];
+    protected $casts = [
+        'nominal_limit' => 'decimal:2',
+        'berlaku_mulai_periode' => 'date',
+        'berlaku_sampai_periode' => 'date',
+    ];
 
-    protected static function booted(): void
+    public function riwayat()
     {
-        static::deleting(fn () => throw new RuntimeException('Kebijakan limit payroll merupakan histori dan tidak boleh dihapus.'));
+        return $this->hasMany(RiwayatKebijakanLimitPotongGaji::class, 'kebijakan_limit_potong_gaji_id');
     }
-
-    public function perusahaan() { return $this->belongsTo(Perusahaan::class); }
-    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
 }

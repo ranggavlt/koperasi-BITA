@@ -37,7 +37,7 @@ class MutasiKas extends Model
                 ReversalTransaksi::class,
                 PembayaranOutstandingCash::class,
                 PembayaranSewaMobil::class,
-                PembayaranSewaPrinter::class,
+                PembayaranSewaHardware::class,
                 BebanOperasional::class,
                 PenyelesaianKeanggotaan::class,
             ], true)) {
@@ -64,7 +64,7 @@ class MutasiKas extends Model
             \App\Models\ReversalTransaksi::class => 'Reversal Transaksi',
             \App\Models\PembayaranOutstandingCash::class => 'Pembayaran Outstanding Cash',
             \App\Models\PembayaranSewaMobil::class => 'Pembayaran Sewa Mobil',
-            \App\Models\PembayaranSewaPrinter::class => 'Pembayaran Sewa Printer',
+            \App\Models\PembayaranSewaHardware::class => 'Pembayaran Sewa Hardware',
             \App\Models\BebanOperasional::class => 'Beban Operasional',
             \App\Models\PenyelesaianKeanggotaan::class => 'Penyelesaian Keanggotaan',
             default => 'Manual',

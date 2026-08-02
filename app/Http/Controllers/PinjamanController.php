@@ -87,7 +87,7 @@ class PinjamanController extends Controller
                 ->withErrors(['pinjaman' => 'Hanya draft Pinjaman yang dapat diedit.']);
         }
 
-        $dompet = \App\Models\DompetKoperasi::query()
+        $dompet = DompetKoperasi::query()
             ->with('akun')
             ->orderBy('nama_dompet')
             ->get();

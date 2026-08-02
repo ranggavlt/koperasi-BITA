@@ -24,6 +24,8 @@ class SewaMobil extends Model
 
     public const STATUS_DIBATALKAN = 'dibatalkan';
 
+    public const STATUS_REFUNDED = 'refunded';
+
     public const PEMBAYARAN_BELUM_BAYAR = 'belum_bayar';
 
     public const PEMBAYARAN_PAID = 'paid';
@@ -53,11 +55,25 @@ class SewaMobil extends Model
         'nama_perusahaan_snapshot',
         'nama_kegiatan',
         'lokasi_kegiatan',
+        'vendor_nama',
+        'vendor_kontak',
+        'vendor_alamat',
+        'jenis_kendaraan',
+        'merek_kendaraan',
+        'model_kendaraan',
+        'plat_nomor_snapshot',
+        'plat_nomor_normalized',
+        'tahun_kendaraan',
+        'warna_kendaraan',
+        'keterangan_kendaraan',
         'tanggal_mulai',
         'tanggal_selesai',
         'jumlah_hari',
         'tarif_harian_snapshot',
         'total_sewa',
+        'total_harga_vendor',
+        'total_markup',
+        'total_tagihan_perusahaan',
         'status',
         'status_pembayaran',
         'pengurus_penyetuju_id',
@@ -68,8 +84,15 @@ class SewaMobil extends Model
         'approved_at',
         'rejected_at',
         'started_at',
+        'started_by',
         'completed_at',
+        'completed_by',
         'cancelled_at',
+        'cancelled_by',
+        'refunded_at',
+        'refunded_by',
+        'refund_reason',
+        'reversal_transaksi_id',
         'alasan_penolakan',
         'alasan_pembatalan',
         'keterangan',
@@ -85,15 +108,17 @@ class SewaMobil extends Model
         'jumlah_hari' => 'integer',
         'tarif_harian_snapshot' => 'integer',
         'total_sewa' => 'integer',
-        'harga_vendor_total' => 'integer',
-        'markup_total' => 'integer',
+        'total_harga_vendor' => 'integer',
+        'total_markup' => 'integer',
         'total_tagihan_perusahaan' => 'integer',
+        'tahun_kendaraan' => 'integer',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'refunded_at' => 'datetime',
         'needs_finance_review' => 'boolean',
     ];
 
@@ -114,6 +139,7 @@ class SewaMobil extends Model
             self::STATUS_BERJALAN,
             self::STATUS_SELESAI,
             self::STATUS_DIBATALKAN,
+            self::STATUS_REFUNDED,
         ];
     }
 
@@ -127,6 +153,7 @@ class SewaMobil extends Model
             self::STATUS_BERJALAN => 'Berjalan',
             self::STATUS_SELESAI => 'Selesai',
             self::STATUS_DIBATALKAN => 'Dibatalkan',
+            self::STATUS_REFUNDED => 'Refunded',
         ];
     }
 
@@ -194,6 +221,11 @@ class SewaMobil extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public function reversal()
+    {
+        return $this->belongsTo(ReversalTransaksi::class, 'reversal_transaksi_id');
+    }
+
     public function pembayaran()
     {
         return $this->hasOne(PembayaranSewaMobil::class, 'sewa_mobil_id');
@@ -216,12 +248,28 @@ class SewaMobil extends Model
 
     public function scopeBlockingSchedule($query)
     {
-        return $query->whereIn('status', [self::STATUS_DISETUJUI, self::STATUS_BERJALAN]);
+        return $query->whereIn('status', [
+            self::STATUS_DIAJUKAN,
+            self::STATUS_DISETUJUI,
+            self::STATUS_BERJALAN,
+            self::STATUS_SELESAI,
+        ]);
     }
 
     public function getTarifTotalAttribute(): int
     {
-        return (int) ($this->total_sewa ?? 0);
+        return (int) ($this->total_tagihan_perusahaan ?? $this->total_sewa ?? 0);
+    }
+
+    public function getVehicleLabelAttribute(): string
+    {
+        $parts = array_filter([
+            $this->jenis_kendaraan,
+            $this->merek_kendaraan,
+            $this->model_kendaraan,
+        ]);
+
+        return $parts === [] ? '-' : implode(' ', $parts);
     }
 
     public function getStatusLabelAttribute(): string

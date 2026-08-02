@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Perusahaan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -23,6 +24,10 @@ class KaryawanFactory extends Factory
             'jabatan' => fake()->randomElement(['Staf Administrasi', 'Staf Gudang', 'Kasir Toko']),
             'status_kerja' => 'aktif',
             'tanggal_berhenti' => null,
+            'perusahaan_id' => fn () => Perusahaan::query()->firstOrCreate(
+                ['kode' => 'BEE'],
+                ['nama' => 'Bita Enarcon Engineering']
+            )->id,
         ];
     }
 }

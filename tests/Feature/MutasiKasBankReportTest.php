@@ -155,44 +155,69 @@ class MutasiKasBankReportTest extends TestCase
         ]);
 
         $modules = collect(config('navigation.modules', []))->keyBy('route');
+        $groups = collect(config('navigation.groups', []))->keyBy('key');
+        $groupLabel = fn (string $route): string => $groups[$modules[$route]['group']]['label'];
 
         $this->assertFalse($modules->has('aset-mobil.index'));
-        $this->assertSame('Master Data', $modules['aset-printer.index']['section']);
+        $this->assertSame('Master Data', $groupLabel('aset-printer.index'));
         $this->assertSame('master_printer_enabled', $modules['aset-printer.index']['feature']);
-        $this->assertSame('Kas & Bank', $modules['dompet-koperasi.index']['section']);
-        $this->assertSame('Kas & Bank', $modules['mutasi-kas.index']['section']);
+        $this->assertSame('Kas & Bank', $groupLabel('dompet-koperasi.index'));
+        $this->assertSame('Kas & Bank', $groupLabel('mutasi-kas.index'));
         $this->assertSame('Mutasi Kas & Bank', $modules['mutasi-kas.index']['label']);
-        $this->assertSame('Usaha Koperasi', $modules['sewa-mobil.finance.index']['section']);
-        $this->assertSame('Usaha Koperasi', $modules['sewa-printer.index']['section']);
-        $this->assertSame('Operasional', $modules['beban-operasional.index']['section']);
+        $this->assertSame('Usaha Koperasi', $groupLabel('sewa-mobil.finance.index'));
+        $this->assertSame('Usaha Koperasi', $groupLabel('sewa-hardware.index'));
+        $this->assertSame('Sewa Hardware', $modules['sewa-hardware.index']['label']);
+        $this->assertSame('Operasional', $groupLabel('beban-operasional.index'));
+        $this->assertSame('Akuntansi', $groupLabel('akun.index'));
+        $this->assertSame('Daftar Akun / COA', $modules['akun.index']['label']);
+        $this->assertSame('Tagihan Tunai', $modules['outstanding-cash.index']['label']);
+        $this->assertSame('Riwayat Koreksi Transaksi', $modules['reversal-transaksi.index']['label']);
 
         $this->actingAs($this->user('admin'))
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSeeInOrder([
-                'MASTER DATA',
-                'Manajemen User',
+                'POS / Kasir',
+                'Penjualan / Kasir',
+                'Pembayaran Konsinyasi',
+                'Laporan Konsinyasi',
+                'Master Data',
                 'Karyawan',
                 'Anggota',
                 'Pengurus',
-                'COA',
-                'KAS & BANK',
+                'Produk',
+                'Kategori Produk',
+                'Reseller',
+                'Kas & Bank',
                 'Dompet Koperasi',
                 'Mutasi Kas & Bank',
-                'SIMPAN PINJAM',
+                'Simpan Pinjam',
                 'Transaksi Simpanan',
                 'Pinjaman',
                 'Cicilan Pinjaman',
+                'Potong Gaji',
                 'Periode Potong Gaji',
-                'USAHA KOPERASI',
+                'Laporan Potong Gaji',
+                'Rekonsiliasi Potong Gaji',
+                'Tagihan Tunai',
+                'Usaha Koperasi',
                 'Sewa Mobil',
                 'Sewa Hardware',
-                'OPERASIONAL',
+                'Invoice Penagihan B2B',
+                'Operasional',
                 'Beban Operasional',
-                'LAPORAN AKUNTANSI',
+                'Akuntansi',
+                'Daftar Akun / COA',
+                'Jurnal Umum Periodik',
+                'Buku Besar',
+                'Keanggotaan & Koreksi',
+                'Penyelesaian Keanggotaan',
+                'Riwayat Koreksi Transaksi',
             ], false)
+            ->assertDontSee('Mobil Koperasi')
             ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Transaksi SHU')
+            ->assertDontSee('Klaim Dana Sosial')
             ->assertDontSee('Jasa Print');
     }
 

@@ -8,66 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $this->finalizePayrollPolicy();
         $this->finalizeRentalsAndB2b();
         $this->createDanaSosial();
         $this->hardenShuSchema();
-    }
-
-    private function finalizePayrollPolicy(): void
-    {
-        if (! Schema::hasTable('kebijakan_limit_potong_gaji')) {
-            Schema::create('kebijakan_limit_potong_gaji', function (Blueprint $table): void {
-                $table->id();
-                $table->foreignId('perusahaan_id')->nullable()->constrained('perusahaan')->restrictOnDelete();
-                $table->decimal('limit_nominal', 15, 2)->default(1500000);
-                $table->date('berlaku_mulai');
-                $table->date('berlaku_sampai')->nullable();
-                $table->boolean('aktif')->default(true);
-                $table->string('kode_perusahaan_snapshot', 10)->nullable();
-                $table->string('nama_perusahaan_snapshot', 150)->nullable();
-                $table->text('alasan');
-                $table->foreignId('created_by')->nullable()->constrained('users')->restrictOnDelete();
-                $table->string('idempotency_key', 191)->unique();
-                $table->timestamps();
-
-                $table->index(['perusahaan_id', 'berlaku_mulai', 'aktif'], 'kebijakan_limit_scope_period_index');
-            });
-        }
-
-        if (! Schema::hasTable('pengaturan_payroll_anggota')) {
-            Schema::create('pengaturan_payroll_anggota', function (Blueprint $table): void {
-                $table->id();
-                $table->foreignId('anggota_id')->constrained('anggota')->restrictOnDelete();
-                $table->date('berlaku_mulai');
-                $table->decimal('limit_override_nominal', 15, 2)->nullable();
-                $table->boolean('kredit_waserba_aktif')->default(true);
-                $table->text('alasan');
-                $table->foreignId('created_by')->nullable()->constrained('users')->restrictOnDelete();
-                $table->string('idempotency_key', 191)->unique();
-                $table->timestamps();
-
-                $table->unique(['anggota_id', 'berlaku_mulai'], 'pengaturan_payroll_anggota_period_unique');
-            });
-        }
-
-        Schema::table('limit_potong_gaji_anggota', function (Blueprint $table): void {
-            if (! Schema::hasColumn('limit_potong_gaji_anggota', 'sumber_limit_snapshot')) {
-                $table->string('sumber_limit_snapshot', 30)->nullable()->after('limit_nominal');
-            }
-            if (! Schema::hasColumn('limit_potong_gaji_anggota', 'perusahaan_id_snapshot')) {
-                $table->unsignedBigInteger('perusahaan_id_snapshot')->nullable()->after('sumber_limit_snapshot');
-            }
-            if (! Schema::hasColumn('limit_potong_gaji_anggota', 'kode_perusahaan_snapshot')) {
-                $table->string('kode_perusahaan_snapshot', 10)->nullable()->after('perusahaan_id_snapshot');
-            }
-            if (! Schema::hasColumn('limit_potong_gaji_anggota', 'nama_perusahaan_snapshot')) {
-                $table->string('nama_perusahaan_snapshot', 150)->nullable()->after('kode_perusahaan_snapshot');
-            }
-            if (! Schema::hasColumn('limit_potong_gaji_anggota', 'kredit_waserba_aktif_snapshot')) {
-                $table->boolean('kredit_waserba_aktif_snapshot')->default(true)->after('nama_perusahaan_snapshot');
-            }
-        });
     }
 
     private function finalizeRentalsAndB2b(): void
@@ -105,14 +48,14 @@ return new class extends Migration
             }
         });
 
-        Schema::table('sewa_printer', function (Blueprint $table): void {
-            if (! Schema::hasColumn('sewa_printer', 'perusahaan_id')) {
+        Schema::table('sewa_hardware', function (Blueprint $table): void {
+            if (! Schema::hasColumn('sewa_hardware', 'perusahaan_id')) {
                 $table->foreignId('perusahaan_id')->nullable()->constrained('perusahaan')->restrictOnDelete();
             }
-            if (! Schema::hasColumn('sewa_printer', 'kode_perusahaan_snapshot')) {
+            if (! Schema::hasColumn('sewa_hardware', 'kode_perusahaan_snapshot')) {
                 $table->string('kode_perusahaan_snapshot', 10)->nullable();
             }
-            if (! Schema::hasColumn('sewa_printer', 'model_sumber')) {
+            if (! Schema::hasColumn('sewa_hardware', 'model_sumber')) {
                 $table->string('model_sumber', 20)->default('vendor');
             }
         });
@@ -292,7 +235,5 @@ return new class extends Migration
         Schema::dropIfExists('dana_sosial_sumber');
         Schema::dropIfExists('pembayaran_invoice_perusahaan');
         Schema::dropIfExists('pembayaran_vendor_sewa');
-        Schema::dropIfExists('pengaturan_payroll_anggota');
-        Schema::dropIfExists('kebijakan_limit_potong_gaji');
     }
 };

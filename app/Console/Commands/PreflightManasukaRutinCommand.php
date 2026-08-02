@@ -58,7 +58,7 @@ class PreflightManasukaRutinCommand extends Command
 
     private function schemaMissing(): int
     {
-        foreach (['konfigurasi_manasuka_rutin', 'simpanan', 'pemakaian_potong_gaji', 'saldo_simpanan_sukarela'] as $table) {
+        foreach (['konfigurasi_manasuka_rutin', 'simpanan', 'pemakaian_potong_gaji', 'saldo_simpanan_manasuka'] as $table) {
             if (! Schema::hasTable($table)) {
                 return 1;
             }

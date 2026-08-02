@@ -19,6 +19,12 @@ class LimitPotongGajiAnggota extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const SUMBER_LIMIT_UMUM = 'limit_umum';
+
+    public const SUMBER_OVERRIDE_ANGGOTA = 'override_anggota';
+
+    public const SUMBER_MANUAL = 'manual';
+
     protected $table = 'limit_potong_gaji_anggota';
 
     protected $fillable = [
@@ -26,11 +32,16 @@ class LimitPotongGajiAnggota extends Model
         'anggota_id',
         'dompet_penerimaan_id',
         'limit_nominal',
-        'sumber_limit_snapshot',
+        'sumber_limit',
+        'kebijakan_limit_potong_gaji_id',
+        'override_limit_potong_gaji_anggota_id',
         'perusahaan_id_snapshot',
-        'kode_perusahaan_snapshot',
-        'nama_perusahaan_snapshot',
-        'kredit_waserba_aktif_snapshot',
+        'perusahaan_kode_snapshot',
+        'perusahaan_nama_snapshot',
+        'kredit_waserba_enabled_snapshot',
+        'generated_at',
+        'generated_by',
+        'generation_batch_key',
         'status',
         'activated_by',
         'confirmed_by',
@@ -45,7 +56,8 @@ class LimitPotongGajiAnggota extends Model
 
     protected $casts = [
         'limit_nominal' => 'decimal:2',
-        'kredit_waserba_aktif_snapshot' => 'boolean',
+        'kredit_waserba_enabled_snapshot' => 'boolean',
+        'generated_at' => 'datetime',
         'activated_at' => 'datetime',
         'closed_at' => 'datetime',
         'confirmed_at' => 'datetime',
@@ -65,6 +77,21 @@ class LimitPotongGajiAnggota extends Model
     public function dompetPenerimaan()
     {
         return $this->belongsTo(DompetKoperasi::class, 'dompet_penerimaan_id');
+    }
+
+    public function kebijakanLimit()
+    {
+        return $this->belongsTo(KebijakanLimitPotongGaji::class, 'kebijakan_limit_potong_gaji_id');
+    }
+
+    public function overrideLimit()
+    {
+        return $this->belongsTo(OverrideLimitPotongGajiAnggota::class, 'override_limit_potong_gaji_anggota_id');
+    }
+
+    public function perusahaanSnapshot()
+    {
+        return $this->belongsTo(Perusahaan::class, 'perusahaan_id_snapshot');
     }
 
     public function riwayat()

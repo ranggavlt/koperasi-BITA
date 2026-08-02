@@ -10,7 +10,7 @@ use App\Models\PembayaranInvoicePerusahaan;
 use App\Models\PembayaranVendorSewa;
 use App\Models\Perusahaan;
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
+use App\Models\SewaHardware;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -27,12 +27,12 @@ class B2BRentalService
     ) {
     }
 
-    public function payVendor(SewaMobil|SewaPrinter $rental, array $data, int $userId): PembayaranVendorSewa
+    public function payVendor(SewaMobil|SewaHardware $rental, array $data, int $userId): PembayaranVendorSewa
     {
         return DB::transaction(function () use ($rental, $data, $userId): PembayaranVendorSewa {
             $locked = $rental instanceof SewaMobil
                 ? SewaMobil::query()->lockForUpdate()->findOrFail($rental->id)
-                : SewaPrinter::query()->lockForUpdate()->findOrFail($rental->id);
+                : SewaHardware::query()->lockForUpdate()->findOrFail($rental->id);
 
             $existing = PembayaranVendorSewa::query()
                 ->where('sewa_type', $locked::class)
@@ -117,7 +117,7 @@ class B2BRentalService
                     $sources->push(SewaMobil::query()->with(['karyawan.perusahaan', 'pembayaranVendor', 'invoiceDetail'])->lockForUpdate()->findOrFail($id));
                 }
                 foreach (array_unique(array_map('intval', $data['sewa_hardware_ids'] ?? [])) as $id) {
-                    $sources->push(SewaPrinter::query()->with(['karyawan.perusahaan', 'pembayaranVendor', 'invoiceDetail'])->lockForUpdate()->findOrFail($id));
+                    $sources->push(SewaHardware::query()->with(['karyawan.perusahaan', 'pembayaranVendor', 'invoiceDetail'])->lockForUpdate()->findOrFail($id));
                 }
                 if ($sources->isEmpty()) {
                     throw ValidationException::withMessages(['transaksi' => 'Pilih minimal satu transaksi sewa yang eligible.']);
@@ -160,7 +160,7 @@ class B2BRentalService
 
                 $vendorTotal = (int) $snapshots->sum('vendor_total');
                 $marginMobil = (int) $snapshots->filter(fn ($row) => $row['source'] instanceof SewaMobil)->sum('margin');
-                $marginHardware = (int) $snapshots->filter(fn ($row) => $row['source'] instanceof SewaPrinter)->sum('margin');
+                $marginHardware = (int) $snapshots->filter(fn ($row) => $row['source'] instanceof SewaHardware)->sum('margin');
                 $lines = [
                     $this->akunResolver->line($this->akunResolver->posting('b2b.piutang_perusahaan'), 'debit', $total),
                     $this->akunResolver->line($this->akunResolver->posting('b2b.uang_muka_vendor'), 'kredit', $vendorTotal),
@@ -169,7 +169,7 @@ class B2BRentalService
                     $lines[] = $this->akunResolver->line($this->akunResolver->posting('sewa_mobil.pendapatan_diterima_dimuka'), 'kredit', $marginMobil);
                 }
                 if ($marginHardware > 0) {
-                    $lines[] = $this->akunResolver->line($this->akunResolver->posting('sewa_printer.pendapatan_diterima_dimuka_margin'), 'kredit', $marginHardware);
+                    $lines[] = $this->akunResolver->line($this->akunResolver->posting('sewa_hardware.pendapatan_diterima_dimuka_margin'), 'kredit', $marginHardware);
                 }
                 $this->akuntansiService->record([
                     'idempotency_key' => 'b2b:invoice:jurnal:'.$invoice->id,
@@ -252,12 +252,12 @@ class B2BRentalService
         });
     }
 
-    public function recognizeRentalMargin(SewaMobil|SewaPrinter $rental, int $userId): void
+    public function recognizeRentalMargin(SewaMobil|SewaHardware $rental, int $userId): void
     {
         DB::transaction(function () use ($rental, $userId): void {
             $locked = $rental instanceof SewaMobil
                 ? SewaMobil::query()->with('invoiceDetail')->lockForUpdate()->findOrFail($rental->id)
-                : SewaPrinter::query()->with('invoiceDetail')->lockForUpdate()->findOrFail($rental->id);
+                : SewaHardware::query()->with('invoiceDetail')->lockForUpdate()->findOrFail($rental->id);
             if (! $locked->invoiceDetail) {
                 throw ValidationException::withMessages(['invoice' => 'Transaksi harus masuk invoice final sebelum pendapatan margin diakui.']);
             }
@@ -279,23 +279,23 @@ class B2BRentalService
                 'referensi_id' => $locked->id,
                 'created_by' => $userId,
             ], [
-                $this->akunResolver->line($this->akunResolver->posting($isMobil ? 'sewa_mobil.pendapatan_diterima_dimuka' : 'sewa_printer.pendapatan_diterima_dimuka_margin'), 'debit', $snapshot['margin']),
+                $this->akunResolver->line($this->akunResolver->posting($isMobil ? 'sewa_mobil.pendapatan_diterima_dimuka' : 'sewa_hardware.pendapatan_diterima_dimuka_margin'), 'debit', $snapshot['margin']),
                 $this->akunResolver->line($this->akunResolver->posting($isMobil ? 'b2b.pendapatan_sewa_mobil' : 'b2b.pendapatan_margin_hardware'), 'kredit', $snapshot['margin']),
             ]);
         });
     }
 
-    private function assertVendorPaymentEligible(SewaMobil|SewaPrinter $rental): void
+    private function assertVendorPaymentEligible(SewaMobil|SewaHardware $rental): void
     {
         $allowed = $rental instanceof SewaMobil
             ? [SewaMobil::STATUS_DISETUJUI, SewaMobil::STATUS_BERJALAN, SewaMobil::STATUS_SELESAI]
-            : [SewaPrinter::STATUS_DIKONFIRMASI, SewaPrinter::STATUS_BERJALAN, SewaPrinter::STATUS_SELESAI];
+            : [SewaHardware::STATUS_DIKONFIRMASI, SewaHardware::STATUS_BERJALAN, SewaHardware::STATUS_SELESAI];
         if (! in_array($rental->status, $allowed, true)) {
             throw ValidationException::withMessages(['status' => 'Vendor hanya boleh dibayar setelah transaksi disetujui/dikonfirmasi.']);
         }
     }
 
-    private function assertInvoiceEligible(SewaMobil|SewaPrinter $rental, Perusahaan $company): void
+    private function assertInvoiceEligible(SewaMobil|SewaHardware $rental, Perusahaan $company): void
     {
         $this->assertVendorPaymentEligible($rental);
         $companyId = $rental->perusahaan_id ?: $rental->karyawan?->perusahaan_id;
@@ -326,7 +326,7 @@ class B2BRentalService
     }
 
     /** @return array{code:string,vendor_name:string,vendor_contact:?string,vendor_address:?string,vendor_total:int,margin:int,company_total:int,description:string} */
-    private function rentalSnapshot(SewaMobil|SewaPrinter $rental): array
+    private function rentalSnapshot(SewaMobil|SewaHardware $rental): array
     {
         if ($rental instanceof SewaMobil) {
             $vendorTotal = (int) ($rental->harga_vendor_total ?: $rental->tarif_harian_snapshot ?: 0);

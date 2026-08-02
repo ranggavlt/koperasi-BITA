@@ -7,7 +7,7 @@ use App\Models\JenisSimpanan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\jenis_simpanan>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\JenisSimpanan>
  */
 class JenisSimpananFactory extends Factory
 {
@@ -19,7 +19,7 @@ class JenisSimpananFactory extends Factory
     public function definition(): array
     {
         $akunId = Akun::query()
-            ->where('kode_akun', config('account_map.accounts.simpanan_sukarela.kode_akun'))
+            ->where('kode_akun', config('account_map.accounts.simpanan_manasuka.kode_akun'))
             ->value('id');
 
         return [
@@ -36,13 +36,13 @@ class JenisSimpananFactory extends Factory
         ];
     }
 
-    public function sukarela(): static
+    public function manasuka(): static
     {
         return $this->state(fn () => [
-            'akun_id' => Akun::query()->where('kode_akun', config('account_map.accounts.simpanan_sukarela.kode_akun'))->value('id'),
-            'kode' => JenisSimpanan::KODE_SIMPANAN_SUKARELA,
-            'kategori' => JenisSimpanan::KATEGORI_SUKARELA,
-            'nama_jenis' => 'Simpanan Sukarela',
+            'akun_id' => Akun::query()->where('kode_akun', config('account_map.accounts.simpanan_manasuka.kode_akun'))->value('id'),
+            'kode' => JenisSimpanan::KODE_SIMPANAN_MANASUKA,
+            'kategori' => JenisSimpanan::KATEGORI_MANASUKA,
+            'nama_jenis' => 'Simpanan Manasuka',
             'wajib' => false,
             'aktif' => true,
             'interval_bulan' => null,

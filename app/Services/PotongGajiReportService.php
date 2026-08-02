@@ -198,7 +198,7 @@ class PotongGajiReportService
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->get()
             ->map(fn (Simpanan $row) => (object) [
-                'kelompok' => 'Simpanan Pokok',
+                'kelompok' => 'Legacy Pokok',
                 'source_type' => Simpanan::class,
                 'source_id' => $row->id,
                 'anggota' => $row->anggota,
@@ -330,7 +330,7 @@ class PotongGajiReportService
     {
         return match ($kategori) {
             PemakaianPotongGaji::KATEGORI_CICILAN => 'Cicilan Pinjaman',
-            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 'Simpanan Pokok',
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 'Legacy Pokok',
             PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 'Simpanan Wajib',
             PemakaianPotongGaji::KATEGORI_POS => 'POS Potong Gaji',
             PemakaianPotongGaji::KATEGORI_JASA_PRINT => 'Jasa Print',

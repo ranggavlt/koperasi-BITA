@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use App\Models\JadwalSimpananWajib;
+use App\Models\Anggota;
 use App\Models\JenisSimpanan;
+use App\Models\Karyawan;
 use App\Models\PemakaianPotongGaji;
 use App\Models\Simpanan;
-use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -15,38 +15,36 @@ class PreflightSimpananWajibCommand extends Command
 {
     protected $signature = 'koperasi:preflight-simpanan-wajib';
 
-    protected $description = 'Audit read-only jadwal, tunggakan, dan payroll Simpanan Wajib.';
+    protected $description = 'Audit read-only Simpanan Wajib final SP-7 dan histori jadwal Wajib legacy.';
 
     public function handle(): int
     {
         $checks = [
-            $this->check('schema_missing', 'Schema Jadwal Simpanan Wajib belum lengkap', $this->schemaMissing()),
-            $this->check('jadwal_duplicate', 'Jadwal duplikat per Anggota/Siklus/Jenis/Periode', $this->duplicateSchedule()),
-            $this->check('kode_tagihan_duplicate', 'Kode tagihan Simpanan Wajib duplikat', $this->duplicateCode()),
-            $this->check('periode_bukan_awal_bulan', 'Periode jadwal bukan tanggal pertama bulan', $this->periodNotFirstDay()),
-            $this->check('snapshot_invalid', 'Snapshot nominal/interval/kode jadwal invalid', $this->invalidSnapshots()),
-            $this->check('jadwal_sebelum_eligible', 'Jadwal sebelum tanggal bergabung/siklus/master berlaku', $this->beforeEligibleDate()),
-            $this->check('jadwal_setelah_nonaktif', 'Jadwal dibuat setelah tanggal nonaktif Anggota', $this->afterInactiveDate()),
-            $this->check('jadwal_tanpa_simpanan', 'Jadwal tanpa transaksi Simpanan immutable', $this->scheduleWithoutSimpanan()),
-            $this->check('simpanan_wajib_tanpa_jadwal', 'Transaksi Simpanan Wajib tanpa jadwal', $this->wajibSimpananWithoutSchedule()),
-            $this->check('simpanan_ganda_jadwal', 'Lebih dari satu transaksi Simpanan untuk satu jadwal', $this->duplicateSimpananForSchedule()),
-            $this->check('ledger_aktif_ganda', 'Ledger aktif ganda untuk satu jadwal Wajib', $this->duplicateActiveLedger()),
-            $this->check('ledger_nominal_mismatch', 'Nominal ledger tidak sama dengan snapshot jadwal', $this->ledgerNominalMismatch()),
-            $this->check('reserved_tanpa_ledger', 'Jadwal reserved tanpa ledger reserved', $this->reservedWithoutLedger()),
-            $this->check('settled_tanpa_posting', 'Jadwal settled tanpa posting payroll atau pembayaran langsung yang valid', $this->settledWithoutPosting()),
-            $this->check('ledger_settled_source_belum_settled', 'Ledger settled tetapi jadwal/simpanan belum settled', $this->ledgerSettledButSourceOpen()),
-            $this->check('pos_priority_violation', 'POS payroll aktif saat Wajib jatuh tempo belum dialokasikan', $this->posPriorityViolation()),
-            $this->check('pos_tunai_ada_ledger_payroll', 'POS non-payroll mempunyai ledger potong gaji', $this->posNonPayrollWithLedger()),
-            $this->check('ledger_source_orphan', 'Ledger Simpanan Wajib tanpa source jadwal valid', $this->ledgerSourceOrphan()),
-            $this->check('ledger_category_invalid', 'Kategori ledger potong gaji tidak dikenal', $this->invalidLedgerCategory()),
-            $this->check('idempotency_wajib_duplicate', 'Duplicate idempotency Simpanan Wajib/ledger/Mutasi/Jurnal', $this->duplicateWajibIdempotency()),
-            $this->check('posting_payroll_wajib_invalid', 'Mutasi/Jurnal payroll Simpanan Wajib hilang, ganda, atau orphan', $this->invalidPayrollPosting()),
-            $this->check('posting_direct_wajib_invalid', 'Mutasi/Jurnal pembayaran langsung Simpanan Wajib hilang atau ganda', $this->invalidDirectPosting()),
+            $this->check('schema_missing', 'Schema Simpanan Wajib final belum lengkap', $this->schemaMissing()),
+            $this->check('master_pokok_aktif', 'Master Pokok masih aktif', $this->activeLegacyCategory(JenisSimpanan::KATEGORI_POKOK)),
+            $this->check('master_sukarela_aktif', 'Master Sukarela masih aktif', $this->activeLegacyCategory('sukarela')),
+            $this->check('master_wajib_count', 'Master Wajib aktif tidak tepat satu', $this->invalidActiveCount(JenisSimpanan::KATEGORI_WAJIB)),
+            $this->check('master_manasuka_count', 'Master Manasuka aktif tidak tepat satu', $this->invalidActiveCount(JenisSimpanan::KATEGORI_MANASUKA)),
+            $this->check('wajib_nominal_invalid', 'Nominal Wajib aktif bukan Rp10.000', $this->invalidWajibNominal()),
+            $this->check('wajib_interval_invalid', 'Wajib aktif masih memiliki interval', $this->invalidWajibInterval()),
+            $this->check('wajib_duplicate_siklus', 'Lebih dari satu Wajib final aktif per siklus', $this->duplicateWajibPerCycle()),
+            $this->check('wajib_tanpa_siklus', 'Wajib final tanpa siklus keanggotaan', $this->wajibWithoutCycle()),
+            $this->check('jadwal_wajib_baru', 'Jadwal Wajib berkala baru setelah cutoff SP-7', $this->newLegacySchedules()),
+            $this->check('wajib_tunai_dompet_salah', 'Wajib tunai tidak memakai Dompet Kas', $this->wrongDompetForMethod(Simpanan::METODE_TUNAI, 'kas')),
+            $this->check('wajib_transfer_dompet_salah', 'Wajib transfer tidak memakai Dompet Bank', $this->wrongDompetForMethod(Simpanan::METODE_TRANSFER_BANK, 'bank')),
+            $this->check('wajib_direct_posting_invalid', 'Wajib tunai/bank paid tanpa Mutasi/Jurnal tepat satu', $this->directPaidWithoutPosting()),
+            $this->check('wajib_payroll_pengakuan_missing', 'Wajib payroll tanpa jurnal pengakuan piutang', $this->payrollRecognitionMissing()),
+            $this->check('wajib_payroll_ledger_invalid', 'Wajib payroll allocated/settled tanpa ledger valid', $this->payrollLedgerInvalid()),
+            $this->check('wajib_pending_nonaktif', 'Wajib pending/allocated milik Anggota/Karyawan nonaktif', $this->pendingForInactiveMember()),
+            $this->check('posting_akun_302_baru', 'Posting Simpanan Wajib baru memakai akun 302 legacy', $this->newPostingToLegacy302()),
+            $this->check('hak_settlement_ganda', 'Hak settlement menghitung Pokok dan Wajib final sekaligus', $this->duplicateSettlementRights()),
+            $this->check('manasuka_payroll', 'Manasuka masuk ledger payroll', $this->manasukaInPayrollLedger()),
+            $this->check('idempotency_duplicate', 'Duplicate idempotency Simpanan Wajib/ledger/Mutasi/Jurnal', $this->duplicateWajibIdempotency()),
             $this->check('jurnal_wajib_tidak_seimbang', 'Jurnal Simpanan Wajib/payroll tidak seimbang', $this->unbalancedWajibJournal()),
         ];
 
         $this->newLine();
-        $this->info('Ringkasan preflight Simpanan Wajib');
+        $this->info('Ringkasan preflight Simpanan Wajib SP-7');
         $this->table(
             ['Kode', 'Pemeriksaan', 'Count', 'Severity'],
             array_map(fn (array $check) => [
@@ -62,12 +60,12 @@ class PreflightSimpananWajibCommand extends Command
             ->count();
 
         if ($criticalCount > 0) {
-            $this->error('Preflight Simpanan Wajib menemukan konflik kritis. Lakukan rekonsiliasi manual; command ini tidak menulis database.');
+            $this->error('Preflight Simpanan Wajib SP-7 menemukan konflik kritis. Command ini read-only dan tidak menulis database.');
 
             return self::FAILURE;
         }
 
-        $this->info('Preflight Simpanan Wajib bersih: tidak ada konflik kritis.');
+        $this->info('Preflight Simpanan Wajib SP-7 bersih.');
 
         return self::SUCCESS;
     }
@@ -79,11 +77,19 @@ class PreflightSimpananWajibCommand extends Command
 
     private function schemaMissing(): int
     {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'simpanan', 'pemakaian_potong_gaji'])) {
+        if (! $this->hasTables([
+            'jenis_simpanan',
+            'simpanan',
+            'pemakaian_potong_gaji',
+            'dompet_koperasi',
+            'mutasi_kas',
+            'jurnal_umum',
+            'jurnal_umum_detail',
+        ])) {
             return 1;
         }
 
-        foreach (['jadwal_simpanan_wajib_id', 'anggota_id', 'jenis_simpanan_id'] as $column) {
+        foreach (['siklus_keanggotaan_id', 'simpanan_wajib_siklus_id', 'metode_pembayaran', 'pemakaian_potong_gaji_id'] as $column) {
             if (! Schema::hasColumn('simpanan', $column)) {
                 return 1;
             }
@@ -92,308 +98,275 @@ class PreflightSimpananWajibCommand extends Command
         return 0;
     }
 
-    private function duplicateSchedule(): int
+    private function activeLegacyCategory(string $kategori): int
     {
-        if (! Schema::hasTable('jadwal_simpanan_wajib')) {
+        if (! Schema::hasTable('jenis_simpanan')) {
             return 0;
         }
 
-        return DB::table('jadwal_simpanan_wajib')
-            ->select('anggota_id', 'siklus_keanggotaan_id', 'jenis_simpanan_id', 'periode', DB::raw('COUNT(*) as total'))
-            ->groupBy('anggota_id', 'siklus_keanggotaan_id', 'jenis_simpanan_id', 'periode')
-            ->having('total', '>', 1)
-            ->get()
+        return DB::table('jenis_simpanan')
+            ->where('kategori', $kategori)
+            ->where('aktif', true)
             ->count();
     }
 
-    private function duplicateCode(): int
+    private function invalidActiveCount(string $kategori): int
     {
-        if (! Schema::hasTable('jadwal_simpanan_wajib')) {
+        if (! Schema::hasTable('jenis_simpanan')) {
             return 0;
         }
 
-        return DB::table('jadwal_simpanan_wajib')
-            ->select('kode_tagihan', DB::raw('COUNT(*) as total'))
-            ->groupBy('kode_tagihan')
-            ->having('total', '>', 1)
-            ->get()
-            ->count();
+        return DB::table('jenis_simpanan')
+            ->where('kategori', $kategori)
+            ->where('aktif', true)
+            ->count() === 1 ? 0 : 1;
     }
 
-    private function periodNotFirstDay(): int
+    private function invalidWajibNominal(): int
     {
-        if (! Schema::hasTable('jadwal_simpanan_wajib')) {
+        if (! Schema::hasTable('jenis_simpanan')) {
             return 0;
         }
 
-        return DB::table('jadwal_simpanan_wajib')
-            ->get(['periode'])
-            ->filter(fn ($row) => CarbonImmutable::parse((string) $row->periode)->day !== 1)
-            ->count();
-    }
-
-    private function invalidSnapshots(): int
-    {
-        if (! Schema::hasTable('jadwal_simpanan_wajib')) {
-            return 0;
-        }
-
-        return DB::table('jadwal_simpanan_wajib')
+        return DB::table('jenis_simpanan')
+            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
+            ->where('aktif', true)
             ->where(function ($query): void {
-                $query->where('nominal_snapshot', '<=', 0)
-                    ->orWhere('interval_bulan_snapshot', '<', 1)
-                    ->orWhere('interval_bulan_snapshot', '>', 12)
-                    ->orWhere('kode_jenis_snapshot', '!=', JenisSimpanan::KODE_SIMPANAN_WAJIB)
-                    ->orWhereNull('nama_jenis_snapshot');
+                $query->where('kode', '!=', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+                    ->orWhereRaw('ABS(nominal_default - 10000) > 0.01');
             })
             ->count();
     }
 
-    private function beforeEligibleDate(): int
+    private function invalidWajibInterval(): int
     {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'anggota', 'jenis_simpanan', 'siklus_keanggotaan'])) {
+        if (! Schema::hasTable('jenis_simpanan')) {
             return 0;
         }
 
-        return DB::table('jadwal_simpanan_wajib as j')
-            ->join('anggota as a', 'a.id', '=', 'j.anggota_id')
-            ->join('jenis_simpanan as js', 'js.id', '=', 'j.jenis_simpanan_id')
-            ->leftJoin('siklus_keanggotaan as sk', 'sk.id', '=', 'j.siklus_keanggotaan_id')
-            ->get(['j.periode', 'a.tanggal_bergabung', 'js.berlaku_mulai', 'sk.tanggal_mulai'])
-            ->filter(function ($row): bool {
-                $periode = CarbonImmutable::parse((string) $row->periode)->startOfMonth();
-                $cycleOrMemberStart = $row->tanggal_mulai ?: $row->tanggal_bergabung;
-                $dates = collect([$cycleOrMemberStart, $row->berlaku_mulai])
-                    ->filter()
-                    ->map(fn ($date) => CarbonImmutable::parse((string) $date)->startOfMonth());
-                $eligible = $dates->max();
-
-                return $eligible && $periode->lessThan($eligible);
-            })
+        return DB::table('jenis_simpanan')
+            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
+            ->where('aktif', true)
+            ->whereNotNull('interval_bulan')
             ->count();
     }
 
-    private function afterInactiveDate(): int
+    private function duplicateWajibPerCycle(): int
     {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'anggota'])) {
-            return 0;
-        }
-
-        return DB::table('jadwal_simpanan_wajib as j')
-            ->join('anggota as a', 'a.id', '=', 'j.anggota_id')
-            ->whereNotNull('a.tanggal_nonaktif')
-            ->get(['j.periode', 'a.tanggal_nonaktif'])
-            ->filter(fn ($row) => CarbonImmutable::parse((string) $row->periode)->startOfMonth()
-                ->greaterThan(CarbonImmutable::parse((string) $row->tanggal_nonaktif)->startOfMonth()))
-            ->count();
-    }
-
-    private function scheduleWithoutSimpanan(): int
-    {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'simpanan']) || ! Schema::hasColumn('simpanan', 'jadwal_simpanan_wajib_id')) {
-            return 0;
-        }
-
-        return DB::table('jadwal_simpanan_wajib as j')
-            ->leftJoin('simpanan as s', 's.jadwal_simpanan_wajib_id', '=', 'j.id')
-            ->whereNull('s.id')
-            ->count('j.id');
-    }
-
-    private function wajibSimpananWithoutSchedule(): int
-    {
-        if (! Schema::hasTable('simpanan') || ! Schema::hasColumn('simpanan', 'jadwal_simpanan_wajib_id')) {
+        if (! Schema::hasTable('simpanan')) {
             return 0;
         }
 
         return DB::table('simpanan')
             ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
-            ->whereNull('jadwal_simpanan_wajib_id')
+            ->whereNotNull('siklus_keanggotaan_id')
+            ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+            ->select('siklus_keanggotaan_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('siklus_keanggotaan_id')
+            ->having('total', '>', 1)
+            ->get()
             ->count();
     }
 
-    private function duplicateSimpananForSchedule(): int
+    private function wajibWithoutCycle(): int
     {
-        if (! Schema::hasTable('simpanan') || ! Schema::hasColumn('simpanan', 'jadwal_simpanan_wajib_id')) {
+        if (! Schema::hasTable('simpanan')) {
             return 0;
         }
 
         return DB::table('simpanan')
-            ->whereNotNull('jadwal_simpanan_wajib_id')
-            ->select('jadwal_simpanan_wajib_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('jadwal_simpanan_wajib_id')
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereNull('siklus_keanggotaan_id')
+            ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+            ->count();
+    }
+
+    private function newLegacySchedules(): int
+    {
+        if (! Schema::hasTable('jadwal_simpanan_wajib') || ! Schema::hasColumn('jadwal_simpanan_wajib', 'sp7_archived_at')) {
+            return 0;
+        }
+
+        return DB::table('jadwal_simpanan_wajib')
+            ->whereNull('sp7_archived_at')
+            ->count();
+    }
+
+    private function wrongDompetForMethod(string $method, string $expectedDompetKind): int
+    {
+        if (! $this->hasTables(['simpanan', 'dompet_koperasi'])) {
+            return 0;
+        }
+
+        return DB::table('simpanan as s')
+            ->leftJoin('dompet_koperasi as d', 'd.id', '=', 's.dompet_id')
+            ->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('s.metode_pembayaran', $method)
+            ->whereNotIn('s.status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+            ->where(function ($query) use ($expectedDompetKind): void {
+                $query->whereNull('d.id')
+                    ->orWhere('d.jenis_dompet', '!=', $expectedDompetKind);
+            })
+            ->count();
+    }
+
+    private function directPaidWithoutPosting(): int
+    {
+        if (! $this->hasTables(['simpanan', 'mutasi_kas', 'jurnal_umum'])) {
+            return 0;
+        }
+
+        return DB::table('simpanan')
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereIn('metode_pembayaran', [Simpanan::METODE_TUNAI, Simpanan::METODE_TRANSFER_BANK])
+            ->whereIn('status', [Simpanan::STATUS_SETTLED, Simpanan::STATUS_SETTLED_CASH])
+            ->get(['id'])
+            ->filter(function ($simpanan): bool {
+                $mutasi = DB::table('mutasi_kas')
+                    ->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$simpanan->id)
+                    ->where('referensi_tipe', Simpanan::class)
+                    ->where('referensi_id', $simpanan->id)
+                    ->count();
+                $jurnal = DB::table('jurnal_umum')
+                    ->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$simpanan->id)
+                    ->where('referensi_tipe', Simpanan::class)
+                    ->where('referensi_id', $simpanan->id)
+                    ->count();
+
+                return $mutasi !== 1 || $jurnal !== 1;
+            })
+            ->count();
+    }
+
+    private function payrollRecognitionMissing(): int
+    {
+        if (! $this->hasTables(['simpanan', 'jurnal_umum'])) {
+            return 0;
+        }
+
+        return DB::table('simpanan')
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('metode_pembayaran', Simpanan::METODE_POTONG_GAJI)
+            ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+            ->get(['id'])
+            ->filter(fn ($simpanan): bool => DB::table('jurnal_umum')
+                ->where('idempotency_key', 'simpanan-wajib:pengakuan:jurnal:'.$simpanan->id)
+                ->where('referensi_tipe', Simpanan::class)
+                ->where('referensi_id', $simpanan->id)
+                ->count() !== 1)
+            ->count();
+    }
+
+    private function payrollLedgerInvalid(): int
+    {
+        if (! $this->hasTables(['simpanan', 'pemakaian_potong_gaji'])) {
+            return 0;
+        }
+
+        $issues = DB::table('simpanan as s')
+            ->leftJoin('pemakaian_potong_gaji as p', 'p.id', '=', 's.pemakaian_potong_gaji_id')
+            ->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereNull('s.jadwal_simpanan_wajib_id')
+            ->where('s.metode_pembayaran', Simpanan::METODE_POTONG_GAJI)
+            ->whereIn('s.status', [Simpanan::STATUS_ALLOCATED, Simpanan::STATUS_SETTLED])
+            ->where(function ($query): void {
+                $query->whereNull('p.id')
+                    ->orWhere('p.kategori', '!=', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
+                    ->orWhere('p.source_type', '!=', Simpanan::class)
+                    ->orWhereColumn('p.source_id', '!=', 's.id')
+                    ->orWhere(function ($statusQuery): void {
+                        $statusQuery->where('s.status', Simpanan::STATUS_ALLOCATED)
+                            ->where('p.status', '!=', PemakaianPotongGaji::STATUS_RESERVED);
+                    })
+                    ->orWhere(function ($statusQuery): void {
+                        $statusQuery->where('s.status', Simpanan::STATUS_SETTLED)
+                            ->where('p.status', '!=', PemakaianPotongGaji::STATUS_SETTLED);
+                    });
+            })
+            ->count();
+
+        $issues += DB::table('pemakaian_potong_gaji as p')
+            ->leftJoin('simpanan as s', 's.id', '=', 'p.source_id')
+            ->where('p.kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
+            ->where('p.source_type', Simpanan::class)
+            ->where(function ($query): void {
+                $query->whereNull('s.id')
+                    ->orWhere('s.kode_jenis_snapshot', '!=', JenisSimpanan::KODE_SIMPANAN_WAJIB);
+            })
+            ->count();
+
+        return $issues;
+    }
+
+    private function pendingForInactiveMember(): int
+    {
+        if (! $this->hasTables(['simpanan', 'anggota', 'karyawan'])) {
+            return 0;
+        }
+
+        return DB::table('simpanan as s')
+            ->join('anggota as a', 'a.id', '=', 's.anggota_id')
+            ->join('karyawan as k', 'k.id', '=', 'a.karyawan_id')
+            ->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereIn('s.status', [Simpanan::STATUS_PENDING_PAYROLL, Simpanan::STATUS_ALLOCATED])
+            ->where(function ($query): void {
+                $query->where('a.status', '!=', Anggota::STATUS_AKTIF)
+                    ->orWhere('k.status_kerja', '!=', Karyawan::STATUS_AKTIF);
+            })
+            ->count();
+    }
+
+    private function newPostingToLegacy302(): int
+    {
+        if (! $this->hasTables(['jurnal_umum', 'jurnal_umum_detail'])) {
+            return 0;
+        }
+
+        return DB::table('jurnal_umum as j')
+            ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
+            ->leftJoin('simpanan as s', function ($join): void {
+                $join->on('s.id', '=', 'j.referensi_id')
+                    ->where('j.referensi_tipe', Simpanan::class);
+            })
+            ->where('d.akun_kode', '302')
+            ->whereNull('s.jadwal_simpanan_wajib_id')
+            ->where(function ($query): void {
+                $query->where('j.idempotency_key', 'like', 'simpanan-wajib:%')
+                    ->orWhere('j.idempotency_key', 'like', 'PG-SWJ-%');
+            })
+            ->count();
+    }
+
+    private function duplicateSettlementRights(): int
+    {
+        if (! $this->hasTables(['penyelesaian_keanggotaan_detail'])) {
+            return 0;
+        }
+
+        return DB::table('penyelesaian_keanggotaan_detail')
+            ->where('tipe_detail', 'hak')
+            ->whereIn('kategori_sumber', ['simpanan_pokok', 'simpanan_wajib'])
+            ->select('penyelesaian_keanggotaan_id', DB::raw('COUNT(DISTINCT kategori_sumber) as total'))
+            ->groupBy('penyelesaian_keanggotaan_id')
             ->having('total', '>', 1)
             ->get()
             ->count();
     }
 
-    private function duplicateActiveLedger(): int
+    private function manasukaInPayrollLedger(): int
     {
-        if (! Schema::hasTable('pemakaian_potong_gaji')) {
+        if (! $this->hasTables(['simpanan', 'pemakaian_potong_gaji'])) {
             return 0;
         }
 
-        return DB::table('pemakaian_potong_gaji')
-            ->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-            ->where('source_type', JadwalSimpananWajib::class)
-            ->whereIn('status', [
+        return DB::table('pemakaian_potong_gaji as p')
+            ->join('simpanan as s', 's.id', '=', 'p.source_id')
+            ->where('p.source_type', Simpanan::class)
+            ->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+            ->whereIn('p.status', [
                 PemakaianPotongGaji::STATUS_RESERVED,
                 PemakaianPotongGaji::STATUS_CONSUMED,
                 PemakaianPotongGaji::STATUS_SETTLED,
-            ])
-            ->select('source_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('source_id')
-            ->having('total', '>', 1)
-            ->get()
-            ->count();
-    }
-
-    private function ledgerNominalMismatch(): int
-    {
-        if (! $this->hasTables(['pemakaian_potong_gaji', 'jadwal_simpanan_wajib'])) {
-            return 0;
-        }
-
-        return DB::table('pemakaian_potong_gaji as p')
-            ->join('jadwal_simpanan_wajib as j', 'j.id', '=', 'p.source_id')
-            ->where('p.kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-            ->where('p.source_type', JadwalSimpananWajib::class)
-            ->whereRaw('ABS(p.nominal - j.nominal_snapshot) > 0.01')
-            ->count();
-    }
-
-    private function reservedWithoutLedger(): int
-    {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'pemakaian_potong_gaji'])) {
-            return 0;
-        }
-
-        return DB::table('jadwal_simpanan_wajib as j')
-            ->leftJoin('pemakaian_potong_gaji as p', function ($join): void {
-                $join->on('p.source_id', '=', 'j.id')
-                    ->where('p.source_type', '=', JadwalSimpananWajib::class)
-                    ->where('p.kategori', '=', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-                    ->where('p.status', '=', PemakaianPotongGaji::STATUS_RESERVED);
-            })
-            ->where('j.status', JadwalSimpananWajib::STATUS_RESERVED)
-            ->whereNull('p.id')
-            ->count('j.id');
-    }
-
-    private function settledWithoutPosting(): int
-    {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'simpanan', 'pemakaian_potong_gaji', 'mutasi_kas', 'jurnal_umum'])) {
-            return 0;
-        }
-
-        return DB::table('jadwal_simpanan_wajib as j')
-            ->leftJoin('simpanan as s', 's.jadwal_simpanan_wajib_id', '=', 'j.id')
-            ->where('j.status', JadwalSimpananWajib::STATUS_SETTLED)
-            ->get(['j.id', 's.id as simpanan_id'])
-            ->filter(function ($row): bool {
-                $payroll = DB::table('pemakaian_potong_gaji')
-                    ->where('source_type', JadwalSimpananWajib::class)
-                    ->where('source_id', $row->id)
-                    ->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-                    ->where('status', PemakaianPotongGaji::STATUS_SETTLED)
-                    ->exists();
-
-                if ($payroll) {
-                    return false;
-                }
-
-                if (! $row->simpanan_id) {
-                    return true;
-                }
-
-                return DB::table('mutasi_kas')->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$row->simpanan_id)->count() !== 1
-                    || DB::table('jurnal_umum')->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$row->simpanan_id)->count() !== 1;
-            })
-            ->count();
-    }
-
-    private function ledgerSettledButSourceOpen(): int
-    {
-        if (! $this->hasTables(['pemakaian_potong_gaji', 'jadwal_simpanan_wajib', 'simpanan'])
-            || ! Schema::hasColumn('simpanan', 'jadwal_simpanan_wajib_id')) {
-            return 0;
-        }
-
-        return DB::table('pemakaian_potong_gaji as p')
-            ->leftJoin('jadwal_simpanan_wajib as j', 'j.id', '=', 'p.source_id')
-            ->leftJoin('simpanan as s', 's.jadwal_simpanan_wajib_id', '=', 'j.id')
-            ->where('p.kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-            ->where('p.source_type', JadwalSimpananWajib::class)
-            ->where('p.status', PemakaianPotongGaji::STATUS_SETTLED)
-            ->where(function ($query): void {
-                $query->whereNull('j.id')
-                    ->orWhere('j.status', '!=', JadwalSimpananWajib::STATUS_SETTLED)
-                    ->orWhereNull('s.id')
-                    ->orWhere('s.status', '!=', Simpanan::STATUS_SETTLED);
-            })
-            ->count('p.id');
-    }
-
-    private function posPriorityViolation(): int
-    {
-        if (! $this->hasTables(['pemakaian_potong_gaji', 'limit_potong_gaji_anggota', 'periode_potong_gaji', 'jadwal_simpanan_wajib'])) {
-            return 0;
-        }
-
-        return DB::table('pemakaian_potong_gaji as pg')
-            ->join('limit_potong_gaji_anggota as l', 'l.id', '=', 'pg.limit_potong_gaji_anggota_id')
-            ->join('periode_potong_gaji as pp', 'pp.id', '=', 'l.periode_potong_gaji_id')
-            ->join('jadwal_simpanan_wajib as j', function ($join): void {
-                $join->on('j.anggota_id', '=', 'l.anggota_id')
-                    ->on('j.periode', '<=', 'pp.periode');
-            })
-            ->where('pg.kategori', PemakaianPotongGaji::KATEGORI_POS)
-            ->whereIn('pg.status', [PemakaianPotongGaji::STATUS_CONSUMED, PemakaianPotongGaji::STATUS_SETTLED])
-            ->where('j.status', JadwalSimpananWajib::STATUS_OUTSTANDING)
-            ->distinct()
-            ->count('pg.id');
-    }
-
-    private function posNonPayrollWithLedger(): int
-    {
-        if (! $this->hasTables(['pembayaran', 'pemakaian_potong_gaji']) || ! Schema::hasColumn('pembayaran', 'pemakaian_potong_gaji_id')) {
-            return 0;
-        }
-
-        return DB::table('pembayaran')
-            ->whereNotNull('pemakaian_potong_gaji_id')
-            ->where('metode_pembayaran', '!=', 'potong_gaji')
-            ->count();
-    }
-
-    private function ledgerSourceOrphan(): int
-    {
-        if (! $this->hasTables(['pemakaian_potong_gaji', 'jadwal_simpanan_wajib'])) {
-            return 0;
-        }
-
-        return DB::table('pemakaian_potong_gaji as p')
-            ->leftJoin('jadwal_simpanan_wajib as j', 'j.id', '=', 'p.source_id')
-            ->where('p.kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-            ->where('p.source_type', JadwalSimpananWajib::class)
-            ->whereNull('j.id')
-            ->count('p.id');
-    }
-
-    private function invalidLedgerCategory(): int
-    {
-        if (! Schema::hasTable('pemakaian_potong_gaji')) {
-            return 0;
-        }
-
-        return DB::table('pemakaian_potong_gaji')
-            ->whereNotIn('kategori', [
-                PemakaianPotongGaji::KATEGORI_CICILAN,
-                PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK,
-                PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB,
-                PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA,
-                PemakaianPotongGaji::KATEGORI_POS,
-                PemakaianPotongGaji::KATEGORI_JASA_PRINT,
             ])
             ->count();
     }
@@ -410,7 +383,11 @@ class PreflightSimpananWajibCommand extends Command
 
             $total += DB::table($table)
                 ->whereNotNull('idempotency_key')
-                ->where('idempotency_key', 'like', 'simpanan-wajib:%')
+                ->where(function ($query): void {
+                    $query->where('idempotency_key', 'like', 'simpanan-wajib:%')
+                        ->orWhere('idempotency_key', 'like', 'PG-SWJ-%')
+                        ->orWhere('idempotency_key', 'like', 'reversal:simpanan-wajib-exit:%');
+                })
                 ->select('idempotency_key', DB::raw('COUNT(*) as total'))
                 ->groupBy('idempotency_key')
                 ->having('total', '>', 1)
@@ -419,69 +396,6 @@ class PreflightSimpananWajibCommand extends Command
         }
 
         return $total;
-    }
-
-    private function invalidPayrollPosting(): int
-    {
-        if (! $this->hasTables(['pemakaian_potong_gaji', 'mutasi_kas', 'jurnal_umum'])) {
-            return 0;
-        }
-
-        $issues = DB::table('pemakaian_potong_gaji')
-            ->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-            ->where('source_type', JadwalSimpananWajib::class)
-            ->where('status', PemakaianPotongGaji::STATUS_SETTLED)
-            ->get(['id'])
-            ->filter(function ($ledger): bool {
-                $mutasiCount = DB::table('mutasi_kas')
-                    ->where('idempotency_key', 'simpanan-wajib:payroll:mutasi:' . $ledger->id)
-                    ->count();
-                $jurnalCount = DB::table('jurnal_umum')
-                    ->where('idempotency_key', 'simpanan-wajib:payroll:jurnal:' . $ledger->id)
-                    ->count();
-
-                return $mutasiCount !== 1 || $jurnalCount !== 1;
-            })
-            ->count();
-
-        $issues += DB::table('mutasi_kas as m')
-            ->leftJoin('pemakaian_potong_gaji as p', 'p.id', '=', 'm.referensi_id')
-            ->where('m.idempotency_key', 'like', 'simpanan-wajib:payroll:mutasi:%')
-            ->where(function ($query): void {
-                $query->where('m.referensi_tipe', '!=', PemakaianPotongGaji::class)
-                    ->orWhereNull('p.id')
-                    ->orWhere('p.kategori', '!=', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB);
-            })
-            ->count();
-
-        $issues += DB::table('jurnal_umum as j')
-            ->leftJoin('pemakaian_potong_gaji as p', 'p.id', '=', 'j.referensi_id')
-            ->where('j.idempotency_key', 'like', 'simpanan-wajib:payroll:jurnal:%')
-            ->where(function ($query): void {
-                $query->where('j.referensi_tipe', '!=', PemakaianPotongGaji::class)
-                    ->orWhereNull('p.id')
-                    ->orWhere('p.kategori', '!=', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB);
-            })
-            ->count();
-
-        return $issues;
-    }
-
-    private function invalidDirectPosting(): int
-    {
-        if (! $this->hasTables(['simpanan', 'mutasi_kas', 'jurnal_umum'])) {
-            return 0;
-        }
-
-        return DB::table('simpanan')
-            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
-            ->where('status', Simpanan::STATUS_SETTLED_CASH)
-            ->get(['id'])
-            ->filter(fn ($simpanan): bool =>
-                DB::table('mutasi_kas')->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$simpanan->id)->count() !== 1
-                || DB::table('jurnal_umum')->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$simpanan->id)->count() !== 1
-            )
-            ->count();
     }
 
     private function unbalancedWajibJournal(): int
@@ -494,7 +408,8 @@ class PreflightSimpananWajibCommand extends Command
             ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
             ->where(function ($query): void {
                 $query->where('j.idempotency_key', 'like', 'simpanan-wajib:%')
-                    ->orWhere('j.idempotency_key', 'like', 'PG-SWJ-%');
+                    ->orWhere('j.idempotency_key', 'like', 'PG-SWJ-%')
+                    ->orWhere('j.idempotency_key', 'like', 'reversal:simpanan-wajib-exit:%');
             })
             ->select('j.id', DB::raw('ABS(SUM(d.debit) - SUM(d.kredit)) as diff'))
             ->groupBy('j.id')

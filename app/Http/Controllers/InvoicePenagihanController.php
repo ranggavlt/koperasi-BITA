@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\DompetKoperasi;
 use App\Models\InvoicePenagihan;
 use App\Models\Perusahaan;
+use App\Models\SewaHardware;
 use App\Models\SewaMobil;
-use App\Models\SewaPrinter;
 use App\Services\B2BRentalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,13 +28,15 @@ class InvoicePenagihanController extends Controller
                 ->whereHas('pembayaranVendor')
                 ->whereDoesntHave('invoiceDetail')
                 ->whereIn('status', [SewaMobil::STATUS_DISETUJUI, SewaMobil::STATUS_BERJALAN, SewaMobil::STATUS_SELESAI])
-                ->orderBy('kode_sewa')->get(),
-            'eligibleHardware' => SewaPrinter::query()
+                ->orderBy('kode_sewa')
+                ->get(),
+            'eligibleHardware' => SewaHardware::query()
                 ->with(['karyawan.perusahaan', 'pembayaranVendor'])
                 ->whereHas('pembayaranVendor')
                 ->whereDoesntHave('invoiceDetail')
-                ->whereIn('status', [SewaPrinter::STATUS_DIKONFIRMASI, SewaPrinter::STATUS_BERJALAN, SewaPrinter::STATUS_SELESAI])
-                ->orderBy('kode_sewa')->get(),
+                ->whereIn('status', [SewaHardware::STATUS_DIKONFIRMASI, SewaHardware::STATUS_BERJALAN, SewaHardware::STATUS_SELESAI])
+                ->orderBy('kode_sewa')
+                ->get(),
             'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
         ]);
     }
@@ -48,15 +50,20 @@ class InvoicePenagihanController extends Controller
             'sewa_mobil_ids' => ['nullable', 'array'],
             'sewa_mobil_ids.*' => ['integer', 'exists:sewa_mobil,id'],
             'sewa_hardware_ids' => ['nullable', 'array'],
-            'sewa_hardware_ids.*' => ['integer', 'exists:sewa_printer,id'],
+            'sewa_hardware_ids.*' => ['integer', 'exists:sewa_hardware,id'],
             'idempotency_key' => ['nullable', 'string', 'max:191'],
         ]);
-        $service->createInvoice(Perusahaan::query()->findOrFail($data['perusahaan_id']), $data, $request->user()->id);
 
-        return back()->with('success', 'Invoice perusahaan berhasil difinalisasi. Pembayaran dapat dicatat sebagian sampai lunas.');
+        $service->createInvoice(
+            Perusahaan::query()->findOrFail($data['perusahaan_id']),
+            $data,
+            $request->user()->id
+        );
+
+        return back()->with('success', 'Invoice penagihan berhasil difinalisasi.');
     }
 
-    public function pay(Request $request, InvoicePenagihan $invoicePenagihan, B2BRentalService $service): RedirectResponse
+    public function pay(InvoicePenagihan $invoicePenagihan, Request $request, B2BRentalService $service): RedirectResponse
     {
         $data = $request->validate([
             'dompet_id' => ['required', 'exists:dompet_koperasi,id'],
@@ -66,8 +73,9 @@ class InvoicePenagihanController extends Controller
             'nomor_referensi' => ['nullable', 'string', 'max:100'],
             'idempotency_key' => ['nullable', 'string', 'max:191'],
         ]);
+
         $service->payInvoice($invoicePenagihan, $data, $request->user()->id);
 
-        return back()->with('success', 'Pembayaran perusahaan berhasil dicatat dan sisa invoice diperbarui.');
+        return back()->with('success', 'Pembayaran invoice perusahaan berhasil dicatat.');
     }
 }

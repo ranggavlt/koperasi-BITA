@@ -12,6 +12,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Services\SimpananManasukaService;
 
 class SimpananManualService
 {
@@ -35,7 +36,7 @@ class SimpananManualService
 
         $data['jenis_transaksi'] = Simpanan::JENIS_SETORAN;
 
-        return app(SimpananSukarelaService::class)->setoran($data, $userId);
+        return app(SimpananManasukaService::class)->setoran($data, $userId);
     }
 
     private function assertManualJenis(JenisSimpanan $jenis): void
@@ -54,7 +55,7 @@ class SimpananManualService
 
         if ($jenis->kode === JenisSimpanan::KODE_SIMPANAN_WAJIB || $jenis->kategori === JenisSimpanan::KATEGORI_WAJIB) {
             throw ValidationException::withMessages([
-                'jenis_simpanan_id' => 'Simpanan Wajib dibuat otomatis dari jadwal payroll dan tidak boleh diinput manual.',
+                'jenis_simpanan_id' => 'Simpanan Wajib dibuat saat pendaftaran Anggota/daftar ulang dan tidak boleh diinput manual.',
             ]);
         }
     }

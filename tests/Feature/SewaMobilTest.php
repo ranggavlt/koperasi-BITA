@@ -8,13 +8,13 @@ use App\Models\AsetKoperasi;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\MutasiKas;
-use App\Models\PembayaranSewaMobil;
 use App\Models\PemakaianPotongGaji;
+use App\Models\PembayaranSewaMobil;
+use App\Models\PembayaranVendorSewa;
 use App\Models\PengurusKoperasi;
 use App\Models\SewaMobil;
 use App\Models\User;
-use App\Services\AsetKoperasiService;
-use App\Services\KaryawanAccountService;
+use App\Services\B2BRentalService;
 use App\Services\SewaMobilService;
 use Database\Seeders\AkunSeeder;
 use Database\Seeders\DatabaseSeeder;
@@ -28,101 +28,46 @@ class SewaMobilTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_finance_membuat_akun_karyawan_unique_nonaktif_login_dan_must_change_password(): void
+    public function test_finance_dapat_membuat_draft_vendor_based_dan_draft_tidak_posting(): void
     {
-        $service = app(KaryawanAccountService::class);
         $finance = $this->user('admin');
-        $karyawan = Karyawan::factory()->create(['email' => 'karyawan.sewa@bita.test']);
+        $karyawan = Karyawan::factory()->create(['nama' => 'Karyawan Sewa Mobil Aktif']);
 
-        $account = $service->createAccount($karyawan, 'sementara123', 'karyawan', $finance->id);
+        $this->actingAs($finance)
+            ->post(route('sewa-mobil.finance.store'), $this->payload($karyawan, [
+                'tanggal_mulai' => '2026-08-10',
+                'tanggal_selesai' => '2026-08-12',
+            ]))
+            ->assertRedirect(route('sewa-mobil.finance.index'));
 
-        $this->assertSame('karyawan', $account->role);
-        $this->assertTrue($account->must_change_password);
-        $this->expectValidation(fn () => $service->createAccount($karyawan, 'sementara123', 'karyawan', $finance->id));
+        $sewa = SewaMobil::query()->firstOrFail();
 
-        $this->post(route('login.submit'), [
-            'email' => 'karyawan.sewa@bita.test',
-            'password' => 'sementara123',
-        ])->assertRedirect(route('password.change'));
-
-        $this->actingAs($account)
-            ->post(route('password.update'), [
-                'current_password' => 'sementara123',
-                'password' => 'password-baru',
-                'password_confirmation' => 'password-baru',
-            ])
-            ->assertRedirect(route('pages.dashboard'));
-
-        $this->assertFalse($account->fresh()->must_change_password);
-
-        $service->deactivateAccount($karyawan, $finance->id);
-        $this->post(route('logout'));
-
-        $this->post(route('login.submit'), [
-            'email' => 'karyawan.sewa@bita.test',
-            'password' => 'password-baru',
-        ])->assertSessionHasErrors('email');
-
-        $this->post('/register', [
-            'name' => 'Public User',
-            'email' => 'public-role@bita.test',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'role' => 'karyawan',
-        ])->assertNotFound();
-
-        $this->assertDatabaseMissing('users', [
-            'email' => 'public-role@bita.test',
-        ]);
+        $this->assertNull($sewa->aset_koperasi_id);
+        $this->assertSame(SewaMobil::STATUS_DRAFT, $sewa->status);
+        $this->assertSame(3, $sewa->jumlah_hari);
+        $this->assertSame(1200000, $sewa->total_harga_vendor);
+        $this->assertSame(225000, $sewa->total_markup);
+        $this->assertSame(1425000, $sewa->total_tagihan_perusahaan);
+        $this->assertSame(1425000, $sewa->total_sewa);
+        $this->assertSame('B1234KBS', $sewa->plat_nomor_normalized);
+        $this->assertSame(0, MutasiKas::query()->count());
+        $this->assertSame(0, DB::table('jurnal_umum')->count());
     }
 
-    public function test_finance_mencatat_sewa_mobil_karyawan_aktif_dengan_kalkulasi_hari_server_side(): void
-    {
-        $service = app(SewaMobilService::class);
-        $finance = $this->user('admin');
-        $karyawan = Karyawan::factory()->create();
-        $asset = $this->mobil(350000);
-
-        $sameDay = $service->createDraft($this->payload($asset, $karyawan, [
-            'tanggal_mulai' => '2026-08-10',
-            'tanggal_selesai' => '2026-08-10',
-            'jumlah_hari' => 999,
-            'total_sewa' => 1,
-        ]), $finance->id);
-
-        $this->assertSame(1, $sameDay->jumlah_hari);
-        $this->assertSame(350000, $sameDay->tarif_harian_snapshot);
-        $this->assertSame(350000, $sameDay->total_sewa);
-
-        $threeDays = $service->createDraft($this->payload($asset, $karyawan, [
-            'tanggal_mulai' => '2026-08-12',
-            'tanggal_selesai' => '2026-08-14',
-        ]), $finance->id);
-
-        $this->assertSame(3, $threeDays->jumlah_hari);
-        $this->assertSame(1050000, $threeDays->total_sewa);
-
-        $inactive = Karyawan::factory()->create([
-            'status_kerja' => Karyawan::STATUS_BERHENTI,
-            'tanggal_berhenti' => '2026-07-01',
-        ]);
-        $this->expectValidation(fn () => $service->createDraft($this->payload($asset, $inactive), $finance->id));
-    }
-
-    public function test_form_finance_hanya_menampilkan_karyawan_aktif_dan_self_service_karyawan_diblokir(): void
+    public function test_authorization_route_master_mobil_dan_route_hard_delete(): void
     {
         $finance = $this->user('admin');
         $kasir = $this->user('kasir');
-        $employee = $this->employeeUser('employee-sewa@bita.test');
-        $company = \App\Models\Perusahaan::query()->create(['kode' => 'BEE', 'nama' => 'Bita Enarcon Engineering']);
-        $active = Karyawan::factory()->create(['nama' => 'Aktif Untuk Sewa', 'perusahaan_id' => $company->id]);
-        $inactive = Karyawan::factory()->create([
+        $employee = $this->employeeUser('employee-sewa-mobil@kbsm.test');
+        $active = Karyawan::factory()->create(['nama' => 'Aktif Untuk Sewa Mobil']);
+        Karyawan::factory()->create([
             'nama' => 'Berhenti Tidak Muncul',
             'status_kerja' => Karyawan::STATUS_BERHENTI,
             'tanggal_berhenti' => '2026-07-01',
         ]);
-        $this->mobil();
 
+        $this->assertFalse(Route::has('aset-mobil.index'));
+        $this->assertFalse(Route::has('sewa-mobil.finance.destroy'));
         $this->assertFalse(Route::has('sewa-mobil.karyawan.index'));
 
         $this->get(route('sewa-mobil.finance.index'))->assertRedirect(route('login'));
@@ -138,68 +83,66 @@ class SewaMobilTest extends TestCase
             ->assertSee('Filter Sewa Mobil')
             ->assertSee('Daftar Sewa Mobil')
             ->assertSee('+ TAMBAH SEWA MOBIL')
-            ->assertSee('href="' . route('sewa-mobil.finance.create') . '"', false)
-            ->assertDontSee('name="nama_kegiatan"', false);
+            ->assertDontSee('name="aset_koperasi_id"', false);
 
-        $draft = app(SewaMobilService::class)->createDraft($this->payload($this->mobil(), $active), $finance->id);
+        $draft = app(SewaMobilService::class)->createDraft($this->payload($active), $finance->id);
 
         $this->actingAs($finance)
             ->get(route('sewa-mobil.finance.create'))
             ->assertOk()
             ->assertSee('Tambah Sewa Mobil')
-            ->assertSee('Kembali ke Daftar Sewa Mobil')
-            ->assertSee('data-sewa-mobil-form', false)
-            ->assertSee('Aktif Untuk Sewa')
-            ->assertDontSee('Berhenti Tidak Muncul');
+            ->assertSee('Aktif Untuk Sewa Mobil')
+            ->assertDontSee('Berhenti Tidak Muncul')
+            ->assertDontSee('name="aset_koperasi_id"', false);
 
         $this->actingAs($finance)
             ->get(route('sewa-mobil.finance.edit', $draft))
             ->assertOk()
             ->assertSee('Edit Draft Sewa Mobil')
             ->assertSee('data-sewa-mobil-form', false)
-            ->assertSee('name="nama_kegiatan"', false);
-
-        $this->assertDatabaseHas('karyawan', ['id' => $active->id]);
-        $this->assertDatabaseHas('karyawan', ['id' => $inactive->id]);
+            ->assertDontSee('name="aset_koperasi_id"', false);
     }
 
-    public function test_filter_sewa_mobil_memakai_overlap_tanggal_mobil_karyawan_dan_pagination_query(): void
+    public function test_filter_index_memakai_karyawan_status_vendor_plat_overlap_tanggal_dan_pagination_query(): void
     {
         $finance = $this->user('admin');
         $service = app(SewaMobilService::class);
-        $assetA = $this->mobil();
-        $assetB = $this->mobil();
-        $karyawanA = Karyawan::factory()->create(['nama' => 'Pemohon Mobil Filter A']);
-        $karyawanB = Karyawan::factory()->create(['nama' => 'Pemohon Mobil Filter B']);
+        $karyawanA = Karyawan::factory()->create(['nama' => 'Pemohon Filter A']);
+        $karyawanB = Karyawan::factory()->create(['nama' => 'Pemohon Filter B']);
 
-        $service->createDraft($this->payload($assetA, $karyawanA, [
-            'nama_kegiatan' => 'Mobil Overlap Masuk',
+        $service->createDraft($this->payload($karyawanA, [
+            'nama_kegiatan' => 'Vendor Overlap Masuk',
             'tanggal_mulai' => '2026-08-01',
             'tanggal_selesai' => '2026-08-03',
+            'vendor_nama' => 'CV Armada Hijau',
+            'plat_nomor_snapshot' => 'B 2222 KBS',
         ]), $finance->id);
-        $service->createDraft($this->payload($assetB, $karyawanB, [
-            'nama_kegiatan' => 'Mobil Di Luar Range',
+        $service->createDraft($this->payload($karyawanB, [
+            'nama_kegiatan' => 'Vendor Di Luar Range',
             'tanggal_mulai' => '2026-08-20',
             'tanggal_selesai' => '2026-08-22',
+            'vendor_nama' => 'CV Armada Biru',
+            'plat_nomor_snapshot' => 'B 3333 KBS',
         ]), $finance->id);
 
         $this->actingAs($finance)
             ->get(route('sewa-mobil.finance.index', [
                 'tanggal_dari' => '2026-08-02',
                 'tanggal_sampai' => '2026-08-05',
+                'vendor' => 'Hijau',
+                'plat_nomor' => 'B 2222 KBS',
             ]))
             ->assertOk()
-            ->assertSee('Mobil Overlap Masuk')
-            ->assertDontSee('Mobil Di Luar Range');
+            ->assertSee('Vendor Overlap Masuk')
+            ->assertDontSee('Vendor Di Luar Range');
 
         $this->actingAs($finance)
             ->get(route('sewa-mobil.finance.index', [
-                'aset_koperasi_id' => $assetB->id,
                 'karyawan_id' => $karyawanB->id,
             ]))
             ->assertOk()
-            ->assertSee('Mobil Di Luar Range')
-            ->assertDontSee('Mobil Overlap Masuk');
+            ->assertSee('Vendor Di Luar Range')
+            ->assertDontSee('Vendor Overlap Masuk');
 
         $this->actingAs($finance)
             ->get(route('sewa-mobil.finance.index', [
@@ -209,11 +152,12 @@ class SewaMobilTest extends TestCase
             ->assertSessionHasErrors('tanggal_sampai');
 
         for ($i = 1; $i <= 11; $i++) {
-            $service->createDraft($this->payload($assetA, $karyawanA, [
-                'nama_kegiatan' => 'Mobil Pagination ' . $i,
-                'lokasi_kegiatan' => 'Lokasi ' . $i,
+            $service->createDraft($this->payload($karyawanA, [
+                'nama_kegiatan' => 'Mobil Pagination '.$i,
+                'lokasi_kegiatan' => 'Lokasi '.$i,
                 'tanggal_mulai' => '2026-09-01',
                 'tanggal_selesai' => '2026-09-02',
+                'plat_nomor_snapshot' => 'B 99'.str_pad((string) $i, 2, '0', STR_PAD_LEFT).' KBS',
             ]), $finance->id);
         }
 
@@ -224,153 +168,228 @@ class SewaMobilTest extends TestCase
                 'tanggal_sampai' => '2026-09-30',
             ]))
             ->assertOk()
-            ->assertSee('karyawan_id=' . $karyawanA->id, false)
+            ->assertSee('karyawan_id='.$karyawanA->id, false)
             ->assertSee('tanggal_dari=2026-09-01', false)
             ->assertSee('tanggal_sampai=2026-09-30', false);
     }
 
-    public function test_snapshot_tarif_tidak_berubah_dan_overlap_ditolak(): void
+    public function test_kalkulasi_tanggal_dan_total_selalu_server_side(): void
+    {
+        $service = app(SewaMobilService::class);
+        $finance = $this->user('admin');
+        $karyawan = Karyawan::factory()->create();
+
+        $sameDay = $service->createDraft($this->payload($karyawan, [
+            'tanggal_mulai' => '2026-08-10',
+            'tanggal_selesai' => '2026-08-10',
+            'jumlah_hari' => 999,
+            'total_harga_vendor' => 1200000,
+            'total_markup' => 225000,
+            'total_tagihan_perusahaan' => 1,
+            'total_sewa' => 1,
+        ]), $finance->id);
+
+        $this->assertSame(1, $sameDay->jumlah_hari);
+        $this->assertSame(1425000, $sameDay->total_tagihan_perusahaan);
+
+        $threeDays = $service->createDraft($this->payload($karyawan, [
+            'tanggal_mulai' => '2026-08-10',
+            'tanggal_selesai' => '2026-08-12',
+            'total_harga_vendor' => 1200000,
+            'total_markup' => 225000,
+        ]), $finance->id);
+
+        $this->assertSame(3, $threeDays->jumlah_hari);
+        $this->assertSame(1200000, $threeDays->total_harga_vendor);
+        $this->assertSame(225000, $threeDays->total_markup);
+        $this->assertSame(1425000, $threeDays->total_tagihan_perusahaan);
+        $this->assertSame(1425000, $threeDays->total_sewa);
+
+        $inactive = Karyawan::factory()->create([
+            'status_kerja' => Karyawan::STATUS_BERHENTI,
+            'tanggal_berhenti' => '2026-07-01',
+        ]);
+        $this->expectValidation(fn () => $service->createDraft($this->payload($inactive), $finance->id));
+    }
+
+    public function test_approval_membutuhkan_pengurus_aktif_snapshot_lengkap_dan_menolak_overlap_plat(): void
     {
         $service = app(SewaMobilService::class);
         $finance = $this->user('admin');
         $pengurus = $this->pengurus();
         $karyawan = Karyawan::factory()->create();
-        $asset = $this->mobil(300000);
 
-        $first = $service->submit($service->createDraft($this->payload($asset, $karyawan, [
+        $tanpaPlat = $service->submit($service->createDraft($this->payload($karyawan, [
+            'plat_nomor_snapshot' => null,
+        ]), $finance->id), $finance->id);
+
+        $this->expectValidation(fn () => $service->approve($tanpaPlat, ['pengurus_penyetuju_id' => $pengurus->id], $finance->id));
+
+        $inactivePengurus = PengurusKoperasi::query()->create([
+            'anggota_id' => Anggota::factory()->create(['status' => Anggota::STATUS_AKTIF])->id,
+            'jabatan' => 'Sekretaris',
+            'status' => PengurusKoperasi::STATUS_NONAKTIF,
+        ]);
+
+        $candidate = $service->submit($service->createDraft($this->payload($karyawan, [
+            'plat_nomor_snapshot' => 'B 4444 KBS',
+        ]), $finance->id), $finance->id);
+        $this->expectValidation(fn () => $service->approve($candidate, ['pengurus_penyetuju_id' => $inactivePengurus->id], $finance->id));
+
+        $first = $service->submit($service->createDraft($this->payload($karyawan, [
             'tanggal_mulai' => '2026-08-10',
             'tanggal_selesai' => '2026-08-12',
+            'plat_nomor_snapshot' => 'B 5555 KBS',
         ]), $finance->id), $finance->id);
-        $approved = $service->approve($first, ['pengurus_penyetuju_id' => $pengurus->id], $finance->id);
+        $service->approve($first, ['pengurus_penyetuju_id' => $pengurus->id], $finance->id);
 
-        $asset->mobil()->update(['tarif_sewa_harian' => 999000]);
+        $overlap = $service->submit($service->createDraft($this->payload(Karyawan::factory()->create(), [
+            'tanggal_mulai' => '2026-08-12',
+            'tanggal_selesai' => '2026-08-14',
+            'plat_nomor_snapshot' => 'B-5555-KBS',
+        ]), $finance->id), $finance->id);
 
-        $this->assertSame(300000, $approved->fresh()->tarif_harian_snapshot);
-        $this->assertSame(900000, $approved->fresh()->total_sewa);
-
-        $overlap = $service->createDraft($this->payload($asset->fresh('mobil'), Karyawan::factory()->create(), [
-            'tanggal_mulai' => '2026-08-11',
-            'tanggal_selesai' => '2026-08-13',
-        ]), $finance->id);
-
-        $this->expectValidation(fn () => $service->submit($overlap, $finance->id));
+        $this->expectValidation(fn () => $service->approve($overlap, ['pengurus_penyetuju_id' => $pengurus->id], $finance->id));
     }
 
-    public function test_pembayaran_dimuka_full_dompet_mutasi_jurnal_dan_tidak_membuat_ledger_payroll(): void
+    public function test_vendor_dibayar_dari_kas_operasional_sebelum_invoice_perusahaan(): void
     {
         $service = app(SewaMobilService::class);
         $finance = $this->user('admin');
         $sewa = $this->approvedSewa($service, $finance);
-        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
-        $bank = $this->dompet(DompetKoperasi::JENIS_BANK, 1000000);
+        $kasVendor = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
+        $this->expectValidation(fn () => $service->pay($sewa, [], $finance->id));
 
-        $this->expectValidation(fn () => $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $bank->id,
-            'jumlah_bayar' => $sewa->total_sewa,
-        ], $finance->id));
-
-        $this->expectValidation(fn () => $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => $sewa->total_sewa - 1,
-        ], $finance->id));
-
-        $paid = $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => $sewa->total_sewa,
+        $payment = app(B2BRentalService::class)->payVendor($sewa, [
+            'dompet_id' => $kasVendor->id,
+            'tanggal_bayar' => '2026-08-09',
+            'idempotency_key' => 'test-sewa-mobil-vendor-first',
         ], $finance->id);
 
-        $this->assertSame('1300000.00', $kas->fresh()->saldo);
-        $this->assertSame(SewaMobil::PEMBAYARAN_PAID, $paid->status_pembayaran);
-        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PembayaranSewaMobil::class)->where('tipe', 'masuk')->count());
-        $this->assertDatabaseHas('jurnal_umum_detail', [
-            'akun_kode' => '206',
-            'kredit' => '300000.00',
-        ]);
-        $this->assertDatabaseMissing('jurnal_umum_detail', [
-            'akun_kode' => '404',
-            'kredit' => '300000.00',
-        ]);
-        $this->assertSame(0, PemakaianPotongGaji::query()->count());
+        $this->assertSame(SewaMobil::PEMBAYARAN_BELUM_BAYAR, $sewa->fresh()->status_pembayaran);
+        $this->assertSame('800000.00', $kasVendor->fresh()->saldo);
+        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PembayaranVendorSewa::class)->where('referensi_id', $payment->id)->where('tipe', 'keluar')->count());
+        $this->assertSame(1, $payment->jurnal()->count());
+        $this->assertSame(0, PemakaianPotongGaji::query()->whereIn('source_type', [SewaMobil::class, PembayaranVendorSewa::class])->count());
+        $this->assertSewaMobilJournalsBalanced();
     }
 
-    public function test_lifecycle_berjalan_selesai_mengubah_status_aset_dan_pengakuan_pendapatan_idempotent(): void
+    public function test_start_complete_tidak_mengubah_aset_dan_completion_hanya_mengakui_margin(): void
     {
         $service = app(SewaMobilService::class);
         $finance = $this->user('admin');
-        $sewa = $this->approvedSewa($service, $finance);
-        $kas = $this->dompet(DompetKoperasi::JENIS_KAS);
+        $asset = AsetKoperasi::query()->create([
+            'kode_aset' => 'MBL-LEGACY-UNIT',
+            'jenis_aset' => AsetKoperasi::JENIS_MOBIL,
+            'merek' => 'Legacy',
+            'model' => 'Asset',
+            'status' => AsetKoperasi::STATUS_TERSEDIA,
+            'created_by' => $finance->id,
+        ]);
+        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
+        $sewa = $this->paidSewa($service, $finance, $kas);
 
-        $this->expectValidation(fn () => $service->start($sewa, $finance->id));
-
-        $paid = $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => $sewa->total_sewa,
-        ], $finance->id);
-
-        $running = $service->start($paid, $finance->id);
+        $running = $service->start($sewa, $finance->id);
         $this->assertSame(SewaMobil::STATUS_BERJALAN, $running->status);
-        $this->assertSame(AsetKoperasi::STATUS_DIGUNAKAN_DISEWA, $running->aset->fresh()->status);
+        $this->assertSame(AsetKoperasi::STATUS_TERSEDIA, $asset->fresh()->status);
 
         $completed = $service->complete($running, $finance->id);
         $completedAgain = $service->complete($completed, $finance->id);
 
         $this->assertSame(SewaMobil::STATUS_SELESAI, $completedAgain->status);
-        $this->assertSame(AsetKoperasi::STATUS_TERSEDIA, $completedAgain->aset->fresh()->status);
-        $this->assertSame(1, DB::table('jurnal_umum')->where('idempotency_key', 'like', 'sewa-mobil:pengakuan-pendapatan:jurnal:%')->count());
+        $this->assertSame(AsetKoperasi::STATUS_TERSEDIA, $asset->fresh()->status);
+        $this->assertSame(1, DB::table('jurnal_umum')->where('idempotency_key', 'like', 'b2b:margin:jurnal:%')->count());
         $this->assertDatabaseHas('jurnal_umum_detail', [
             'akun_kode' => '206',
-            'debit' => '300000.00',
+            'debit' => '225000.00',
         ]);
         $this->assertDatabaseHas('jurnal_umum_detail', [
             'akun_kode' => '404',
-            'kredit' => '300000.00',
+            'kredit' => '225000.00',
         ]);
+        $this->assertDatabaseMissing('jurnal_umum_detail', [
+            'akun_kode' => '404',
+            'kredit' => '1425000.00',
+        ]);
+        $this->assertSewaMobilJournalsBalanced();
     }
 
-    public function test_refund_paid_sebelum_berjalan_penuh_dan_berjalan_selesai_tidak_bisa_dibatalkan(): void
+    public function test_pembayaran_vendor_final_menolak_cancel_otomatis_sebelum_dan_setelah_berjalan(): void
     {
         $service = app(SewaMobilService::class);
         $finance = $this->user('admin');
-        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 1000000);
-        $sewa = $this->approvedSewa($service, $finance);
+        $kas = $this->dompet(DompetKoperasi::JENIS_KAS, 2000000);
+        $sewa = $this->paidSewa($service, $finance, $kas);
 
-        $paid = $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => $sewa->total_sewa,
-        ], $finance->id);
-        $cancelled = $service->cancelByFinance($paid, 'Batal sebelum kegiatan', $finance->id);
+        $this->expectValidation(fn () => $service->cancelByFinance($sewa, 'Batal sebelum kegiatan', $finance->id));
+        $this->assertSame('800000.00', $kas->fresh()->saldo);
+        $this->assertSame(0, DB::table('reversal_transaksi')->where('jenis_reversal', 'sewa_mobil_refund')->count());
+        $this->assertSewaMobilJournalsBalanced();
 
-        $this->assertSame(SewaMobil::STATUS_DIBATALKAN, $cancelled->status);
-        $this->assertSame(SewaMobil::PEMBAYARAN_REFUNDED, $cancelled->status_pembayaran);
-        $this->assertSame('1000000.00', $kas->fresh()->saldo);
-        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PembayaranSewaMobil::class)->where('tipe', 'keluar')->count());
-
-        $running = $this->paidSewa($service, $finance, $this->dompet(DompetKoperasi::JENIS_KAS, 1000000));
+        $running = $this->paidSewa($service, $finance, $this->dompet(DompetKoperasi::JENIS_KAS, 2000000));
         $running = $service->start($running, $finance->id);
         $this->expectValidation(fn () => $service->cancelByFinance($running, 'Tidak boleh', $finance->id));
     }
 
-    public function test_preflight_sewa_mobil_mendeteksi_kalkulasi_tidak_valid(): void
+    public function test_snapshot_histori_tidak_berubah_saat_referensi_lain_berubah(): void
+    {
+        $service = app(SewaMobilService::class);
+        $finance = $this->user('admin');
+        $karyawan = Karyawan::factory()->create(['nama' => 'Nama Awal']);
+
+        $sewa = $service->createDraft($this->payload($karyawan, [
+            'vendor_nama' => 'CV Snapshot Awal',
+            'merek_kendaraan' => 'Toyota',
+            'model_kendaraan' => 'HiAce',
+        ]), $finance->id);
+
+        $karyawan->update(['nama' => 'Nama Berubah']);
+        AsetKoperasi::query()->create([
+            'kode_aset' => 'MBL-SNAPSHOT',
+            'jenis_aset' => AsetKoperasi::JENIS_MOBIL,
+            'merek' => 'Merek Master Berubah',
+            'model' => 'Model Master Berubah',
+            'status' => AsetKoperasi::STATUS_TERSEDIA,
+            'created_by' => $finance->id,
+        ]);
+
+        $fresh = $sewa->fresh();
+        $this->assertSame('CV Snapshot Awal', $fresh->vendor_nama);
+        $this->assertSame('Toyota', $fresh->merek_kendaraan);
+        $this->assertSame('HiAce', $fresh->model_kendaraan);
+        $this->assertNull($fresh->aset_koperasi_id);
+    }
+
+    public function test_preflight_sewa_mobil_mendeteksi_data_vendor_based_tidak_valid(): void
     {
         $this->artisan('koperasi:preflight-sewa-mobil')->assertExitCode(0);
 
         DB::table('sewa_mobil')->insert([
             'kode_sewa' => 'SWM-BROKEN-1',
-            'aset_koperasi_id' => $this->mobil()->id,
+            'aset_koperasi_id' => null,
+            'model_sumber' => 'vendor',
             'karyawan_id' => Karyawan::factory()->create()->id,
             'nama_perusahaan_snapshot' => 'Bita Enarcon Engineering',
             'nama_kegiatan' => 'Broken',
             'lokasi_kegiatan' => 'Broken',
+            'vendor_nama' => '',
+            'vendor_kontak' => '',
+            'vendor_alamat' => '',
+            'jenis_kendaraan' => '',
+            'merek_kendaraan' => '',
+            'model_kendaraan' => '',
+            'plat_nomor_snapshot' => null,
+            'plat_nomor_normalized' => null,
+            'tahun_kendaraan' => null,
+            'warna_kendaraan' => '',
             'tanggal_mulai' => '2026-08-01',
             'tanggal_selesai' => '2026-08-03',
             'jumlah_hari' => 1,
-            'tarif_harian_snapshot' => 300000,
+            'tarif_harian_snapshot' => 0,
             'total_sewa' => 300000,
+            'total_harga_vendor' => 1200000,
+            'total_markup' => 225000,
+            'total_tagihan_perusahaan' => 1425000,
             'status' => SewaMobil::STATUS_DISETUJUI,
             'status_pembayaran' => SewaMobil::PEMBAYARAN_BELUM_BAYAR,
             'idempotency_key' => 'broken-sewa-mobil',
@@ -381,70 +400,96 @@ class SewaMobilTest extends TestCase
         $this->artisan('koperasi:preflight-sewa-mobil')->assertExitCode(1);
     }
 
-    public function test_seeder_menghasilkan_contoh_sewa_mobil_valid(): void
+    public function test_seeder_menghasilkan_contoh_sewa_mobil_vendor_based_valid(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertDatabaseHas('users', ['role' => 'karyawan', 'is_active' => true]);
-        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_DRAFT]);
-        $this->assertDatabaseHas('sewa_mobil', [
-            'status' => SewaMobil::STATUS_DISETUJUI,
-            'model_sumber' => 'vendor',
-            'aset_koperasi_id' => null,
-        ]);
-        $this->assertDatabaseHas('pembayaran_vendor_sewa', ['sewa_type' => SewaMobil::class, 'status' => 'paid']);
-        $this->assertDatabaseHas('invoice_penagihan_detail', ['referensi_type' => SewaMobil::class]);
+        $this->assertSame(0, DB::table('aset_mobil')->count());
+        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_DISETUJUI]);
+        $this->assertSame(1, PembayaranVendorSewa::query()->where('sewa_type', SewaMobil::class)->count());
+        $this->assertSame(0, SewaMobil::query()->whereNotNull('aset_koperasi_id')->count());
         $this->assertSame(0, PemakaianPotongGaji::query()->whereIn('source_type', [SewaMobil::class, PembayaranSewaMobil::class])->count());
+        $this->assertSame(0, DB::table('jurnal_umum as j')
+            ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
+            ->where('j.idempotency_key', 'like', 'sewa-mobil:%')
+            ->groupBy('j.id')
+            ->havingRaw('ABS(SUM(d.debit) - SUM(d.kredit)) > 0.01')
+            ->get()
+            ->count());
         $this->artisan('koperasi:preflight-sewa-mobil')->assertExitCode(0);
     }
 
     private function approvedSewa(SewaMobilService $service, User $finance): SewaMobil
     {
-        $asset = $this->mobil(300000);
         $karyawan = Karyawan::factory()->create();
         $pengurus = $this->pengurus();
-        $sewa = $service->submit($service->createDraft($this->payload($asset, $karyawan), $finance->id), $finance->id);
+        $sewa = $service->submit($service->createDraft($this->payload($karyawan, [
+            'plat_nomor_snapshot' => fake()->unique()->numerify('B #### KBS'),
+        ]), $finance->id), $finance->id);
 
         return $service->approve($sewa, [
             'pengurus_penyetuju_id' => $pengurus->id,
         ], $finance->id);
     }
 
-    private function paidSewa(SewaMobilService $service, User $finance, DompetKoperasi $kas): SewaMobil
+    private function paidSewa(SewaMobilService $service, User $finance, DompetKoperasi $dompet): SewaMobil
     {
         $sewa = $this->approvedSewa($service, $finance);
 
-        return $service->pay($sewa, [
-            'metode_pembayaran' => PembayaranSewaMobil::METODE_TUNAI,
-            'dompet_id' => $kas->id,
-            'jumlah_bayar' => $sewa->total_sewa,
+        app(B2BRentalService::class)->payVendor($sewa, [
+            'dompet_id' => $dompet->id,
+            'tanggal_bayar' => '2026-08-09',
         ], $finance->id);
+
+        app(B2BRentalService::class)->createInvoice($sewa->perusahaan, [
+            'sewa_mobil_ids' => [$sewa->id],
+            'tanggal_invoice' => '2026-08-10',
+            'jatuh_tempo' => '2026-08-24',
+        ], $finance->id);
+
+        return $sewa->fresh(['pembayaranVendor', 'invoiceDetail.invoice']);
     }
 
-    private function payload(AsetKoperasi $asset, Karyawan $karyawan, array $overrides = []): array
+    private function payload(Karyawan $karyawan, array $overrides = []): array
     {
         return array_merge([
             'karyawan_id' => $karyawan->id,
-            'aset_koperasi_id' => $asset->id,
             'nama_kegiatan' => 'Kunjungan Proyek',
             'lokasi_kegiatan' => 'Karawang',
-            'tanggal_mulai' => '2026-08-01',
-            'tanggal_selesai' => '2026-08-01',
-            'keterangan' => 'Unit test sewa mobil',
+            'tanggal_mulai' => '2026-08-10',
+            'tanggal_selesai' => '2026-08-12',
+            'vendor_nama' => 'CV Rental Mobil Nusantara',
+            'vendor_kontak' => '0812-1234-5678',
+            'vendor_alamat' => 'Jl. Vendor No. 1, Jakarta',
+            'jenis_kendaraan' => 'MPV',
+            'merek_kendaraan' => 'Toyota',
+            'model_kendaraan' => 'Innova Reborn',
+            'plat_nomor_snapshot' => 'B 1234 KBS',
+            'tahun_kendaraan' => 2022,
+            'warna_kendaraan' => 'Hitam',
+            'keterangan_kendaraan' => 'Mobil vendor dengan sopir',
+            'total_harga_vendor' => 1200000,
+            'total_markup' => 225000,
+            'keterangan' => 'Unit test sewa mobil vendor-based',
         ], $overrides);
     }
 
-    private function mobil(int $tarif = 300000): AsetKoperasi
-    {
-        return app(AsetKoperasiService::class)->createMobil([
-            'plat_nomor' => 'B ' . fake()->unique()->numberBetween(1000, 9999) . ' KBS',
-            'merek' => 'Toyota',
-            'model' => 'Avanza',
-            'tahun' => 2022,
-            'warna' => 'Hitam',
-            'tarif_sewa_harian' => $tarif,
-            'keterangan' => 'Unit test mobil',
-        ], $this->user('admin')->id);
+    private function paymentPayload(
+        SewaMobil $sewa,
+        DompetKoperasi $dompetPenerimaan,
+        DompetKoperasi $dompetVendor,
+        string $metodePenerimaan,
+        string $metodeVendor
+    ): array {
+        return [
+            'metode_penerimaan' => $metodePenerimaan,
+            'dompet_penerimaan_id' => $dompetPenerimaan->id,
+            'jumlah_diterima' => $sewa->total_tagihan_perusahaan,
+            'metode_pembayaran_vendor' => $metodeVendor,
+            'dompet_vendor_id' => $dompetVendor->id,
+            'jumlah_bayar_vendor' => $sewa->total_harga_vendor,
+            'paid_at' => '2026-08-09 10:00:00',
+        ];
     }
 
     private function employeeUser(string $email): User
@@ -453,7 +498,7 @@ class SewaMobilTest extends TestCase
 
         return User::factory()->create([
             'name' => $karyawan->nama,
-            'email' => 'user-' . $email,
+            'email' => 'user-'.$email,
             'role' => 'karyawan',
             'karyawan_id' => $karyawan->id,
             'is_active' => true,
@@ -486,10 +531,11 @@ class SewaMobilTest extends TestCase
 
         return DompetKoperasi::query()->create([
             'akun_id' => $akun->id,
-            'nama_dompet' => $jenis === DompetKoperasi::JENIS_BANK ? 'Bank Test' . fake()->unique()->numberBetween(1, 9999) : 'Kas Test' . fake()->unique()->numberBetween(1, 9999),
+            'nama_dompet' => $jenis === DompetKoperasi::JENIS_BANK ? 'Bank Test '.fake()->unique()->numberBetween(1, 9999) : 'Kas Test '.fake()->unique()->numberBetween(1, 9999),
             'jenis_dompet' => $jenis,
             'saldo' => $saldo,
             'is_default_penerimaan_payroll' => false,
+            'is_kas_operasional' => $jenis === DompetKoperasi::JENIS_KAS,
         ]);
     }
 
@@ -510,5 +556,18 @@ class SewaMobilTest extends TestCase
         } catch (ValidationException $exception) {
             $this->assertNotEmpty($exception->errors());
         }
+    }
+
+    private function assertSewaMobilJournalsBalanced(): void
+    {
+        $unbalanced = DB::table('jurnal_umum as j')
+            ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
+            ->where('j.idempotency_key', 'like', 'sewa-mobil:%')
+            ->groupBy('j.id')
+            ->havingRaw('ABS(SUM(d.debit) - SUM(d.kredit)) > 0.01')
+            ->get()
+            ->count();
+
+        $this->assertSame(0, $unbalanced);
     }
 }
