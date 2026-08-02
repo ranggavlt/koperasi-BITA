@@ -7,7 +7,7 @@ use App\Models\DompetKoperasi;
 use App\Models\Penjualan;
 use App\Models\ReversalTransaksi;
 use App\Models\Simpanan;
-use App\Services\SimpananSukarelaService;
+use App\Services\SimpananManasukaService;
 use App\Services\TransaksiReversalService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,7 +16,7 @@ class ReversalTransaksiController extends Controller
 {
     public function __construct(
         private readonly TransaksiReversalService $service,
-        private readonly SimpananSukarelaService $simpananSukarelaService
+        private readonly SimpananManasukaService $simpananManasukaService
     ) {
     }
 
@@ -53,9 +53,9 @@ class ReversalTransaksiController extends Controller
             'nominal_pengganti' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        if ($simpanan->isSimpananSukarela()) {
-            $this->simpananSukarelaService->koreksi($simpanan, $validated['alasan'], (int) $request->user()->id);
-            return back()->with('success', 'Koreksi Transaksi Simpanan Sukarela berhasil diproses.');
+        if ($simpanan->isSimpananManasuka()) {
+            $this->simpananManasukaService->koreksi($simpanan, $validated['alasan'], (int) $request->user()->id);
+            return back()->with('success', 'Koreksi Transaksi Simpanan Manasuka berhasil diproses.');
         }
 
         $this->service->correctPendingSimpananPokok(

@@ -50,15 +50,15 @@ class PreflightKeanggotaanCommand extends Command
         $this->check('wajib_batal_tanpa_jurnal', 'Tagihan Wajib dibatalkan tanpa Jurnal pembalik', $this->wajibCancelledWithoutJournal());
         $this->check('wajib_settled_salah_batal', 'Tagihan Wajib settled memiliki marker pembatalan keluar', $this->settledWajibWronglyCancelled());
         $this->check('wajib_paid_tidak_masuk_hak', 'Simpanan Wajib paid belum masuk detail hak settlement', $this->paidWajibMissingRightDetail());
-        $this->check('sukarela_tidak_masuk_hak', 'Saldo Sukarela lama belum masuk detail hak settlement', $this->sukarelaMissingRightDetail());
-        $this->check('saldo_sukarela_completed_sisa', 'Saldo Sukarela siklus lama masih tersisa setelah settlement completed', $this->completedOldSukarelaStillPositive());
+        $this->check('manasuka_tidak_masuk_hak', 'Saldo Manasuka lama belum masuk detail hak settlement', $this->manasukaMissingRightDetail());
+        $this->check('saldo_manasuka_completed_sisa', 'Saldo Manasuka siklus lama masih tersisa setelah settlement completed', $this->completedOldManasukaStillPositive());
         $this->check('reaktivasi_sebelum_completed', 'Anggota punya siklus baru sebelum settlement sebelumnya completed', $this->reactivationBeforeCompleted());
         $this->check('penonaktifan_batal_material', 'Penonaktifan dibatalkan padahal sudah ada refund/offset/material process', $this->cancelledDeactivationWithMaterialProcess());
-        $this->check('penonaktifan_batal_sukarela_frozen', 'Penonaktifan dibatalkan tetapi saldo Sukarela masih frozen', $this->cancelledDeactivationFrozenSukarela());
+        $this->check('penonaktifan_batal_manasuka_frozen', 'Penonaktifan dibatalkan tetapi saldo Manasuka masih frozen', $this->cancelledDeactivationFrozenManasuka());
         $this->check('penonaktifan_batal_wajib_cancelled', 'Penonaktifan dibatalkan tetapi tagihan Wajib exit masih cancelled', $this->cancelledDeactivationWajibStillCancelled());
         $this->check('daftar_ulang_siklus_lama', 'Pendaftaran kembali memakai ulang siklus lama', $this->reRegistrationUsesOldCycle());
         $this->check('daftar_ulang_pinjaman_lama_aktif', 'Pendaftaran kembali terjadi saat Pinjaman siklus lama belum lunas', $this->reRegisteredWithOldActiveLoan());
-        $this->check('daftar_ulang_sukarela_tidak_nol', 'Saldo Sukarela siklus daftar ulang tidak nol saat dibuat', $this->reRegisteredSukarelaNotZero());
+        $this->check('daftar_ulang_manasuka_tidak_nol', 'Saldo Manasuka siklus daftar ulang tidak nol saat dibuat', $this->reRegisteredManasukaNotZero());
         $this->check('detail_source_orphan', 'Detail settlement mengarah ke source umum yang hilang', $this->orphanSettlementDetails());
         $this->check('idempotency_ganda', 'Idempotency key duplicate pada tabel lifecycle/akuntansi utama', $this->duplicateIdempotencyKeys());
 
@@ -489,40 +489,40 @@ class PreflightKeanggotaanCommand extends Command
             ->count();
     }
 
-    private function sukarelaMissingRightDetail(): int
+    private function manasukaMissingRightDetail(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'penyelesaian_keanggotaan_detail']) || ! Schema::hasColumn('saldo_simpanan_sukarela', 'penyelesaian_keanggotaan_id')) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'penyelesaian_keanggotaan_detail']) || ! Schema::hasColumn('saldo_simpanan_manasuka', 'penyelesaian_keanggotaan_id')) {
             return 0;
         }
 
-        return DB::table('saldo_simpanan_sukarela')
-            ->join('penyelesaian_keanggotaan', 'penyelesaian_keanggotaan.siklus_keanggotaan_id', '=', 'saldo_simpanan_sukarela.siklus_keanggotaan_id')
+        return DB::table('saldo_simpanan_manasuka')
+            ->join('penyelesaian_keanggotaan', 'penyelesaian_keanggotaan.siklus_keanggotaan_id', '=', 'saldo_simpanan_manasuka.siklus_keanggotaan_id')
             ->where('penyelesaian_keanggotaan.status', '!=', 'cancelled')
-            ->whereRaw('CAST(saldo_simpanan_sukarela.saldo AS DECIMAL(15,2)) > 0')
+            ->whereRaw('CAST(saldo_simpanan_manasuka.saldo AS DECIMAL(15,2)) > 0')
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')
                     ->from('penyelesaian_keanggotaan_detail')
                     ->whereColumn('penyelesaian_keanggotaan_detail.penyelesaian_keanggotaan_id', 'penyelesaian_keanggotaan.id')
-                    ->whereColumn('penyelesaian_keanggotaan_detail.source_id', 'saldo_simpanan_sukarela.id')
-                    ->where('penyelesaian_keanggotaan_detail.source_type', 'App\\Models\\SaldoSimpananSukarela')
+                    ->whereColumn('penyelesaian_keanggotaan_detail.source_id', 'saldo_simpanan_manasuka.id')
+                    ->where('penyelesaian_keanggotaan_detail.source_type', 'App\\Models\\SaldoSimpananManasuka')
                     ->where('penyelesaian_keanggotaan_detail.tipe_detail', 'hak');
             })
             ->count();
     }
 
-    private function completedOldSukarelaStillPositive(): int
+    private function completedOldManasukaStillPositive(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'penyelesaian_keanggotaan'])) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'penyelesaian_keanggotaan'])) {
             return 0;
         }
 
         return DB::table('penyelesaian_keanggotaan')
-            ->join('saldo_simpanan_sukarela', function ($join): void {
-                $join->on('saldo_simpanan_sukarela.anggota_id', '=', 'penyelesaian_keanggotaan.anggota_id')
-                    ->on('saldo_simpanan_sukarela.siklus_keanggotaan_id', '=', 'penyelesaian_keanggotaan.siklus_keanggotaan_id');
+            ->join('saldo_simpanan_manasuka', function ($join): void {
+                $join->on('saldo_simpanan_manasuka.anggota_id', '=', 'penyelesaian_keanggotaan.anggota_id')
+                    ->on('saldo_simpanan_manasuka.siklus_keanggotaan_id', '=', 'penyelesaian_keanggotaan.siklus_keanggotaan_id');
             })
             ->where('penyelesaian_keanggotaan.status', 'completed')
-            ->whereRaw('CAST(saldo_simpanan_sukarela.saldo AS DECIMAL(15,2)) > 0')
+            ->whereRaw('CAST(saldo_simpanan_manasuka.saldo AS DECIMAL(15,2)) > 0')
             ->count();
     }
 
@@ -575,16 +575,16 @@ class PreflightKeanggotaanCommand extends Command
             ->count();
     }
 
-    private function cancelledDeactivationFrozenSukarela(): int
+    private function cancelledDeactivationFrozenManasuka(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'penyelesaian_keanggotaan'])) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'penyelesaian_keanggotaan'])) {
             return 0;
         }
 
         return DB::table('penyelesaian_keanggotaan')
-            ->join('saldo_simpanan_sukarela', 'saldo_simpanan_sukarela.penyelesaian_keanggotaan_id', '=', 'penyelesaian_keanggotaan.id')
+            ->join('saldo_simpanan_manasuka', 'saldo_simpanan_manasuka.penyelesaian_keanggotaan_id', '=', 'penyelesaian_keanggotaan.id')
             ->where('penyelesaian_keanggotaan.status', 'dibatalkan_penonaktifan')
-            ->whereNotNull('saldo_simpanan_sukarela.frozen_at')
+            ->whereNotNull('saldo_simpanan_manasuka.frozen_at')
             ->count();
     }
 
@@ -632,17 +632,17 @@ class PreflightKeanggotaanCommand extends Command
             ->count('loan.id');
     }
 
-    private function reRegisteredSukarelaNotZero(): int
+    private function reRegisteredManasukaNotZero(): int
     {
-        if (! $this->hasTables(['penyelesaian_keanggotaan', 'saldo_simpanan_sukarela'])
+        if (! $this->hasTables(['penyelesaian_keanggotaan', 'saldo_simpanan_manasuka'])
             || ! Schema::hasColumn('penyelesaian_keanggotaan', 're_registered_cycle_id')) {
             return 0;
         }
 
         return DB::table('penyelesaian_keanggotaan')
-            ->join('saldo_simpanan_sukarela', 'saldo_simpanan_sukarela.siklus_keanggotaan_id', '=', 'penyelesaian_keanggotaan.re_registered_cycle_id')
+            ->join('saldo_simpanan_manasuka', 'saldo_simpanan_manasuka.siklus_keanggotaan_id', '=', 'penyelesaian_keanggotaan.re_registered_cycle_id')
             ->whereNotNull('penyelesaian_keanggotaan.re_registered_cycle_id')
-            ->whereRaw('CAST(saldo_simpanan_sukarela.saldo AS DECIMAL(15,2)) <> 0')
+            ->whereRaw('CAST(saldo_simpanan_manasuka.saldo AS DECIMAL(15,2)) <> 0')
             ->count();
     }
 
@@ -657,7 +657,7 @@ class PreflightKeanggotaanCommand extends Command
             'App\\Models\\Pinjaman' => 'pinjaman',
             'App\\Models\\Pembayaran' => 'pembayaran',
             'App\\Models\\KreditPotongGajiAnggota' => 'kredit_potong_gaji_anggota',
-            'App\\Models\\SaldoSimpananSukarela' => 'saldo_simpanan_sukarela',
+            'App\\Models\\SaldoSimpananManasuka' => 'saldo_simpanan_manasuka',
             'App\\Models\\JadwalSimpananWajib' => 'jadwal_simpanan_wajib',
         ];
 

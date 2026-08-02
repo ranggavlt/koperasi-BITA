@@ -13,7 +13,7 @@ class PerusahaanSeeder extends Seeder
     public function run(): void
     {
         $companies = [
-            ['kode' => 'BEE', 'nama' => 'Bita Enercoon Engineering'],
+            ['kode' => 'BEE', 'nama' => 'Bita Enarcon Engineering'],
             ['kode' => 'BBS', 'nama' => 'Bita Bina Semesta'],
             ['kode' => 'BKM', 'nama' => 'Bamko Karsa Mandiri'],
         ];

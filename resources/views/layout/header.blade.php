@@ -1,34 +1,8 @@
-﻿@php
-  $role = auth()->user()->role ?? null;
-  $modules = collect(config('navigation.modules', []))
-    ->filter(function (array $module) use ($role) {
-      $feature = $module['feature'] ?? null;
-      if ($feature && ! config("features.{$feature}", false)) {
-        return false;
-      }
-
-      $allowed = $module['roles'] ?? null;
-      if (! is_array($allowed) || $allowed === []) {
-        return true;
-      }
-      return $role && in_array($role, $allowed, true);
-    });
-  $currentRouteName = request()->route()?->getName();
-  $currentPath = request()->path();
-  $currentPath = $currentPath === '/' ? '/' : trim($currentPath, '/');
-
-  $currentModule = $modules->first(function (array $module) use ($currentPath, $currentRouteName) {
-    $routeMatches = $currentRouteName
-      && collect($module['patterns'] ?? [])->contains(fn(string $pattern) => request()->routeIs($pattern));
-
-    $pathMatches = collect($module['paths'] ?? [])
-      ->map(fn(string $path) => $path === '/' ? '/' : trim($path, '/'))
-      ->contains($currentPath);
-
-    return $routeMatches || $pathMatches;
-  });
+@php
+  use App\Support\NavigationMenu;
 
   $brandName = config('navigation.brand.name', 'Koperasi BITA');
+  $currentModule = NavigationMenu::currentModule();
   $pageTitle = $currentModule['label'] ?? 'Dashboard';
 @endphp
 

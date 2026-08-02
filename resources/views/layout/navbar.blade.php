@@ -1,84 +1,16 @@
 @php
+    use App\Support\NavigationMenu;
+
     $role = auth()->user()->role ?? null;
-    $modules = collect(config('navigation.modules', []))
-        ->filter(function (array $module) use ($role) {
-            $feature = $module['feature'] ?? null;
-            if ($feature && ! config("features.{$feature}", false)) {
-                return false;
-            }
-
-            $allowed = $module['roles'] ?? null;
-            if (! is_array($allowed) || $allowed === []) {
-                return true;
-            }
-            return $role && in_array($role, $allowed, true);
-        })
-        ->map(function (array $module) {
-        $words = preg_split('/\s+/', $module['label']) ?: [];
-
-        $module['url'] = route($module['route']);
-        $module['badge'] = collect($words)
-            ->filter()
-            ->take(2)
-            ->map(fn(string $word) => strtoupper(substr($word, 0, 1)))
-            ->implode('');
-
-        return $module;
-    });
-
-    $quickLinkRoutes = collect(config('navigation.quick_links', []));
-    $currentRouteName = request()->route()?->getName();
-    $currentPath = request()->path();
-    $currentPath = $currentPath === '/' ? '/' : trim($currentPath, '/');
-
-    $currentModule = $modules->first(function (array $module) use ($currentPath, $currentRouteName) {
-        $routeMatches = $currentRouteName
-            && collect($module['patterns'] ?? [])->contains(fn(string $pattern) => request()->routeIs($pattern));
-
-        $pathMatches = collect($module['paths'] ?? [])
-            ->map(fn(string $path) => $path === '/' ? '/' : trim($path, '/'))
-            ->contains($currentPath);
-
-        return $routeMatches || $pathMatches;
-    });
-
-    if (! $currentModule && $currentRouteName === 'pages.profile') {
-        $currentModule = [
-            'section' => 'Akun',
-            'label' => 'Profile',
-            'route' => 'pages.profile',
-            'badge' => 'PR',
-            'url' => route('pages.profile')
-        ];
-    }
-
-    $currentModule = $currentModule ?? $modules->firstWhere('route', 'pages.dashboard');
-
+    $currentModule = NavigationMenu::currentModule($role);
     $currentSection = $currentModule['section'] ?? 'Dashboard';
     $currentLabel = $currentModule['label'] ?? 'Dashboard';
-
-    $quickLinks = $quickLinkRoutes
-        ->map(fn(string $route) => $modules->firstWhere('route', $route))
-        ->filter()
-        ->values();
-
-    $searchModules = $modules->map(function (array $module) use ($quickLinkRoutes) {
-        return [
-            'badge' => $module['badge'],
-            'description' => $module['description'],
-            'isQuickLink' => $quickLinkRoutes->contains($module['route']),
-            'keywords' => array_values($module['keywords'] ?? []),
-            'label' => $module['label'],
-            'route' => $module['route'],
-            'section' => $module['section'],
-            'url' => $module['url'],
-        ];
-    })->values();
-
+    $quickLinks = NavigationMenu::quickLinks($role);
+    $searchModules = NavigationMenu::searchModules($role);
     $brandName = config('navigation.brand.name', 'Koperasi BITA');
 @endphp
 
-<nav class="flex flex-wrap items-center justify-between px-0 py-2 mx-6 mt-3 mb-2 transition-all duration-250 ease-soft-in rounded-2xl lg:flex-nowrap lg:justify-start bg-white shadow-soft-xl" navbar-main>
+<nav class="kbsm-navbar flex flex-wrap items-center justify-between px-0 py-2 mx-6 mt-3 mb-2 transition-all duration-250 ease-soft-in rounded-2xl lg:flex-nowrap lg:justify-start bg-white shadow-soft-xl" navbar-main>
     <div class="flex items-center justify-between w-full px-4 py-1 mx-auto flex-wrap lg:flex-nowrap" data-navbar-shell>
         
         <!-- BREADCRUMBS (LEFT) -->
@@ -133,7 +65,7 @@
                   @endif
                   {{ auth()->user()->name }}
                 </a>
-                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                <form method="POST" action="{{ route('logout') }}" class="m-0" data-kbsm-navigation-logout>
                   @csrf
                   <button type="submit" class="rounded-xl bg-gradient-to-tl from-red-600 to-rose-400 px-3 py-1.5 font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105" style="font-size: 0.75rem;">
                     <i class="fas fa-sign-out-alt mr-1"></i>Logout
@@ -143,7 +75,7 @@
             @endauth
 
             <!-- Hamburger Menu (Mobile) -->
-            <a href="javascript:;" class="block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden" sidenav-trigger>
+            <a href="javascript:;" class="block p-0 text-sm transition-all ease-nav-brand text-slate-500 xl:hidden" sidenav-trigger aria-controls="kbsm-sidebar" aria-expanded="false" aria-label="Buka sidebar">
                 <div class="w-4.5 overflow-hidden">
                     <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>
                     <i class="ease-soft mb-0.75 relative block h-0.5 rounded-sm bg-slate-500 transition-all"></i>

@@ -35,7 +35,7 @@ return [
     | Master Printer Koperasi
     |--------------------------------------------------------------------------
     |
-    | Transaksi Sewa Printer final memakai vendor eksternal dan snapshot
+    | Transaksi Sewa Hardware final memakai vendor eksternal dan snapshot
     | transaksi, bukan aset Printer koperasi. Master aset printer lama disimpan
     | untuk histori/rollback, tetapi route/menu runtime dimatikan secara default.
     |

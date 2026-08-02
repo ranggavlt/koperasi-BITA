@@ -13,7 +13,7 @@ use App\Http\Controllers\SimpananController;
 use App\Http\Controllers\PinjamanController;
 use App\Http\Controllers\CicilanPinjamanController;
 use App\Http\Controllers\FinanceSewaMobilController;
-use App\Http\Controllers\FinanceSewaPrinterController;
+use App\Http\Controllers\FinanceSewaHardwareController;
 use App\Http\Controllers\FinanceBebanOperasionalController;
 use App\Http\Controllers\MutasiKasController;
 use App\Http\Controllers\WaserbaController;
@@ -30,6 +30,7 @@ use App\Http\Controllers\BukuBesarController;
 use App\Http\Controllers\AkunController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnggotaController;
+use App\Http\Controllers\JenisSimpananController;
 
 use App\Http\Controllers\AsetPrinterController;
 use App\Http\Controllers\PeriodePotongGajiController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\RekonsiliasiPotongGajiController;
 use App\Http\Controllers\ReversalTransaksiController;
 use App\Http\Controllers\PenyelesaianKeanggotaanController;
 use App\Http\Controllers\InvoicePenagihanController;
+use App\Http\Controllers\JadwalSimpananWajibController;
 use App\Http\Controllers\VendorController;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
@@ -110,9 +112,14 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::patch('/pengurus-koperasi/{pengurusKoperasi}/aktifkan', [PengurusKoperasiController::class, 'activate'])
         ->name('pengurus-koperasi.activate');
 
+    Route::resource('jenis-simpanan', JenisSimpananController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update']);
+
     Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
         ->name('simpanan.saldo-manasuka');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
+    Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
+        ->name('jadwal-simpanan-wajib.index');
 
 
     Route::resource('pinjaman', PinjamanController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
@@ -139,10 +146,24 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('periode-potong-gaji.create');
     Route::post('/periode-potong-gaji', [PeriodePotongGajiController::class, 'storePeriode'])
         ->name('periode-potong-gaji.store');
+    Route::patch('/periode-potong-gaji/kebijakan-limit', [PeriodePotongGajiController::class, 'updateGlobalPolicy'])
+        ->name('periode-potong-gaji.kebijakan-limit.update');
+    Route::post('/periode-potong-gaji/{periode}/generate-limits', [PeriodePotongGajiController::class, 'bulkGenerate'])
+        ->name('periode-potong-gaji.bulk-generate');
+    Route::post('/periode-potong-gaji/{periode}/activate-limits', [PeriodePotongGajiController::class, 'bulkActivate'])
+        ->name('periode-potong-gaji.bulk-activate');
     Route::post('/periode-potong-gaji/limit', [PeriodePotongGajiController::class, 'storeLimit'])
         ->name('periode-potong-gaji.limit.store');
     Route::patch('/periode-potong-gaji/limit/{limit}', [PeriodePotongGajiController::class, 'updateLimit'])
         ->name('periode-potong-gaji.limit.update');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/limit-khusus', [PeriodePotongGajiController::class, 'setOverride'])
+        ->name('periode-potong-gaji.anggota.override.store');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/limit-khusus/reset', [PeriodePotongGajiController::class, 'resetOverride'])
+        ->name('periode-potong-gaji.anggota.override.reset');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/kredit-waserba/nonaktifkan', [PeriodePotongGajiController::class, 'disableWaserba'])
+        ->name('periode-potong-gaji.anggota.kredit-waserba.disable');
+    Route::post('/periode-potong-gaji/anggota/{anggota}/kredit-waserba/aktifkan', [PeriodePotongGajiController::class, 'enableWaserba'])
+        ->name('periode-potong-gaji.anggota.kredit-waserba.enable');
     Route::patch('/periode-potong-gaji/limit/{limit}/aktifkan', [PeriodePotongGajiController::class, 'activate'])
         ->name('periode-potong-gaji.limit.activate');
     Route::patch('/periode-potong-gaji/limit/{limit}/tutup', [PeriodePotongGajiController::class, 'close'])
@@ -250,26 +271,28 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::post('/sewa-mobil/{sewaMobil}/cancel', [FinanceSewaMobilController::class, 'cancel'])
         ->name('sewa-mobil.finance.cancel');
 
-    Route::get('/sewa-printer', [FinanceSewaPrinterController::class, 'index'])
-        ->name('sewa-printer.index');
-    Route::get('/sewa-printer/create', [FinanceSewaPrinterController::class, 'create'])
-        ->name('sewa-printer.create');
-    Route::post('/sewa-printer', [FinanceSewaPrinterController::class, 'store'])
-        ->name('sewa-printer.store');
-    Route::get('/sewa-printer/{sewaPrinter}/edit', [FinanceSewaPrinterController::class, 'edit'])
-        ->name('sewa-printer.edit');
-    Route::put('/sewa-printer/{sewaPrinter}', [FinanceSewaPrinterController::class, 'update'])
-        ->name('sewa-printer.update');
-    Route::post('/sewa-printer/{sewaPrinter}/confirm', [FinanceSewaPrinterController::class, 'confirm'])
-        ->name('sewa-printer.confirm');
-    Route::post('/sewa-printer/{sewaPrinter}/pay', [FinanceSewaPrinterController::class, 'pay'])
-        ->name('sewa-printer.pay');
-    Route::post('/sewa-printer/{sewaPrinter}/start', [FinanceSewaPrinterController::class, 'start'])
-        ->name('sewa-printer.start');
-    Route::post('/sewa-printer/{sewaPrinter}/complete', [FinanceSewaPrinterController::class, 'complete'])
-        ->name('sewa-printer.complete');
-    Route::post('/sewa-printer/{sewaPrinter}/cancel', [FinanceSewaPrinterController::class, 'cancel'])
-        ->name('sewa-printer.cancel');
+    Route::get('/sewa-hardware', [FinanceSewaHardwareController::class, 'index'])
+        ->name('sewa-hardware.index');
+    Route::get('/sewa-hardware/create', [FinanceSewaHardwareController::class, 'create'])
+        ->name('sewa-hardware.create');
+    Route::post('/sewa-hardware', [FinanceSewaHardwareController::class, 'store'])
+        ->name('sewa-hardware.store');
+    Route::get('/sewa-hardware/{sewaHardware}/edit', [FinanceSewaHardwareController::class, 'edit'])
+        ->name('sewa-hardware.edit');
+    Route::put('/sewa-hardware/{sewaHardware}', [FinanceSewaHardwareController::class, 'update'])
+        ->name('sewa-hardware.update');
+    Route::post('/sewa-hardware/{sewaHardware}/confirm', [FinanceSewaHardwareController::class, 'confirm'])
+        ->name('sewa-hardware.confirm');
+    Route::post('/sewa-hardware/{sewaHardware}/pay', [FinanceSewaHardwareController::class, 'pay'])
+        ->name('sewa-hardware.pay');
+    Route::post('/sewa-hardware/{sewaHardware}/start', [FinanceSewaHardwareController::class, 'start'])
+        ->name('sewa-hardware.start');
+    Route::post('/sewa-hardware/{sewaHardware}/complete', [FinanceSewaHardwareController::class, 'complete'])
+        ->name('sewa-hardware.complete');
+    Route::post('/sewa-hardware/{sewaHardware}/cancel', [FinanceSewaHardwareController::class, 'cancel'])
+        ->name('sewa-hardware.cancel');
+    Route::post('/sewa-hardware/{sewaHardware}/refund', [FinanceSewaHardwareController::class, 'refund'])
+        ->name('sewa-hardware.refund');
 
     Route::get('/beban-operasional', [FinanceBebanOperasionalController::class, 'index'])
         ->name('beban-operasional.index');

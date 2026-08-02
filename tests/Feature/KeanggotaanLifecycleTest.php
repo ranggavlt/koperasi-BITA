@@ -6,6 +6,7 @@ use App\Models\Anggota;
 use App\Models\Akun;
 use App\Models\DompetKoperasi;
 use App\Models\JadwalCicilanPinjaman;
+use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\MutasiKas;
 use App\Models\PenyelesaianKeanggotaan;
@@ -29,7 +30,7 @@ class KeanggotaanLifecycleTest extends TestCase
     {
         $finance = $this->user('admin');
         $anggota = $this->anggota();
-        $this->settleSimpananPokok($anggota);
+        $this->settleSimpananWajib($anggota);
 
         $pinjaman = app(PinjamanKoperasiService::class)->create([
             'anggota_id' => $anggota->id,
@@ -57,17 +58,17 @@ class KeanggotaanLifecycleTest extends TestCase
         $processed = app(KeanggotaanLifecycleService::class)->processOffset($penyelesaian, $finance->id);
 
         $this->assertSame(PenyelesaianKeanggotaan::STATUS_WAITING_SETTLEMENT, $processed->status);
-        $this->assertSame('100000.00', $processed->total_offset);
-        $this->assertSame('200000.00', $processed->sisa_kewajiban);
-        $this->assertSame('200000.00', $pinjaman->fresh()->sisa_pinjaman);
+        $this->assertSame('10000.00', $processed->total_offset);
+        $this->assertSame('290000.00', $processed->sisa_kewajiban);
+        $this->assertSame('290000.00', $pinjaman->fresh()->sisa_pinjaman);
         $this->assertSame(Pinjaman::STATUS_AKTIF, $pinjaman->fresh()->status);
         $this->assertSame(0, \App\Models\CicilanPinjaman::query()->where('pinjaman_id', $pinjaman->id)->count());
         $this->assertDatabaseHas('jadwal_cicilan_pinjaman', [
             'pinjaman_id' => $pinjaman->id,
-            'status' => JadwalCicilanPinjaman::STATUS_PAID,
+            'status' => JadwalCicilanPinjaman::STATUS_SCHEDULED,
             'metode_penyelesaian' => JadwalCicilanPinjaman::METODE_OFFSET_SIMPANAN_POKOK,
-            'nominal_offset' => '100000.00',
-            'nominal_sisa' => '0.00',
+            'nominal_offset' => '10000.00',
+            'nominal_sisa' => '90000.00',
         ]);
         $this->assertDatabaseHas('jurnal_umum', [
             'referensi_tipe' => PenyelesaianKeanggotaan::class,
@@ -84,7 +85,7 @@ class KeanggotaanLifecycleTest extends TestCase
         $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $anggota = $this->anggota();
-        $this->settleSimpananPokok($anggota);
+        $this->settleSimpananWajib($anggota);
         $refundDompet = $this->dompet(DompetKoperasi::JENIS_KAS, 500000);
 
         app(MasterDataKoperasiService::class)->updateKaryawan($anggota->karyawan, $this->karyawanLifecycleData(
@@ -97,13 +98,13 @@ class KeanggotaanLifecycleTest extends TestCase
         $lifecycle = app(KeanggotaanLifecycleService::class);
         $ready = $lifecycle->processOffset($penyelesaian, $finance->id);
         $this->assertSame(PenyelesaianKeanggotaan::STATUS_READY_TO_COMPLETE, $ready->status);
-        $this->assertSame('100000.00', $ready->total_refund);
+        $this->assertSame('10000.00', $ready->total_refund);
 
         $refunded = $lifecycle->processRefund($ready, $refundDompet, $finance->id);
         $completed = $lifecycle->complete($refunded, $finance->id);
 
         $this->assertSame(PenyelesaianKeanggotaan::STATUS_COMPLETED, $completed->status);
-        $this->assertSame('400000.00', $refundDompet->fresh()->saldo);
+        $this->assertSame('490000.00', $refundDompet->fresh()->saldo);
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PenyelesaianKeanggotaan::class)->where('tipe', 'keluar')->count());
 
         app(MasterDataKoperasiService::class)->updateKaryawan($anggota->karyawan, $this->karyawanLifecycleData(
@@ -115,7 +116,10 @@ class KeanggotaanLifecycleTest extends TestCase
         app(MasterDataKoperasiService::class)->activateAnggota($anggota);
         $this->assertSame(Anggota::STATUS_AKTIF, $anggota->fresh()->status);
         $this->assertSame(2, SiklusKeanggotaan::query()->where('anggota_id', $anggota->id)->count());
-        $this->assertSame(2, Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', 'SIMPANAN_POKOK')->count());
+        $this->assertSame(2, Simpanan::query()
+            ->where('anggota_id', $anggota->id)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->count());
 
         $this->actingAs($kasir)->get(route('penyelesaian-keanggotaan.index'))->assertForbidden();
         $this->actingAs($finance)->get(route('penyelesaian-keanggotaan.index'))->assertOk();
@@ -134,11 +138,11 @@ class KeanggotaanLifecycleTest extends TestCase
         ]);
     }
 
-    private function settleSimpananPokok(Anggota $anggota): void
+    private function settleSimpananWajib(Anggota $anggota): void
     {
         Simpanan::query()
             ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', 'SIMPANAN_POKOK')
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
             ->update([
                 'status' => Simpanan::STATUS_SETTLED,
                 'settled_at' => now(),

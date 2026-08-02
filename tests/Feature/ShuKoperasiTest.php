@@ -152,22 +152,32 @@ class ShuKoperasiTest extends TestCase
 
         $pembagian = $shuKoperasi->anggotaPembagian->keyBy('karyawan_id');
 
-        $this->assertSame('1600000.00', $pembagian[$anggotaA->id]->nominal_jasa_modal);
+        $this->assertSame('1200000.00', $pembagian[$anggotaA->id]->nominal_jasa_modal);
         $this->assertSame('1920000.00', $pembagian[$anggotaA->id]->nominal_jasa_usaha);
-        $this->assertSame('3520000.00', $pembagian[$anggotaA->id]->nominal_shu);
+        $this->assertSame('3120000.00', $pembagian[$anggotaA->id]->nominal_shu);
 
-        $this->assertSame('3200000.00', $pembagian[$anggotaB->id]->nominal_jasa_modal);
+        $this->assertSame('3600000.00', $pembagian[$anggotaB->id]->nominal_jasa_modal);
         $this->assertSame('2880000.00', $pembagian[$anggotaB->id]->nominal_jasa_usaha);
-        $this->assertSame('6080000.00', $pembagian[$anggotaB->id]->nominal_shu);
+        $this->assertSame('6480000.00', $pembagian[$anggotaB->id]->nominal_shu);
     }
 
     private function daftarkanAnggota(Karyawan $karyawan): void
     {
-        app(MasterDataKoperasiService::class)->createAnggota([
+        $anggota = app(MasterDataKoperasiService::class)->createAnggota([
             'karyawan_id' => $karyawan->id,
             'tanggal_bergabung' => '2026-01-01',
             'alamat' => 'Jl. Dummy SHU',
             'plafon_pinjaman' => 1000000,
         ]);
+
+        $anggota->simpanan()
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->get()
+            ->each(function (Simpanan $simpanan): void {
+                $simpanan->forceFill([
+                    'status' => Simpanan::STATUS_REVERSED,
+                    'tanggal' => '2025-12-31',
+                ])->save();
+            });
     }
 }

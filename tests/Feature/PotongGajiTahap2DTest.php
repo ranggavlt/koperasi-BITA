@@ -35,32 +35,32 @@ class PotongGajiTahap2DTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_anggota_baru_membuat_simpanan_pokok_pending_dan_jurnal_piutang(): void
+    public function test_anggota_baru_membuat_simpanan_wajib_pending_dan_jurnal_piutang(): void
     {
         $anggota = $this->anggota();
 
         $simpanan = Simpanan::query()
             ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
             ->firstOrFail();
 
         $this->assertSame(Simpanan::STATUS_PENDING_PAYROLL, $simpanan->status);
         $this->assertSame(Simpanan::METODE_POTONG_GAJI, $simpanan->metode_pembayaran);
-        $this->assertSame('100000.00', $simpanan->jumlah);
-        $this->assertSame(1, Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)->count());
+        $this->assertSame('10000.00', $simpanan->jumlah);
+        $this->assertSame(1, Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)->count());
 
         $jurnal = JurnalUmum::query()
-            ->where('idempotency_key', 'simpanan-pokok:pengakuan:jurnal:' . $simpanan->id)
+            ->where('idempotency_key', 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id)
             ->with('details')
             ->firstOrFail();
 
         $this->assertNotNull($jurnal->details->firstWhere('akun_kode', '103'));
         $this->assertNotNull($jurnal->details->firstWhere('akun_kode', '301'));
-        $this->assertSame('100000.00', $jurnal->details->firstWhere('akun_kode', '103')->debit);
-        $this->assertSame('100000.00', $jurnal->details->firstWhere('akun_kode', '301')->kredit);
+        $this->assertSame('10000.00', $jurnal->details->firstWhere('akun_kode', '103')->debit);
+        $this->assertSame('10000.00', $jurnal->details->firstWhere('akun_kode', '301')->kredit);
     }
 
-    public function test_pos_payroll_mengonsumsi_limit_dan_konfirmasi_settle_simpanan_pokok_serta_pos(): void
+    public function test_pos_payroll_mengonsumsi_limit_dan_konfirmasi_settle_simpanan_wajib_serta_pos(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-10 09:00:00', 'Asia/Jakarta'));
         $user = $this->user();
@@ -74,8 +74,8 @@ class PotongGajiTahap2DTest extends TestCase
             $user->id
         );
 
-        $simpananPokok = Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)->firstOrFail();
-        $this->assertSame(Simpanan::STATUS_ALLOCATED, $simpananPokok->fresh()->status);
+        $simpananWajib = Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)->firstOrFail();
+        $this->assertSame(Simpanan::STATUS_ALLOCATED, $simpananWajib->fresh()->status);
 
         $penjualan = app(PosCheckoutService::class)->checkout([
             'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,
@@ -89,18 +89,18 @@ class PotongGajiTahap2DTest extends TestCase
         ], $user->id);
 
         $this->assertSame(Pembayaran::STATUS_PENDING_PAYROLL, $penjualan->pembayaran->status);
-        $this->assertSame(2, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_CONSUMED)->count());
-        $this->assertSame(3, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)->where('status', PemakaianPotongGaji::STATUS_RESERVED)->count());
+        $this->assertSame(1, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_CONSUMED)->count());
+        $this->assertSame(1, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)->where('status', PemakaianPotongGaji::STATUS_RESERVED)->count());
         $this->assertSame(0, MutasiKas::query()->where('referensi_tipe', Pembayaran::class)->count());
 
         $service->confirmLimit($service->closeLimit($limit, $user->id), $user->id);
 
         $this->assertSame(Pembayaran::STATUS_PAID, $penjualan->pembayaran->fresh()->status);
-        $this->assertSame(Simpanan::STATUS_SETTLED, $simpananPokok->fresh()->status);
-        $this->assertSame('500000.00', $bank->fresh()->saldo);
-        $this->assertSame(5, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_SETTLED)->count());
+        $this->assertSame(Simpanan::STATUS_SETTLED, $simpananWajib->fresh()->status);
+        $this->assertSame('110000.00', $bank->fresh()->saldo);
+        $this->assertSame(2, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_SETTLED)->count());
         $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', Pembayaran::class)->count());
-        $this->assertSame(4, MutasiKas::query()->where('referensi_tipe', PemakaianPotongGaji::class)->count());
+        $this->assertSame(1, MutasiKas::query()->where('referensi_tipe', PemakaianPotongGaji::class)->count());
     }
 
     public function test_pos_anggota_tunai_tidak_memakai_limit_dan_transfer_ditolak(): void
@@ -173,7 +173,7 @@ class PotongGajiTahap2DTest extends TestCase
         $this->assertSame(1, JurnalUmum::query()->where('referensi_tipe', Penjualan::class)->where('referensi_id', $penjualan->id)->count());
     }
 
-    public function test_karyawan_berhenti_melepas_pos_dan_simpanan_pokok_ke_outstanding_cash(): void
+    public function test_karyawan_berhenti_melepas_pos_dan_membatalkan_simpanan_wajib_belum_dibayar(): void
     {
         $user = $this->user();
         $anggota = $this->anggota();
@@ -203,12 +203,12 @@ class PotongGajiTahap2DTest extends TestCase
             'tanggal_berhenti' => '2026-07-31',
         ]);
 
-        $simpananPokok = Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)->firstOrFail();
+        $simpananWajib = Simpanan::query()->where('anggota_id', $anggota->id)->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)->firstOrFail();
 
         $this->assertSame(LimitPotongGajiAnggota::STATUS_CANCELLED, $limit->fresh()->status);
-        $this->assertSame(Simpanan::STATUS_OUTSTANDING_CASH, $simpananPokok->fresh()->status);
+        $this->assertSame(Simpanan::STATUS_REVERSED_DUE_TO_EXIT, $simpananWajib->fresh()->status);
         $this->assertSame(Pembayaran::STATUS_OUTSTANDING_CASH, $penjualan->pembayaran->fresh()->status);
-        $this->assertSame(5, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_RELEASED)->count());
+        $this->assertSame(2, PemakaianPotongGaji::query()->where('limit_potong_gaji_anggota_id', $limit->id)->where('status', PemakaianPotongGaji::STATUS_RELEASED)->count());
     }
 
     private function user(): User

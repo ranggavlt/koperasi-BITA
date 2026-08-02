@@ -9,15 +9,19 @@ use App\Models\DompetKoperasi;
 use App\Models\JadwalSimpananWajib;
 use App\Models\JadwalCicilanPinjaman;
 use App\Models\Karyawan;
+use App\Models\KebijakanLimitPotongGaji;
 use App\Models\KreditPotongGajiAnggota;
 use App\Models\LimitPotongGajiAnggota;
 use App\Models\MutasiKas;
+use App\Models\OverrideLimitPotongGajiAnggota;
 use App\Models\Pembayaran;
 use App\Models\PemakaianPotongGaji;
 use App\Models\PeriodePotongGaji;
 use App\Models\Penjualan;
 use App\Models\Pinjaman;
+use App\Models\RiwayatKebijakanLimitPotongGaji;
 use App\Models\RiwayatLimitPotongGaji;
+use App\Models\RiwayatOverrideLimitPotongGaji;
 use App\Models\SiklusKeanggotaan;
 use App\Models\Simpanan;
 use Carbon\CarbonImmutable;
@@ -71,8 +75,6 @@ class PotongGajiBulananService
                 ->first();
 
             if ($existing) {
-                app(SimpananWajibService::class)->generateUntil($existing->periode, null, $userId);
-
                 return $existing;
             }
 
@@ -82,10 +84,470 @@ class PotongGajiBulananService
                 'created_by' => $userId,
             ]);
 
-            app(SimpananWajibService::class)->generateUntil($periode->periode, null, $userId);
-
             return $periode;
         });
+    }
+
+    public function activeGlobalPolicyForPeriod(CarbonInterface|string|null $periode = null): KebijakanLimitPotongGaji
+    {
+        $periodeDate = $this->normalizePeriod($periode)->toDateString();
+
+        $policy = KebijakanLimitPotongGaji::query()
+            ->where('status', KebijakanLimitPotongGaji::STATUS_ACTIVE)
+            ->whereDate('berlaku_mulai_periode', '<=', $periodeDate)
+            ->where(function ($query) use ($periodeDate): void {
+                $query->whereNull('berlaku_sampai_periode')
+                    ->orWhereDate('berlaku_sampai_periode', '>=', $periodeDate);
+            })
+            ->orderByDesc('berlaku_mulai_periode')
+            ->first();
+
+        if (! $policy) {
+            throw ValidationException::withMessages([
+                'limit_umum' => 'Kebijakan limit umum potong gaji belum tersedia untuk periode ini.',
+            ]);
+        }
+
+        return $policy;
+    }
+
+    public function createDefaultGlobalPolicyIfMissing(?int $userId = null): KebijakanLimitPotongGaji
+    {
+        $periodeDate = $this->normalizePeriod()->toDateString();
+
+        return DB::transaction(function () use ($periodeDate, $userId): KebijakanLimitPotongGaji {
+            $existing = KebijakanLimitPotongGaji::query()
+                ->where('status', KebijakanLimitPotongGaji::STATUS_ACTIVE)
+                ->lockForUpdate()
+                ->orderByDesc('berlaku_mulai_periode')
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $policy = KebijakanLimitPotongGaji::query()->create([
+                'nominal_limit' => $this->decimalFromCents(150000000),
+                'status' => KebijakanLimitPotongGaji::STATUS_ACTIVE,
+                'berlaku_mulai_periode' => $periodeDate,
+                'alasan' => 'Kebijakan limit umum demo KBSM.',
+                'created_by' => $userId,
+                'updated_by' => $userId,
+            ]);
+
+            RiwayatKebijakanLimitPotongGaji::query()->create([
+                'kebijakan_limit_potong_gaji_id' => $policy->id,
+                'nominal_sebelum' => null,
+                'nominal_sesudah' => $policy->nominal_limit,
+                'berlaku_mulai_periode' => $periodeDate,
+                'alasan' => 'Kebijakan limit umum demo KBSM.',
+                'changed_by' => $userId,
+                'changed_at' => now($this->businessTimezone()),
+            ]);
+
+            return $policy;
+        });
+    }
+
+    public function updateGlobalPolicy(
+        int|string $nominal,
+        CarbonInterface|string|null $effectivePeriod,
+        int $changedBy,
+        string $alasan
+    ): KebijakanLimitPotongGaji {
+        $this->assertAuditPayload($changedBy, $alasan);
+        $nominalDecimal = $this->decimalFromCents($this->decimalToCents($nominal));
+        $periodeDate = $this->normalizePeriod($effectivePeriod)->toDateString();
+
+        return DB::transaction(function () use ($nominalDecimal, $periodeDate, $changedBy, $alasan): KebijakanLimitPotongGaji {
+            $oldPolicy = KebijakanLimitPotongGaji::query()
+                ->where('status', KebijakanLimitPotongGaji::STATUS_ACTIVE)
+                ->whereDate('berlaku_mulai_periode', '<', $periodeDate)
+                ->where(function ($query) use ($periodeDate): void {
+                    $query->whereNull('berlaku_sampai_periode')
+                        ->orWhereDate('berlaku_sampai_periode', '>=', $periodeDate);
+                })
+                ->lockForUpdate()
+                ->orderByDesc('berlaku_mulai_periode')
+                ->first();
+
+            if ($oldPolicy) {
+                $oldPolicy->update([
+                    'berlaku_sampai_periode' => $this->normalizePeriod($periodeDate)->subMonthNoOverflow()->toDateString(),
+                    'updated_by' => $changedBy,
+                ]);
+            }
+
+            $policy = KebijakanLimitPotongGaji::query()
+                ->whereDate('berlaku_mulai_periode', $periodeDate)
+                ->lockForUpdate()
+                ->first();
+
+            $before = $policy?->nominal_limit;
+
+            if ($policy) {
+                $policy->update([
+                    'nominal_limit' => $nominalDecimal,
+                    'status' => KebijakanLimitPotongGaji::STATUS_ACTIVE,
+                    'berlaku_sampai_periode' => null,
+                    'alasan' => $alasan,
+                    'updated_by' => $changedBy,
+                ]);
+            } else {
+                $policy = KebijakanLimitPotongGaji::query()->create([
+                    'nominal_limit' => $nominalDecimal,
+                    'status' => KebijakanLimitPotongGaji::STATUS_ACTIVE,
+                    'berlaku_mulai_periode' => $periodeDate,
+                    'berlaku_sampai_periode' => null,
+                    'alasan' => $alasan,
+                    'created_by' => $changedBy,
+                    'updated_by' => $changedBy,
+                ]);
+            }
+
+            KebijakanLimitPotongGaji::query()
+                ->where('id', '!=', $policy->id)
+                ->where('status', KebijakanLimitPotongGaji::STATUS_ACTIVE)
+                ->whereDate('berlaku_mulai_periode', '>=', $periodeDate)
+                ->update([
+                    'status' => KebijakanLimitPotongGaji::STATUS_INACTIVE,
+                    'updated_by' => $changedBy,
+                ]);
+
+            RiwayatKebijakanLimitPotongGaji::query()->create([
+                'kebijakan_limit_potong_gaji_id' => $policy->id,
+                'nominal_sebelum' => $before,
+                'nominal_sesudah' => $nominalDecimal,
+                'berlaku_mulai_periode' => $periodeDate,
+                'alasan' => $alasan,
+                'changed_by' => $changedBy,
+                'changed_at' => now($this->businessTimezone()),
+            ]);
+
+            $this->refreshSafeDraftSnapshotsFromPeriod($periodeDate, $changedBy, $alasan);
+
+            return $policy->fresh(['riwayat']);
+        });
+    }
+
+    /**
+     * @return array{periode: PeriodePotongGaji, created:int, existing:int, failed:int, warnings:array<int, string>}
+     */
+    public function bulkGenerateLimitsForPeriod(
+        PeriodePotongGaji|CarbonInterface|string|null $periode,
+        int $userId
+    ): array {
+        $periodeModel = $periode instanceof PeriodePotongGaji
+            ? PeriodePotongGaji::query()->findOrFail($periode->id)
+            : $this->createPeriodeDraft($periode, $userId);
+
+        $periodeDate = $periodeModel->periode->toDateString();
+        $batchKey = 'pg-generate:' . $periodeDate . ':' . now($this->businessTimezone())->format('YmdHis');
+        $summary = [
+            'periode' => $periodeModel,
+            'created' => 0,
+            'existing' => 0,
+            'failed' => 0,
+            'warnings' => [],
+        ];
+
+        $anggotaRows = Anggota::query()
+            ->with(['karyawan.perusahaan', 'overrideLimitPotongGaji'])
+            ->where('status', Anggota::STATUS_AKTIF)
+            ->whereHas('karyawan', fn ($query) => $query->where('status_kerja', Karyawan::STATUS_AKTIF))
+            ->orderBy('nomor_anggota')
+            ->get();
+
+        foreach ($anggotaRows as $anggota) {
+            try {
+                $result = DB::transaction(function () use ($periodeModel, $periodeDate, $anggota, $userId, $batchKey): string {
+                    $lockedAnggota = Anggota::query()
+                        ->with(['karyawan.perusahaan', 'overrideLimitPotongGaji'])
+                        ->lockForUpdate()
+                        ->findOrFail($anggota->id);
+
+                    $this->assertAnggotaEligible($lockedAnggota);
+
+                    if (! $lockedAnggota->karyawan?->perusahaan) {
+                        throw ValidationException::withMessages([
+                            'perusahaan_id' => 'Karyawan aktif belum memiliki perusahaan, limit tidak dibuat otomatis.',
+                        ]);
+                    }
+
+                    $existing = LimitPotongGajiAnggota::query()
+                        ->where('periode_potong_gaji_id', $periodeModel->id)
+                        ->where('anggota_id', $lockedAnggota->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existing) {
+                        return 'existing';
+                    }
+
+                    $snapshot = $this->limitSnapshotFor($lockedAnggota, $periodeDate);
+
+                    $limit = LimitPotongGajiAnggota::query()->create([
+                        'periode_potong_gaji_id' => $periodeModel->id,
+                        'anggota_id' => $lockedAnggota->id,
+                        'limit_nominal' => $snapshot['nominal'],
+                        'sumber_limit' => $snapshot['sumber_limit'],
+                        'kebijakan_limit_potong_gaji_id' => $snapshot['kebijakan_limit_potong_gaji_id'],
+                        'override_limit_potong_gaji_anggota_id' => $snapshot['override_limit_potong_gaji_anggota_id'],
+                        'perusahaan_id_snapshot' => $snapshot['perusahaan_id_snapshot'],
+                        'perusahaan_kode_snapshot' => $snapshot['perusahaan_kode_snapshot'],
+                        'perusahaan_nama_snapshot' => $snapshot['perusahaan_nama_snapshot'],
+                        'kredit_waserba_enabled_snapshot' => $snapshot['kredit_waserba_enabled_snapshot'],
+                        'generated_at' => now($this->businessTimezone()),
+                        'generated_by' => $userId,
+                        'generation_batch_key' => $batchKey,
+                        'status' => LimitPotongGajiAnggota::STATUS_DRAFT,
+                    ]);
+
+                    $this->recordHistory($limit, '0.00', $snapshot['nominal'], $userId, 'Generate otomatis limit payroll ' . $periodeDate);
+
+                    return 'created';
+                });
+
+                $summary[$result]++;
+            } catch (ValidationException $exception) {
+                $summary['failed']++;
+                $summary['warnings'][] = ($anggota->nomor_anggota ?? 'Anggota #' . $anggota->id) . ': ' . collect($exception->errors())->flatten()->first();
+            } catch (\Throwable $exception) {
+                $summary['failed']++;
+                $summary['warnings'][] = ($anggota->nomor_anggota ?? 'Anggota #' . $anggota->id) . ': ' . $exception->getMessage();
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * @return array{activated:int, skipped:int, failed:int, warnings:array<int, string>}
+     */
+    public function bulkActivateLimitsForPeriod(PeriodePotongGaji $periode, int $userId): array
+    {
+        $summary = [
+            'activated' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'warnings' => [],
+        ];
+
+        $limits = $periode->limits()
+            ->with('anggota')
+            ->orderBy('anggota_id')
+            ->get();
+
+        foreach ($limits as $limit) {
+            if ($limit->status !== LimitPotongGajiAnggota::STATUS_DRAFT) {
+                $summary['skipped']++;
+                continue;
+            }
+
+            try {
+                $this->activateLimit($limit, $userId);
+                $summary['activated']++;
+            } catch (ValidationException $exception) {
+                $summary['failed']++;
+                $summary['warnings'][] = ($limit->anggota?->nomor_anggota ?? 'Limit #' . $limit->id) . ': ' . collect($exception->errors())->flatten()->first();
+            } catch (\Throwable $exception) {
+                $summary['failed']++;
+                $summary['warnings'][] = ($limit->anggota?->nomor_anggota ?? 'Limit #' . $limit->id) . ': ' . $exception->getMessage();
+            }
+        }
+
+        return $summary;
+    }
+
+    public function setMemberOverride(
+        Anggota|int $anggota,
+        int|string $nominal,
+        CarbonInterface|string|null $effectivePeriod,
+        int $changedBy,
+        string $alasan
+    ): OverrideLimitPotongGajiAnggota {
+        $this->assertAuditPayload($changedBy, $alasan);
+        $nominalDecimal = $this->decimalFromCents($this->decimalToCents($nominal));
+        $periodeDate = $this->normalizePeriod($effectivePeriod)->toDateString();
+
+        return DB::transaction(function () use ($anggota, $nominalDecimal, $periodeDate, $changedBy, $alasan): OverrideLimitPotongGajiAnggota {
+            $anggotaModel = $anggota instanceof Anggota
+                ? Anggota::query()->lockForUpdate()->findOrFail($anggota->id)
+                : Anggota::query()->lockForUpdate()->findOrFail($anggota);
+
+            $setting = OverrideLimitPotongGajiAnggota::query()
+                ->where('anggota_id', $anggotaModel->id)
+                ->lockForUpdate()
+                ->first();
+
+            $before = $setting?->nominal_override;
+            $beforeCredit = $setting?->kredit_waserba_enabled ?? true;
+            $now = now($this->businessTimezone());
+
+            if (! $setting) {
+                $setting = OverrideLimitPotongGajiAnggota::query()->create([
+                    'anggota_id' => $anggotaModel->id,
+                    'created_by' => $changedBy,
+                    'kredit_waserba_enabled' => true,
+                ]);
+            }
+
+            $setting->update([
+                'nominal_override' => $nominalDecimal,
+                'status' => OverrideLimitPotongGajiAnggota::STATUS_ACTIVE,
+                'berlaku_mulai_periode' => $periodeDate,
+                'alasan_limit_override' => $alasan,
+                'override_created_by' => $setting->override_created_by ?: $changedBy,
+                'override_updated_by' => $changedBy,
+                'override_updated_at' => $now,
+                'reset_by' => null,
+                'reset_at' => null,
+                'reset_reason' => null,
+                'updated_by' => $changedBy,
+            ]);
+
+            $this->recordOverrideHistory($setting, RiwayatOverrideLimitPotongGaji::JENIS_SET_OVERRIDE, $before, $nominalDecimal, $beforeCredit, $setting->kredit_waserba_enabled, $alasan, $changedBy);
+            $this->refreshSafeDraftSnapshotsForAnggota($anggotaModel, $periodeDate, $changedBy, $alasan);
+
+            return $setting->fresh(['anggota', 'riwayat']);
+        });
+    }
+
+    public function resetMemberOverrideToGlobal(Anggota|int $anggota, int $changedBy, string $alasan): OverrideLimitPotongGajiAnggota
+    {
+        $this->assertAuditPayload($changedBy, $alasan);
+
+        return DB::transaction(function () use ($anggota, $changedBy, $alasan): OverrideLimitPotongGajiAnggota {
+            $anggotaModel = $anggota instanceof Anggota
+                ? Anggota::query()->lockForUpdate()->findOrFail($anggota->id)
+                : Anggota::query()->lockForUpdate()->findOrFail($anggota);
+
+            $setting = OverrideLimitPotongGajiAnggota::query()
+                ->where('anggota_id', $anggotaModel->id)
+                ->lockForUpdate()
+                ->first();
+
+            $now = now($this->businessTimezone());
+
+            if (! $setting) {
+                $setting = OverrideLimitPotongGajiAnggota::query()->create([
+                    'anggota_id' => $anggotaModel->id,
+                    'status' => OverrideLimitPotongGajiAnggota::STATUS_INACTIVE,
+                    'kredit_waserba_enabled' => true,
+                    'created_by' => $changedBy,
+                    'updated_by' => $changedBy,
+                    'reset_by' => $changedBy,
+                    'reset_at' => $now,
+                    'reset_reason' => $alasan,
+                ]);
+
+                return $setting->fresh(['anggota', 'riwayat']);
+            }
+
+            if ($setting->status !== OverrideLimitPotongGajiAnggota::STATUS_ACTIVE) {
+                return $setting->fresh(['anggota', 'riwayat']);
+            }
+
+            $before = $setting->nominal_override;
+            $beforeCredit = $setting->kredit_waserba_enabled;
+            $setting->update([
+                'nominal_override' => null,
+                'status' => OverrideLimitPotongGajiAnggota::STATUS_INACTIVE,
+                'berlaku_mulai_periode' => null,
+                'reset_by' => $changedBy,
+                'reset_at' => $now,
+                'reset_reason' => $alasan,
+                'updated_by' => $changedBy,
+            ]);
+
+            $this->recordOverrideHistory($setting, RiwayatOverrideLimitPotongGaji::JENIS_RESET_TO_GLOBAL, $before, null, $beforeCredit, $setting->kredit_waserba_enabled, $alasan, $changedBy);
+            $this->refreshSafeDraftSnapshotsForAnggota($anggotaModel, $this->normalizePeriod()->toDateString(), $changedBy, $alasan);
+
+            return $setting->fresh(['anggota', 'riwayat']);
+        });
+    }
+
+    public function setWaserbaCredit(
+        Anggota|int $anggota,
+        bool $enabled,
+        int $changedBy,
+        string $alasan
+    ): OverrideLimitPotongGajiAnggota {
+        if (! $enabled) {
+            $this->assertAuditPayload($changedBy, $alasan);
+        }
+
+        return DB::transaction(function () use ($anggota, $enabled, $changedBy, $alasan): OverrideLimitPotongGajiAnggota {
+            $anggotaModel = $anggota instanceof Anggota
+                ? Anggota::query()->lockForUpdate()->findOrFail($anggota->id)
+                : Anggota::query()->lockForUpdate()->findOrFail($anggota);
+
+            $setting = OverrideLimitPotongGajiAnggota::query()
+                ->where('anggota_id', $anggotaModel->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $setting) {
+                $setting = OverrideLimitPotongGajiAnggota::query()->create([
+                    'anggota_id' => $anggotaModel->id,
+                    'status' => OverrideLimitPotongGajiAnggota::STATUS_INACTIVE,
+                    'kredit_waserba_enabled' => true,
+                    'created_by' => $changedBy,
+                ]);
+            }
+
+            $beforeCredit = (bool) $setting->kredit_waserba_enabled;
+
+            if ($beforeCredit === $enabled) {
+                return $setting->fresh(['anggota', 'riwayat']);
+            }
+
+            $now = now($this->businessTimezone());
+            $payload = [
+                'kredit_waserba_enabled' => $enabled,
+                'updated_by' => $changedBy,
+            ];
+
+            if ($enabled) {
+                $payload['kredit_waserba_enabled_by'] = $changedBy;
+                $payload['kredit_waserba_enabled_at'] = $now;
+                $payload['kredit_waserba_enabled_reason'] = $alasan ?: 'Kredit Waserba diaktifkan kembali.';
+            } else {
+                $payload['kredit_waserba_disabled_by'] = $changedBy;
+                $payload['kredit_waserba_disabled_at'] = $now;
+                $payload['kredit_waserba_disabled_reason'] = $alasan;
+            }
+
+            $setting->update($payload);
+
+            $this->recordOverrideHistory(
+                $setting,
+                $enabled ? RiwayatOverrideLimitPotongGaji::JENIS_ENABLE_WASERBA : RiwayatOverrideLimitPotongGaji::JENIS_DISABLE_WASERBA,
+                $setting->nominal_override,
+                $setting->nominal_override,
+                $beforeCredit,
+                $enabled,
+                $alasan ?: 'Kredit Waserba diaktifkan kembali.',
+                $changedBy
+            );
+
+            $this->refreshSafeDraftSnapshotsForAnggota($anggotaModel, $this->normalizePeriod()->toDateString(), $changedBy, $alasan ?: 'Sinkronisasi status kredit Waserba.');
+
+            return $setting->fresh(['anggota', 'riwayat']);
+        });
+    }
+
+    public function assertWaserbaCreditAllowed(Anggota $anggota): void
+    {
+        $setting = OverrideLimitPotongGajiAnggota::query()
+            ->where('anggota_id', $anggota->id)
+            ->first();
+
+        if ($setting && ! $setting->kredit_waserba_enabled) {
+            throw ValidationException::withMessages([
+                'limit' => 'Kredit Waserba anggota ini sedang dinonaktifkan oleh Finance. Gunakan pembayaran tunai atau hubungi Finance.',
+            ]);
+        }
     }
 
     public function findLimitFor(Anggota|int $anggota, CarbonInterface|string|null $periode = null): ?LimitPotongGajiAnggota
@@ -111,8 +573,8 @@ class PotongGajiBulananService
 
         return DB::transaction(function () use ($anggota, $periode, $nominalDecimal, $changedBy, $alasan): LimitPotongGajiAnggota {
             $anggotaModel = $anggota instanceof Anggota
-                ? Anggota::query()->with('karyawan')->lockForUpdate()->findOrFail($anggota->id)
-                : Anggota::query()->with('karyawan')->lockForUpdate()->findOrFail($anggota);
+                ? Anggota::query()->with('karyawan.perusahaan')->lockForUpdate()->findOrFail($anggota->id)
+                : Anggota::query()->with('karyawan.perusahaan')->lockForUpdate()->findOrFail($anggota);
 
             $periodeModel = $this->createPeriodeDraft($periode, $changedBy);
 
@@ -132,6 +594,13 @@ class PotongGajiBulananService
                 'periode_potong_gaji_id' => $periodeModel->id,
                 'anggota_id' => $anggotaModel->id,
                 'limit_nominal' => $nominalDecimal,
+                'sumber_limit' => LimitPotongGajiAnggota::SUMBER_MANUAL,
+                'perusahaan_id_snapshot' => $anggotaModel->karyawan?->perusahaan?->id,
+                'perusahaan_kode_snapshot' => $anggotaModel->karyawan?->perusahaan?->kode,
+                'perusahaan_nama_snapshot' => $anggotaModel->karyawan?->perusahaan?->nama,
+                'kredit_waserba_enabled_snapshot' => true,
+                'generated_at' => now($this->businessTimezone()),
+                'generated_by' => $changedBy,
                 'status' => LimitPotongGajiAnggota::STATUS_DRAFT,
             ]);
 
@@ -225,7 +694,6 @@ class PotongGajiBulananService
             }
 
             $this->reserveDueInstallmentsForLimit($locked, $userId);
-            $this->allocatePendingSimpananPokokForLimit($locked, $userId);
             app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $userId);
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
@@ -286,7 +754,7 @@ class PotongGajiBulananService
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
                         $subQuery->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-                            ->where('source_type', JadwalSimpananWajib::class)
+                            ->whereIn('source_type', [Simpanan::class, JadwalSimpananWajib::class])
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
                         $subQuery->whereIn('kategori', [
@@ -624,7 +1092,7 @@ class PotongGajiBulananService
                 app(SimpananWajibService::class)->releaseReservationsForLimit(
                     $limit,
                     $userId,
-                    'Karyawan berhenti sebelum payroll confirmed; tagihan Simpanan Wajib tetap outstanding.'
+                    'Karyawan berhenti sebelum payroll confirmed; Simpanan Wajib final kembali pending untuk dibatalkan pada settlement.'
                 );
 
                 $usages = PemakaianPotongGaji::query()
@@ -690,6 +1158,177 @@ class PotongGajiBulananService
             ->sum('nominal');
 
         return $this->decimalToCents((string) $sum);
+    }
+
+    /**
+     * @return array{
+     *   nominal:string,
+     *   sumber_limit:string,
+     *   kebijakan_limit_potong_gaji_id:?int,
+     *   override_limit_potong_gaji_anggota_id:?int,
+     *   perusahaan_id_snapshot:int,
+     *   perusahaan_kode_snapshot:string,
+     *   perusahaan_nama_snapshot:string,
+     *   kredit_waserba_enabled_snapshot:bool
+     * }
+     */
+    private function limitSnapshotFor(Anggota $anggota, string $periodeDate): array
+    {
+        $anggota->loadMissing(['karyawan.perusahaan', 'overrideLimitPotongGaji']);
+
+        if (! $anggota->karyawan?->perusahaan) {
+            throw ValidationException::withMessages([
+                'perusahaan_id' => 'Karyawan aktif belum memiliki perusahaan, limit tidak dibuat otomatis.',
+            ]);
+        }
+
+        $policy = $this->activeGlobalPolicyForPeriod($periodeDate);
+        $setting = $this->activeOverrideForPeriod($anggota, $periodeDate);
+        $creditSetting = $anggota->overrideLimitPotongGaji;
+        $perusahaan = $anggota->karyawan->perusahaan;
+
+        if ($setting) {
+            $nominal = $this->decimalFromCents($this->decimalToCents($setting->nominal_override));
+            $source = LimitPotongGajiAnggota::SUMBER_OVERRIDE_ANGGOTA;
+            $overrideId = $setting->id;
+        } else {
+            $nominal = $this->decimalFromCents($this->decimalToCents($policy->nominal_limit));
+            $source = LimitPotongGajiAnggota::SUMBER_LIMIT_UMUM;
+            $overrideId = null;
+        }
+
+        return [
+            'nominal' => $nominal,
+            'sumber_limit' => $source,
+            'kebijakan_limit_potong_gaji_id' => $policy->id,
+            'override_limit_potong_gaji_anggota_id' => $overrideId,
+            'perusahaan_id_snapshot' => $perusahaan->id,
+            'perusahaan_kode_snapshot' => (string) $perusahaan->kode,
+            'perusahaan_nama_snapshot' => (string) $perusahaan->nama,
+            'kredit_waserba_enabled_snapshot' => $creditSetting?->kredit_waserba_enabled ?? true,
+        ];
+    }
+
+    private function activeOverrideForPeriod(Anggota $anggota, string $periodeDate): ?OverrideLimitPotongGajiAnggota
+    {
+        $setting = $anggota->relationLoaded('overrideLimitPotongGaji')
+            ? $anggota->overrideLimitPotongGaji
+            : OverrideLimitPotongGajiAnggota::query()->where('anggota_id', $anggota->id)->first();
+
+        if (! $setting) {
+            return null;
+        }
+
+        if ($setting->status !== OverrideLimitPotongGajiAnggota::STATUS_ACTIVE || $setting->nominal_override === null) {
+            return null;
+        }
+
+        if (! $setting->berlaku_mulai_periode) {
+            return $setting;
+        }
+
+        return $setting->berlaku_mulai_periode->toDateString() <= $periodeDate
+            ? $setting
+            : null;
+    }
+
+    private function refreshSafeDraftSnapshotsFromPeriod(string $fromPeriod, int $changedBy, string $alasan): void
+    {
+        LimitPotongGajiAnggota::query()
+            ->with(['periodePotongGaji', 'anggota.karyawan.perusahaan', 'anggota.overrideLimitPotongGaji'])
+            ->where('status', LimitPotongGajiAnggota::STATUS_DRAFT)
+            ->whereHas('periodePotongGaji', fn ($query) => $query->whereDate('periode', '>=', $fromPeriod))
+            ->orderBy('id')
+            ->chunkById(100, function ($limits) use ($changedBy, $alasan): void {
+                foreach ($limits as $limit) {
+                    try {
+                        $this->refreshSafeDraftSnapshot($limit, $changedBy, $alasan);
+                    } catch (\Throwable) {
+                        // Synchronization is best-effort; preflight reports data that needs manual review.
+                    }
+                }
+            });
+    }
+
+    private function refreshSafeDraftSnapshotsForAnggota(Anggota $anggota, string $fromPeriod, int $changedBy, string $alasan): void
+    {
+        LimitPotongGajiAnggota::query()
+            ->with(['periodePotongGaji', 'anggota.karyawan.perusahaan', 'anggota.overrideLimitPotongGaji'])
+            ->where('anggota_id', $anggota->id)
+            ->where('status', LimitPotongGajiAnggota::STATUS_DRAFT)
+            ->whereHas('periodePotongGaji', fn ($query) => $query->whereDate('periode', '>=', $fromPeriod))
+            ->orderBy('id')
+            ->get()
+            ->each(function (LimitPotongGajiAnggota $limit) use ($changedBy, $alasan): void {
+                $this->refreshSafeDraftSnapshot($limit, $changedBy, $alasan);
+            });
+    }
+
+    private function refreshSafeDraftSnapshot(LimitPotongGajiAnggota $limit, int $changedBy, string $alasan): void
+    {
+        $locked = LimitPotongGajiAnggota::query()
+            ->with(['periodePotongGaji', 'anggota.karyawan.perusahaan', 'anggota.overrideLimitPotongGaji'])
+            ->lockForUpdate()
+            ->findOrFail($limit->id);
+
+        if (! $this->canRefreshLimitSnapshot($locked)) {
+            return;
+        }
+
+        $snapshot = $this->limitSnapshotFor($locked->anggota, $locked->periodePotongGaji->periode->toDateString());
+        $before = (string) $locked->limit_nominal;
+
+        $locked->update([
+            'limit_nominal' => $snapshot['nominal'],
+            'sumber_limit' => $snapshot['sumber_limit'],
+            'kebijakan_limit_potong_gaji_id' => $snapshot['kebijakan_limit_potong_gaji_id'],
+            'override_limit_potong_gaji_anggota_id' => $snapshot['override_limit_potong_gaji_anggota_id'],
+            'perusahaan_id_snapshot' => $snapshot['perusahaan_id_snapshot'],
+            'perusahaan_kode_snapshot' => $snapshot['perusahaan_kode_snapshot'],
+            'perusahaan_nama_snapshot' => $snapshot['perusahaan_nama_snapshot'],
+            'kredit_waserba_enabled_snapshot' => $snapshot['kredit_waserba_enabled_snapshot'],
+            'generated_at' => $locked->generated_at ?: now($this->businessTimezone()),
+            'generated_by' => $locked->generated_by ?: $changedBy,
+        ]);
+
+        if ($this->decimalToCents($before) !== $this->decimalToCents($snapshot['nominal'])) {
+            $this->recordHistory($locked, $before, $snapshot['nominal'], $changedBy, $alasan);
+        }
+    }
+
+    private function canRefreshLimitSnapshot(LimitPotongGajiAnggota $limit): bool
+    {
+        if ($limit->status !== LimitPotongGajiAnggota::STATUS_DRAFT) {
+            return false;
+        }
+
+        return ! PemakaianPotongGaji::query()
+            ->where('limit_potong_gaji_anggota_id', $limit->id)
+            ->exists();
+    }
+
+    private function recordOverrideHistory(
+        OverrideLimitPotongGajiAnggota $setting,
+        string $jenis,
+        int|string|null $nominalSebelum,
+        int|string|null $nominalSesudah,
+        ?bool $creditSebelum,
+        ?bool $creditSesudah,
+        string $alasan,
+        int $changedBy
+    ): void {
+        RiwayatOverrideLimitPotongGaji::query()->create([
+            'override_limit_potong_gaji_anggota_id' => $setting->id,
+            'anggota_id' => $setting->anggota_id,
+            'jenis_perubahan' => $jenis,
+            'nominal_sebelum' => $nominalSebelum === null ? null : $this->decimalFromCents($this->decimalToCents($nominalSebelum)),
+            'nominal_sesudah' => $nominalSesudah === null ? null : $this->decimalFromCents($this->decimalToCents($nominalSesudah)),
+            'kredit_waserba_sebelum' => $creditSebelum,
+            'kredit_waserba_sesudah' => $creditSesudah,
+            'alasan' => $alasan,
+            'changed_by' => $changedBy,
+            'changed_at' => now($this->businessTimezone()),
+        ]);
     }
 
     private function reserveDueInstallmentsForLimit(LimitPotongGajiAnggota $limit, int $userId): void
@@ -1148,9 +1787,9 @@ class PotongGajiBulananService
     {
         $priority = [
             PemakaianPotongGaji::KATEGORI_CICILAN => 10,
-            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 20,
-            PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 30,
-            PemakaianPotongGaji::KATEGORI_POS => 40,
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 20,
+            PemakaianPotongGaji::KATEGORI_POS => 30,
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 90,
         ];
 
         return $entries

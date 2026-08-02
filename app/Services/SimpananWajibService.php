@@ -56,47 +56,139 @@ class SimpananWajibService
     }
 
     /**
-     * Membuat tagihan Simpanan Wajib sampai periode target.
-     * Operasi ini idempotent dan hanya menulis pada aksi eksplisit/service payroll,
-     * bukan pada GET halaman.
+     * SP-7 menghentikan Wajib berkala. Method ini dipertahankan untuk kompatibilitas
+     * caller/test legacy, tetapi tidak lagi membuat jadwal baru.
      */
     public function generateUntil(CarbonInterface|string|null $targetPeriod = null, ?Anggota $onlyAnggota = null, ?int $userId = null): int
     {
-        $target = $this->normalizePeriod($targetPeriod);
+        return 0;
+    }
 
-        return DB::transaction(function () use ($target, $onlyAnggota, $userId): int {
-            $jenis = $this->activeWajibMasterForUpdate();
-            $created = 0;
-
-            $anggotaRows = Anggota::query()
-                ->with(['karyawan', 'siklusAktif'])
-                ->when($onlyAnggota, fn ($query) => $query->whereKey($onlyAnggota->id))
-                ->where('status', Anggota::STATUS_AKTIF)
-                ->whereHas('karyawan', fn ($query) => $query->where('status_kerja', Karyawan::STATUS_AKTIF))
-                ->orderBy('id')
+    public function createForCycle(
+        Anggota $anggota,
+        SiklusKeanggotaan $cycle,
+        string $metodePembayaran = Simpanan::METODE_POTONG_GAJI,
+        ?int $dompetId = null,
+        ?int $userId = null,
+        CarbonInterface|string|null $tanggal = null
+    ): Simpanan {
+        return DB::transaction(function () use ($anggota, $cycle, $metodePembayaran, $dompetId, $userId, $tanggal): Simpanan {
+            $lockedAnggota = Anggota::query()
+                ->with('karyawan')
                 ->lockForUpdate()
-                ->get();
+                ->findOrFail($anggota->id);
+            $lockedCycle = SiklusKeanggotaan::query()
+                ->lockForUpdate()
+                ->findOrFail($cycle->id);
+            $jenis = $this->activeWajibMasterForUpdate();
 
-            foreach ($anggotaRows as $anggota) {
-                $siklus = $anggota->siklusAktif;
-
-                if (! $siklus) {
-                    continue;
-                }
-
-                foreach ($this->duePeriodsFor($anggota, $siklus, $jenis, $target) as $periode) {
-                    if ($this->isPeriodAlreadyConfirmedForAnggota($anggota->id, $periode)) {
-                        continue;
-                    }
-
-                    $jadwal = $this->createScheduleWithSimpanan($anggota, $siklus, $jenis, $periode, $userId);
-                    if ($jadwal->wasRecentlyCreated) {
-                        $created++;
-                    }
-                }
+            if ((int) $lockedCycle->anggota_id !== (int) $lockedAnggota->id || $lockedCycle->status !== SiklusKeanggotaan::STATUS_ACTIVE) {
+                throw ValidationException::withMessages([
+                    'siklus_keanggotaan_id' => 'Siklus keanggotaan aktif tidak valid untuk Simpanan Wajib.',
+                ]);
             }
 
-            return $created;
+            if ($lockedAnggota->status !== Anggota::STATUS_AKTIF || $lockedAnggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {
+                throw ValidationException::withMessages([
+                    'anggota_id' => 'Simpanan Wajib hanya dapat dibuat untuk Anggota aktif dengan Karyawan aktif.',
+                ]);
+            }
+
+            $metode = $metodePembayaran ?: Simpanan::METODE_POTONG_GAJI;
+            if (! in_array($metode, [Simpanan::METODE_POTONG_GAJI, Simpanan::METODE_TUNAI, Simpanan::METODE_TRANSFER_BANK], true)) {
+                throw ValidationException::withMessages([
+                    'simpanan_wajib_metode_pembayaran' => 'Metode pembayaran Simpanan Wajib tidak valid.',
+                ]);
+            }
+
+            $existing = Simpanan::query()
+                ->where('anggota_id', $lockedAnggota->id)
+                ->where('siklus_keanggotaan_id', $lockedCycle->id)
+                ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+                ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $nominalCents = $this->decimalToCents($jenis->nominal_default);
+            $tanggalSimpanan = $this->normalizeDate($tanggal ?? $lockedCycle->tanggal_mulai ?? now($this->businessTimezone()))->toDateString();
+            $dompet = null;
+
+            if ($metode !== Simpanan::METODE_POTONG_GAJI) {
+                if (! $dompetId) {
+                    throw ValidationException::withMessages([
+                        'simpanan_wajib_dompet_id' => 'Dompet wajib dipilih untuk pembayaran Simpanan Wajib Tunai/Transfer Bank.',
+                    ]);
+                }
+
+                $dompet = $this->validDompetForPayment($dompetId, $metode);
+            }
+
+            try {
+                $simpanan = Simpanan::query()->create([
+                    'idempotency_key' => 'simpanan-wajib:siklus:' . $lockedCycle->id,
+                    'anggota_id' => $lockedAnggota->id,
+                    'karyawan_id' => $lockedAnggota->karyawan_id,
+                    'siklus_keanggotaan_id' => $lockedCycle->id,
+                    'jenis_simpanan_id' => $jenis->id,
+                    'kode_jenis_snapshot' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
+                    'nama_jenis_snapshot' => $jenis->nama_jenis,
+                    'nominal_snapshot' => $this->decimalFromCents($nominalCents),
+                    'jumlah' => $this->decimalFromCents($nominalCents),
+                    'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+                    'dompet_id' => $dompet?->id,
+                    'metode_pembayaran' => $metode,
+                    'status' => $metode === Simpanan::METODE_POTONG_GAJI
+                        ? Simpanan::STATUS_PENDING_PAYROLL
+                        : Simpanan::STATUS_SETTLED,
+                    'tanggal' => $tanggalSimpanan,
+                    'settled_at' => $metode === Simpanan::METODE_POTONG_GAJI ? null : now($this->businessTimezone()),
+                    'created_by' => $userId,
+                    'keterangan' => 'Simpanan Wajib Rp10.000 satu kali siklus #' . $lockedCycle->siklus_ke . '.',
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                $existing = Simpanan::query()
+                    ->where('anggota_id', $lockedAnggota->id)
+                    ->where('siklus_keanggotaan_id', $lockedCycle->id)
+                    ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+                    ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    return $existing;
+                }
+
+                throw ValidationException::withMessages([
+                    'simpanan_wajib' => 'Simpanan Wajib untuk siklus ini sudah dibuat oleh proses lain. Muat ulang halaman.',
+                ]);
+            }
+
+            if ($metode === Simpanan::METODE_POTONG_GAJI) {
+                $this->akuntansiService->recordSimpananWajibPayroll($simpanan->fresh('jenisSimpanan.akun'), $userId);
+
+                return $simpanan->fresh(['jenisSimpanan.akun', 'jurnal.details']);
+            }
+
+            if (! $dompet) {
+                throw new RuntimeException('Dompet Simpanan Wajib tidak tersedia untuk pembayaran non-payroll.');
+            }
+
+            if ($this->recordDirectPaymentMutasi($simpanan, $dompet, $nominalCents)) {
+                $this->increaseSaldoDompet($dompet, $nominalCents);
+            }
+
+            $this->akuntansiService->recordSimpanan(
+                $simpanan->fresh(['jenisSimpanan.akun', 'mutasiKas.dompet.akun']),
+                $dompet->akun,
+                $userId,
+                'simpanan-wajib:direct:jurnal:' . $simpanan->id
+            );
+
+            return $simpanan->fresh(['jenisSimpanan.akun', 'dompet.akun', 'mutasiKas', 'jurnal.details']);
         });
     }
 
@@ -112,41 +204,36 @@ class SimpananWajibService
                 return 0;
             }
 
-            $this->generateUntil($locked->periodePotongGaji->periode, $locked->anggota, $userId);
-
-            $periode = $locked->periodePotongGaji->periode->toDateString();
             $reserved = 0;
 
-            $jadwalRows = JadwalSimpananWajib::query()
-                ->with('simpanan')
+            $simpananRows = Simpanan::query()
+                ->with('ledger')
                 ->where('anggota_id', $locked->anggota_id)
-                ->whereDate('periode', '<=', $periode)
-                ->where('status', JadwalSimpananWajib::STATUS_OUTSTANDING)
-                ->orderBy('periode')
+                ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+                ->where('metode_pembayaran', Simpanan::METODE_POTONG_GAJI)
+                ->where('status', Simpanan::STATUS_PENDING_PAYROLL)
+                ->whereNotNull('siklus_keanggotaan_id')
+                ->orderBy('tanggal')
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
 
-            foreach ($jadwalRows as $jadwal) {
-                $simpanan = $this->simpananForSchedule($jadwal, $userId);
-                $nominalCents = $this->decimalToCents($jadwal->nominal_snapshot);
+            foreach ($simpananRows as $simpanan) {
+                $nominalCents = $this->decimalToCents($simpanan->nominal_snapshot ?? $simpanan->jumlah);
                 $availableCents = $this->limitNominalCents($locked) - $this->reservedAndConsumedCents($locked);
 
                 if ($nominalCents > $availableCents) {
-                    break;
+                    throw ValidationException::withMessages([
+                        'limit_nominal' => 'Sisa limit setelah reservasi cicilan tidak mencukupi untuk Simpanan Wajib.',
+                    ]);
                 }
 
-                $ledger = $this->createReservedLedgerForJadwal($locked, $jadwal, $userId);
-
-                $jadwal->update([
-                    'status' => JadwalSimpananWajib::STATUS_RESERVED,
-                    'reserved_at' => now($this->businessTimezone()),
-                ]);
+                $ledger = $this->createReservedLedgerForSimpanan($locked, $simpanan, $userId);
 
                 $simpanan->update([
                     'pemakaian_potong_gaji_id' => $ledger->id,
                     'metode_pembayaran' => Simpanan::METODE_POTONG_GAJI,
-                    'status' => Simpanan::STATUS_PENDING_PAYROLL,
+                    'status' => Simpanan::STATUS_ALLOCATED,
                 ]);
 
                 $reserved++;
@@ -165,14 +252,11 @@ class SimpananWajibService
             $ledgers = PemakaianPotongGaji::query()
                 ->where('limit_potong_gaji_anggota_id', $locked->id)
                 ->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-                ->where('source_type', JadwalSimpananWajib::class)
                 ->where('status', PemakaianPotongGaji::STATUS_RESERVED)
                 ->lockForUpdate()
                 ->get();
 
             foreach ($ledgers as $ledger) {
-                $jadwal = JadwalSimpananWajib::query()->lockForUpdate()->find($ledger->source_id);
-
                 $ledger->update([
                     'status' => PemakaianPotongGaji::STATUS_RELEASED,
                     'released_at' => now($this->businessTimezone()),
@@ -181,18 +265,33 @@ class SimpananWajibService
                     'updated_by' => $userId,
                 ]);
 
-                if ($jadwal && $jadwal->status === JadwalSimpananWajib::STATUS_RESERVED) {
-                    $jadwal->update([
-                        'status' => JadwalSimpananWajib::STATUS_OUTSTANDING,
-                        'reserved_at' => null,
-                    ]);
-
-                    $jadwal->simpanan()
-                        ->whereIn('status', [Simpanan::STATUS_PENDING_PAYROLL, Simpanan::STATUS_ALLOCATED])
+                if ($ledger->source_type === Simpanan::class) {
+                    Simpanan::query()
+                        ->whereKey($ledger->source_id)
+                        ->where('status', Simpanan::STATUS_ALLOCATED)
+                        ->lockForUpdate()
                         ->update([
                             'pemakaian_potong_gaji_id' => null,
                             'status' => Simpanan::STATUS_PENDING_PAYROLL,
                         ]);
+                }
+
+                if ($ledger->source_type === JadwalSimpananWajib::class) {
+                    $jadwal = JadwalSimpananWajib::query()->lockForUpdate()->find($ledger->source_id);
+
+                    if ($jadwal && $jadwal->status === JadwalSimpananWajib::STATUS_RESERVED) {
+                        $jadwal->update([
+                            'status' => JadwalSimpananWajib::STATUS_OUTSTANDING,
+                            'reserved_at' => null,
+                        ]);
+
+                        $jadwal->simpanan()
+                            ->whereIn('status', [Simpanan::STATUS_PENDING_PAYROLL, Simpanan::STATUS_ALLOCATED])
+                            ->update([
+                                'pemakaian_potong_gaji_id' => null,
+                                'status' => Simpanan::STATUS_PENDING_PAYROLL,
+                            ]);
+                    }
                 }
 
                 $released++;
@@ -215,7 +314,7 @@ class SimpananWajibService
                 ->findOrFail($usage->id);
 
             if ($lockedUsage->kategori !== PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB
-                || $lockedUsage->source_type !== JadwalSimpananWajib::class
+                || ! in_array($lockedUsage->source_type, [Simpanan::class, JadwalSimpananWajib::class], true)
                 || $lockedUsage->status !== PemakaianPotongGaji::STATUS_RESERVED) {
                 throw ValidationException::withMessages([
                     'simpanan_wajib' => 'Ledger Simpanan Wajib tidak valid untuk settlement payroll.',
@@ -230,6 +329,10 @@ class SimpananWajibService
                 throw ValidationException::withMessages([
                     'simpanan_wajib' => 'Ledger Simpanan Wajib tidak sesuai dengan limit payroll.',
                 ]);
+            }
+
+            if ($lockedUsage->source_type === Simpanan::class) {
+                return $this->settleFinalSimpananUsage($lockedLimit, $lockedUsage, $dompetPayroll, $userId, $creditCents);
             }
 
             $jadwal = JadwalSimpananWajib::query()
@@ -333,10 +436,12 @@ class SimpananWajibService
     {
         $periode = $this->normalizePeriod($tanggal)->toDateString();
 
-        return JadwalSimpananWajib::query()
+        return Simpanan::query()
             ->where('anggota_id', $anggota->id)
-            ->whereDate('periode', '<=', $periode)
-            ->where('status', JadwalSimpananWajib::STATUS_OUTSTANDING)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('metode_pembayaran', Simpanan::METODE_POTONG_GAJI)
+            ->whereDate('tanggal', '<=', $periode)
+            ->where('status', Simpanan::STATUS_PENDING_PAYROLL)
             ->exists();
     }
 
@@ -584,6 +689,152 @@ class SimpananWajibService
         }
     }
 
+    private function createReservedLedgerForSimpanan(
+        LimitPotongGajiAnggota $limit,
+        Simpanan $simpanan,
+        int $userId
+    ): PemakaianPotongGaji {
+        $existingActive = PemakaianPotongGaji::query()
+            ->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
+            ->where('source_type', Simpanan::class)
+            ->where('source_id', $simpanan->id)
+            ->whereIn('status', [
+                PemakaianPotongGaji::STATUS_RESERVED,
+                PemakaianPotongGaji::STATUS_CONSUMED,
+                PemakaianPotongGaji::STATUS_SETTLED,
+            ])
+            ->lockForUpdate()
+            ->first();
+
+        if ($existingActive) {
+            if ((int) $existingActive->limit_potong_gaji_anggota_id === (int) $limit->id) {
+                return $existingActive;
+            }
+
+            throw ValidationException::withMessages([
+                'simpanan_wajib' => 'Simpanan Wajib sudah mempunyai ledger payroll aktif pada limit lain.',
+            ]);
+        }
+
+        try {
+            return PemakaianPotongGaji::query()->create([
+                'limit_potong_gaji_anggota_id' => $limit->id,
+                'kategori' => PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB,
+                'source_type' => Simpanan::class,
+                'source_id' => $simpanan->id,
+                'jenis' => PemakaianPotongGaji::JENIS_RESERVASI,
+                'nominal' => $this->decimalFromCents($this->decimalToCents($simpanan->nominal_snapshot ?? $simpanan->jumlah)),
+                'status' => PemakaianPotongGaji::STATUS_RESERVED,
+                'idempotency_key' => 'simpanan-wajib:ledger:' . $limit->id . ':' . $simpanan->id,
+                'occurred_at' => now($this->businessTimezone()),
+                'created_by' => $userId,
+                'updated_by' => $userId,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            $ledger = PemakaianPotongGaji::query()
+                ->where('idempotency_key', 'simpanan-wajib:ledger:' . $limit->id . ':' . $simpanan->id)
+                ->first();
+
+            if ($ledger) {
+                return $ledger;
+            }
+
+            throw ValidationException::withMessages([
+                'simpanan_wajib' => 'Reservasi Simpanan Wajib sudah dibuat oleh proses lain. Muat ulang halaman.',
+            ]);
+        }
+    }
+
+    private function settleFinalSimpananUsage(
+        LimitPotongGajiAnggota $limit,
+        PemakaianPotongGaji $usage,
+        DompetKoperasi $dompetPayroll,
+        int $userId,
+        int $creditCents = 0
+    ): Simpanan {
+        $simpanan = Simpanan::query()
+            ->with('jenisSimpanan.akun')
+            ->lockForUpdate()
+            ->findOrFail($usage->source_id);
+
+        if ((int) $simpanan->anggota_id !== (int) $limit->anggota_id) {
+            throw ValidationException::withMessages([
+                'simpanan_wajib' => 'Simpanan Wajib tidak sesuai dengan Anggota pada limit.',
+            ]);
+        }
+
+        if (! $simpanan->isSimpananWajib()) {
+            throw ValidationException::withMessages([
+                'simpanan_wajib' => 'Ledger payroll ini hanya boleh untuk Simpanan Wajib final.',
+            ]);
+        }
+
+        $nominalCents = $this->decimalToCents($simpanan->nominal_snapshot ?? $simpanan->jumlah);
+        if ($this->decimalToCents($usage->nominal) !== $nominalCents) {
+            throw ValidationException::withMessages([
+                'simpanan_wajib' => 'Nominal ledger Simpanan Wajib tidak sama dengan snapshot transaksi.',
+            ]);
+        }
+
+        if ($simpanan->status === Simpanan::STATUS_SETTLED) {
+            $usage->update([
+                'status' => PemakaianPotongGaji::STATUS_SETTLED,
+                'settled_at' => now($this->businessTimezone()),
+                'updated_by' => $userId,
+            ]);
+
+            return $simpanan;
+        }
+
+        if (! in_array($simpanan->status, [Simpanan::STATUS_PENDING_PAYROLL, Simpanan::STATUS_ALLOCATED], true)) {
+            throw ValidationException::withMessages([
+                'simpanan_wajib' => 'Status Simpanan Wajib tidak dapat disettle lewat payroll.',
+            ]);
+        }
+
+        $creditCents = min($creditCents, $nominalCents);
+        $netCents = $nominalCents - $creditCents;
+
+        if ($netCents > 0 && $this->recordPayrollReceiptMutasi(
+            'simpanan-wajib:payroll:mutasi:' . $usage->id,
+            $dompetPayroll,
+            $netCents,
+            'Penerimaan payroll Simpanan Wajib Anggota',
+            PemakaianPotongGaji::class,
+            $usage->id,
+            now($this->businessTimezone())->toDateString()
+        )) {
+            $this->increaseSaldoDompet($dompetPayroll, $netCents);
+        }
+
+        $this->akuntansiService->recordPenerimaanPayrollPotongGajiNet(
+            'simpanan-wajib:payroll:jurnal:' . $usage->id,
+            'PG-SWJ-' . $usage->id,
+            now($this->businessTimezone())->toDateString(),
+            (float) $this->decimalFromCents($nominalCents),
+            (float) $this->decimalFromCents($creditCents),
+            $dompetPayroll->akun,
+            PemakaianPotongGaji::class,
+            $usage->id,
+            $userId
+        );
+
+        $simpanan->update([
+            'pemakaian_potong_gaji_id' => $usage->id,
+            'metode_pembayaran' => Simpanan::METODE_POTONG_GAJI,
+            'status' => Simpanan::STATUS_SETTLED,
+            'settled_at' => now($this->businessTimezone()),
+        ]);
+
+        $usage->update([
+            'status' => PemakaianPotongGaji::STATUS_SETTLED,
+            'settled_at' => now($this->businessTimezone()),
+            'updated_by' => $userId,
+        ]);
+
+        return $simpanan->fresh(['ledger', 'jurnal.details']);
+    }
+
     private function activeWajibMasterForUpdate(): JenisSimpanan
     {
         $jenis = JenisSimpanan::query()
@@ -600,10 +851,15 @@ class SimpananWajibService
             ]);
         }
 
-        $interval = (int) $jenis->interval_bulan;
-        if ($interval < 1 || $interval > 12) {
+        if ($jenis->interval_bulan !== null) {
             throw ValidationException::withMessages([
-                'interval_bulan' => 'Interval Simpanan Wajib harus 1 sampai 12 bulan.',
+                'interval_bulan' => 'Simpanan Wajib final tidak boleh memiliki interval berkala.',
+            ]);
+        }
+
+        if ($this->decimalToCents($jenis->nominal_default) !== 1000000) {
+            throw ValidationException::withMessages([
+                'nominal_default' => 'Nominal Simpanan Wajib final wajib Rp10.000.',
             ]);
         }
 
@@ -703,6 +959,84 @@ class SimpananWajibService
         ]);
 
         return true;
+    }
+
+    private function recordDirectPaymentMutasi(Simpanan $simpanan, DompetKoperasi $dompet, int $nominalCents): bool
+    {
+        $idempotencyKey = 'simpanan-wajib:direct:mutasi:' . $simpanan->id;
+        $existing = MutasiKas::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($existing) {
+            return false;
+        }
+
+        MutasiKas::query()->create([
+            'idempotency_key' => $idempotencyKey,
+            'dompet_id' => $dompet->id,
+            'tipe' => 'masuk',
+            'jumlah' => $this->decimalFromCents($nominalCents),
+            'keterangan' => 'Penerimaan Simpanan Wajib Anggota',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'tanggal' => $this->normalizeDate($simpanan->tanggal ?? now($this->businessTimezone()))->toDateString(),
+        ]);
+
+        return true;
+    }
+
+    private function validDompetForPayment(int $dompetId, string $metode): DompetKoperasi
+    {
+        $dompet = DompetKoperasi::query()
+            ->with('akun')
+            ->lockForUpdate()
+            ->find($dompetId);
+
+        if (! $dompet) {
+            throw ValidationException::withMessages([
+                'simpanan_wajib_dompet_id' => 'Dompet pembayaran Simpanan Wajib tidak ditemukan.',
+            ]);
+        }
+
+        $expectedJenis = $metode === Simpanan::METODE_TUNAI
+            ? DompetKoperasi::JENIS_KAS
+            : DompetKoperasi::JENIS_BANK;
+
+        if ($dompet->jenis_dompet !== $expectedJenis) {
+            throw ValidationException::withMessages([
+                'simpanan_wajib_dompet_id' => $metode === Simpanan::METODE_TUNAI
+                    ? 'Pembayaran tunai hanya boleh memakai Dompet Kas.'
+                    : 'Pembayaran transfer bank hanya boleh memakai Dompet Bank.',
+            ]);
+        }
+
+        if (! $dompet->akun || ! $dompet->akun->is_aktif || $dompet->akun->kategori !== 'aset' || $dompet->akun->posisi_saldo !== 'debit') {
+            throw ValidationException::withMessages([
+                'simpanan_wajib_dompet_id' => 'Dompet pembayaran wajib memiliki COA Aset aktif dengan saldo normal Debit.',
+            ]);
+        }
+
+        return $dompet;
+    }
+
+    private function normalizeDate(CarbonInterface|string|null $tanggal = null): CarbonImmutable
+    {
+        $timezone = $this->businessTimezone();
+
+        if ($tanggal instanceof CarbonInterface) {
+            return CarbonImmutable::instance($tanggal)
+                ->setTimezone($timezone)
+                ->startOfDay();
+        }
+
+        if ($tanggal === null || trim((string) $tanggal) === '') {
+            return CarbonImmutable::now($timezone)->startOfDay();
+        }
+
+        return CarbonImmutable::parse((string) $tanggal, $timezone)
+            ->setTimezone($timezone)
+            ->startOfDay();
     }
 
     private function increaseSaldoDompet(DompetKoperasi $dompet, int $nominalCents): void

@@ -6,49 +6,52 @@ use App\Models\JenisSimpanan;
 use App\Models\JurnalUmum;
 use App\Models\MutasiKas;
 use App\Models\ReversalTransaksi;
-use App\Models\SaldoSimpananSukarela;
+use App\Models\SaldoSimpananManasuka;
 use App\Models\Simpanan;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class PreflightSimpananSukarelaCommand extends Command
+class PreflightSimpananManasukaCommand extends Command
 {
-    protected $signature = 'koperasi:preflight-simpanan-sukarela';
+    protected $signature = 'koperasi:preflight-simpanan-manasuka';
 
-    protected $description = 'Audit read-only saldo, setoran, penarikan, dan koreksi Simpanan Sukarela.';
+    protected $description = 'Audit read-only saldo, setoran, penarikan, dan koreksi Simpanan Manasuka.';
 
     public function handle(): int
     {
         $checks = [
-            $this->check('schema_missing', 'Schema SP-3 Simpanan Sukarela belum lengkap', $this->schemaMissing()),
+            $this->check('schema_missing', 'Schema SP-3 Simpanan Manasuka belum lengkap', $this->schemaMissing()),
+            $this->check('legacy_sukarela_table', 'Tabel legacy saldo_simpanan_sukarela masih aktif', $this->legacySukarelaTable()),
             $this->check('jenis_duplicate_active', 'Master Jenis Simpanan aktif duplikat per kategori', $this->duplicateActiveJenisSimpananKategori()),
-            $this->check('legacy_manasuka_master', 'Master Manasuka legacy terpisah dari Sukarela canonical', $this->legacyManasukaMaster()),
-            $this->check('sukarela_without_master', 'Transaksi Sukarela tanpa master Sukarela aktif', $this->sukarelaTransactionWithoutActiveMaster()),
-            $this->check('saldo_sukarela_orphan', 'Saldo Sukarela orphan atau memakai master non-Sukarela', $this->orphanSaldoSukarelaMaster()),
+            $this->check('legacy_sukarela_master', 'Master legacy Sukarela masih ada', $this->legacySukarelaMaster()),
+            $this->check('manasuka_without_master', 'Transaksi Manasuka tanpa master Manasuka aktif', $this->manasukaTransactionWithoutActiveMaster()),
+            $this->check('saldo_manasuka_orphan', 'Saldo Manasuka orphan atau memakai master non-Manasuka', $this->orphanSaldoManasukaMaster()),
             $this->check('saldo_duplicate', 'Saldo duplikat per Anggota/Siklus/Jenis', $this->duplicateSaldo()),
-            $this->check('saldo_negative', 'Saldo cached Simpanan Sukarela negatif', $this->negativeSaldo()),
+            $this->check('saldo_negative', 'Saldo cached Simpanan Manasuka negatif', $this->negativeSaldo()),
             $this->check('saldo_cached_mismatch', 'Saldo cached berbeda dari transaksi immutable', $this->cachedBalanceMismatch()),
             $this->check('reference_invalid', 'Referensi Anggota/Siklus/Jenis/Dompet tidak valid', $this->invalidReferences()),
-            $this->check('manual_pokok_wajib', 'Pokok/Wajib terindikasi dibuat lewat form manual Sukarela', $this->manualPokokWajib()),
-            $this->check('setoran_mutasi_keluar', 'Setoran Sukarela mempunyai Mutasi keluar', $this->setoranWithMutasiKeluar()),
-            $this->check('penarikan_mutasi_masuk', 'Penarikan Sukarela mempunyai Mutasi masuk', $this->penarikanWithMutasiMasuk()),
+            $this->check('manual_pokok_wajib', 'Pokok/Wajib terindikasi dibuat lewat form manual Manasuka', $this->manualPokokWajib()),
+            $this->check('setoran_mutasi_keluar', 'Setoran Manasuka mempunyai Mutasi keluar', $this->setoranWithMutasiKeluar()),
+            $this->check('penarikan_mutasi_masuk', 'Penarikan Manasuka mempunyai Mutasi masuk', $this->penarikanWithMutasiMasuk()),
             $this->check('method_dompet_mismatch', 'Metode pembayaran tidak sesuai jenis Dompet', $this->methodDompetMismatch()),
-            $this->check('posting_missing', 'Mutasi/Jurnal Simpanan Sukarela hilang atau ganda', $this->missingOrDuplicatePosting()),
-            $this->check('journal_mismatch', 'Jurnal Simpanan Sukarela tidak sesuai COA/metode', $this->journalMismatch()),
-            $this->check('journal_unbalanced', 'Jurnal Simpanan Sukarela/Koreksi tidak berimbang', $this->unbalancedJournal()),
-            $this->check('code_duplicate', 'Kode transaksi SSK duplikat/invalid', $this->duplicateOrInvalidCode()),
+            $this->check('posting_missing', 'Mutasi/Jurnal Simpanan Manasuka hilang atau ganda', $this->missingOrDuplicatePosting()),
+            $this->check('journal_mismatch', 'Jurnal Simpanan Manasuka tidak sesuai COA/metode', $this->journalMismatch()),
+            $this->check('journal_unbalanced', 'Jurnal Simpanan Manasuka/Koreksi tidak berimbang', $this->unbalancedJournal()),
+            $this->check('code_duplicate', 'Kode transaksi SMN duplikat/invalid atau SSK masih aktif', $this->duplicateOrInvalidCode()),
             $this->check('idempotency_duplicate', 'Idempotency Simpanan/Mutasi/Jurnal/Koreksi duplikat', $this->duplicateIdempotency()),
+            $this->check('legacy_source_type', 'Polymorphic source_type legacy Sukarela masih aktif', $this->legacySourceType()),
+            $this->check('manasuka_in_payroll', 'Simpanan Manasuka masuk ledger potong gaji secara tidak sah', $this->manasukaInPayroll()),
             $this->check('double_correction', 'Lebih dari satu koreksi untuk satu transaksi', $this->doubleCorrection()),
             $this->check('corrected_without_reversal', 'Transaksi Dikoreksi tanpa record reversal', $this->correctedWithoutReversal()),
             $this->check('historical_overdraw', 'Riwayat penarikan pernah membuat saldo negatif', $this->historicalOverdraw()),
             $this->check('nonactive_direct_transaction', 'Anggota/Karyawan nonaktif memiliki transaksi langsung baru', $this->nonactiveDirectTransaction()),
             $this->check('old_cycle_balance_moved', 'Saldo siklus lama berpotensi dipindahkan otomatis ke siklus baru', $this->oldCycleBalanceMoved()),
-            $this->check('orphan_settlement', 'Penyelesaian Keanggotaan merujuk Simpanan Sukarela yang tidak valid', $this->orphanSettlement()),
+            $this->check('orphan_settlement', 'Penyelesaian Keanggotaan merujuk Simpanan Manasuka yang tidak valid', $this->orphanSettlement()),
         ];
 
         $this->newLine();
-        $this->info('Ringkasan preflight Simpanan Sukarela');
+        $this->info('Ringkasan preflight Simpanan Manasuka');
         $this->table(
             ['Kode', 'Pemeriksaan', 'Count', 'Severity'],
             array_map(fn (array $check) => [
@@ -64,12 +67,12 @@ class PreflightSimpananSukarelaCommand extends Command
             ->count();
 
         if ($criticalCount > 0) {
-            $this->error('Preflight Simpanan Sukarela menemukan konflik kritis. Command ini tidak menulis database.');
+            $this->error('Preflight Simpanan Manasuka menemukan konflik kritis. Command ini tidak menulis database.');
 
             return self::FAILURE;
         }
 
-        $this->info('Preflight Simpanan Sukarela bersih: tidak ada konflik kritis.');
+        $this->info('Preflight Simpanan Manasuka bersih: tidak ada konflik kritis.');
 
         return self::SUCCESS;
     }
@@ -81,7 +84,7 @@ class PreflightSimpananSukarelaCommand extends Command
 
     private function schemaMissing(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'simpanan', 'mutasi_kas', 'jurnal_umum', 'jurnal_umum_detail'])) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'simpanan', 'mutasi_kas', 'jurnal_umum', 'jurnal_umum_detail'])) {
             return 1;
         }
 
@@ -106,7 +109,7 @@ class PreflightSimpananSukarelaCommand extends Command
             ->whereIn('kategori', [
                 JenisSimpanan::KATEGORI_POKOK,
                 JenisSimpanan::KATEGORI_WAJIB,
-                JenisSimpanan::KATEGORI_SUKARELA,
+                JenisSimpanan::KATEGORI_MANASUKA,
             ])
             ->groupBy('kategori')
             ->having('total', '>', 1)
@@ -114,7 +117,12 @@ class PreflightSimpananSukarelaCommand extends Command
             ->count();
     }
 
-    private function legacyManasukaMaster(): int
+    private function legacySukarelaTable(): int
+    {
+        return Schema::hasTable('saldo_simpanan_sukarela') ? 1 : 0;
+    }
+
+    private function legacySukarelaMaster(): int
     {
         if (! Schema::hasTable('jenis_simpanan')) {
             return 0;
@@ -122,22 +130,22 @@ class PreflightSimpananSukarelaCommand extends Command
 
         return DB::table('jenis_simpanan')
             ->where(function ($query): void {
-                $query->where('kode', 'SIMPANAN_MANASUKA')
-                    ->orWhere('kategori', 'manasuka')
-                    ->orWhere('nama_jenis', 'like', '%Manasuka%');
+                $query->where('kode', 'SIMPANAN_SUKARELA')
+                    ->orWhere('kategori', 'sukarela')
+                    ->orWhere('nama_jenis', 'Simpanan Sukarela');
             })
             ->count();
     }
 
-    private function sukarelaTransactionWithoutActiveMaster(): int
+    private function manasukaTransactionWithoutActiveMaster(): int
     {
         if (! $this->hasTables(['simpanan', 'jenis_simpanan']) || ! Schema::hasColumn('simpanan', 'kode_jenis_snapshot')) {
             return 0;
         }
 
         $hasActiveMaster = DB::table('jenis_simpanan')
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-            ->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+            ->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)
             ->where('aktif', true)
             ->exists();
 
@@ -148,36 +156,36 @@ class PreflightSimpananSukarelaCommand extends Command
         return DB::table('simpanan as s')
             ->leftJoin('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')
             ->where(function ($query): void {
-                $query->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-                    ->orWhere('js.kode', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-                    ->orWhere('js.kategori', JenisSimpanan::KATEGORI_SUKARELA);
+                $query->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+                    ->orWhere('js.kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+                    ->orWhere('js.kategori', JenisSimpanan::KATEGORI_MANASUKA);
             })
             ->count('s.id');
     }
 
-    private function orphanSaldoSukarelaMaster(): int
+    private function orphanSaldoManasukaMaster(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'jenis_simpanan'])) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'jenis_simpanan'])) {
             return 0;
         }
 
-        return DB::table('saldo_simpanan_sukarela as saldo')
+        return DB::table('saldo_simpanan_manasuka as saldo')
             ->leftJoin('jenis_simpanan as js', 'js.id', '=', 'saldo.jenis_simpanan_id')
             ->where(function ($query): void {
                 $query->whereNull('js.id')
-                    ->orWhere('js.kode', '!=', JenisSimpanan::KODE_SIMPANAN_SUKARELA)
-                    ->orWhere('js.kategori', '!=', JenisSimpanan::KATEGORI_SUKARELA);
+                    ->orWhere('js.kode', '!=', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
+                    ->orWhere('js.kategori', '!=', JenisSimpanan::KATEGORI_MANASUKA);
             })
             ->count('saldo.id');
     }
 
     private function duplicateSaldo(): int
     {
-        if (! Schema::hasTable('saldo_simpanan_sukarela')) {
+        if (! Schema::hasTable('saldo_simpanan_manasuka')) {
             return 0;
         }
 
-        return DB::table('saldo_simpanan_sukarela')
+        return DB::table('saldo_simpanan_manasuka')
             ->select('anggota_id', 'siklus_keanggotaan_id', 'jenis_simpanan_id', DB::raw('COUNT(*) as total'))
             ->groupBy('anggota_id', 'siklus_keanggotaan_id', 'jenis_simpanan_id')
             ->having('total', '>', 1)
@@ -187,22 +195,22 @@ class PreflightSimpananSukarelaCommand extends Command
 
     private function negativeSaldo(): int
     {
-        if (! Schema::hasTable('saldo_simpanan_sukarela')) {
+        if (! Schema::hasTable('saldo_simpanan_manasuka')) {
             return 0;
         }
 
-        return DB::table('saldo_simpanan_sukarela')
+        return DB::table('saldo_simpanan_manasuka')
             ->where('saldo', '<', 0)
             ->count();
     }
 
     private function cachedBalanceMismatch(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'simpanan']) || ! $this->hasSimpananSp3Columns()) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'simpanan']) || ! $this->hasSimpananSp3Columns()) {
             return 0;
         }
 
-        return DB::table('saldo_simpanan_sukarela')
+        return DB::table('saldo_simpanan_manasuka')
             ->orderBy('id')
             ->get()
             ->filter(function ($row): bool {
@@ -235,7 +243,7 @@ class PreflightSimpananSukarelaCommand extends Command
         }
 
         return (float) DB::table('penyelesaian_keanggotaan_detail')
-            ->where('source_type', SaldoSimpananSukarela::class)
+            ->where('source_type', SaldoSimpananManasuka::class)
             ->where('source_id', $saldoId)
             ->sum(DB::raw('CAST(nominal_dipakai_offset AS DECIMAL(15,2)) + CAST(nominal_direfund AS DECIMAL(15,2))'));
     }
@@ -246,7 +254,7 @@ class PreflightSimpananSukarelaCommand extends Command
             return 0;
         }
 
-        return $this->sukarelaBase()
+        return $this->manasukaBase()
             ->leftJoin('anggota as a', 'a.id', '=', 's.anggota_id')
             ->leftJoin('siklus_keanggotaan as sk', 'sk.id', '=', 's.siklus_keanggotaan_id')
             ->leftJoin('dompet_koperasi as d', 'd.id', '=', 's.dompet_id')
@@ -272,17 +280,21 @@ class PreflightSimpananSukarelaCommand extends Command
             ->join('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')
             ->whereIn('js.kategori', [JenisSimpanan::KATEGORI_POKOK, JenisSimpanan::KATEGORI_WAJIB])
             ->whereIn('s.jenis_transaksi', [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])
+            ->where(function ($query): void {
+                $query->where('s.kode_transaksi', 'like', 'SMN-%')
+                    ->orWhere('s.idempotency_key', 'like', 'simpanan-manasuka:%');
+            })
             ->count('s.id');
     }
 
     private function setoranWithMutasiKeluar(): int
     {
-        return $this->sukarelaMutasiDirectionCount(Simpanan::JENIS_SETORAN, 'keluar');
+        return $this->manasukaMutasiDirectionCount(Simpanan::JENIS_SETORAN, 'keluar');
     }
 
     private function penarikanWithMutasiMasuk(): int
     {
-        return $this->sukarelaMutasiDirectionCount(Simpanan::JENIS_PENARIKAN, 'masuk');
+        return $this->manasukaMutasiDirectionCount(Simpanan::JENIS_PENARIKAN, 'masuk');
     }
 
     private function methodDompetMismatch(): int
@@ -291,7 +303,7 @@ class PreflightSimpananSukarelaCommand extends Command
             return 0;
         }
 
-        return $this->sukarelaBase()
+        return $this->manasukaBase()
             ->join('dompet_koperasi as d', 'd.id', '=', 's.dompet_id')
             ->whereIn('s.jenis_transaksi', [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])
             ->where(function ($query): void {
@@ -312,7 +324,7 @@ class PreflightSimpananSukarelaCommand extends Command
             return 0;
         }
 
-        return $this->sukarelaBase()
+        return $this->manasukaBase()
             ->where('s.status', Simpanan::STATUS_SETTLED)
             ->whereIn('s.jenis_transaksi', [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])
             ->get(['s.id'])
@@ -376,7 +388,7 @@ class PreflightSimpananSukarelaCommand extends Command
             ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
             ->where(function ($query): void {
                 $query->where('j.idempotency_key', 'like', 'simpanan:%')
-                    ->orWhere('j.idempotency_key', 'like', 'simpanan-sukarela:%')
+                    ->orWhere('j.idempotency_key', 'like', 'simpanan-manasuka:%')
                     ->orWhere('j.idempotency_key', 'like', 'reversal:jurnal:%');
             })
             ->select('j.id', DB::raw('ABS(SUM(d.debit) - SUM(d.kredit)) as diff'))
@@ -400,15 +412,20 @@ class PreflightSimpananSukarelaCommand extends Command
             ->get()
             ->count();
 
-        $invalid = $this->sukarelaBase()
+        $invalid = $this->manasukaBase()
             ->whereNotNull('s.kode_transaksi')
-            ->where('s.kode_transaksi', 'not like', 'SSK-%')
+            ->where('s.kode_transaksi', 'not like', 'SMN-%')
             ->count('s.id');
 
-        $invalid += $this->sukarelaBase()
+        $invalid += $this->manasukaBase()
             ->whereNotNull('s.kode_transaksi')
             ->get(['s.kode_transaksi'])
-            ->filter(fn ($row) => preg_match('/^SSK-\d{6}-\d{6}$/', (string) $row->kode_transaksi) !== 1)
+            ->filter(fn ($row) => preg_match('/^SMN-\d{6}-\d{6}$/', (string) $row->kode_transaksi) !== 1)
+            ->count();
+
+        $invalid += DB::table('simpanan')
+            ->whereNotNull('kode_transaksi')
+            ->where('kode_transaksi', 'like', 'SSK-%')
             ->count();
 
         return $duplicates + $invalid;
@@ -427,8 +444,8 @@ class PreflightSimpananSukarelaCommand extends Command
                 ->whereNotNull('idempotency_key')
                 ->where(function ($query): void {
                     $query->where('idempotency_key', 'like', 'simpanan:%')
-                        ->orWhere('idempotency_key', 'like', 'simpanan-sukarela:%')
-                        ->orWhere('idempotency_key', 'like', 'reversal:simpanan-sukarela:%');
+                        ->orWhere('idempotency_key', 'like', 'simpanan-manasuka:%')
+                        ->orWhere('idempotency_key', 'like', 'reversal:simpanan-manasuka:%');
                 })
                 ->select('idempotency_key', DB::raw('COUNT(*) as total'))
                 ->groupBy('idempotency_key')
@@ -448,12 +465,41 @@ class PreflightSimpananSukarelaCommand extends Command
 
         return DB::table('reversal_transaksi')
             ->where('source_type', Simpanan::class)
-            ->where('jenis_reversal', ReversalTransaksi::JENIS_SIMPANAN_SUKARELA_CORRECTION)
+            ->where('jenis_reversal', ReversalTransaksi::JENIS_SIMPANAN_MANASUKA_CORRECTION)
             ->select('source_id', DB::raw('COUNT(*) as total'))
             ->groupBy('source_id')
             ->having('total', '>', 1)
             ->get()
             ->count();
+    }
+
+    private function legacySourceType(): int
+    {
+        $total = 0;
+
+        foreach (['penyelesaian_keanggotaan_detail', 'reversal_transaksi'] as $table) {
+            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'source_type')) {
+                continue;
+            }
+
+            $total += DB::table($table)
+                ->where('source_type', 'App\\Models\\SaldoSimpananSukarela')
+                ->count();
+        }
+
+        return $total;
+    }
+
+    private function manasukaInPayroll(): int
+    {
+        if (! $this->hasTables(['pemakaian_potong_gaji', 'simpanan', 'jenis_simpanan']) || ! Schema::hasColumn('simpanan', 'pemakaian_potong_gaji_id')) {
+            return 0;
+        }
+
+        return $this->manasukaBase()
+            ->join('pemakaian_potong_gaji as p', 'p.id', '=', 's.pemakaian_potong_gaji_id')
+            ->whereNotNull('s.pemakaian_potong_gaji_id')
+            ->count('s.id');
     }
 
     private function correctedWithoutReversal(): int
@@ -462,7 +508,7 @@ class PreflightSimpananSukarelaCommand extends Command
             return 0;
         }
 
-        return $this->sukarelaBase()
+        return $this->manasukaBase()
             ->leftJoin('reversal_transaksi as r', 'r.id', '=', 's.reversal_transaksi_id')
             ->where('s.status', Simpanan::STATUS_REVERSED)
             ->where(function ($query): void {
@@ -480,7 +526,7 @@ class PreflightSimpananSukarelaCommand extends Command
 
         $issues = 0;
 
-        $groups = $this->sukarelaBase()
+        $groups = $this->manasukaBase()
             ->where('s.status', Simpanan::STATUS_SETTLED)
             ->whereIn('s.jenis_transaksi', [Simpanan::JENIS_SETORAN, Simpanan::JENIS_PENARIKAN])
             ->select('s.anggota_id', 's.siklus_keanggotaan_id', 's.jenis_simpanan_id')
@@ -520,7 +566,7 @@ class PreflightSimpananSukarelaCommand extends Command
             return 0;
         }
 
-        return $this->sukarelaBase()
+        return $this->manasukaBase()
             ->join('anggota as a', 'a.id', '=', 's.anggota_id')
             ->join('karyawan as k', 'k.id', '=', 'a.karyawan_id')
             ->where('s.status', Simpanan::STATUS_SETTLED)
@@ -545,13 +591,13 @@ class PreflightSimpananSukarelaCommand extends Command
 
     private function oldCycleBalanceMoved(): int
     {
-        if (! $this->hasTables(['saldo_simpanan_sukarela', 'siklus_keanggotaan'])) {
+        if (! $this->hasTables(['saldo_simpanan_manasuka', 'siklus_keanggotaan'])) {
             return 0;
         }
 
-        return DB::table('saldo_simpanan_sukarela as active_saldo')
+        return DB::table('saldo_simpanan_manasuka as active_saldo')
             ->join('siklus_keanggotaan as active_siklus', 'active_siklus.id', '=', 'active_saldo.siklus_keanggotaan_id')
-            ->join('saldo_simpanan_sukarela as closed_saldo', function ($join): void {
+            ->join('saldo_simpanan_manasuka as closed_saldo', function ($join): void {
                 $join->on('closed_saldo.anggota_id', '=', 'active_saldo.anggota_id')
                     ->on('closed_saldo.jenis_simpanan_id', '=', 'active_saldo.jenis_simpanan_id')
                     ->whereColumn('closed_saldo.siklus_keanggotaan_id', '!=', 'active_saldo.siklus_keanggotaan_id');
@@ -573,18 +619,18 @@ class PreflightSimpananSukarelaCommand extends Command
         return DB::table('penyelesaian_keanggotaan_detail as d')
             ->leftJoin('simpanan as s', 's.id', '=', 'd.source_id')
             ->where('d.source_type', Simpanan::class)
-            ->where('d.kategori_sumber', 'simpanan_sukarela')
+            ->where('d.kategori_sumber', 'simpanan_manasuka')
             ->whereNull('s.id')
             ->count('d.id');
     }
 
-    private function sukarelaMutasiDirectionCount(string $jenisTransaksi, string $tipeMutasi): int
+    private function manasukaMutasiDirectionCount(string $jenisTransaksi, string $tipeMutasi): int
     {
         if (! $this->hasTables(['simpanan', 'jenis_simpanan', 'mutasi_kas']) || ! $this->hasSimpananSp3Columns()) {
             return 0;
         }
 
-        return $this->sukarelaBase()
+        return $this->manasukaBase()
             ->join('mutasi_kas as m', function ($join): void {
                 $join->on('m.referensi_id', '=', 's.id')
                     ->where('m.referensi_tipe', '=', Simpanan::class);
@@ -594,7 +640,7 @@ class PreflightSimpananSukarelaCommand extends Command
             ->count('s.id');
     }
 
-    private function sukarelaBase()
+    private function manasukaBase()
     {
         return DB::table('simpanan as s')
             ->join('jenis_simpanan as js', 'js.id', '=', 's.jenis_simpanan_id')

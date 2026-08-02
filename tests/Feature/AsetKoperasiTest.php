@@ -14,6 +14,7 @@ use App\Services\AsetKoperasiService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -155,18 +156,13 @@ class AsetKoperasiTest extends TestCase
         $kasir = $this->user('kasir');
         $keuangan = $this->user('admin');
 
-        $this->get(route('aset-mobil.index'))->assertRedirect(route('login'));
-        $this->actingAs($kasir)->get(route('aset-mobil.index'))->assertForbidden();
-        $this->actingAs($kasir)->post(route('aset-mobil.store'), $this->mobilPayload())->assertForbidden();
+        $this->assertFalse(Route::has('aset-mobil.index'));
+        $this->assertFalse(Route::has('aset-mobil.store'));
 
-        $this->actingAs($keuangan)
-            ->get(route('aset-mobil.index'))
-            ->assertOk()
-            ->assertSee('Mobil Koperasi');
-
-        $this->actingAs($keuangan)
-            ->post(route('aset-mobil.store'), $this->mobilPayload(['plat_nomor' => 'B 6001 KBS']))
-            ->assertRedirect(route('aset-mobil.index'));
+        $this->get('/aset-mobil')->assertNotFound();
+        $this->actingAs($kasir)->get('/aset-mobil')->assertNotFound();
+        $this->actingAs($keuangan)->get('/aset-mobil')->assertNotFound();
+        $this->assertFalse(collect(config('navigation.modules', []))->contains(fn (array $item): bool => ($item['route'] ?? null) === 'aset-mobil.index'));
 
         $this->actingAs($keuangan)->get('/aset-printer')->assertNotFound();
     }
@@ -192,12 +188,11 @@ class AsetKoperasiTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(4, AsetKoperasi::query()->mobil()->count());
+        $this->assertSame(0, AsetKoperasi::query()->mobil()->count());
         $this->assertSame(0, AsetKoperasi::query()->printer()->count());
-        $this->assertSame(4, AsetMobil::query()->count());
+        $this->assertSame(0, AsetMobil::query()->count());
         $this->assertSame(0, AsetPrinter::query()->count());
-        $this->assertDatabaseHas('aset_koperasi', ['kode_aset' => 'MBL-0001', 'status' => AsetKoperasi::STATUS_DIGUNAKAN_DISEWA]);
-        $this->assertDatabaseHas('nomor_urut_aset', ['jenis_aset' => AsetKoperasi::JENIS_MOBIL, 'last_number' => 4]);
+        $this->assertDatabaseMissing('nomor_urut_aset', ['jenis_aset' => AsetKoperasi::JENIS_MOBIL]);
         $this->assertDatabaseMissing('nomor_urut_aset', ['jenis_aset' => AsetKoperasi::JENIS_PRINTER]);
     }
 

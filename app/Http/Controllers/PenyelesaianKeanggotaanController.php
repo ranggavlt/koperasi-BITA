@@ -133,7 +133,7 @@ class PenyelesaianKeanggotaanController extends Controller
 
         $this->service->cancelDeactivation($penyelesaian, $validated['alasan'], (int) auth()->id());
 
-        return back()->with('success', 'Penonaktifan dibatalkan. Siklus lama dipulihkan tanpa membuat Simpanan Pokok baru.');
+        return back()->with('success', 'Penonaktifan dibatalkan. Siklus lama dipulihkan tanpa membuat Simpanan Wajib baru.');
     }
 
     public function reRegister(Request $request, PenyelesaianKeanggotaan $penyelesaian): RedirectResponse
@@ -142,18 +142,36 @@ class PenyelesaianKeanggotaanController extends Controller
             'tanggal_bergabung' => ['required', 'date', 'before_or_equal:today'],
             'alasan' => ['required', 'string', 'min:5', 'max:1000'],
             'konfirmasi_siklus_baru' => ['accepted'],
+            'simpanan_wajib_metode_pembayaran' => ['nullable', Rule::in(['potong_gaji', 'tunai', 'transfer_bank'])],
+            'simpanan_wajib_dompet_id' => [
+                'nullable',
+                'required_if:simpanan_wajib_metode_pembayaran,tunai,transfer_bank',
+                Rule::exists('dompet_koperasi', 'id')->where(function ($query) use ($request): void {
+                    $method = $request->input('simpanan_wajib_metode_pembayaran', 'potong_gaji');
+
+                    if ($method === 'tunai') {
+                        $query->where('jenis_dompet', DompetKoperasi::JENIS_KAS);
+                    } elseif ($method === 'transfer_bank') {
+                        $query->where('jenis_dompet', DompetKoperasi::JENIS_BANK);
+                    }
+                }),
+            ],
         ], [
             'konfirmasi_siklus_baru.accepted' => 'Konfirmasi bahwa pendaftaran kembali membuat siklus baru wajib dicentang.',
+            'simpanan_wajib_dompet_id.required_if' => 'Dompet wajib dipilih untuk pembayaran Simpanan Wajib Tunai/Transfer Bank.',
+            'simpanan_wajib_dompet_id.exists' => 'Dompet yang dipilih tidak sesuai dengan metode pembayaran Simpanan Wajib.',
         ]);
 
         $this->service->reRegisterMember(
             $penyelesaian,
             $validated['tanggal_bergabung'],
             $validated['alasan'],
-            (int) auth()->id()
+            (int) auth()->id(),
+            $validated['simpanan_wajib_metode_pembayaran'] ?? 'potong_gaji',
+            $validated['simpanan_wajib_dompet_id'] ?? null
         );
 
-        return back()->with('success', 'Anggota berhasil didaftarkan kembali dengan siklus baru, Simpanan Pokok baru, dan saldo Sukarela Rp0.');
+        return back()->with('success', 'Anggota berhasil didaftarkan kembali dengan siklus baru, Simpanan Wajib baru, dan saldo Manasuka Rp0.');
     }
 
     private function decimalToRupiahInt(int|string|null $value): int

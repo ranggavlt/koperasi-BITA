@@ -278,12 +278,7 @@ class AsetKoperasiService
             ['label' => 'Sewa Mobil Detail', 'table' => 'sewa_mobil', 'column' => 'aset_mobil_id', 'id' => $aset->mobil?->id],
             ['label' => 'Transaksi Sewa Mobil', 'table' => 'transaksi_sewa_mobil', 'column' => 'aset_koperasi_id', 'id' => $aset->id],
             ['label' => 'Transaksi Sewa Mobil Detail', 'table' => 'transaksi_sewa_mobil', 'column' => 'aset_mobil_id', 'id' => $aset->mobil?->id],
-            ['label' => 'Sewa Printer', 'table' => 'sewa_printer', 'column' => 'aset_koperasi_id', 'id' => $aset->id],
-            ['label' => 'Sewa Printer Detail', 'table' => 'sewa_printer_detail', 'column' => 'aset_koperasi_id', 'id' => $aset->id],
-            ['label' => 'Sewa Printer Detail', 'table' => 'sewa_printer', 'column' => 'aset_printer_id', 'id' => $aset->printer?->id],
             ['label' => 'Beban Operasional Aset', 'table' => 'beban_operasional_detail', 'column' => 'aset_koperasi_id', 'id' => $aset->id],
-            ['label' => 'Transaksi Sewa Printer', 'table' => 'transaksi_sewa_printer', 'column' => 'aset_koperasi_id', 'id' => $aset->id],
-            ['label' => 'Transaksi Sewa Printer Detail', 'table' => 'transaksi_sewa_printer', 'column' => 'aset_printer_id', 'id' => $aset->printer?->id],
             ['label' => 'Riwayat Aset', 'table' => 'riwayat_aset_koperasi', 'column' => 'aset_koperasi_id', 'id' => $aset->id],
         ];
 

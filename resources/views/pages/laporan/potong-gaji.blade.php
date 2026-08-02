@@ -100,7 +100,7 @@
             <th class="kbsm-business-table__right">Reserved</th>
             <th class="kbsm-business-table__right">Settled</th>
             <th class="kbsm-business-table__right">Belum Dialokasikan</th>
-            <th class="kbsm-business-table__right">Simpanan Pokok</th>
+            <th class="kbsm-business-table__right">Legacy Pokok</th>
             <th class="kbsm-business-table__right">Simpanan Wajib</th>
             <th class="kbsm-business-table__right">POS</th>
             <th class="kbsm-business-table__right">Kredit</th>

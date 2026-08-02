@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Anggota;
+use App\Models\KebijakanLimitPotongGaji;
 use App\Models\LimitPotongGajiAnggota;
+use App\Models\OverrideLimitPotongGajiAnggota;
 use App\Models\PeriodePotongGaji;
+use App\Models\Perusahaan;
 use App\Services\PotongGajiBulananService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +16,12 @@ class PeriodePotongGajiController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = [
+            'search' => trim((string) $request->query('search', '')),
+            'perusahaan_id' => $request->query('perusahaan_id'),
+            'status' => $request->query('status'),
+        ];
+
         $periodeList = PeriodePotongGaji::query()
             ->withCount('limits')
             ->orderByDesc('periode')
@@ -23,20 +32,79 @@ class PeriodePotongGajiController extends Controller
             : PeriodePotongGaji::query()->orderByDesc('periode')->first();
 
         $limits = collect();
-        $anggotaAktif = Anggota::query()
-            ->with(['karyawan', 'pinjaman.jadwalCicilan'])
-            ->whereHas('karyawan')
+        $perusahaanList = Perusahaan::query()->orderBy('kode')->get();
+        $activePolicy = KebijakanLimitPotongGaji::query()
+            ->where('status', KebijakanLimitPotongGaji::STATUS_ACTIVE)
+            ->whereNull('berlaku_sampai_periode')
+            ->orderByDesc('berlaku_mulai_periode')
+            ->first();
+
+        $allEligible = Anggota::query()
+            ->with(['karyawan.perusahaan', 'pinjaman.jadwalCicilan', 'overrideLimitPotongGaji'])
+            ->aktif()
+            ->whereHas('karyawan', fn ($query) => $query->where('status_kerja', \App\Models\Karyawan::STATUS_AKTIF))
             ->orderBy('nomor_anggota')
             ->get();
 
         if ($selectedPeriode) {
             $limits = $selectedPeriode->limits()
-                ->with(['anggota.karyawan', 'pemakaian', 'riwayat', 'dompetPenerimaan'])
+                ->with(['anggota.karyawan.perusahaan', 'pemakaian', 'riwayat', 'dompetPenerimaan', 'kebijakanLimit', 'overrideLimit', 'perusahaanSnapshot'])
                 ->get()
                 ->keyBy('anggota_id');
         }
 
-        return view('pages.periode-potong-gaji.index', compact('periodeList', 'selectedPeriode', 'limits', 'anggotaAktif'));
+        $summary = [
+            'limit_umum' => $allEligible->filter(fn (Anggota $anggota): bool => $limits->get($anggota->id)?->sumber_limit === LimitPotongGajiAnggota::SUMBER_LIMIT_UMUM)->count(),
+            'limit_khusus' => $allEligible->filter(fn (Anggota $anggota): bool => ($limits->get($anggota->id)?->sumber_limit === LimitPotongGajiAnggota::SUMBER_OVERRIDE_ANGGOTA) || $anggota->overrideLimitPotongGaji?->status === OverrideLimitPotongGajiAnggota::STATUS_ACTIVE)->count(),
+            'kredit_waserba_nonaktif' => $allEligible->filter(fn (Anggota $anggota): bool => $anggota->overrideLimitPotongGaji && ! $anggota->overrideLimitPotongGaji->kredit_waserba_enabled)->count(),
+            'belum_limit' => $selectedPeriode ? $allEligible->filter(fn (Anggota $anggota): bool => ! $limits->has($anggota->id))->count() : $allEligible->count(),
+        ];
+
+        $anggotaAktif = $allEligible
+            ->filter(function (Anggota $anggota) use ($filters, $limits): bool {
+                $limit = $limits->get($anggota->id);
+                $setting = $anggota->overrideLimitPotongGaji;
+
+                if ($filters['search'] !== '') {
+                    $haystack = strtolower(implode(' ', [
+                        $anggota->nomor_anggota,
+                        $anggota->karyawan?->nama,
+                        $anggota->karyawan?->email,
+                    ]));
+
+                    if (! str_contains($haystack, strtolower($filters['search']))) {
+                        return false;
+                    }
+                }
+
+                if ($filters['perusahaan_id'] && (int) $anggota->karyawan?->perusahaan_id !== (int) $filters['perusahaan_id']) {
+                    return false;
+                }
+
+                return match ($filters['status']) {
+                    'limit_umum' => $limit?->sumber_limit === LimitPotongGajiAnggota::SUMBER_LIMIT_UMUM,
+                    'limit_khusus' => $limit?->sumber_limit === LimitPotongGajiAnggota::SUMBER_OVERRIDE_ANGGOTA || $setting?->status === OverrideLimitPotongGajiAnggota::STATUS_ACTIVE,
+                    'kredit_nonaktif' => $setting && ! $setting->kredit_waserba_enabled,
+                    'belum_limit' => ! $limit,
+                    default => true,
+                };
+            })
+            ->values();
+
+        $generationWarnings = session('generation_warnings', []);
+
+        return view('pages.periode-potong-gaji.index', compact(
+            'periodeList',
+            'selectedPeriode',
+            'limits',
+            'anggotaAktif',
+            'allEligible',
+            'perusahaanList',
+            'activePolicy',
+            'summary',
+            'filters',
+            'generationWarnings'
+        ));
     }
 
     public function create()
@@ -51,10 +119,12 @@ class PeriodePotongGajiController extends Controller
         ]);
 
         $periode = $service->createPeriodeDraft($validated['periode'], $request->user()->id);
+        $summary = $service->bulkGenerateLimitsForPeriod($periode, $request->user()->id);
 
         return redirect()
             ->route('periode-potong-gaji.index', ['periode_id' => $periode->id])
-            ->with('success', 'Periode potong gaji berhasil disiapkan.');
+            ->with('success', sprintf('Periode potong gaji berhasil disiapkan. Limit otomatis dibuat: %d, sudah ada: %d, gagal: %d.', $summary['created'], $summary['existing'], $summary['failed']))
+            ->with('generation_warnings', $summary['warnings']);
     }
 
     public function storeLimit(Request $request, PotongGajiBulananService $service)
@@ -140,5 +210,105 @@ class PeriodePotongGajiController extends Controller
         return redirect()
             ->route('periode-potong-gaji.index', ['periode_id' => $limit->periode_potong_gaji_id])
             ->with('success', 'Reservasi pelunasan penuh payroll berhasil dibuat.');
+    }
+
+    public function updateGlobalPolicy(Request $request, PotongGajiBulananService $service)
+    {
+        $validated = $request->validate([
+            'nominal_limit' => ['required', 'integer', 'min:0'],
+            'berlaku_mulai_periode' => ['nullable', 'date'],
+            'alasan' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $effective = $validated['berlaku_mulai_periode']
+            ?? $service->normalizePeriod()->addMonthNoOverflow()->toDateString();
+
+        $service->updateGlobalPolicy(
+            (int) $validated['nominal_limit'],
+            $effective,
+            $request->user()->id,
+            $validated['alasan']
+        );
+
+        return back()->with('success', 'Kebijakan limit umum berhasil diperbarui untuk periode berlaku yang dipilih.');
+    }
+
+    public function bulkGenerate(PeriodePotongGaji $periode, PotongGajiBulananService $service)
+    {
+        $summary = $service->bulkGenerateLimitsForPeriod($periode, request()->user()->id);
+
+        return redirect()
+            ->route('periode-potong-gaji.index', ['periode_id' => $periode->id])
+            ->with('success', sprintf('Generate limit selesai. Dibuat: %d, sudah ada: %d, gagal: %d.', $summary['created'], $summary['existing'], $summary['failed']))
+            ->with('generation_warnings', $summary['warnings']);
+    }
+
+    public function bulkActivate(PeriodePotongGaji $periode, PotongGajiBulananService $service)
+    {
+        $summary = $service->bulkActivateLimitsForPeriod($periode, request()->user()->id);
+
+        return redirect()
+            ->route('periode-potong-gaji.index', ['periode_id' => $periode->id])
+            ->with('success', sprintf('Bulk aktivasi selesai. Aktif: %d, dilewati: %d, gagal: %d.', $summary['activated'], $summary['skipped'], $summary['failed']))
+            ->with('generation_warnings', $summary['warnings']);
+    }
+
+    public function setOverride(Request $request, Anggota $anggota, PotongGajiBulananService $service)
+    {
+        $validated = $request->validate([
+            'nominal_override' => ['required', 'integer', 'min:0'],
+            'berlaku_mulai_periode' => ['nullable', 'date'],
+            'alasan' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $effective = $validated['berlaku_mulai_periode']
+            ?? $service->normalizePeriod()->toDateString();
+
+        $service->setMemberOverride(
+            $anggota,
+            (int) $validated['nominal_override'],
+            $effective,
+            $request->user()->id,
+            $validated['alasan']
+        );
+
+        return back()->with('success', 'Limit khusus Anggota berhasil disimpan.');
+    }
+
+    public function resetOverride(Request $request, Anggota $anggota, PotongGajiBulananService $service)
+    {
+        $validated = $request->validate([
+            'alasan' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $service->resetMemberOverrideToGlobal(
+            $anggota,
+            $request->user()->id,
+            $validated['alasan'] ?? 'Kembali ke limit umum aktif.'
+        );
+
+        return back()->with('success', 'Limit khusus Anggota dikembalikan ke Limit Umum.');
+    }
+
+    public function disableWaserba(Request $request, Anggota $anggota, PotongGajiBulananService $service)
+    {
+        $validated = $request->validate([
+            'alasan' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $service->setWaserbaCredit($anggota, false, $request->user()->id, $validated['alasan']);
+
+        return back()->with('success', 'Kredit Waserba Anggota berhasil dinonaktifkan.');
+    }
+
+    public function enableWaserba(Request $request, Anggota $anggota, PotongGajiBulananService $service)
+    {
+        $validated = $request->validate([
+            'alasan' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $service->setWaserbaCredit($anggota, true, $request->user()->id, $validated['alasan'] ?? 'Kredit Waserba diaktifkan kembali.');
+
+        return back()->with('success', 'Kredit Waserba Anggota berhasil diaktifkan.');
     }
 }

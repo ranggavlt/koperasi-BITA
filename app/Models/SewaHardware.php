@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 
-class SewaPrinter extends Model
+class SewaHardware extends Model
 {
     use HasFactory;
 
@@ -20,18 +20,20 @@ class SewaPrinter extends Model
 
     public const STATUS_DIBATALKAN = 'dibatalkan';
 
+    public const STATUS_REFUNDED = 'refunded';
+
     public const PEMBAYARAN_BELUM_BAYAR = 'belum_bayar';
 
     public const PEMBAYARAN_PAID = 'paid';
 
     public const PEMBAYARAN_REFUNDED = 'refunded';
 
-    protected $table = 'sewa_printer';
+    protected $table = 'sewa_hardware';
 
     protected $fillable = [
         'kode_sewa',
         'nama_perusahaan_snapshot',
-        'karyawan_pic_id',
+        'karyawan_id',
         'mulai_tanggal',
         'selesai_tanggal',
         'kebutuhan',
@@ -47,12 +49,19 @@ class SewaPrinter extends Model
         'started_at',
         'completed_at',
         'cancelled_at',
+        'refunded_at',
         'alasan_pembatalan',
+        'refund_reason',
         'keterangan',
         'recorded_by',
         'created_by',
         'updated_by',
         'confirmed_by',
+        'started_by',
+        'completed_by',
+        'cancelled_by',
+        'refunded_by',
+        'reversal_transaksi_id',
         'idempotency_key',
     ];
 
@@ -66,12 +75,13 @@ class SewaPrinter extends Model
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'refunded_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::deleting(function (): void {
-            throw new RuntimeException('Transaksi Sewa Printer tidak boleh dihapus permanen. Gunakan pembatalan/refund.');
+            throw new RuntimeException('Transaksi Sewa Hardware tidak boleh dihapus permanen. Gunakan pembatalan/refund.');
         });
     }
 
@@ -83,6 +93,7 @@ class SewaPrinter extends Model
             self::STATUS_BERJALAN,
             self::STATUS_SELESAI,
             self::STATUS_DIBATALKAN,
+            self::STATUS_REFUNDED,
         ];
     }
 
@@ -94,6 +105,7 @@ class SewaPrinter extends Model
             self::STATUS_BERJALAN => 'Berjalan',
             self::STATUS_SELESAI => 'Selesai',
             self::STATUS_DIBATALKAN => 'Dibatalkan',
+            self::STATUS_REFUNDED => 'Refunded',
         ];
     }
 
@@ -108,22 +120,22 @@ class SewaPrinter extends Model
 
     public function details()
     {
-        return $this->hasMany(SewaPrinterDetail::class, 'sewa_printer_id');
+        return $this->hasMany(SewaHardwareDetail::class, 'sewa_hardware_id');
     }
 
     public function karyawanPic()
     {
-        return $this->belongsTo(Karyawan::class, 'karyawan_pic_id');
+        return $this->karyawan();
     }
 
     public function karyawan()
     {
-        return $this->belongsTo(Karyawan::class, 'karyawan_pic_id');
+        return $this->belongsTo(Karyawan::class, 'karyawan_id');
     }
 
     public function pembayaran()
     {
-        return $this->hasOne(PembayaranSewaPrinter::class, 'sewa_printer_id');
+        return $this->hasOne(PembayaranSewaHardware::class, 'sewa_hardware_id');
     }
 
     public function creator()
@@ -141,9 +153,34 @@ class SewaPrinter extends Model
         return $this->belongsTo(User::class, 'confirmed_by');
     }
 
+    public function starter()
+    {
+        return $this->belongsTo(User::class, 'started_by');
+    }
+
+    public function completer()
+    {
+        return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function canceller()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function refunder()
+    {
+        return $this->belongsTo(User::class, 'refunded_by');
+    }
+
     public function recorder()
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function reversal()
+    {
+        return $this->belongsTo(ReversalTransaksi::class, 'reversal_transaksi_id');
     }
 
     public function jurnal()

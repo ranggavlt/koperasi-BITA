@@ -16,6 +16,7 @@ use App\Services\MasterDataKoperasiService;
 use App\Services\SimpananManualService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -26,16 +27,16 @@ class JenisSimpananSp1Test extends TestCase
     public function test_validasi_kategori_interval_dan_nominal_master_jenis_simpanan(): void
     {
         $service = app(JenisSimpananService::class);
-        $pokok = $this->jenis(JenisSimpanan::KATEGORI_POKOK);
         $wajib = $this->jenis(JenisSimpanan::KATEGORI_WAJIB);
+        $manasuka = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
 
-        $this->expectValidation(fn () => $service->update($pokok, $this->payload($pokok, [
-            'interval_bulan' => 2,
-            'alasan_perubahan' => 'Uji interval pokok.',
-        ]), $this->finance()->id));
+        $this->assertSame(0, JenisSimpanan::query()
+            ->where('kategori', JenisSimpanan::KATEGORI_POKOK)
+            ->where('aktif', true)
+            ->count());
 
         $this->expectValidation(fn () => $service->update($wajib, $this->payload($wajib, [
-            'interval_bulan' => 13,
+            'interval_bulan' => 1,
             'alasan_perubahan' => 'Uji interval wajib.',
         ]), $this->finance()->id));
 
@@ -43,26 +44,31 @@ class JenisSimpananSp1Test extends TestCase
             'nominal_default' => 0,
             'alasan_perubahan' => 'Uji nominal wajib.',
         ]), $this->finance()->id));
+
+        $this->expectValidation(fn () => $service->update($manasuka, $this->payload($manasuka, [
+            'interval_bulan' => 1,
+            'alasan_perubahan' => 'Uji interval manasuka.',
+        ]), $this->finance()->id));
     }
 
     public function test_satu_master_aktif_per_kategori_dilindungi_service_dan_database(): void
     {
         $service = app(JenisSimpananService::class);
-        $pokok = $this->jenis(JenisSimpanan::KATEGORI_POKOK);
+        $wajib = $this->jenis(JenisSimpanan::KATEGORI_WAJIB);
 
-        $this->expectValidation(fn () => $service->create($this->payload($pokok, [
-            'nama_jenis' => 'Simpanan Pokok Duplikat',
+        $this->expectValidation(fn () => $service->create($this->payload($wajib, [
+            'nama_jenis' => 'Simpanan Wajib Duplikat',
         ]), $this->finance()->id));
 
         $this->expectException(QueryException::class);
         JenisSimpanan::query()->create([
-            'akun_id' => $this->akun('simpanan_pokok')->id,
-            'kode' => 'SIMPANAN_POKOK_DUP',
-            'kategori' => JenisSimpanan::KATEGORI_POKOK,
-            'nama_jenis' => 'Simpanan Pokok Race',
+            'akun_id' => $this->akun('simpanan_wajib')->id,
+            'kode' => 'SIMPANAN_WAJIB_DUP',
+            'kategori' => JenisSimpanan::KATEGORI_WAJIB,
+            'nama_jenis' => 'Simpanan Wajib Race',
             'wajib' => true,
             'aktif' => true,
-            'nominal_default' => 100000,
+            'nominal_default' => 10000,
             'berlaku_mulai' => '2026-01-01',
         ]);
     }
@@ -71,31 +77,30 @@ class JenisSimpananSp1Test extends TestCase
     {
         $service = app(JenisSimpananService::class);
         $finance = $this->finance();
-        $wajib = $this->jenis(JenisSimpanan::KATEGORI_WAJIB);
+        $manasuka = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
 
-        $this->expectValidation(fn () => $service->update($wajib, $this->payload($wajib, [
-            'nominal_default' => 125000,
+        $this->expectValidation(fn () => $service->update($manasuka, $this->payload($manasuka, [
+            'nominal_default' => 25000,
             'alasan_perubahan' => null,
         ]), $finance->id));
 
-        $service->update($wajib, $this->payload($wajib, [
-            'nominal_default' => 125000,
-            'alasan_perubahan' => 'Penyesuaian nominal dummy SP-1.',
+        $service->update($manasuka, $this->payload($manasuka, [
+            'nominal_default' => 25000,
+            'alasan_perubahan' => 'Penyesuaian nominal Manasuka dummy SP-7.',
         ]), $finance->id);
 
         $this->assertDatabaseHas('riwayat_jenis_simpanan', [
-            'jenis_simpanan_id' => $wajib->id,
+            'jenis_simpanan_id' => $manasuka->id,
             'changed_by' => $finance->id,
-            'alasan' => 'Penyesuaian nominal dummy SP-1.',
+            'alasan' => 'Penyesuaian nominal Manasuka dummy SP-7.',
         ]);
-        $this->assertSame('125000.00', $wajib->fresh()->nominal_default);
+        $this->assertSame('25000.00', $manasuka->fresh()->nominal_default);
     }
 
-    public function test_master_terpakai_tidak_dapat_dihapus_permanen(): void
+    public function test_master_terpakai_tidak_menyediakan_route_hard_delete(): void
     {
-        $finance = $this->finance();
         $anggota = $this->anggota();
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_SUKARELA);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
 
         Simpanan::query()->create([
             'anggota_id' => $anggota->id,
@@ -105,42 +110,45 @@ class JenisSimpananSp1Test extends TestCase
             'tanggal' => '2026-07-10',
         ]);
 
-        $this->actingAs($finance)
-            ->delete(route('jenis-simpanan.destroy', $jenis))
-            ->assertSessionHasErrors('jenis_simpanan');
-
+        $this->assertFalse(Route::has('jenis-simpanan.destroy'));
         $this->assertDatabaseHas('jenis_simpanan', ['id' => $jenis->id]);
     }
 
-    public function test_perubahan_nominal_master_tidak_mengubah_snapshot_simpanan_pokok_lama(): void
+    public function test_perubahan_master_manasuka_tidak_mengubah_snapshot_transaksi_lama(): void
     {
         $finance = $this->finance();
         $anggota = $this->anggota();
-        $pokok = $this->jenis(JenisSimpanan::KATEGORI_POKOK);
-        $simpananPokok = Simpanan::query()
-            ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
-            ->firstOrFail();
+        $manasuka = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
+        $kas = $this->dompet('Kas Snapshot Manasuka', 'kas', 'kas');
+        $simpanan = app(SimpananManualService::class)->create([
+            'idempotency_key' => 'snapshot-manasuka',
+            'anggota_id' => $anggota->id,
+            'jenis_simpanan_id' => $manasuka->id,
+            'dompet_id' => $kas->id,
+            'jumlah' => 50000,
+            'tanggal' => '2026-07-10',
+            'keterangan' => 'Snapshot lama',
+        ], $finance->id);
 
-        app(JenisSimpananService::class)->update($pokok, $this->payload($pokok, [
-            'nominal_default' => 175000,
-            'alasan_perubahan' => 'Uji snapshot lama.',
+        app(JenisSimpananService::class)->update($manasuka, $this->payload($manasuka, [
+            'nominal_default' => 25000,
+            'alasan_perubahan' => 'Uji snapshot Manasuka lama.',
         ]), $finance->id);
 
-        $this->assertSame('100000.00', $simpananPokok->fresh()->nominal_snapshot);
-        $this->assertSame('175000.00', $pokok->fresh()->nominal_default);
+        $this->assertSame('50000.00', $simpanan->fresh()->nominal_snapshot);
+        $this->assertSame('25000.00', $manasuka->fresh()->nominal_default);
     }
 
-    public function test_simpanan_pokok_otomatis_tetap_satu_kali_dan_rollback_jika_master_invalid(): void
+    public function test_simpanan_wajib_otomatis_tetap_satu_kali_dan_rollback_jika_master_invalid(): void
     {
         $anggota = $this->anggota();
 
         $this->assertSame(1, Simpanan::query()
             ->where('anggota_id', $anggota->id)
-            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
             ->count());
 
-        $this->jenis(JenisSimpanan::KATEGORI_POKOK)->update(['nominal_default' => 0]);
+        $this->jenis(JenisSimpanan::KATEGORI_WAJIB)->update(['nominal_default' => 0]);
         $karyawan = Karyawan::factory()->create();
 
         try {
@@ -150,9 +158,9 @@ class JenisSimpananSp1Test extends TestCase
                 'alamat' => 'Jl. Rollback SP-1',
                 'plafon_pinjaman' => 1000000,
             ]);
-            $this->fail('Pendaftaran Anggota wajib gagal bila Master Simpanan Pokok tidak valid.');
+            $this->fail('Pendaftaran Anggota wajib gagal bila Master Simpanan Wajib tidak valid.');
         } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('simpanan_pokok', $exception->errors());
+            $this->assertArrayHasKey('nominal_default', $exception->errors());
         }
 
         $this->assertDatabaseMissing('anggota', ['karyawan_id' => $karyawan->id]);
@@ -163,7 +171,7 @@ class JenisSimpananSp1Test extends TestCase
         $finance = $this->finance();
         $anggotaKas = $this->anggota();
         $anggotaBank = $this->anggota();
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_SUKARELA);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
         $kas = $this->dompet('Kas Unit Test', 'kas', 'kas');
         $bank = $this->dompet('Bank Unit Test', 'bank', 'bank');
         $service = app(SimpananManualService::class);
@@ -207,7 +215,7 @@ class JenisSimpananSp1Test extends TestCase
     {
         $finance = $this->finance();
         $anggota = $this->anggota();
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_SUKARELA);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_MANASUKA);
         $kas = $this->dompet('Kas Retry', 'kas', 'kas');
         $service = app(SimpananManualService::class);
         $payload = [
@@ -234,7 +242,7 @@ class JenisSimpananSp1Test extends TestCase
     {
         $finance = $this->finance();
         $kasir = User::factory()->create(['role' => 'kasir', 'is_active' => true, 'must_change_password' => false]);
-        $jenis = $this->jenis(JenisSimpanan::KATEGORI_POKOK);
+        $jenis = $this->jenis(JenisSimpanan::KATEGORI_WAJIB);
         $before = [
             'simpanan' => Simpanan::query()->count(),
             'mutasi' => MutasiKas::query()->count(),

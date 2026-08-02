@@ -8,7 +8,7 @@ use App\Models\DompetKoperasi;
 use App\Models\JenisSimpanan;
 use App\Models\Karyawan;
 use App\Models\Simpanan;
-use App\Services\SimpananSukarelaService;
+use App\Services\SimpananManasukaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ use Illuminate\View\View;
 
 class SimpananController extends Controller
 {
-    public function index(Request $request, SimpananSukarelaService $service): View
+    public function index(Request $request, SimpananManasukaService $service): View
     {
         $filters = $request->validate([
             'anggota_id' => ['nullable', 'integer', 'exists:anggota,id'],
@@ -107,12 +107,6 @@ class SimpananController extends Controller
             ->where('kategori', JenisSimpanan::KATEGORI_MANASUKA)
             ->first();
 
-        $jenisWajib = JenisSimpanan::query()
-            ->aktif()
-            ->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)
-            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
-            ->first();
-
         $dompet = DompetKoperasi::query()
             ->with('akun')
             ->whereHas('akun', fn ($query) => $query
@@ -125,12 +119,11 @@ class SimpananController extends Controller
         return view('pages.simpanan.create', [
             'anggota' => $anggota,
             'jenisManasuka' => $jenisManasuka,
-            'jenisWajib' => $jenisWajib,
             'dompet' => $dompet,
         ]);
     }
 
-    public function store(StoreSimpananRequest $request, SimpananSukarelaService $service): RedirectResponse
+    public function store(StoreSimpananRequest $request, SimpananManasukaService $service): RedirectResponse
     {
         try {
             $service->create($request->validated(), $request->user()?->id);
@@ -149,7 +142,7 @@ class SimpananController extends Controller
         }
     }
 
-    public function saldoManasuka(Anggota $anggota, SimpananSukarelaService $service): JsonResponse
+    public function saldoManasuka(Anggota $anggota, SimpananManasukaService $service): JsonResponse
     {
         $saldo = $service->getSaldoCached($anggota);
         $anggota->loadMissing('karyawan');

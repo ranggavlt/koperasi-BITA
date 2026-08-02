@@ -241,12 +241,12 @@ class PreflightAsetCommand extends Command
             ['table' => 'sewa_mobil', 'column' => 'aset_mobil_id', 'parent' => 'aset_mobil'],
             ['table' => 'transaksi_sewa_mobil', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
             ['table' => 'transaksi_sewa_mobil', 'column' => 'aset_mobil_id', 'parent' => 'aset_mobil'],
-            ['table' => 'sewa_printer', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
-            ['table' => 'sewa_printer', 'column' => 'aset_printer_id', 'parent' => 'aset_printer'],
-            ['table' => 'sewa_printer_detail', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
+            ['table' => 'sewa_hardware', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
+            ['table' => 'sewa_hardware', 'column' => 'aset_printer_id', 'parent' => 'aset_printer'],
+            ['table' => 'sewa_hardware_detail', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
             ['table' => 'beban_operasional_detail', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
-            ['table' => 'transaksi_sewa_printer', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
-            ['table' => 'transaksi_sewa_printer', 'column' => 'aset_printer_id', 'parent' => 'aset_printer'],
+            ['table' => 'transaksi_sewa_hardware', 'column' => 'aset_koperasi_id', 'parent' => 'aset_koperasi'],
+            ['table' => 'transaksi_sewa_hardware', 'column' => 'aset_printer_id', 'parent' => 'aset_printer'],
         ];
 
         $issues = 0;

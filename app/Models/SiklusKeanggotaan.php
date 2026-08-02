@@ -66,8 +66,8 @@ class SiklusKeanggotaan extends Model
         return $this->hasMany(Pinjaman::class, 'siklus_keanggotaan_id');
     }
 
-    public function saldoSimpananSukarela()
+    public function saldoSimpananManasuka()
     {
-        return $this->hasMany(SaldoSimpananSukarela::class, 'siklus_keanggotaan_id');
+        return $this->hasMany(SaldoSimpananManasuka::class, 'siklus_keanggotaan_id');
     }
 }

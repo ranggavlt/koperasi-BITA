@@ -3,8 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\jenis_simpanan;
-use Illuminate\Auth\Access\Response;
+use App\Models\JenisSimpanan;
 
 class JenisSimpananPolicy
 {
@@ -13,15 +12,15 @@ class JenisSimpananPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, jenis_simpanan $jenisSimpanan): bool
+    public function view(User $user, JenisSimpanan $jenisSimpanan): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -29,21 +28,21 @@ class JenisSimpananPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, jenis_simpanan $jenisSimpanan): bool
+    public function update(User $user, JenisSimpanan $jenisSimpanan): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, jenis_simpanan $jenisSimpanan): bool
+    public function delete(User $user, JenisSimpanan $jenisSimpanan): bool
     {
         return false;
     }
@@ -51,7 +50,7 @@ class JenisSimpananPolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, jenis_simpanan $jenisSimpanan): bool
+    public function restore(User $user, JenisSimpanan $jenisSimpanan): bool
     {
         return false;
     }
@@ -59,7 +58,7 @@ class JenisSimpananPolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, jenis_simpanan $jenisSimpanan): bool
+    public function forceDelete(User $user, JenisSimpanan $jenisSimpanan): bool
     {
         return false;
     }

@@ -21,7 +21,7 @@ class ReversalTransaksi extends Model
 
     public const JENIS_SIMPANAN_POKOK_CORRECTION = 'simpanan_pokok_correction';
 
-    public const JENIS_SIMPANAN_SUKARELA_CORRECTION = 'simpanan_sukarela_correction';
+    public const JENIS_SIMPANAN_MANASUKA_CORRECTION = 'simpanan_manasuka_correction';
 
     public const JENIS_SIMPANAN_WAJIB_EXIT_CANCEL = 'simpanan_wajib_exit_cancel';
 
@@ -32,6 +32,10 @@ class ReversalTransaksi extends Model
     public const JENIS_BEBAN_OPERASIONAL_REVERSAL = 'beban_operasional_reversal';
 
     public const JENIS_SIMPANAN_POKOK_EXIT_CANCEL = 'simpanan_pokok_exit_cancel';
+
+    public const JENIS_SEWA_HARDWARE_REFUND = 'sewa_hardware_refund';
+
+    public const JENIS_SEWA_MOBIL_REFUND = 'sewa_mobil_refund';
 
     protected $table = 'reversal_transaksi';
 

@@ -2,9 +2,10 @@
 
 @section('content')
 @php
-  $formAction = $editData ? route('sewa-printer.update', $editData) : route('sewa-printer.store');
+  $formAction = $editData ? route('sewa-hardware.update', $editData) : route('sewa-hardware.store');
   $detailRows = collect(old('details', $editData?->details?->map(fn($d) => [
-    'jenis_model_printer' => $d->jenis_model_printer,
+    'jenis_hardware' => $d->jenis_hardware,
+    'nama_model_hardware' => $d->nama_model_hardware,
     'spesifikasi_kebutuhan' => $d->spesifikasi_kebutuhan,
     'kuantitas' => (int) $d->kuantitas,
     'harga_vendor_per_unit' => (int) $d->harga_vendor_per_unit,
@@ -12,7 +13,8 @@
 
   if ($detailRows->isEmpty()) {
     $detailRows = collect([[
-      'jenis_model_printer' => '',
+      'jenis_hardware' => 'printer',
+      'nama_model_hardware' => '',
       'spesifikasi_kebutuhan' => '',
       'kuantitas' => 1,
       'harga_vendor_per_unit' => '',
@@ -36,16 +38,16 @@
       <h1 class="kbsm-business-title">{{ $editData ? 'Edit Draft Sewa Hardware' : 'Tambah Sewa Hardware' }}</h1>
       <p class="kbsm-business-subtitle">Finance mencatat kebutuhan Karyawan, menyimpan snapshot vendor eksternal, dan sistem menghitung margin koperasi tetap 15% dari harga vendor.</p>
     </div>
-    <a href="{{ route('sewa-printer.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Sewa Hardware</a>
+    <a href="{{ route('sewa-hardware.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Sewa Hardware</a>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">{{ $editData ? 'Edit Draft Sewa Hardware' : 'Buat Draft Sewa Hardware' }}</h2>
-      <p class="kbsm-business-panel__copy">Printer vendor tidak dicatat sebagai aset koperasi. Total dihitung ulang oleh server dengan Rupiah bulat.</p>
+      <p class="kbsm-business-panel__copy">Hardware vendor tidak dicatat sebagai aset koperasi. Total dihitung ulang oleh server dengan Rupiah bulat.</p>
     </div>
 
-    <form method="POST" action="{{ $formAction }}" class="kbsm-business-form" data-sewa-printer-form>
+    <form method="POST" action="{{ $formAction }}" class="kbsm-business-form" data-sewa-hardware-form>
       @csrf
       @if($editData) @method('PUT') @endif
 
@@ -66,8 +68,8 @@
             <div class="kbsm-business-readonly">{{ config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering') }}</div>
           </div>
           <div class="kbsm-business-field kbsm-business-field--full">
-            <label class="kbsm-business-label">Kebutuhan Printer</label>
-            <textarea name="kebutuhan" rows="3" maxlength="1000" class="kbsm-business-control" placeholder="Contoh: printer warna untuk event/site office sementara">{{ old('kebutuhan', $editData?->kebutuhan) }}</textarea>
+            <label class="kbsm-business-label">Kebutuhan Hardware</label>
+            <textarea name="kebutuhan" rows="3" maxlength="1000" class="kbsm-business-control" placeholder="Contoh: laptop, printer, kamera, atau perangkat lain untuk event/site office sementara">{{ old('kebutuhan', $editData?->kebutuhan) }}</textarea>
           </div>
         </div>
       </section>
@@ -92,7 +94,7 @@
         <div class="kbsm-business-grid">
           <div class="kbsm-business-field">
             <label class="kbsm-business-label">Nama Vendor</label>
-            <input name="vendor_nama" required maxlength="150" value="{{ old('vendor_nama', $editData?->vendor_nama) }}" class="kbsm-business-control" placeholder="CV Vendor Printer">
+            <input name="vendor_nama" required maxlength="150" value="{{ old('vendor_nama', $editData?->vendor_nama) }}" class="kbsm-business-control" placeholder="CV Vendor Hardware">
           </div>
           <div class="kbsm-business-field">
             <label class="kbsm-business-label">Nomor Kontak</label>
@@ -106,13 +108,14 @@
       </section>
 
       <section class="kbsm-business-section">
-        <h3 class="kbsm-business-section__title">Detail Printer</h3>
+        <h3 class="kbsm-business-section__title">Detail Hardware</h3>
         <p class="kbsm-business-section__copy">Tambah baris sesuai kebutuhan. Margin 15% dihitung per unit menggunakan pembulatan Rupiah half-up.</p>
         <div class="kbsm-business-table-wrap">
           <table class="kbsm-business-detail-table">
             <thead>
               <tr>
-                <th>Jenis/Model Printer</th>
+                <th>Jenis</th>
+                <th>Nama/Model Hardware</th>
                 <th>Spesifikasi</th>
                 <th>Kuantitas</th>
                 <th>Harga Vendor/Unit</th>
@@ -121,23 +124,30 @@
                 <th>Aksi</th>
               </tr>
             </thead>
-            <tbody data-printer-detail-body>
+            <tbody data-hardware-detail-body>
               @foreach($detailRows as $i => $row)
-                <tr data-printer-row>
-                  <td><input name="details[{{ $i }}][jenis_model_printer]" required maxlength="150" value="{{ $row['jenis_model_printer'] ?? '' }}" class="kbsm-business-control" placeholder="Canon / Epson / HP"></td>
+                <tr data-hardware-row>
+                  <td>
+                    <select name="details[{{ $i }}][jenis_hardware]" required class="kbsm-business-control">
+                      @foreach($jenisHardwareOptions as $value => $label)
+                        <option value="{{ $value }}" {{ ($row['jenis_hardware'] ?? 'printer') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                      @endforeach
+                    </select>
+                  </td>
+                  <td><input name="details[{{ $i }}][nama_model_hardware]" required maxlength="150" value="{{ $row['nama_model_hardware'] ?? '' }}" class="kbsm-business-control" placeholder="Epson EcoTank / Lenovo ThinkPad / Sony Alpha"></td>
                   <td><textarea name="details[{{ $i }}][spesifikasi_kebutuhan]" rows="2" maxlength="1000" class="kbsm-business-control" placeholder="A3, duplex, warna, scan">{{ $row['spesifikasi_kebutuhan'] ?? '' }}</textarea></td>
-                  <td><input type="number" min="1" name="details[{{ $i }}][kuantitas]" value="{{ $row['kuantitas'] ?? 1 }}" class="kbsm-business-control" data-printer-qty></td>
-                  <td><input type="number" min="1" name="details[{{ $i }}][harga_vendor_per_unit]" value="{{ $row['harga_vendor_per_unit'] ?? '' }}" class="kbsm-business-control" data-printer-price placeholder="1000000"></td>
-                  <td class="kbsm-business-strong" data-printer-margin>Rp 0</td>
-                  <td class="kbsm-business-strong" data-printer-total>Rp 0</td>
-                  <td><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-printer-remove>Hapus</button></td>
+                  <td><input type="number" min="1" name="details[{{ $i }}][kuantitas]" value="{{ $row['kuantitas'] ?? 1 }}" class="kbsm-business-control" data-hardware-qty></td>
+                  <td><input type="number" min="1" name="details[{{ $i }}][harga_vendor_per_unit]" value="{{ $row['harga_vendor_per_unit'] ?? '' }}" class="kbsm-business-control" data-hardware-price placeholder="1000000"></td>
+                  <td class="kbsm-business-strong" data-hardware-margin>Rp 0</td>
+                  <td class="kbsm-business-strong" data-hardware-total>Rp 0</td>
+                  <td><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-hardware-remove>Hapus</button></td>
                 </tr>
               @endforeach
             </tbody>
           </table>
         </div>
         <div class="kbsm-business-detail-actions">
-          <button type="button" class="kbsm-btn kbsm-btn--outline-green" data-printer-add>+ Tambah Printer</button>
+          <button type="button" class="kbsm-btn kbsm-btn--outline-green" data-hardware-add>+ Tambah Hardware</button>
         </div>
       </section>
 
@@ -146,15 +156,15 @@
         <div class="kbsm-business-summary">
           <div class="kbsm-business-summary-card kbsm-business-summary-card--gold">
             <p class="kbsm-business-summary-label">Total Harga Vendor</p>
-            <p class="kbsm-business-summary-value" data-printer-total-vendor>Rp 0</p>
+            <p class="kbsm-business-summary-value" data-hardware-total-vendor>Rp 0</p>
           </div>
           <div class="kbsm-business-summary-card kbsm-business-summary-card--green">
             <p class="kbsm-business-summary-label">Total Margin 15%</p>
-            <p class="kbsm-business-summary-value" data-printer-total-margin>Rp 0</p>
+            <p class="kbsm-business-summary-value" data-hardware-total-margin>Rp 0</p>
           </div>
           <div class="kbsm-business-summary-card kbsm-business-summary-card--navy">
             <p class="kbsm-business-summary-label">Total Tagihan Perusahaan</p>
-            <p class="kbsm-business-summary-value" data-printer-grand-total>Rp 0</p>
+            <p class="kbsm-business-summary-value" data-hardware-grand-total>Rp 0</p>
           </div>
         </div>
       </section>
@@ -165,7 +175,7 @@
         <div class="kbsm-business-actions">
           <button class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
           @if($editData)
-            <a href="{{ route('sewa-printer.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal Edit</a>
+            <a href="{{ route('sewa-hardware.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal Edit</a>
           @endif
         </div>
       </section>
@@ -175,33 +185,40 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('[data-sewa-printer-form]');
+    const form = document.querySelector('[data-sewa-hardware-form]');
     if (!form) return;
 
     const rupiah = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value || 0);
-    const body = form.querySelector('[data-printer-detail-body]');
-    const addButton = form.querySelector('[data-printer-add]');
-    const totalVendor = form.querySelector('[data-printer-total-vendor]');
-    const totalMargin = form.querySelector('[data-printer-total-margin]');
-    const grandTotal = form.querySelector('[data-printer-grand-total]');
+    const body = form.querySelector('[data-hardware-detail-body]');
+    const addButton = form.querySelector('[data-hardware-add]');
+    const totalVendor = form.querySelector('[data-hardware-total-vendor]');
+    const totalMargin = form.querySelector('[data-hardware-total-margin]');
+    const grandTotal = form.querySelector('[data-hardware-grand-total]');
 
     const rowTemplate = () => {
       const row = document.createElement('tr');
-      row.setAttribute('data-printer-row', '');
+      row.setAttribute('data-hardware-row', '');
       row.innerHTML = `
-        <td><input required maxlength="150" class="kbsm-business-control" placeholder="Canon / Epson / HP" data-name="jenis_model_printer"></td>
+        <td>
+          <select required class="kbsm-business-control" data-name="jenis_hardware">
+            @foreach($jenisHardwareOptions as $value => $label)
+              <option value="{{ $value }}">{{ $label }}</option>
+            @endforeach
+          </select>
+        </td>
+        <td><input required maxlength="150" class="kbsm-business-control" placeholder="Epson EcoTank / Lenovo ThinkPad / Sony Alpha" data-name="nama_model_hardware"></td>
         <td><textarea rows="2" maxlength="1000" class="kbsm-business-control" placeholder="A3, duplex, warna, scan" data-name="spesifikasi_kebutuhan"></textarea></td>
-        <td><input type="number" min="1" value="1" class="kbsm-business-control" data-printer-qty data-name="kuantitas"></td>
-        <td><input type="number" min="1" class="kbsm-business-control" data-printer-price data-name="harga_vendor_per_unit" placeholder="1000000"></td>
-        <td class="kbsm-business-strong" data-printer-margin>Rp 0</td>
-        <td class="kbsm-business-strong" data-printer-total>Rp 0</td>
-        <td><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-printer-remove>Hapus</button></td>
+        <td><input type="number" min="1" value="1" class="kbsm-business-control" data-hardware-qty data-name="kuantitas"></td>
+        <td><input type="number" min="1" class="kbsm-business-control" data-hardware-price data-name="harga_vendor_per_unit" placeholder="1000000"></td>
+        <td class="kbsm-business-strong" data-hardware-margin>Rp 0</td>
+        <td class="kbsm-business-strong" data-hardware-total>Rp 0</td>
+        <td><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-hardware-remove>Hapus</button></td>
       `;
       return row;
     };
 
     const reindex = () => {
-      body.querySelectorAll('[data-printer-row]').forEach((row, index) => {
+      body.querySelectorAll('[data-hardware-row]').forEach((row, index) => {
         row.querySelectorAll('[data-name]').forEach((input) => {
           input.name = `details[${index}][${input.dataset.name}]`;
         });
@@ -212,18 +229,18 @@
       let vendor = 0;
       let margin = 0;
 
-      const rows = body.querySelectorAll('[data-printer-row]');
+      const rows = body.querySelectorAll('[data-hardware-row]');
       rows.forEach((row) => {
-        const qty = parseInt(row.querySelector('[data-printer-qty]')?.value || '0', 10) || 0;
-        const price = parseInt(row.querySelector('[data-printer-price]')?.value || '0', 10) || 0;
+        const qty = parseInt(row.querySelector('[data-hardware-qty]')?.value || '0', 10) || 0;
+        const price = parseInt(row.querySelector('[data-hardware-price]')?.value || '0', 10) || 0;
         const marginUnit = Math.floor(((price * 15) + 50) / 100);
         const tagihanUnit = price + marginUnit;
 
         vendor += price * qty;
         margin += marginUnit * qty;
-        row.querySelector('[data-printer-margin]').textContent = rupiah(marginUnit);
-        row.querySelector('[data-printer-total]').textContent = rupiah(tagihanUnit);
-        row.querySelector('[data-printer-remove]').disabled = rows.length <= 1;
+        row.querySelector('[data-hardware-margin]').textContent = rupiah(marginUnit);
+        row.querySelector('[data-hardware-total]').textContent = rupiah(tagihanUnit);
+        row.querySelector('[data-hardware-remove]').disabled = rows.length <= 1;
       });
 
       totalVendor.textContent = rupiah(vendor);
@@ -233,13 +250,13 @@
 
     body.addEventListener('input', refresh);
     body.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-printer-remove]');
+      const button = event.target.closest('[data-hardware-remove]');
       if (!button) return;
 
-      const rows = body.querySelectorAll('[data-printer-row]');
+      const rows = body.querySelectorAll('[data-hardware-row]');
       if (rows.length <= 1) return;
 
-      button.closest('[data-printer-row]').remove();
+      button.closest('[data-hardware-row]').remove();
       reindex();
       refresh();
     });
@@ -250,8 +267,8 @@
       refresh();
     });
 
-    body.querySelectorAll('[data-printer-row]').forEach((row, index) => {
-      row.querySelectorAll('input, textarea').forEach((input) => {
+    body.querySelectorAll('[data-hardware-row]').forEach((row, index) => {
+      row.querySelectorAll('input, textarea, select').forEach((input) => {
         const match = input.name.match(/\[([^\]]+)\]$/);
         if (match) input.dataset.name = match[1];
       });

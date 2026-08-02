@@ -25,7 +25,7 @@ class PenyelesaianKeanggotaanDetail extends Model
 
     public const KATEGORI_SIMPANAN_WAJIB = 'simpanan_wajib';
 
-    public const KATEGORI_SIMPANAN_SUKARELA = 'simpanan_sukarela';
+    public const KATEGORI_SIMPANAN_MANASUKA = 'simpanan_manasuka';
 
     public const KATEGORI_KREDIT_REFUND = 'kredit_refund';
 
