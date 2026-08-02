@@ -156,7 +156,7 @@ class MutasiKasBankReportTest extends TestCase
 
         $modules = collect(config('navigation.modules', []))->keyBy('route');
 
-        $this->assertSame('Master Data', $modules['aset-mobil.index']['section']);
+        $this->assertFalse($modules->has('aset-mobil.index'));
         $this->assertSame('Master Data', $modules['aset-printer.index']['section']);
         $this->assertSame('master_printer_enabled', $modules['aset-printer.index']['feature']);
         $this->assertSame('Kas & Bank', $modules['dompet-koperasi.index']['section']);
@@ -171,13 +171,11 @@ class MutasiKasBankReportTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder([
                 'MASTER DATA',
+                'Manajemen User',
                 'Karyawan',
                 'Anggota',
                 'Pengurus',
-                'Jenis Simpanan',
-                'Jenis Pinjaman',
                 'COA',
-                'Mobil Koperasi',
                 'KAS & BANK',
                 'Dompet Koperasi',
                 'Mutasi Kas & Bank',
@@ -188,7 +186,7 @@ class MutasiKasBankReportTest extends TestCase
                 'Periode Potong Gaji',
                 'USAHA KOPERASI',
                 'Sewa Mobil',
-                'Sewa Printer',
+                'Sewa Hardware',
                 'OPERASIONAL',
                 'Beban Operasional',
                 'LAPORAN AKUNTANSI',

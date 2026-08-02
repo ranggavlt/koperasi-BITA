@@ -52,6 +52,16 @@ class PeriodePotongGajiController extends Controller
 
         $periode = $service->createPeriodeDraft($validated['periode'], $request->user()->id);
 
+        Anggota::query()
+            ->where('status', Anggota::STATUS_AKTIF)
+            ->whereHas('karyawan', fn ($query) => $query->where('status_kerja', \App\Models\Karyawan::STATUS_AKTIF))
+            ->orderBy('id')
+            ->each(function (Anggota $anggota) use ($service, $periode, $request): void {
+                if (! $service->findLimitFor($anggota, $periode->periode)) {
+                    $service->createLimitFromPolicy($anggota, $periode->periode, $request->user()->id);
+                }
+            });
+
         return redirect()
             ->route('periode-potong-gaji.index', ['periode_id' => $periode->id])
             ->with('success', 'Periode potong gaji berhasil disiapkan.');

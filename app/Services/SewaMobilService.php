@@ -24,26 +24,40 @@ class SewaMobilService
     public function createDraft(array $data, int $financeUserId): SewaMobil
     {
         return DB::transaction(function () use ($data, $financeUserId): SewaMobil {
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
 
-            $aset = AsetKoperasi::query()
-                ->with('mobil')
-                ->lockForUpdate()
-                ->findOrFail((int) $data['aset_koperasi_id']);
-            $this->assertRentableAsset($aset);
-
             [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
-            $tarifHarian = $this->rupiahInt($aset->harga_dasar_vendor ?? 0);
-            $totalSewa = $jumlahHari * $tarifHarian;
+            $final = $this->finalVendorPayload($data, $karyawan);
+            $aset = null;
+            $tarifHarian = 0;
+            $totalSewa = $final['total_tagihan_perusahaan'];
+            if (! $final['is_final']) {
+                $aset = AsetKoperasi::query()->with('mobil')->lockForUpdate()->findOrFail((int) $data['aset_koperasi_id']);
+                $this->assertRentableAsset($aset);
+                $tarifHarian = $this->rentPrice($aset);
+                $totalSewa = $jumlahHari * $tarifHarian;
+            }
 
             return SewaMobil::query()->create([
                 'kode_sewa' => null,
-                'aset_koperasi_id' => $aset->id,
+                'aset_koperasi_id' => $aset?->id,
+                'perusahaan_id' => $final['perusahaan_id'],
+                'kode_perusahaan_snapshot' => $final['kode_perusahaan_snapshot'],
+                'vendor_nama_snapshot' => $final['vendor_nama_snapshot'],
+                'vendor_kontak_snapshot' => $final['vendor_kontak_snapshot'],
+                'vendor_alamat_snapshot' => $final['vendor_alamat_snapshot'],
+                'kendaraan_jenis_snapshot' => $final['kendaraan_jenis_snapshot'],
+                'kendaraan_merk_tipe_snapshot' => $final['kendaraan_merk_tipe_snapshot'],
+                'nomor_polisi_snapshot' => $final['nomor_polisi_snapshot'],
+                'harga_vendor_total' => $final['harga_vendor_total'],
+                'markup_total' => $final['markup_total'],
+                'total_tagihan_perusahaan' => $final['is_final'] ? $totalSewa : 0,
+                'model_sumber' => $final['is_final'] ? 'vendor' : 'legacy_aset',
                 'karyawan_id' => $karyawan->id,
                 'pemohon_user_id' => null,
                 'recorded_by' => $financeUserId,
-                'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
+                'nama_perusahaan_snapshot' => $final['nama_perusahaan_snapshot'] ?: config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
                 'nama_kegiatan' => $this->normalizeText($data['nama_kegiatan']),
                 'lokasi_kegiatan' => $this->normalizeText($data['lokasi_kegiatan']),
                 'tanggal_mulai' => $mulai->toDateString(),
@@ -70,21 +84,36 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DRAFT], 'Draft yang sudah diajukan tidak dapat diedit.');
 
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
 
-            $aset = AsetKoperasi::query()
-                ->with('mobil')
-                ->lockForUpdate()
-                ->findOrFail((int) $data['aset_koperasi_id']);
-            $this->assertRentableAsset($aset);
-
             [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
-            $tarifHarian = $this->rupiahInt($aset->harga_dasar_vendor ?? 0);
-            $totalSewa = $jumlahHari * $tarifHarian;
+            $final = $this->finalVendorPayload($data, $karyawan);
+            $aset = null;
+            $tarifHarian = 0;
+            $totalSewa = $final['total_tagihan_perusahaan'];
+            if (! $final['is_final']) {
+                $aset = AsetKoperasi::query()->with('mobil')->lockForUpdate()->findOrFail((int) $data['aset_koperasi_id']);
+                $this->assertRentableAsset($aset);
+                $tarifHarian = $this->rentPrice($aset);
+                $totalSewa = $jumlahHari * $tarifHarian;
+            }
 
             $locked->update([
-                'aset_koperasi_id' => $aset->id,
+                'aset_koperasi_id' => $aset?->id,
+                'perusahaan_id' => $final['perusahaan_id'],
+                'kode_perusahaan_snapshot' => $final['kode_perusahaan_snapshot'],
+                'nama_perusahaan_snapshot' => $final['nama_perusahaan_snapshot'] ?: $locked->nama_perusahaan_snapshot,
+                'vendor_nama_snapshot' => $final['vendor_nama_snapshot'],
+                'vendor_kontak_snapshot' => $final['vendor_kontak_snapshot'],
+                'vendor_alamat_snapshot' => $final['vendor_alamat_snapshot'],
+                'kendaraan_jenis_snapshot' => $final['kendaraan_jenis_snapshot'],
+                'kendaraan_merk_tipe_snapshot' => $final['kendaraan_merk_tipe_snapshot'],
+                'nomor_polisi_snapshot' => $final['nomor_polisi_snapshot'],
+                'harga_vendor_total' => $final['harga_vendor_total'],
+                'markup_total' => $final['markup_total'],
+                'total_tagihan_perusahaan' => $final['is_final'] ? $totalSewa : 0,
+                'model_sumber' => $final['is_final'] ? 'vendor' : 'legacy_aset',
                 'karyawan_id' => $karyawan->id,
                 'recorded_by' => $locked->recorded_by ?? $financeUserId,
                 'nama_kegiatan' => $this->normalizeText($data['nama_kegiatan']),
@@ -112,7 +141,9 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DRAFT], 'Hanya draft yang dapat diajukan.');
             $this->assertActiveKaryawan($locked->karyawan);
-            $this->assertRentableAsset($locked->aset);
+            if ($locked->aset_koperasi_id) {
+                $this->assertRentableAsset($locked->aset);
+            }
 
             if ($this->hasOverlap($locked)) {
                 throw ValidationException::withMessages([
@@ -163,7 +194,9 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DIAJUKAN], 'Hanya pengajuan yang dapat disetujui.');
             $this->assertActiveKaryawan($locked->karyawan);
-            $this->assertRentableAsset($locked->aset);
+            if ($locked->aset_koperasi_id) {
+                $this->assertRentableAsset($locked->aset);
+            }
 
             if ($this->hasOverlap($locked)) {
                 throw ValidationException::withMessages([
@@ -198,6 +231,10 @@ class SewaMobilService
                 ->with('pembayaran')
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
+
+            if ($locked->model_sumber === 'vendor') {
+                throw ValidationException::withMessages(['pembayaran' => 'Pembayaran perusahaan Sewa Mobil vendor dilakukan melalui Invoice Perusahaan dan boleh dicicil.']);
+            }
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DISETUJUI], 'Pembayaran hanya untuk sewa yang sudah disetujui.');
 
@@ -254,23 +291,26 @@ class SewaMobilService
     {
         return DB::transaction(function () use ($sewaMobil, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
-                ->with(['aset', 'pembayaran'])
+                ->with(['aset', 'pembayaran', 'pembayaranVendor'])
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DISETUJUI], 'Hanya sewa disetujui yang dapat dimulai.');
 
-            if ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if ($locked->model_sumber === 'vendor' && ! $locked->pembayaranVendor) {
+                throw ValidationException::withMessages(['pembayaran' => 'Vendor harus dibayar dari Kas Operasional sebelum sewa dimulai.']);
+            }
+            if ($locked->model_sumber !== 'vendor' && ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran)) {
                 throw ValidationException::withMessages([
                     'pembayaran' => 'Sewa wajib dibayar penuh sebelum kegiatan dimulai.',
                 ]);
             }
 
-            $aset = AsetKoperasi::query()
-                ->lockForUpdate()
-                ->findOrFail($locked->aset_koperasi_id);
+            $aset = $locked->aset_koperasi_id
+                ? AsetKoperasi::query()->lockForUpdate()->findOrFail($locked->aset_koperasi_id)
+                : null;
 
-            if ($aset->status !== AsetKoperasi::STATUS_TERSEDIA) {
+            if ($aset && $aset->status !== AsetKoperasi::STATUS_TERSEDIA) {
                 throw ValidationException::withMessages([
                     'aset_koperasi_id' => 'Mobil harus berstatus tersedia saat kegiatan dimulai.',
                 ]);
@@ -288,10 +328,7 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            $aset->update([
-                'status' => AsetKoperasi::STATUS_DIGUNAKAN_DISEWA,
-                'updated_by' => $financeUserId,
-            ]);
+            $aset?->update(['status' => AsetKoperasi::STATUS_DIGUNAKAN_DISEWA, 'updated_by' => $financeUserId]);
 
             return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pembayaran.dompet']);
         });
@@ -301,7 +338,7 @@ class SewaMobilService
     {
         return DB::transaction(function () use ($sewaMobil, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
-                ->with(['aset', 'pembayaran'])
+                ->with(['aset', 'pembayaran', 'pembayaranVendor', 'invoiceDetail.invoice'])
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
@@ -311,15 +348,18 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_BERJALAN], 'Hanya sewa berjalan yang dapat diselesaikan.');
 
-            if ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if ($locked->model_sumber === 'vendor' && ! $locked->pembayaranVendor) {
+                throw ValidationException::withMessages(['pembayaran' => 'Pembayaran vendor wajib tersedia sebelum sewa diselesaikan.']);
+            }
+            if ($locked->model_sumber !== 'vendor' && ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran)) {
                 throw ValidationException::withMessages([
                     'pembayaran' => 'Sewa wajib paid sebelum diselesaikan.',
                 ]);
             }
 
-            $aset = AsetKoperasi::query()
-                ->lockForUpdate()
-                ->findOrFail($locked->aset_koperasi_id);
+            $aset = $locked->aset_koperasi_id
+                ? AsetKoperasi::query()->lockForUpdate()->findOrFail($locked->aset_koperasi_id)
+                : null;
 
             $locked->update([
                 'status' => SewaMobil::STATUS_SELESAI,
@@ -327,7 +367,7 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            if (! $this->hasOtherRunning($locked->fresh())) {
+            if ($aset && ! $this->hasOtherRunning($locked->fresh())) {
                 $aset->update([
                     'status' => AsetKoperasi::STATUS_TERSEDIA,
                     'updated_by' => $financeUserId,
@@ -336,7 +376,11 @@ class SewaMobilService
                 ]);
             }
 
-            $this->akuntansiService->recordPengakuanPendapatanSewaMobil($locked->fresh(), $financeUserId);
+            if ($locked->model_sumber === 'vendor') {
+                app(B2BRentalService::class)->recognizeRentalMargin($locked->fresh(), $financeUserId);
+            } else {
+                $this->akuntansiService->recordPengakuanPendapatanSewaMobil($locked->fresh(), $financeUserId);
+            }
 
             return $locked->fresh(['aset.mobil', 'karyawan', 'recorder', 'pembayaran.dompet', 'jurnal.details']);
         });
@@ -346,7 +390,7 @@ class SewaMobilService
     {
         return DB::transaction(function () use ($sewaMobil, $reason, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
-                ->with(['pembayaran.dompet.akun'])
+                ->with(['pembayaran.dompet.akun', 'pembayaranVendor'])
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
@@ -360,6 +404,10 @@ class SewaMobilService
                 throw ValidationException::withMessages([
                     'sewa' => 'Sewa Mobil ini sudah dibatalkan/refund.',
                 ]);
+            }
+
+            if ($locked->pembayaranVendor) {
+                throw ValidationException::withMessages(['sewa' => 'Sewa dengan pembayaran vendor final tidak dapat dibatalkan langsung. Gunakan reversal penuh pembayaran vendor.']);
             }
 
             if ($locked->status_pembayaran === SewaMobil::PEMBAYARAN_PAID && $locked->pembayaran) {
@@ -422,8 +470,14 @@ class SewaMobilService
 
     private function hasOverlap(SewaMobil $sewaMobil): bool
     {
-        return SewaMobil::query()
-            ->where('aset_koperasi_id', $sewaMobil->aset_koperasi_id)
+        $query = SewaMobil::query();
+        if ($sewaMobil->aset_koperasi_id) {
+            $query->where('aset_koperasi_id', $sewaMobil->aset_koperasi_id);
+        } else {
+            $query->whereNotNull('nomor_polisi_snapshot')->where('nomor_polisi_snapshot', $sewaMobil->nomor_polisi_snapshot);
+        }
+
+        return $query
             ->whereKeyNot($sewaMobil->id)
             ->blockingSchedule()
             ->where('tanggal_mulai', '<=', $sewaMobil->tanggal_selesai->toDateString())
@@ -434,8 +488,14 @@ class SewaMobilService
 
     private function hasOtherRunning(SewaMobil $sewaMobil): bool
     {
-        return SewaMobil::query()
-            ->where('aset_koperasi_id', $sewaMobil->aset_koperasi_id)
+        $query = SewaMobil::query();
+        if ($sewaMobil->aset_koperasi_id) {
+            $query->where('aset_koperasi_id', $sewaMobil->aset_koperasi_id);
+        } else {
+            $query->whereNotNull('nomor_polisi_snapshot')->where('nomor_polisi_snapshot', $sewaMobil->nomor_polisi_snapshot);
+        }
+
+        return $query
             ->whereKeyNot($sewaMobil->id)
             ->where('status', SewaMobil::STATUS_BERJALAN)
             ->lockForUpdate()
@@ -484,6 +544,51 @@ class SewaMobilService
         }
     }
 
+    private function finalVendorPayload(array $data, Karyawan $karyawan): array
+    {
+        $isFinal = isset($data['vendor_nama']) || empty($data['aset_koperasi_id']);
+        if (! $isFinal) {
+            return [
+                'is_final' => false, 'perusahaan_id' => $karyawan->perusahaan_id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan?->kode,
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan?->nama,
+                'vendor_nama_snapshot' => null, 'vendor_kontak_snapshot' => null, 'vendor_alamat_snapshot' => null,
+                'kendaraan_jenis_snapshot' => null, 'kendaraan_merk_tipe_snapshot' => null, 'nomor_polisi_snapshot' => null,
+                'harga_vendor_total' => 0, 'markup_total' => 0, 'total_tagihan_perusahaan' => 0,
+            ];
+        }
+
+        if (! $karyawan->perusahaan || ! in_array($karyawan->perusahaan->kode, ['BEE', 'BBS', 'BKM'], true)) {
+            throw ValidationException::withMessages(['karyawan_id' => 'Karyawan pemohon wajib terhubung ke perusahaan resmi BEE, BBS, atau BKM.']);
+        }
+        $vendorTotal = $this->rupiahInt($data['harga_vendor_total'] ?? 0);
+        $markup = $this->rupiahInt($data['markup_total'] ?? 0);
+        foreach (['vendor_nama', 'kendaraan_jenis', 'kendaraan_merk_tipe', 'nomor_polisi'] as $field) {
+            if (trim((string) ($data[$field] ?? '')) === '') {
+                throw ValidationException::withMessages([$field => 'Snapshot '.str_replace('_', ' ', $field).' wajib diisi.']);
+            }
+        }
+        if ($vendorTotal <= 0 || $markup < 0) {
+            throw ValidationException::withMessages(['harga_vendor_total' => 'Harga vendor total wajib lebih dari nol dan markup tidak boleh negatif.']);
+        }
+
+        return [
+            'is_final' => true,
+            'perusahaan_id' => $karyawan->perusahaan->id,
+            'kode_perusahaan_snapshot' => $karyawan->perusahaan->kode,
+            'nama_perusahaan_snapshot' => $karyawan->perusahaan->nama,
+            'vendor_nama_snapshot' => $this->normalizeText($data['vendor_nama']),
+            'vendor_kontak_snapshot' => $this->nullableText($data['vendor_kontak'] ?? null),
+            'vendor_alamat_snapshot' => $this->nullableText($data['vendor_alamat'] ?? null),
+            'kendaraan_jenis_snapshot' => $this->normalizeText($data['kendaraan_jenis']),
+            'kendaraan_merk_tipe_snapshot' => $this->normalizeText($data['kendaraan_merk_tipe']),
+            'nomor_polisi_snapshot' => strtoupper($this->normalizeText($data['nomor_polisi'])),
+            'harga_vendor_total' => $vendorTotal,
+            'markup_total' => $markup,
+            'total_tagihan_perusahaan' => $vendorTotal + $markup,
+        ];
+    }
+
     private function assertRentableAsset(?AsetKoperasi $aset): void
     {
         if (! $aset || $aset->jenis_aset !== AsetKoperasi::JENIS_MOBIL || ! $aset->mobil) {
@@ -498,11 +603,20 @@ class SewaMobilService
             ]);
         }
 
-        if ($this->rupiahInt($aset->harga_dasar_vendor ?? 0) <= 0) {
+        if ($this->rentPrice($aset) <= 0) {
             throw ValidationException::withMessages([
                 'aset_koperasi_id' => 'Mobil belum memiliki Tarif Sewa Harian yang valid.',
             ]);
         }
+    }
+
+    private function rentPrice(AsetKoperasi $aset): int
+    {
+        $vendorPrice = $this->rupiahInt($aset->harga_dasar_vendor ?? 0);
+
+        return $vendorPrice > 0
+            ? $vendorPrice
+            : $this->rupiahInt($aset->mobil?->tarif_sewa_harian ?? 0);
     }
 
     private function assertActivePengurus(PengurusKoperasi $pengurus): void

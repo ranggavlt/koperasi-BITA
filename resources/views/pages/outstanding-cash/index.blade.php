@@ -9,14 +9,14 @@
   <div class="kbsm-business-header">
     <div>
       <p class="kbsm-business-eyebrow">Laporan Finance</p>
-      <h1 class="kbsm-business-title">Outstanding Cash Mantan Karyawan</h1>
+      <h1 class="kbsm-business-title">Tagihan Tunai Mantan Karyawan</h1>
       <p class="kbsm-business-subtitle">Laporan read-only kewajiban tunai dari POS, Simpanan Pokok, dan Cicilan Pinjaman. Pembayaran Pinjaman dilakukan dari detail Pinjaman/service resmi.</p>
     </div>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
-      <h2 class="kbsm-business-panel__title">Filter Outstanding Cash</h2>
+      <h2 class="kbsm-business-panel__title">Filter Tagihan Tunai</h2>
     </div>
     <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end p-5 border-b border-slate-100">
       <div class="kbsm-business-field !mb-0">
@@ -115,7 +115,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="9" class="kbsm-business-empty">Tidak ada outstanding cash sesuai filter.</td></tr>
+            <tr><td colspan="9" class="kbsm-business-empty">Tidak ada Tagihan Tunai sesuai filter.</td></tr>
           @endforelse
         </tbody>
       </table>

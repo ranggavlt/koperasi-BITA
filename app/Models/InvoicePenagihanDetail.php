@@ -14,7 +14,13 @@ class InvoicePenagihanDetail extends Model
         'nominal',
         'referensi_type',
         'referensi_id',
+        'kode_sewa_snapshot',
+        'vendor_nama_snapshot',
+        'harga_vendor_snapshot',
+        'margin_snapshot',
     ];
+
+    protected $casts = ['nominal' => 'decimal:2', 'harga_vendor_snapshot' => 'decimal:2', 'margin_snapshot' => 'decimal:2'];
 
     public function invoice()
     {

@@ -53,7 +53,7 @@
         <h3 class="kbsm-business-section__title">Pemohon dan Kebutuhan</h3>
         <div class="kbsm-business-grid">
           <div class="kbsm-business-field">
-            <label class="kbsm-business-label">Karyawan</label>
+            <label class="kbsm-business-label">Pemohon Printer Aktif</label>
             <select name="karyawan_id" required class="kbsm-business-control">
               <option value="">Pilih Karyawan aktif</option>
               @foreach($karyawanOptions as $karyawan)

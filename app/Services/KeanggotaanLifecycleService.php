@@ -543,7 +543,7 @@ class KeanggotaanLifecycleService
 
             $cycle = $this->createReRegistrationCycle($anggota->fresh(), $tanggal, $userId);
             $this->ensureZeroSukarelaSaldoForCycle($anggota->fresh(), $cycle);
-            $this->createSimpananPokokForCycle($anggota->fresh(), $cycle, $userId);
+            $this->createInitialMembershipSavingForCycle($anggota->fresh(), $cycle, $userId);
             app(SimpananWajibService::class)->generateUntil($tanggal, $anggota->fresh(), $userId);
 
             $this->syncLegacyIsAnggotaForLifecycle($karyawan->fresh(), $anggota->fresh());
@@ -641,6 +641,22 @@ class KeanggotaanLifecycleService
         $this->akuntansiService->recordSimpananPokokPayroll($simpanan, $userId);
 
         return $simpanan;
+    }
+
+    private function createInitialMembershipSavingForCycle(Anggota $anggota, SiklusKeanggotaan $cycle, ?int $userId): void
+    {
+        $hasActivePokok = JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('aktif', true)
+            ->exists();
+
+        if (! $hasActivePokok) {
+            app(SimpananWajibService::class)->createForMembershipCycle($anggota, $cycle, $userId);
+
+            return;
+        }
+
+        $this->createSimpananPokokForCycle($anggota, $cycle, $userId);
     }
 
     /**

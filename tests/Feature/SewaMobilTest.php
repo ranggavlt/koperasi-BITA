@@ -114,7 +114,8 @@ class SewaMobilTest extends TestCase
         $finance = $this->user('admin');
         $kasir = $this->user('kasir');
         $employee = $this->employeeUser('employee-sewa@bita.test');
-        $active = Karyawan::factory()->create(['nama' => 'Aktif Untuk Sewa']);
+        $company = \App\Models\Perusahaan::query()->create(['kode' => 'BEE', 'nama' => 'Bita Enarcon Engineering']);
+        $active = Karyawan::factory()->create(['nama' => 'Aktif Untuk Sewa', 'perusahaan_id' => $company->id]);
         $inactive = Karyawan::factory()->create([
             'nama' => 'Berhenti Tidak Muncul',
             'status_kerja' => Karyawan::STATUS_BERHENTI,
@@ -386,15 +387,13 @@ class SewaMobilTest extends TestCase
 
         $this->assertDatabaseHas('users', ['role' => 'karyawan', 'is_active' => true]);
         $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_DRAFT]);
-        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_DIAJUKAN]);
-        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_DISETUJUI]);
-        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_BERJALAN]);
-        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_SELESAI]);
-        $this->assertDatabaseHas('sewa_mobil', ['status' => SewaMobil::STATUS_DITOLAK]);
         $this->assertDatabaseHas('sewa_mobil', [
-            'status' => SewaMobil::STATUS_DIBATALKAN,
-            'status_pembayaran' => SewaMobil::PEMBAYARAN_REFUNDED,
+            'status' => SewaMobil::STATUS_DISETUJUI,
+            'model_sumber' => 'vendor',
+            'aset_koperasi_id' => null,
         ]);
+        $this->assertDatabaseHas('pembayaran_vendor_sewa', ['sewa_type' => SewaMobil::class, 'status' => 'paid']);
+        $this->assertDatabaseHas('invoice_penagihan_detail', ['referensi_type' => SewaMobil::class]);
         $this->assertSame(0, PemakaianPotongGaji::query()->whereIn('source_type', [SewaMobil::class, PembayaranSewaMobil::class])->count());
         $this->artisan('koperasi:preflight-sewa-mobil')->assertExitCode(0);
     }

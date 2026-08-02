@@ -151,6 +151,51 @@ class SimpananWajibSp2Test extends TestCase
         $payroll->confirmLimit($limit->fresh(), $user->id);
     }
 
+    public function test_wajib_final_sekali_per_siklus_dapat_dibayar_tunai_secara_idempotent(): void
+    {
+        $user = $this->admin();
+        $anggota = $this->anggotaAktif('2026-07-02');
+        $service = app(SimpananWajibService::class);
+        $kas = $this->kasDompet();
+
+        JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->update(['nominal_default' => 10000, 'interval_bulan' => null]);
+
+        $jadwal = $service->createForMembershipCycle($anggota, $anggota->siklusAktif, $user->id);
+        $this->assertSame('10000.00', $jadwal->nominal_snapshot);
+        $this->assertSame(1, JadwalSimpananWajib::query()->where('siklus_keanggotaan_id', $anggota->siklusAktif->id)->count());
+
+        $this->expectValidation(fn () => $service->settleDirect($anggota, [
+            'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+            'metode_pembayaran' => Simpanan::METODE_TRANSFER_BANK,
+            'dompet_id' => $kas->id,
+            'jumlah' => 10000,
+            'tanggal' => '2026-07-02',
+        ], $user->id));
+
+        $simpanan = $service->settleDirect($anggota, [
+            'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+            'metode_pembayaran' => Simpanan::METODE_TUNAI,
+            'dompet_id' => $kas->id,
+            'jumlah' => 10000,
+            'tanggal' => '2026-07-02',
+        ], $user->id);
+        $service->settleDirect($anggota, [
+            'jenis_transaksi' => Simpanan::JENIS_SETORAN,
+            'metode_pembayaran' => Simpanan::METODE_TUNAI,
+            'dompet_id' => $kas->id,
+            'jumlah' => 10000,
+            'tanggal' => '2026-07-02',
+        ], $user->id);
+
+        $this->assertSame(Simpanan::STATUS_SETTLED_CASH, $simpanan->status);
+        $this->assertSame('10000.00', $kas->fresh()->saldo);
+        $this->assertSame(1, MutasiKas::query()->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$simpanan->id)->count());
+        $this->assertSame(1, JurnalUmum::query()->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$simpanan->id)->count());
+        $this->artisan('koperasi:preflight-simpanan-wajib')->assertExitCode(0);
+    }
+
     public function test_pos_payroll_diblokir_jika_wajib_belum_dialokasikan_tetapi_tunai_tetap_boleh(): void
     {
         $user = $this->admin();

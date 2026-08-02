@@ -29,6 +29,7 @@ use App\Models\User;
 use App\Services\MutasiKasService;
 use App\Services\AsetKoperasiService;
 use App\Services\BebanOperasionalService;
+use App\Services\B2BRentalService;
 use App\Services\KaryawanAccountService;
 use App\Services\KeanggotaanLifecycleService;
 use App\Services\JenisSimpananService;
@@ -36,6 +37,7 @@ use App\Services\MasterDataKoperasiService;
 use App\Services\PinjamanKoperasiService;
 use App\Services\PosCheckoutService;
 use App\Services\PotongGajiBulananService;
+use App\Services\PayrollPolicyService;
 use App\Services\SewaMobilService;
 use App\Services\SewaPrinterService;
 use App\Services\SimpananSukarelaService;
@@ -51,6 +53,7 @@ class KoperasiDummySeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(PerusahaanSeeder::class);
         DB::transaction(function (): void {
             $today = Carbon::today();
             $awalBulanIni = $today->copy()->startOfMonth();
@@ -72,6 +75,7 @@ class KoperasiDummySeeder extends Seeder
             $reversalService = app(TransaksiReversalService::class);
 
             $keuangan = $this->seedUserDummy();
+            app(PayrollPolicyService::class)->ensureGeneralPolicy($keuangan->id);
 
             $karyawan = $this->seedKaryawan($masterDataService);
             $jenisSimpanan = $this->seedJenisSimpanan($jenisSimpananService, $keuangan->id);
@@ -208,7 +212,7 @@ class KoperasiDummySeeder extends Seeder
                 'telepon' => $karyawan['agus']->telepon,
                 'jabatan' => $karyawan['agus']->jabatan,
                 'status_kerja' => Karyawan::STATUS_BERHENTI,
-                'tanggal_berhenti' => '2026-06-30',
+                'tanggal_berhenti' => $awalBulanIni->copy()->subDay()->toDateString(),
             ]);
 
             $this->seedPotongGaji2C($potongGajiService, $karyawan, $keuangan, $awalBulanIni, $pinjaman);
@@ -366,6 +370,7 @@ class KoperasiDummySeeder extends Seeder
 
     private function seedKaryawan(MasterDataKoperasiService $service): array
     {
+        $companyIds = \App\Models\Perusahaan::query()->whereIn('kode', ['BEE', 'BBS', 'BKM'])->pluck('id', 'kode');
         $rows = [
             'andi' => [
                 'nama' => 'Andi Saputra',
@@ -466,11 +471,15 @@ class KoperasiDummySeeder extends Seeder
         ];
 
         $result = [];
+        $companyCodes = ['BEE', 'BBS', 'BKM'];
+        $companyIndex = 0;
         foreach ($rows as $key => $row) {
             $data = $row + [
+                'perusahaan_id' => $companyIds[$companyCodes[$companyIndex % 3]],
                 'status_kerja' => Karyawan::STATUS_AKTIF,
                 'tanggal_berhenti' => null,
             ];
+            $companyIndex++;
             $existing = Karyawan::query()->where('email', $row['email'])->first();
 
             $result[$key] = $existing
@@ -765,6 +774,7 @@ class KoperasiDummySeeder extends Seeder
                 'akun_id' => $kasAkunId,
                 'jenis_dompet' => 'kas',
                 'is_default_penerimaan_payroll' => false,
+                'is_kas_operasional' => true,
                 'saldo_awal' => 12500000,
             ],
             'bank_bca' => [
@@ -772,6 +782,7 @@ class KoperasiDummySeeder extends Seeder
                 'akun_id' => $bankAkunId,
                 'jenis_dompet' => 'bank',
                 'is_default_penerimaan_payroll' => true,
+                'is_kas_operasional' => false,
                 'saldo_awal' => 25000000,
             ],
             'qris' => [
@@ -779,6 +790,7 @@ class KoperasiDummySeeder extends Seeder
                 'akun_id' => $bankAkunId,
                 'jenis_dompet' => 'bank',
                 'is_default_penerimaan_payroll' => false,
+                'is_kas_operasional' => false,
                 'saldo_awal' => 2500000,
             ],
         ];
@@ -799,6 +811,7 @@ class KoperasiDummySeeder extends Seeder
                     'akun_id' => $row['akun_id'],
                     'jenis_dompet' => $row['jenis_dompet'],
                     'is_default_penerimaan_payroll' => $row['is_default_penerimaan_payroll'],
+                    'is_kas_operasional' => $row['is_kas_operasional'],
                 ]
             );
 
@@ -806,11 +819,13 @@ class KoperasiDummySeeder extends Seeder
                 (int) $dompet->akun_id !== (int) $row['akun_id']
                 || $dompet->jenis_dompet !== $row['jenis_dompet']
                 || (bool) $dompet->is_default_penerimaan_payroll !== (bool) $row['is_default_penerimaan_payroll']
+                || (bool) $dompet->is_kas_operasional !== (bool) $row['is_kas_operasional']
             ) {
                 $dompet->update([
                     'akun_id' => $row['akun_id'],
                     'jenis_dompet' => $row['jenis_dompet'],
                     'is_default_penerimaan_payroll' => $row['is_default_penerimaan_payroll'],
+                    'is_kas_operasional' => $row['is_kas_operasional'],
                 ]);
             }
 
@@ -834,12 +849,12 @@ class KoperasiDummySeeder extends Seeder
                 'kode' => JenisSimpanan::KODE_SIMPANAN_POKOK,
                 'kategori' => JenisSimpanan::KATEGORI_POKOK,
                 'nama_jenis' => 'Simpanan Pokok',
-                'aktif' => true,
+                'aktif' => false,
                 'nominal_default' => 100000,
                 'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran awal saat anggota mulai aktif di koperasi.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Pokok.',
+                'keterangan' => 'Master legacy nonaktif; dipertahankan hanya untuk histori transaksi lama.',
+                'alasan_perubahan' => 'Menonaktifkan Simpanan Pokok sesuai kebijakan final SP-7.',
             ],
             'wajib' => [
                 'akun_id' => $akunIds['wajib'],
@@ -847,23 +862,23 @@ class KoperasiDummySeeder extends Seeder
                 'kategori' => JenisSimpanan::KATEGORI_WAJIB,
                 'nama_jenis' => 'Simpanan Wajib',
                 'aktif' => true,
-                'nominal_default' => 100000,
-                'interval_bulan' => 3,
+                'nominal_default' => 10000,
+                'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran wajib per penagihan tiga bulanan untuk menjaga likuiditas koperasi.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Wajib per 3 bulan.',
+                'keterangan' => 'Setoran wajib Rp10.000 satu kali untuk setiap siklus keanggotaan.',
+                'alasan_perubahan' => 'Setup kebijakan final Simpanan Wajib sekali per siklus.',
             ],
             'sukarela' => [
                 'akun_id' => $akunIds['sukarela'],
                 'kode' => JenisSimpanan::KODE_SIMPANAN_SUKARELA,
                 'kategori' => JenisSimpanan::KATEGORI_SUKARELA,
-                'nama_jenis' => 'Simpanan Sukarela',
+                'nama_jenis' => 'Simpanan Manasuka',
                 'aktif' => true,
                 'nominal_default' => 0,
                 'interval_bulan' => null,
                 'berlaku_mulai' => '2026-01-01',
-                'keterangan' => 'Setoran sukarela anggota di luar kewajiban rutin.',
-                'alasan_perubahan' => 'Setup dummy Master Simpanan Sukarela.',
+                'keterangan' => 'Setoran Manasuka Anggota di luar kewajiban wajib.',
+                'alasan_perubahan' => 'Setup dummy Master Simpanan Manasuka.',
             ],
         ];
 
@@ -1080,6 +1095,26 @@ class KoperasiDummySeeder extends Seeder
             return;
         }
 
+        $pengurus = PengurusKoperasi::query()->aktif()->with('anggota.karyawan')->firstOrFail();
+        $service->createDraft($this->sewaMobilVendorPayload($karyawan['fitri'], $awalBulanIni->copy()->addDays(20), [
+            'vendor_nama' => 'CV Armada Cakrawala', 'kendaraan_merk_tipe' => 'Toyota Avanza',
+            'nomor_polisi' => 'B 1201 KBS', 'harga_vendor_total' => 1500000, 'markup_total' => 300000,
+            'nama_kegiatan' => 'Survey Lokasi Vendor', 'lokasi_kegiatan' => 'Cikarang',
+        ]), $keuangan->id);
+        $approved = $service->createDraft($this->sewaMobilVendorPayload($karyawan['maya'], $awalBulanIni->copy()->addDays(23), [
+            'vendor_nama' => 'PT Mobilitas Nusantara', 'kendaraan_merk_tipe' => 'Toyota Innova Reborn',
+            'nomor_polisi' => 'B 2202 KBS', 'harga_vendor_total' => 2000000, 'markup_total' => 400000,
+            'nama_kegiatan' => 'Kunjungan Proyek BKM', 'lokasi_kegiatan' => 'Karawang',
+        ]), $keuangan->id);
+        $approved = $service->submit($approved, $keuangan->id);
+        $approved = $service->approve($approved, ['pengurus_penyetuju_id' => $pengurus->id], $keuangan->id);
+        app(B2BRentalService::class)->payVendor($approved, [
+            'dompet_id' => $dompet['kas_operasional']->id,
+            'tanggal_bayar' => $awalBulanIni->copy()->addDays(18)->toDateString(),
+            'idempotency_key' => 'dummy-b2b-car-vendor',
+        ], $keuangan->id);
+        return;
+
         $mobil = AsetKoperasi::query()
             ->where('kode_aset', 'MBL-0001')
             ->firstOrFail();
@@ -1196,6 +1231,19 @@ class KoperasiDummySeeder extends Seeder
         ], $overrides);
     }
 
+    private function sewaMobilVendorPayload(Karyawan $karyawan, Carbon $tanggal, array $overrides = []): array
+    {
+        return array_merge([
+            'karyawan_id' => $karyawan->id, 'vendor_nama' => 'CV Armada Vendor',
+            'vendor_kontak' => '0812-1000-2000', 'vendor_alamat' => 'Jakarta',
+            'kendaraan_jenis' => 'MPV', 'kendaraan_merk_tipe' => 'Toyota Avanza',
+            'nomor_polisi' => 'B 1000 KBS', 'harga_vendor_total' => 1500000, 'markup_total' => 300000,
+            'nama_kegiatan' => 'Kegiatan Operasional', 'lokasi_kegiatan' => 'Jabodetabek',
+            'tanggal_mulai' => $tanggal->toDateString(), 'tanggal_selesai' => $tanggal->copy()->addDay()->toDateString(),
+            'keterangan' => 'Snapshot vendor manual [dummy-koperasi-bita]',
+        ], $overrides);
+    }
+
     private function seedSewaPrinter(
         SewaPrinterService $service,
         array $karyawan,
@@ -1206,6 +1254,27 @@ class KoperasiDummySeeder extends Seeder
         if (! Schema::hasTable('sewa_printer') || SewaPrinter::query()->exists()) {
             return;
         }
+
+        $service->createDraft($this->sewaPrinterPayload($karyawan['dewi'], $awalBulanIni->copy()->addDays(28), [
+            'vendor_nama' => 'CV Hardware Mandiri',
+            'keterangan' => 'Draft vendor hardware [dummy-koperasi-bita]',
+        ]), $keuangan->id);
+        $confirmed = $service->createDraft($this->sewaPrinterPayload($karyawan['budi'], $awalBulanIni->copy()->addDays(23), [
+            'vendor_nama' => 'PT Teknologi B2B',
+            'details' => [['jenis_model_printer' => 'Epson WorkForce Pro', 'spesifikasi_kebutuhan' => 'Printer proyek BKM', 'kuantitas' => 1, 'harga_vendor_per_unit' => 1000000]],
+        ]), $keuangan->id);
+        $confirmed = $service->confirm($confirmed, $keuangan->id);
+        $b2b = app(B2BRentalService::class);
+        $b2b->payVendor($confirmed, ['dompet_id' => $dompet['kas_operasional']->id, 'tanggal_bayar' => $awalBulanIni->copy()->addDays(19)->toDateString(), 'idempotency_key' => 'dummy-b2b-hardware-vendor'], $keuangan->id);
+        $car = SewaMobil::query()->whereHas('pembayaranVendor')->firstOrFail();
+        $company = $karyawan['budi']->perusahaan()->firstOrFail();
+        $invoice = $b2b->createInvoice($company, [
+            'sewa_mobil_ids' => [$car->id], 'sewa_hardware_ids' => [$confirmed->id],
+            'tanggal_invoice' => $awalBulanIni->copy()->addDays(20)->toDateString(),
+            'jatuh_tempo' => $awalBulanIni->copy()->addDays(35)->toDateString(), 'idempotency_key' => 'dummy-b2b-invoice-bkm',
+        ], $keuangan->id);
+        $b2b->payInvoice($invoice, ['dompet_id' => $dompet['bank_bca']->id, 'metode_pembayaran' => 'transfer_bank', 'jumlah_bayar' => 1000000, 'tanggal_bayar' => $awalBulanIni->copy()->addDays(21)->toDateString(), 'nomor_referensi' => 'BKM-PARTIAL-001', 'idempotency_key' => 'dummy-b2b-invoice-partial'], $keuangan->id);
+        return;
 
         $draft = $service->createDraft($this->sewaPrinterPayload($karyawan['maya'], $awalBulanIni->copy()->addDays(40), [
             'details' => [

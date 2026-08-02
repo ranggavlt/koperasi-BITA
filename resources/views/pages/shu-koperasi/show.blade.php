@@ -342,17 +342,7 @@
                     </td>
 
                     <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center justify-center gap-2 px-4">
-                        <form action="{{ route('shu-koperasi.transaksi.destroy', [$shuKoperasi, $transaksi]) }}" method="POST"
-                          onsubmit="return confirm('Yakin ingin menghapus transaksi SHU ini?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                            Hapus
-                          </button>
-                        </form>
-                      </div>
+                      <span class="text-xs font-semibold text-slate-400">Snapshot audit</span>
                     </td>
                   </tr>
                 @empty
@@ -455,16 +445,7 @@
 
                     <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
                       @if(!$item->is_dicairkan)
-                        <form action="{{ route('shu-koperasi.cairkan', $item->id) }}" method="POST" class="inline-flex gap-2">
-                          @csrf
-                          <select name="metode" class="rounded-md border border-gray-300 px-2 py-1 text-xs outline-none">
-                            <option value="tunai">Tunai</option>
-                            <option value="transfer">Transfer</option>
-                          </select>
-                          <button type="submit" class="rounded-md bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-emerald-600">
-                            Cairkan
-                          </button>
-                        </form>
+                        <span class="text-xs font-semibold text-slate-400">Pencairan dinonaktifkan</span>
                       @endif
                     </td>
                   </tr>

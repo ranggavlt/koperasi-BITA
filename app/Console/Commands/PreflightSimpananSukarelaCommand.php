@@ -16,14 +16,14 @@ class PreflightSimpananSukarelaCommand extends Command
 {
     protected $signature = 'koperasi:preflight-simpanan-sukarela';
 
-    protected $description = 'Audit read-only saldo, setoran, penarikan, dan koreksi Simpanan Sukarela.';
+    protected $description = 'Audit read-only saldo, setoran, penarikan, dan koreksi Simpanan Manasuka.';
 
     public function handle(): int
     {
         $checks = [
             $this->check('schema_missing', 'Schema SP-3 Simpanan Sukarela belum lengkap', $this->schemaMissing()),
             $this->check('jenis_duplicate_active', 'Master Jenis Simpanan aktif duplikat per kategori', $this->duplicateActiveJenisSimpananKategori()),
-            $this->check('legacy_manasuka_master', 'Master Manasuka legacy terpisah dari Sukarela canonical', $this->legacyManasukaMaster()),
+            $this->check('legacy_manasuka_master', 'Master Sukarela legacy terpisah dari Manasuka canonical', $this->legacyManasukaMaster()),
             $this->check('sukarela_without_master', 'Transaksi Sukarela tanpa master Sukarela aktif', $this->sukarelaTransactionWithoutActiveMaster()),
             $this->check('saldo_sukarela_orphan', 'Saldo Sukarela orphan atau memakai master non-Sukarela', $this->orphanSaldoSukarelaMaster()),
             $this->check('saldo_duplicate', 'Saldo duplikat per Anggota/Siklus/Jenis', $this->duplicateSaldo()),
@@ -37,7 +37,7 @@ class PreflightSimpananSukarelaCommand extends Command
             $this->check('posting_missing', 'Mutasi/Jurnal Simpanan Sukarela hilang atau ganda', $this->missingOrDuplicatePosting()),
             $this->check('journal_mismatch', 'Jurnal Simpanan Sukarela tidak sesuai COA/metode', $this->journalMismatch()),
             $this->check('journal_unbalanced', 'Jurnal Simpanan Sukarela/Koreksi tidak berimbang', $this->unbalancedJournal()),
-            $this->check('code_duplicate', 'Kode transaksi SSK duplikat/invalid', $this->duplicateOrInvalidCode()),
+            $this->check('code_duplicate', 'Kode transaksi SMN duplikat/invalid', $this->duplicateOrInvalidCode()),
             $this->check('idempotency_duplicate', 'Idempotency Simpanan/Mutasi/Jurnal/Koreksi duplikat', $this->duplicateIdempotency()),
             $this->check('double_correction', 'Lebih dari satu koreksi untuk satu transaksi', $this->doubleCorrection()),
             $this->check('corrected_without_reversal', 'Transaksi Dikoreksi tanpa record reversal', $this->correctedWithoutReversal()),
@@ -122,9 +122,8 @@ class PreflightSimpananSukarelaCommand extends Command
 
         return DB::table('jenis_simpanan')
             ->where(function ($query): void {
-                $query->where('kode', 'SIMPANAN_MANASUKA')
-                    ->orWhere('kategori', 'manasuka')
-                    ->orWhere('nama_jenis', 'like', '%Manasuka%');
+                $query->where('kode', 'SIMPANAN_SUKARELA')
+                    ->orWhere('kategori', 'sukarela');
             })
             ->count();
     }
@@ -402,13 +401,8 @@ class PreflightSimpananSukarelaCommand extends Command
 
         $invalid = $this->sukarelaBase()
             ->whereNotNull('s.kode_transaksi')
-            ->where('s.kode_transaksi', 'not like', 'SSK-%')
-            ->count('s.id');
-
-        $invalid += $this->sukarelaBase()
-            ->whereNotNull('s.kode_transaksi')
             ->get(['s.kode_transaksi'])
-            ->filter(fn ($row) => preg_match('/^SSK-\d{6}-\d{6}$/', (string) $row->kode_transaksi) !== 1)
+            ->filter(fn ($row) => preg_match('/^(SMN|SSK)-\d{6}-\d{6}$/', (string) $row->kode_transaksi) !== 1)
             ->count();
 
         return $duplicates + $invalid;

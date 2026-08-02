@@ -18,7 +18,7 @@ class PreflightSewaPrinterCommand extends Command
     {
         $checks = [
             $this->check('schema_legacy', 'Schema Sewa Printer masih memakai struktur aset printer legacy', $this->legacySchemaIssues()),
-            $this->check('kode_invalid', 'Kode Sewa Printer tidak sesuai format SWP-YYYYMM-000001', $this->invalidKode()),
+            $this->check('kode_invalid', 'Kode Sewa Hardware tidak sesuai format SWH-YYYYMM-000001', $this->invalidKode()),
             $this->check('karyawan_nonaktif', 'Sewa Printer milik Karyawan nonaktif/berhenti', $this->inactiveEmployees()),
             $this->check('vendor_snapshot_missing', 'Snapshot vendor tidak lengkap', $this->missingVendorSnapshot()),
             $this->check('detail_missing', 'Kontrak Sewa Printer tanpa detail kebutuhan', $this->withoutDetails()),
@@ -113,7 +113,7 @@ class PreflightSewaPrinterCommand extends Command
 
         return DB::table('sewa_printer')
             ->pluck('kode_sewa')
-            ->filter(fn ($kode): bool => preg_match('/^SWP-[0-9]{6}-[0-9]{6}$/', (string) $kode) !== 1)
+            ->filter(fn ($kode): bool => preg_match('/^SWH-[0-9]{6}-[0-9]{6}$/', (string) $kode) !== 1)
             ->count();
     }
 

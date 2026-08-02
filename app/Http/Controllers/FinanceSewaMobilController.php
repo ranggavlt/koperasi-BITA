@@ -7,7 +7,6 @@ use App\Http\Requests\PaySewaMobilRequest;
 use App\Http\Requests\RejectSewaMobilRequest;
 use App\Http\Requests\StoreSewaMobilRequest;
 use App\Http\Requests\UpdateSewaMobilRequest;
-use App\Models\AsetKoperasi;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
 use App\Models\PengurusKoperasi;
@@ -25,7 +24,6 @@ class FinanceSewaMobilController extends Controller
     public function index(Request $request)
     {
         $filters = $request->validate([
-            'aset_koperasi_id' => ['nullable', 'integer', 'exists:aset_koperasi,id'],
             'karyawan_id' => ['nullable', 'integer', 'exists:karyawan,id'],
             'tanggal_dari' => ['nullable', 'date'],
             'tanggal_sampai' => ['nullable', 'date'],
@@ -40,19 +38,17 @@ class FinanceSewaMobilController extends Controller
 
         $query = SewaMobil::query()
             ->with([
-                'aset.mobil',
+                'perusahaan',
                 'karyawan',
                 'pemohon',
                 'recorder',
                 'pengurusPenyetuju.anggota.karyawan',
                 'approvalRecorder',
                 'pembayaran.dompet.akun',
+                'pembayaranVendor.dompet.akun',
+                'invoiceDetail.invoice',
                 'jurnal.details',
             ]);
-
-        if (! empty($filters['aset_koperasi_id'])) {
-            $query->where('aset_koperasi_id', $filters['aset_koperasi_id']);
-        }
 
         if (! empty($filters['karyawan_id'])) {
             $query->where('karyawan_id', $filters['karyawan_id']);
@@ -67,7 +63,6 @@ class FinanceSewaMobilController extends Controller
         }
 
         $sewaMobil = $query->latest()->paginate(10)->withQueryString();
-        $mobilOptions = AsetKoperasi::query()->mobil()->with('mobil')->orderBy('kode_aset')->get();
         $karyawanOptions = Karyawan::query()->orderBy('nama')->get();
         $pengurusOptions = PengurusKoperasi::query()
             ->aktif()
@@ -76,13 +71,19 @@ class FinanceSewaMobilController extends Controller
             ->orderBy('jabatan')
             ->get();
         $dompetOptions = DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get();
+        $kasOperasionalOptions = DompetKoperasi::query()
+            ->where('jenis_dompet', DompetKoperasi::JENIS_KAS)
+            ->where('is_kas_operasional', true)
+            ->with('akun')
+            ->orderBy('nama_dompet')
+            ->get();
 
         return view('pages.sewa-mobil.finance.index', compact(
             'sewaMobil',
-            'mobilOptions',
             'karyawanOptions',
             'pengurusOptions',
-            'dompetOptions'
+            'dompetOptions',
+            'kasOperasionalOptions'
         ));
     }
 
@@ -103,7 +104,7 @@ class FinanceSewaMobilController extends Controller
     {
         abort_unless($sewaMobil->status === SewaMobil::STATUS_DRAFT, 404);
 
-        return view('pages.sewa-mobil.finance.form', $this->formOptions($sewaMobil->load(['aset.mobil', 'karyawan'])));
+        return view('pages.sewa-mobil.finance.form', $this->formOptions($sewaMobil->load(['karyawan.perusahaan'])));
     }
 
     public function update(UpdateSewaMobilRequest $request, SewaMobil $sewaMobil)
@@ -176,20 +177,12 @@ class FinanceSewaMobilController extends Controller
     {
         return [
             'editData' => $editData,
-            'mobilOptions' => AsetKoperasi::query()
-                ->mobil()
-                ->with('mobil')
-                ->where(function ($query) use ($editData) {
-                    $query->where('status', AsetKoperasi::STATUS_TERSEDIA);
-
-                    if ($editData?->aset_koperasi_id) {
-                        $query->orWhere('id', $editData->aset_koperasi_id);
-                    }
-                })
-                ->where('harga_dasar_vendor', '>', 0)
-                ->orderBy('kode_aset')
+            'karyawanOptions' => Karyawan::query()
+                ->aktif()
+                ->with('perusahaan')
+                ->whereHas('perusahaan', fn ($query) => $query->whereIn('kode', ['BEE', 'BBS', 'BKM']))
+                ->orderBy('nama')
                 ->get(),
-            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
         ];
     }
 }

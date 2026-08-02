@@ -35,6 +35,18 @@ class SewaMobil extends Model
     protected $fillable = [
         'kode_sewa',
         'aset_koperasi_id',
+        'perusahaan_id',
+        'kode_perusahaan_snapshot',
+        'vendor_nama_snapshot',
+        'vendor_kontak_snapshot',
+        'vendor_alamat_snapshot',
+        'kendaraan_jenis_snapshot',
+        'kendaraan_merk_tipe_snapshot',
+        'nomor_polisi_snapshot',
+        'harga_vendor_total',
+        'markup_total',
+        'total_tagihan_perusahaan',
+        'model_sumber',
         'karyawan_id',
         'pemohon_user_id',
         'recorded_by',
@@ -73,6 +85,9 @@ class SewaMobil extends Model
         'jumlah_hari' => 'integer',
         'tarif_harian_snapshot' => 'integer',
         'total_sewa' => 'integer',
+        'harga_vendor_total' => 'integer',
+        'markup_total' => 'integer',
+        'total_tagihan_perusahaan' => 'integer',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
@@ -132,6 +147,21 @@ class SewaMobil extends Model
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
+    }
+
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class);
+    }
+
+    public function pembayaranVendor()
+    {
+        return $this->morphOne(PembayaranVendorSewa::class, 'sewa');
+    }
+
+    public function invoiceDetail()
+    {
+        return $this->morphOne(InvoicePenagihanDetail::class, 'referensi');
     }
 
     public function pemohon()

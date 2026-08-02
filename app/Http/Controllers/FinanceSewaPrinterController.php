@@ -43,6 +43,9 @@ class FinanceSewaPrinterController extends Controller
                 'recorder',
                 'pembayaran.dompetPenerimaan.akun',
                 'pembayaran.dompetVendor.akun',
+                'pembayaranVendor.dompet.akun',
+                'invoiceDetail.invoice',
+                'perusahaan',
                 'jurnal.details',
             ]);
 
@@ -51,7 +54,7 @@ class FinanceSewaPrinterController extends Controller
         }
 
         if (! empty($filters['karyawan_id'])) {
-            $query->where('karyawan_pic_id', $filters['karyawan_id']);
+            $query->where('karyawan_id', $filters['karyawan_id']);
         }
 
         if (! empty($filters['tanggal_dari'])) {
@@ -68,6 +71,12 @@ class FinanceSewaPrinterController extends Controller
             'sewaPrinter' => $sewaPrinter,
             'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
             'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
+            'kasOperasionalOptions' => DompetKoperasi::query()
+                ->where('jenis_dompet', DompetKoperasi::JENIS_KAS)
+                ->where('is_kas_operasional', true)
+                ->with('akun')
+                ->orderBy('nama_dompet')
+                ->get(),
             'statuses' => SewaPrinter::statusLabels(),
         ]);
     }
@@ -150,7 +159,12 @@ class FinanceSewaPrinterController extends Controller
     {
         return [
             'editData' => $editData,
-            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
+            'karyawanOptions' => Karyawan::query()
+                ->aktif()
+                ->with('perusahaan')
+                ->whereHas('perusahaan', fn ($query) => $query->whereIn('kode', ['BEE', 'BBS', 'BKM']))
+                ->orderBy('nama')
+                ->get(),
             'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
         ];
     }

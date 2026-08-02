@@ -25,7 +25,7 @@ class SewaPrinterService
     {
         return DB::transaction(function () use ($data, $financeUserId): SewaPrinter {
             [$mulai, $selesai] = $this->normalizePeriod($data['mulai_tanggal'], $data['selesai_tanggal']);
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
 
             $detailRows = $this->buildDetailRows($data['details'] ?? []);
@@ -34,8 +34,11 @@ class SewaPrinterService
 
             $sewa = SewaPrinter::query()->create([
                 'kode_sewa' => $this->nextKodeSewa($createdAt),
-                'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
-                'karyawan_pic_id' => $karyawan->id,
+                'perusahaan_id' => $karyawan->perusahaan_id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan?->kode,
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan?->nama ?: config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
+                'model_sumber' => 'vendor',
+                'karyawan_id' => $karyawan->id,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),
@@ -71,7 +74,7 @@ class SewaPrinterService
             $this->assertStatus($locked, [SewaPrinter::STATUS_DRAFT], 'Kontrak yang sudah dikonfirmasi tidak dapat diedit.');
 
             [$mulai, $selesai] = $this->normalizePeriod($data['mulai_tanggal'], $data['selesai_tanggal']);
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
 
             $detailRows = $this->buildDetailRows($data['details'] ?? []);
@@ -81,7 +84,10 @@ class SewaPrinterService
             $locked->details()->createMany($detailRows);
 
             $locked->update([
-                'karyawan_pic_id' => $karyawan->id,
+                'karyawan_id' => $karyawan->id,
+                'perusahaan_id' => $karyawan->perusahaan_id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan?->kode,
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan?->nama ?: $locked->nama_perusahaan_snapshot,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),
@@ -231,16 +237,16 @@ class SewaPrinterService
     {
         return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
             $locked = SewaPrinter::query()
-                ->with(['karyawan', 'pembayaran'])
+                ->with(['karyawan', 'pembayaran', 'pembayaranVendor'])
                 ->lockForUpdate()
                 ->findOrFail($sewaPrinter->id);
 
             $this->assertStatus($locked, [SewaPrinter::STATUS_DIKONFIRMASI], 'Hanya kontrak dikonfirmasi yang dapat dimulai.');
             $this->assertActiveKaryawan($locked->karyawan);
 
-            if ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if (! $locked->pembayaranVendor && ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran)) {
                 throw ValidationException::withMessages([
-                    'pembayaran' => 'Kontrak wajib dibayar penuh sebelum periode dimulai.',
+                    'pembayaran' => 'Vendor wajib dibayar dari Kas Operasional sebelum periode dimulai.',
                 ]);
             }
 
@@ -258,7 +264,7 @@ class SewaPrinterService
     {
         return DB::transaction(function () use ($sewaPrinter, $financeUserId): SewaPrinter {
             $locked = SewaPrinter::query()
-                ->with(['details', 'pembayaran'])
+                ->with(['details', 'pembayaran', 'pembayaranVendor', 'invoiceDetail.invoice'])
                 ->lockForUpdate()
                 ->findOrFail($sewaPrinter->id);
 
@@ -268,9 +274,9 @@ class SewaPrinterService
 
             $this->assertStatus($locked, [SewaPrinter::STATUS_BERJALAN], 'Hanya kontrak berjalan yang dapat diselesaikan.');
 
-            if ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if (! $locked->pembayaranVendor && ($locked->status_pembayaran !== SewaPrinter::PEMBAYARAN_PAID || ! $locked->pembayaran)) {
                 throw ValidationException::withMessages([
-                    'pembayaran' => 'Kontrak wajib paid sebelum diselesaikan.',
+                    'pembayaran' => 'Pembayaran vendor wajib tersedia sebelum kontrak diselesaikan.',
                 ]);
             }
 
@@ -280,7 +286,11 @@ class SewaPrinterService
                 'updated_by' => $financeUserId,
             ]);
 
-            $this->akuntansiService->recordPengakuanPendapatanSewaPrinter($locked->fresh(), $financeUserId);
+            if ($locked->pembayaranVendor) {
+                app(B2BRentalService::class)->recognizeRentalMargin($locked->fresh(), $financeUserId);
+            } else {
+                $this->akuntansiService->recordPengakuanPendapatanSewaPrinter($locked->fresh(), $financeUserId);
+            }
 
             return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
         });
@@ -290,7 +300,7 @@ class SewaPrinterService
     {
         return DB::transaction(function () use ($sewaPrinter, $reason, $financeUserId): SewaPrinter {
             $locked = SewaPrinter::query()
-                ->with('pembayaran')
+                ->with(['pembayaran', 'pembayaranVendor'])
                 ->lockForUpdate()
                 ->findOrFail($sewaPrinter->id);
 
@@ -298,6 +308,10 @@ class SewaPrinterService
                 throw ValidationException::withMessages([
                     'sewa_printer' => 'Kontrak Sewa Printer ini sudah dibatalkan.',
                 ]);
+            }
+
+            if ($locked->pembayaranVendor) {
+                throw ValidationException::withMessages(['sewa_printer' => 'Kontrak dengan pembayaran vendor final hanya dapat dikoreksi melalui reversal penuh.']);
             }
 
             if ($locked->status_pembayaran === SewaPrinter::PEMBAYARAN_PAID || $locked->pembayaran) {
@@ -431,7 +445,7 @@ class SewaPrinterService
                 'updated_at' => now(),
             ]);
 
-        return sprintf('SWP-%s-%06d', $periode, $next);
+        return sprintf('SWH-%s-%06d', $periode, $next);
     }
 
     private function assertActiveKaryawan(?Karyawan $karyawan): void

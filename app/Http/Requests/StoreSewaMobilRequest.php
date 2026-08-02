@@ -24,7 +24,15 @@ class StoreSewaMobilRequest extends FormRequest
     {
         return [
             'karyawan_id' => ['required', 'exists:karyawan,id'],
-            'aset_koperasi_id' => ['required', 'exists:aset_koperasi,id'],
+            'aset_koperasi_id' => ['prohibited'],
+            'vendor_nama' => ['required', 'string', 'max:150'],
+            'vendor_kontak' => ['nullable', 'string', 'max:100'],
+            'vendor_alamat' => ['nullable', 'string', 'max:1000'],
+            'kendaraan_jenis' => ['required', 'string', 'max:80'],
+            'kendaraan_merk_tipe' => ['required', 'string', 'max:150'],
+            'nomor_polisi' => ['required', 'string', 'max:30'],
+            'harga_vendor_total' => ['required', 'integer', 'min:1'],
+            'markup_total' => ['required', 'integer', 'min:0'],
             'nama_kegiatan' => ['required', 'string', 'max:150'],
             'lokasi_kegiatan' => ['required', 'string', 'max:150'],
             'tanggal_mulai' => ['required', 'date'],

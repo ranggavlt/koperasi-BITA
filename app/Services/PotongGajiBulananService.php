@@ -30,8 +30,10 @@ use RuntimeException;
 
 class PotongGajiBulananService
 {
-    public function __construct(private readonly AkuntansiService $akuntansiService)
-    {
+    public function __construct(
+        private readonly AkuntansiService $akuntansiService,
+        private readonly ManasukaRutinService $manasukaRutinService
+    ) {
     }
 
     public function businessTimezone(): string
@@ -115,6 +117,7 @@ class PotongGajiBulananService
                 : Anggota::query()->with('karyawan')->lockForUpdate()->findOrFail($anggota);
 
             $periodeModel = $this->createPeriodeDraft($periode, $changedBy);
+            $policy = app(PayrollPolicyService::class)->resolveFor($anggotaModel, $periodeModel->periode);
 
             $existing = LimitPotongGajiAnggota::query()
                 ->where('periode_potong_gaji_id', $periodeModel->id)
@@ -132,6 +135,11 @@ class PotongGajiBulananService
                 'periode_potong_gaji_id' => $periodeModel->id,
                 'anggota_id' => $anggotaModel->id,
                 'limit_nominal' => $nominalDecimal,
+                'sumber_limit_snapshot' => ((int) $nominalDecimal === $policy['nominal']) ? $policy['sumber'] : 'manual_periode',
+                'perusahaan_id_snapshot' => $policy['perusahaan_id'],
+                'kode_perusahaan_snapshot' => $policy['kode_perusahaan'],
+                'nama_perusahaan_snapshot' => $policy['nama_perusahaan'],
+                'kredit_waserba_aktif_snapshot' => $policy['kredit_waserba_aktif'],
                 'status' => LimitPotongGajiAnggota::STATUS_DRAFT,
             ]);
 
@@ -139,6 +147,15 @@ class PotongGajiBulananService
 
             return $limit->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
         });
+    }
+
+    public function createLimitFromPolicy(Anggota|int $anggota, CarbonInterface|string|null $periode, int $changedBy): LimitPotongGajiAnggota
+    {
+        $anggotaModel = $anggota instanceof Anggota ? $anggota : Anggota::query()->findOrFail($anggota);
+        $target = $this->normalizePeriod($periode);
+        $policy = app(PayrollPolicyService::class)->resolveFor($anggotaModel, $target);
+
+        return $this->createLimit($anggotaModel, $target, $policy['nominal'], $changedBy, 'Limit otomatis dari '.$policy['sumber'].'.');
     }
 
     public function updateLimit(
@@ -185,6 +202,7 @@ class PotongGajiBulananService
             if ($locked->status === LimitPotongGajiAnggota::STATUS_ACTIVE) {
                 $this->reserveDueInstallmentsForLimit($locked, $changedBy);
                 app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $changedBy);
+                $this->manasukaRutinService->reserveForLimit($locked, $changedBy);
             }
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
@@ -227,6 +245,7 @@ class PotongGajiBulananService
             $this->reserveDueInstallmentsForLimit($locked, $userId);
             $this->allocatePendingSimpananPokokForLimit($locked, $userId);
             app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $userId);
+            $this->manasukaRutinService->reserveForLimit($locked, $userId);
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
         });
@@ -289,6 +308,10 @@ class PotongGajiBulananService
                             ->where('source_type', JadwalSimpananWajib::class)
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
+                        $subQuery->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA)
+                            ->where('source_type', Simpanan::class)
+                            ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
+                    })->orWhere(function ($subQuery): void {
                         $subQuery->whereIn('kategori', [
                             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK,
                             PemakaianPotongGaji::KATEGORI_POS,
@@ -319,6 +342,11 @@ class PotongGajiBulananService
 
                 if ($entry->kategori === PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB) {
                     app(SimpananWajibService::class)->settleUsage($locked, $entry, $dompetPayroll, $userId, $creditCents);
+                    continue;
+                }
+
+                if ($entry->kategori === PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA) {
+                    $this->manasukaRutinService->settleUsage($locked, $entry, $dompetPayroll, $userId, $creditCents);
                     continue;
                 }
 
@@ -627,6 +655,12 @@ class PotongGajiBulananService
                     'Karyawan berhenti sebelum payroll confirmed; tagihan Simpanan Wajib tetap outstanding.'
                 );
 
+                $this->manasukaRutinService->releaseReservationsForLimit(
+                    $limit,
+                    $userId,
+                    'Karyawan/Anggota nonaktif sebelum payroll confirmed.'
+                );
+
                 $usages = PemakaianPotongGaji::query()
                     ->where('limit_potong_gaji_anggota_id', $limit->id)
                     ->whereIn('kategori', [
@@ -784,7 +818,6 @@ class PotongGajiBulananService
             })
             ->exists();
     }
-
     private function allocatePendingSimpananPokokForLimit(LimitPotongGajiAnggota $limit, int $userId): void
     {
         $pendingRows = Simpanan::query()
@@ -1150,6 +1183,7 @@ class PotongGajiBulananService
             PemakaianPotongGaji::KATEGORI_CICILAN => 10,
             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 20,
             PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 30,
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA => 35,
             PemakaianPotongGaji::KATEGORI_POS => 40,
         ];
 

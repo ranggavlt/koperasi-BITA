@@ -65,7 +65,7 @@ class SimpananSukarelaService
                     ->lockForUpdate()
                     ->findOrFail($simpanan->id);
 
-                if (! $locked->isSimpananSukarela()) {
+                if (! $locked->isSimpananManasuka()) {
                     throw ValidationException::withMessages([
                         'simpanan' => 'Koreksi Transaksi hanya tersedia untuk Simpanan Sukarela.',
                     ]);
@@ -322,7 +322,7 @@ class SimpananSukarelaService
 
                 $simpanan = Simpanan::query()->create([
                     'idempotency_key' => $idempotencyKey,
-                    'kode_transaksi' => $this->nextCode('simpanan_sukarela', 'SSK', $tanggal),
+                    'kode_transaksi' => $this->nextCode('simpanan_manasuka', 'SMN', $tanggal),
                     'anggota_id' => $anggota->id,
                     'karyawan_id' => $anggota->karyawan_id,
                     'siklus_keanggotaan_id' => $siklus->id,

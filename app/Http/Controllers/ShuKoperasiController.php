@@ -18,7 +18,9 @@ class ShuKoperasiController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('pages.shu-koperasi.index', compact('data'));
+        $shuConfig = \App\Models\ShuConfig::first();
+
+        return view('pages.shu-koperasi.index', compact('data', 'shuConfig'));
     }
 
     public function store(Request $request, ShuKoperasiService $shuKoperasiService)
@@ -67,11 +69,7 @@ class ShuKoperasiController extends Controller
 
     public function destroy(ShuKoperasi $shuKoperasi)
     {
-        $shuKoperasi->delete();
-
-        return redirect()
-            ->route('shu-koperasi.index')
-            ->with('success', 'Periode SHU koperasi berhasil dihapus.');
+        abort(410, 'Hard delete periode SHU dinonaktifkan permanen.');
     }
 
     public function refresh(ShuKoperasi $shuKoperasi, ShuKoperasiService $shuKoperasiService)
@@ -99,13 +97,7 @@ class ShuKoperasiController extends Controller
         ShuTransaksi $shuTransaksi,
         ShuKoperasiService $shuKoperasiService
     ) {
-        abort_unless($shuTransaksi->shu_koperasi_id === $shuKoperasi->id, 404);
-
-        $shuKoperasiService->deleteTransaksi($shuTransaksi);
-
-        return redirect()
-            ->route('shu-koperasi.show', $shuKoperasi)
-            ->with('success', 'Transaksi SHU berhasil dihapus.');
+        abort(410, 'Hard delete transaksi SHU dinonaktifkan permanen.');
     }
 
     protected function validateShuKoperasi(Request $request): array
@@ -182,29 +174,6 @@ class ShuKoperasiController extends Controller
 
     public function cairkan(\Illuminate\Http\Request $request, \App\Models\ShuAnggota $shuAnggota)
     {
-        $request->validate([
-            'metode' => 'required|in:tunai,transfer',
-        ]);
-
-        $shuAnggota->update([
-            'is_dicairkan' => true,
-            'metode_pencairan' => $request->metode,
-            'tanggal_pencairan' => now(),
-        ]);
-
-        // Jurnal untuk pencairan SHU
-        $akunKas = \App\Models\AkunAkuntansi::where('kode', config('account_map.kas'))->first();
-        if ($akunKas) {
-            $this->akuntansiService->createJurnal(
-                $shuAnggota->shu_koperasi_id,
-                'App\Models\ShuKoperasi',
-                "Pencairan SHU {$shuAnggota->karyawan->nama} ({$request->metode})",
-                [
-                    ['akun_id' => $akunKas->id, 'debit' => 0, 'kredit' => $shuAnggota->nominal_shu], // Kas Keluar
-                ]
-            );
-        }
-
-        return back()->with('success', "SHU Anggota {$shuAnggota->karyawan->nama} berhasil dicairkan.");
+        abort(410, 'Pencairan SHU belum disetujui dan tetap dinonaktifkan.');
     }
 }

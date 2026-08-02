@@ -34,6 +34,13 @@ return [
             'posisi_saldo' => 'debit',
             'keterangan' => 'Tagihan penjualan kepada anggota yang dibayar melalui potong gaji.',
         ],
+        'piutang_perusahaan' => [
+            'kode_akun' => '104',
+            'nama_akun' => 'Piutang Perusahaan',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Tagihan B2B kepada BEE, BBS, dan BKM berdasarkan invoice final.',
+        ],
         'piutang_pinjaman' => [
             'kode_akun' => '105',
             'nama_akun' => 'Piutang Pinjaman Anggota',
@@ -47,6 +54,13 @@ return [
             'kategori' => 'aset',
             'posisi_saldo' => 'debit',
             'keterangan' => 'Nilai perolehan persediaan milik koperasi.',
+        ],
+        'uang_muka_vendor' => [
+            'kode_akun' => '107',
+            'nama_akun' => 'Uang Muka Vendor Sewa',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Pembayaran vendor sewa yang akan ditagihkan kepada perusahaan.',
         ],
         'utang_reseller_konsinyasi' => [
             'kode_akun' => '201',
@@ -103,6 +117,13 @@ return [
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa printer.',
+        ],
+        'dana_sosial' => [
+            'kode_akun' => '209',
+            'nama_akun' => 'Dana Sosial Tersedia',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Saldo dana sosial yang telah disetujui dan belum dibayarkan sebagai klaim.',
         ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
@@ -307,6 +328,17 @@ return [
             'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_printer',
             'pendapatan_dasar' => 'pendapatan_sewa_printer_dasar',
             'pendapatan_margin' => 'pendapatan_margin_sewa_printer',
+        ],
+        'b2b' => [
+            'piutang_perusahaan' => 'piutang_perusahaan',
+            'uang_muka_vendor' => 'uang_muka_vendor',
+            'pendapatan_sewa_mobil' => 'pendapatan_sewa_mobil',
+            'pendapatan_margin_hardware' => 'pendapatan_margin_sewa_printer',
+        ],
+        'dana_sosial' => [
+            'saldo' => 'dana_sosial',
+            'beban' => 'beban_sosial',
+            'sumber_alokasi' => 'shu_belum_dibagi',
         ],
         'keanggotaan' => [
             'simpanan_pokok' => 'simpanan_pokok',

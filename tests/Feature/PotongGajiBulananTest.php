@@ -290,10 +290,17 @@ class PotongGajiBulananTest extends TestCase
         $this->assertSame(0, Pinjaman::query()->where('bunga_persen', '!=', 0)->count());
         $this->assertSame(0, Pinjaman::query()->where('tenor_bulan', '>', 12)->count());
         $this->assertSame(0, Pinjaman::query()->where('jumlah_pinjaman', '>', 5000000)->count());
-        $this->assertSame(1, JenisSimpanan::query()
+        $this->assertSame(0, JenisSimpanan::query()
             ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
             ->where('aktif', true)
             ->count());
+        $this->assertSame(2, JenisSimpanan::query()->where('aktif', true)->count());
+        $this->assertDatabaseHas('jenis_simpanan', [
+            'kode' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
+            'nominal_default' => 10000,
+            'interval_bulan' => null,
+            'aktif' => true,
+        ]);
     }
 
     private function user(): User

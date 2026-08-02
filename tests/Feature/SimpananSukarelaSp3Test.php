@@ -59,8 +59,8 @@ class SimpananSukarelaSp3Test extends TestCase
             'nomor_referensi' => 'WD-001',
         ], $finance->id);
 
-        $this->assertMatchesRegularExpression('/^SSK-202607-\d{6}$/', $setoran->kode_transaksi);
-        $this->assertMatchesRegularExpression('/^SSK-202607-\d{6}$/', $penarikan->kode_transaksi);
+        $this->assertMatchesRegularExpression('/^SMN-202607-\d{6}$/', $setoran->kode_transaksi);
+        $this->assertMatchesRegularExpression('/^SMN-202607-\d{6}$/', $penarikan->kode_transaksi);
         $this->assertSame('0.00', $setoran->saldo_sebelum_snapshot);
         $this->assertSame('100000.00', $setoran->saldo_sesudah_snapshot);
         $this->assertSame('100000.00', $penarikan->saldo_sebelum_snapshot);
@@ -221,8 +221,8 @@ class SimpananSukarelaSp3Test extends TestCase
 
         $before = $this->counts();
         $this->actingAs($finance)->get(route('simpanan.index'))->assertOk()->assertSee('Transaksi Simpanan');
-        $this->actingAs($finance)->get(route('simpanan.create'))->assertOk()->assertSee('Transaksi Simpanan Sukarela');
-        $this->actingAs($finance)->get(route('simpanan.saldo-sukarela', $anggota))->assertOk()->assertJsonPath('saldo', 50000);
+        $this->actingAs($finance)->get(route('simpanan.create'))->assertOk()->assertSee('Transaksi Simpanan');
+        $this->actingAs($finance)->get(route('simpanan.saldo-manasuka', $anggota))->assertOk()->assertJsonPath('saldo', 50000);
         $this->assertSame($before, $this->counts());
 
         $this->actingAs($kasir)->get(route('simpanan.index'))->assertForbidden();

@@ -6,9 +6,11 @@ use App\Http\Requests\StoreSimpananRequest;
 use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\JenisSimpanan;
+use App\Models\JadwalSimpananWajib;
 use App\Models\Karyawan;
 use App\Models\Simpanan;
 use App\Services\SimpananSukarelaService;
+use App\Services\SimpananWajibService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +20,41 @@ use Illuminate\View\View;
 
 class SimpananController extends Controller
 {
+    public function wajibIndex(Request $request, SimpananWajibService $service): View
+    {
+        $filters = $request->validate([
+            'anggota_id' => ['nullable', 'integer', 'exists:anggota,id'],
+            'status' => ['nullable', Rule::in([
+                JadwalSimpananWajib::STATUS_OUTSTANDING,
+                JadwalSimpananWajib::STATUS_RESERVED,
+                JadwalSimpananWajib::STATUS_SETTLED,
+                JadwalSimpananWajib::STATUS_CANCELLED_EXIT,
+            ])],
+            'periode_mulai' => ['nullable', 'date_format:Y-m'],
+            'periode_selesai' => ['nullable', 'date_format:Y-m', 'after_or_equal:periode_mulai'],
+        ]);
+
+        $result = $service->outstandingSummary($filters);
+        $jadwal = $result['query']
+            ->orderByDesc('periode')
+            ->orderByDesc('id')
+            ->paginate(12)
+            ->withQueryString();
+
+        return view('pages.simpanan-wajib.index', [
+            'jadwal' => $jadwal,
+            'summary' => $result['summary'],
+            'filters' => $filters,
+            'anggotaOptions' => Anggota::query()->with('karyawan')->orderBy('nomor_anggota')->get(),
+            'statusOptions' => [
+                JadwalSimpananWajib::STATUS_OUTSTANDING => 'Outstanding',
+                JadwalSimpananWajib::STATUS_RESERVED => 'Dialokasikan',
+                JadwalSimpananWajib::STATUS_SETTLED => 'Lunas',
+                JadwalSimpananWajib::STATUS_CANCELLED_EXIT => 'Dibatalkan karena keluar',
+            ],
+        ]);
+    }
+
     public function index(Request $request, SimpananSukarelaService $service): View
     {
         $filters = $request->validate([
@@ -130,10 +167,20 @@ class SimpananController extends Controller
         ]);
     }
 
-    public function store(StoreSimpananRequest $request, SimpananSukarelaService $service): RedirectResponse
+    public function store(StoreSimpananRequest $request, SimpananSukarelaService $service, SimpananWajibService $wajibService): RedirectResponse
     {
         try {
-            $service->create($request->validated(), $request->user()?->id);
+            $data = $request->validated();
+            $jenis = JenisSimpanan::query()->findOrFail((int) $data['jenis_simpanan_id']);
+            if ($jenis->kode === JenisSimpanan::KODE_SIMPANAN_WAJIB) {
+                $wajibService->settleDirect(
+                    Anggota::query()->findOrFail((int) $data['anggota_id']),
+                    $data,
+                    (int) $request->user()?->id
+                );
+            } else {
+                $service->create($data, $request->user()?->id);
+            }
 
             return redirect()
                 ->route('simpanan.index')
@@ -151,7 +198,6 @@ class SimpananController extends Controller
 
     public function saldoManasuka(Anggota $anggota, SimpananSukarelaService $service): JsonResponse
     {
-        $saldo = $service->getSaldoCached($anggota);
         $anggota->loadMissing('karyawan');
 
         if ($anggota->status !== Anggota::STATUS_AKTIF || $anggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {

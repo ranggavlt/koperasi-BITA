@@ -105,9 +105,7 @@ class JenisSimpananSp1Test extends TestCase
             'tanggal' => '2026-07-10',
         ]);
 
-        $this->actingAs($finance)
-            ->delete(route('jenis-simpanan.destroy', $jenis))
-            ->assertSessionHasErrors('jenis_simpanan');
+        $this->expectValidation(fn () => app(JenisSimpananService::class)->deleteUnused($jenis));
 
         $this->assertDatabaseHas('jenis_simpanan', ['id' => $jenis->id]);
     }
@@ -242,13 +240,10 @@ class JenisSimpananSp1Test extends TestCase
             'saldo' => DompetKoperasi::query()->sum('saldo'),
         ];
 
-        $this->actingAs($finance)->get(route('jenis-simpanan.index'))->assertOk();
-        $this->actingAs($finance)->get(route('jenis-simpanan.create'))->assertOk();
-        $this->actingAs($finance)->get(route('jenis-simpanan.edit', $jenis))->assertOk();
-
-        $this->actingAs($kasir)->get(route('jenis-simpanan.index'))->assertForbidden();
-        auth()->logout();
-        $this->get(route('jenis-simpanan.index'))->assertRedirect(route('login'));
+        $this->actingAs($finance)->get('/jenis-simpanan')->assertNotFound();
+        $this->actingAs($finance)->get('/jenis-simpanan/create')->assertNotFound();
+        $this->actingAs($finance)->get("/jenis-simpanan/{$jenis->id}/edit")->assertNotFound();
+        $this->actingAs($kasir)->get('/jenis-simpanan')->assertNotFound();
 
         $after = [
             'simpanan' => Simpanan::query()->count(),

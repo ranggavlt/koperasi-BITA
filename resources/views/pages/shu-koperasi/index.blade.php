@@ -1,4 +1,4 @@
-﻿@extends('layout.main')
+@extends('layout.main')
 
 @section('content')
 <div class="w-full px-6 py-6 mx-auto">
@@ -19,9 +19,14 @@
     </div>
   @endif
 
-  <div class="mb-6">
-    <h2 class="text-xl font-bold text-slate-700">SHU Koperasi</h2>
-    <p class="text-sm text-slate-400">Kelola periode SHU koperasi, lalu lanjutkan input transaksi pendapatan dan biaya dari halaman detail.</p>
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-700">SHU Koperasi</h2>
+      <p class="text-sm text-slate-400">Kelola periode SHU koperasi, lalu lanjutkan input transaksi pendapatan dan biaya dari halaman detail.</p>
+    </div>
+    <a href="{{ route('shu-config.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+      <i class="fas fa-cog mr-1"></i> Konfigurasi Default
+    </a>
   </div>
 
   <div class="flex flex-wrap -mx-3">
@@ -66,37 +71,49 @@
 
               <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dana Cadangan (%)</label>
-                <input type="number" name="persen_dana_cadangan" min="0" max="100" step="0.01" value="{{ old('persen_dana_cadangan', 40) }}"
+                <input type="number" name="persen_dana_cadangan" min="0" max="100" step="0.01" value="{{ old('persen_dana_cadangan', $shuConfig->persen_dana_cadangan ?? 40) }}"
                   class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
               <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">SHU Anggota (%)</label>
-                <input type="number" name="persen_shu_anggota" min="0" max="100" step="0.01" value="{{ old('persen_shu_anggota', 40) }}"
+                <input type="number" name="persen_shu_anggota" min="0" max="100" step="0.01" value="{{ old('persen_shu_anggota', $shuConfig->persen_anggota ?? 40) }}"
                   class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
               <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pengurus (%)</label>
-                <input type="number" name="persen_pengurus" min="0" max="100" step="0.01" value="{{ old('persen_pengurus', 10) }}"
+                <input type="number" name="persen_pengurus" min="0" max="100" step="0.01" value="{{ old('persen_pengurus', $shuConfig->persen_pengurus ?? 10) }}"
                   class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
               <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dana Sosial (%)</label>
-                <input type="number" name="persen_dana_sosial" min="0" max="100" step="0.01" value="{{ old('persen_dana_sosial', 5) }}"
+                <input type="number" name="persen_dana_sosial" min="0" max="100" step="0.01" value="{{ old('persen_dana_sosial', $shuConfig->persen_dana_sosial ?? 5) }}"
                   class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
               <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dana Pendidikan (%)</label>
-                <input type="number" name="persen_dana_pendidikan" min="0" max="100" step="0.01" value="{{ old('persen_dana_pendidikan', 5) }}"
+                <input type="number" name="persen_dana_pendidikan" min="0" max="100" step="0.01" value="{{ old('persen_dana_pendidikan', $shuConfig->persen_dana_pendidikan ?? 5) }}"
+                  class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+              </div>
+
+              <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pembina (%)</label>
+                <input type="number" name="persen_pembina" min="0" max="100" step="0.01" value="{{ old('persen_pembina', $shuConfig->persen_pembina ?? 0) }}"
+                  class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
+              </div>
+
+              <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
+                <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pengawas (%)</label>
+                <input type="number" name="persen_pengawas" min="0" max="100" step="0.01" value="{{ old('persen_pengawas', $shuConfig->persen_pengawas ?? 0) }}"
                   class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
               <div class="mt-4 w-full max-w-full px-3 md:w-6/12">
                 <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jasa Modal dari SHU Anggota (%)</label>
-                <input type="number" name="persen_jasa_modal" min="0" max="100" step="0.01" value="{{ old('persen_jasa_modal', 50) }}"
+                <input type="number" name="persen_jasa_modal" min="0" max="100" step="0.01" value="{{ old('persen_jasa_modal', $shuConfig->persen_jasa_modal ?? 50) }}"
                   class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
               </div>
 
@@ -198,16 +215,6 @@
                           class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
                           Detail
                         </a>
-
-                        <form action="{{ route('shu-koperasi.destroy', $item) }}" method="POST"
-                          onsubmit="return confirm('Yakin ingin menghapus periode SHU ini?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                            Hapus
-                          </button>
-                        </form>
                       </div>
                     </td>
                   </tr>

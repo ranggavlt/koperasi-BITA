@@ -49,9 +49,9 @@ class StoreSimpananRequest extends FormRequest
             'jenis_transaksi.required' => 'Jenis transaksi wajib dipilih.',
             'metode_pembayaran.required' => 'Metode pembayaran wajib dipilih.',
             'dompet_id.required' => 'Dompet Kas/Bank wajib dipilih.',
-            'jumlah.required' => 'Nominal Simpanan Sukarela wajib diisi.',
-            'jumlah.integer' => 'Nominal Simpanan Sukarela harus berupa Rupiah bulat.',
-            'jumlah.min' => 'Nominal Simpanan Sukarela wajib lebih besar dari nol.',
+            'jumlah.required' => 'Nominal simpanan wajib diisi.',
+            'jumlah.integer' => 'Nominal simpanan harus berupa Rupiah bulat.',
+            'jumlah.min' => 'Nominal simpanan wajib lebih besar dari nol.',
             'tanggal.required' => 'Tanggal simpanan wajib diisi.',
         ];
     }

@@ -36,7 +36,7 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($finance)->get(route('karyawan.index'))->assertOk();
         $this->actingAs($finance)->get(route('periode-potong-gaji.index'))->assertOk();
         $this->actingAs($finance)->get(route('pinjaman.index'))->assertOk();
-        $this->actingAs($finance)->get(route('aset-mobil.index'))->assertOk();
+        $this->actingAs($finance)->get('/aset-mobil')->assertNotFound();
         $this->actingAs($finance)->get(route('sewa-printer.index'))->assertOk();
         $this->actingAs($finance)->get(route('beban-operasional.index'))->assertOk();
         $this->actingAs($finance)->get(route('laporan.potong-gaji'))->assertOk();
@@ -67,7 +67,7 @@ class AccessMatrixTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSee('Karyawan')
-            ->assertSee('Sewa Printer')
+            ->assertSee('Sewa Hardware')
             ->assertSee('Laporan Potong Gaji')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Jasa Print')

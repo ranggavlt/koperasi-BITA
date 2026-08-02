@@ -236,21 +236,6 @@
         </a>
       </li>
 
-      {{-- VENDOR --}}
-      @php $active = $is('vendor.*'); @endphp
-      <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('vendor.index') }}">
-          <div class="{{ $iconWrap($active) }}">
-            <svg width="12px" height="12px" viewBox="0 0 24 24"
-                 class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
-              <path fill="currentColor"
-                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
-            </svg>
-          </div>
-          <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">Vendor / Supplier</span>
-        </a>
-      </li>
-
       {{-- ANGGOTA --}}
       @php $active = $is('anggota.*'); @endphp
       <li class="mt-0.5 w-full">
@@ -475,7 +460,7 @@
         </a>
       </li>
 
-      {{-- SEWA PRINTER --}}
+      {{-- SEWA HARDWARE --}}
       @php $active = $is('sewa-printer.*'); @endphp
       <li class="mt-0.5 w-full">
         <a class="{{ $linkClass($active) }}" href="{{ route('sewa-printer.index') }}">
@@ -577,10 +562,10 @@
         </a>
       </li>
 
-      {{-- KLAIM DANA KHUSUS --}}
-      @php $active = $is('klaim-dana-khusus.index'); @endphp
+      {{-- KLAIM DANA SOSIAL --}}
+      @php $active = $is('klaim-dana-sosial.*'); @endphp
       <li class="mt-0.5 w-full">
-        <a class="{{ $linkClass($active) }}" href="{{ route('klaim-dana-khusus.index') }}">
+        <a class="{{ $linkClass($active) }}" href="{{ route('klaim-dana-sosial.index') }}">
           <div class="{{ $iconWrap($active) }}">
             <svg width="12px" height="12px" viewBox="0 0 24 24"
                  class="fill-current {{ $iconColor($active) }}" xmlns="http://www.w3.org/2000/svg">
@@ -636,7 +621,7 @@
             </svg>
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-            Outstanding Cash
+            Tagihan Tunai
           </span>
         </a>
       </li>
@@ -666,7 +651,7 @@
             </svg>
           </div>
           <span class="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
-            Audit Reversal
+            Riwayat Koreksi Transaksi
           </span>
         </a>
       </li>

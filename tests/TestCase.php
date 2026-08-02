@@ -51,7 +51,7 @@ abstract class TestCase extends BaseTestCase
             ],
             JenisSimpanan::KATEGORI_SUKARELA => [
                 'kode' => JenisSimpanan::KODE_SIMPANAN_SUKARELA,
-                'nama_jenis' => 'Simpanan Sukarela',
+                'nama_jenis' => 'Simpanan Manasuka',
                 'nominal_default' => '0.00',
                 'interval_bulan' => null,
                 'wajib' => false,

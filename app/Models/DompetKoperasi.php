@@ -22,12 +22,14 @@ class DompetKoperasi extends Model
         'nama_dompet',
         'jenis_dompet',
         'is_default_penerimaan_payroll',
+        'is_kas_operasional',
         'default_payroll_marker',
         'saldo',
     ];
 
     protected $casts = [
         'is_default_penerimaan_payroll' => 'boolean',
+        'is_kas_operasional' => 'boolean',
         'saldo' => 'decimal:2',
     ];
 

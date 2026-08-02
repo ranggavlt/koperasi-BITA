@@ -30,6 +30,7 @@ class User extends Authenticatable
         'account_deactivated_by',
         'account_deactivated_at',
         'avatar_path',
+        'karyawan_id',
     ];
 
     /**
@@ -62,5 +63,10 @@ class User extends Authenticatable
     public function createdEmployeeAccounts()
     {
         return $this->hasMany(User::class, 'account_created_by');
+    }
+
+    public function karyawan()
+    {
+        return $this->belongsTo(Karyawan::class);
     }
 }

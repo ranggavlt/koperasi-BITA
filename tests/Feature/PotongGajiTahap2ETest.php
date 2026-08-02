@@ -191,6 +191,7 @@ class PotongGajiTahap2ETest extends TestCase
             'tipe_pelanggan' => Penjualan::TIPE_ANGGOTA,
             'anggota_id' => $anggota->id,
             'metode_pembayaran' => Pembayaran::METODE_POTONG_GAJI,
+            'tanggal_transaksi' => '2026-07-12 09:00:00',
             'items' => [['produk_id' => $produk->id, 'jumlah' => 1]],
             'diskon' => 0,
         ], $user->id);

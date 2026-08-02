@@ -15,6 +15,8 @@ class PemakaianPotongGaji extends Model
 
     public const KATEGORI_SIMPANAN_WAJIB = 'simpanan_wajib';
 
+    public const KATEGORI_SIMPANAN_MANASUKA = 'simpanan_manasuka';
+
     public const KATEGORI_POS = 'pos';
 
     public const KATEGORI_JASA_PRINT = 'jasa_print';

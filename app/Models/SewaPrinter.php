@@ -31,7 +31,10 @@ class SewaPrinter extends Model
     protected $fillable = [
         'kode_sewa',
         'nama_perusahaan_snapshot',
-        'karyawan_pic_id',
+        'perusahaan_id',
+        'kode_perusahaan_snapshot',
+        'model_sumber',
+        'karyawan_id',
         'mulai_tanggal',
         'selesai_tanggal',
         'kebutuhan',
@@ -113,12 +116,27 @@ class SewaPrinter extends Model
 
     public function karyawanPic()
     {
-        return $this->belongsTo(Karyawan::class, 'karyawan_pic_id');
+        return $this->belongsTo(Karyawan::class, 'karyawan_id');
     }
 
     public function karyawan()
     {
-        return $this->belongsTo(Karyawan::class, 'karyawan_pic_id');
+        return $this->belongsTo(Karyawan::class, 'karyawan_id');
+    }
+
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class);
+    }
+
+    public function pembayaranVendor()
+    {
+        return $this->morphOne(PembayaranVendorSewa::class, 'sewa');
+    }
+
+    public function invoiceDetail()
+    {
+        return $this->morphOne(InvoicePenagihanDetail::class, 'referensi');
     }
 
     public function pembayaran()

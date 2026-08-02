@@ -10,6 +10,7 @@ use App\Models\Penjualan;
 use App\Models\PenyelesaianKeanggotaan;
 use App\Models\Pinjaman;
 use App\Models\PengurusKoperasi;
+use App\Models\Perusahaan;
 use App\Models\ShuAnggota;
 use App\Models\ShuKoperasi;
 use App\Models\Simpanan;
@@ -431,6 +432,7 @@ class MasterDataKoperasiTest extends TestCase
     {
         $keuangan = User::factory()->create(['role' => 'admin']);
         $kasir = User::factory()->create(['role' => 'kasir']);
+        $perusahaan = Perusahaan::query()->create(['kode' => 'BEE', 'nama' => 'Bita Enarcon Engineering']);
 
         $this->actingAs($keuangan)->get(route('karyawan.index'))->assertOk();
         $this->actingAs($keuangan)->get(route('anggota.index'))->assertOk();
@@ -442,6 +444,7 @@ class MasterDataKoperasiTest extends TestCase
             'telepon' => '081234567890',
             'jabatan' => 'Staf Uji',
             'status_kerja' => 'aktif',
+            'perusahaan_id' => $perusahaan->id,
         ])->assertRedirect(route('karyawan.index'));
 
         $karyawan = Karyawan::query()->where('email', 'karyawan.kelola@example.test')->firstOrFail();

@@ -59,12 +59,64 @@
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="alamat">Alamat rumah lengkap</label>
           <textarea id="alamat" name="alamat" rows="3" required class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">{{ old('alamat', $data->alamat ?? '') }}</textarea>
         </div>
+        @if(isset($data))
+          <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 class="mb-1 text-sm font-bold uppercase text-slate-700">Simpanan Manasuka Rutin (PG-2)</h3>
+            <p class="mb-4 text-xs text-slate-500">
+              Konfigurasi saat ini:
+              <strong>{{ $manasukaConfig ? ucfirst($manasukaConfig->status) : 'Belum diatur' }}</strong>
+              @if($manasukaConfig)
+                &bull; Rp {{ number_format((float) $manasukaConfig->nominal_snapshot, 0, ',', '.') }}
+                &bull; berlaku {{ $manasukaConfig->berlaku_mulai->format('m/Y') }}
+              @endif
+            </p>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="manasuka_rutin_status">Perubahan Status</label>
+                <select id="manasuka_rutin_status" name="manasuka_rutin_status" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                  <option value="">Tidak mengubah konfigurasi</option>
+                  <option value="aktif" {{ old('manasuka_rutin_status') === 'aktif' ? 'selected' : '' }}>Aktif</option>
+                  <option value="dijeda" {{ old('manasuka_rutin_status') === 'dijeda' ? 'selected' : '' }}>Dijeda</option>
+                  <option value="dihentikan" {{ old('manasuka_rutin_status') === 'dihentikan' ? 'selected' : '' }}>Dihentikan</option>
+                </select>
+                <p class="mt-1 text-xs text-slate-400">Perubahan berlaku mulai {{ $manasukaEffectivePeriod->format('m/Y') }} dan hanya dapat dilakukan Admin Keuangan.</p>
+              </div>
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="manasuka_rutin_nominal">Nominal Potongan per Bulan</label>
+                <input id="manasuka_rutin_nominal" name="manasuka_rutin_nominal" type="number" min="0" step="1000"
+                  value="{{ old('manasuka_rutin_nominal', (int) ($manasukaConfig->nominal_snapshot ?? $data->manasuka_rutin_nominal ?? 0)) }}"
+                  class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
+                <p class="mt-1 text-xs text-slate-400">Wajib penuh: jika sisa limit tidak cukup, seluruh nominal bulan itu dilewati tanpa potongan parsial.</p>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="manasuka_rutin_alasan">Alasan Perubahan</label>
+                <textarea id="manasuka_rutin_alasan" name="manasuka_rutin_alasan" rows="2" maxlength="1000"
+                  class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                  placeholder="Wajib diisi saat konfigurasi diubah (minimal 5 karakter).">{{ old('manasuka_rutin_alasan') }}</textarea>
+              </div>
+            </div>
+            <input type="hidden" name="manasuka_rutin_idempotency_key" value="{{ old('manasuka_rutin_idempotency_key', $manasukaIdempotencyKey) }}" />
+          </div>
+        @endif
       </div>
       <div class="mt-6 flex gap-3">
         <button type="submit" class="rounded-xl bg-[#2f8f3a] px-6 py-3 text-xs font-bold uppercase text-white shadow-lg hover:bg-[#267832]">{{ isset($data) ? 'Simpan Perubahan' : 'Simpan Anggota' }}</button>
         @if(isset($data))<a href="{{ route('anggota.index') }}" class="rounded-xl border border-slate-200 px-6 py-3 text-xs font-bold uppercase text-slate-500">Batal</a>@endif
       </div>
     </form>
+    @if(isset($data))
+      <section class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <h3 class="mb-1 text-sm font-bold uppercase text-slate-700">Kebijakan Payroll Anggota</h3>
+        <p class="mb-4 text-xs text-slate-500">Limit efektif {{ $payrollNextPeriod->format('m/Y') }}: <strong>Rp {{ number_format($payrollResolved['nominal'],0,',','.') }}</strong> ({{ str_replace('_',' ',$payrollResolved['sumber']) }}). Kredit Waserba: <strong>{{ $payrollResolved['kredit_waserba_aktif'] ? 'Aktif' : 'Nonaktif' }}</strong>. Semua perubahan berlaku periode berikutnya.</p>
+        <form method="POST" action="{{ route('anggota.payroll-policy.update',$data) }}" class="grid gap-4 md:grid-cols-2">@csrf
+          <div><label class="mb-2 block text-xs font-bold uppercase text-slate-600">Override limit persisten</label><input type="number" min="0" name="limit_override_nominal" value="{{ $payrollResolved['sumber']==='override_anggota'?$payrollResolved['nominal']:'' }}" placeholder="Kosong = ikut limit umum" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"></div>
+          <div><label class="mb-2 block text-xs font-bold uppercase text-slate-600">Kredit Waserba</label><input type="hidden" name="kredit_waserba_aktif" value="0"><label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><input type="checkbox" name="kredit_waserba_aktif" value="1" @checked($payrollResolved['kredit_waserba_aktif'])> Izinkan transaksi payroll Waserba</label></div>
+          <div class="md:col-span-2"><label class="mb-2 block text-xs font-bold uppercase text-slate-600">Alasan perubahan</label><textarea name="alasan" required minlength="5" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"></textarea></div>
+          <div><button class="kbsm-btn kbsm-btn--navy">Jadwalkan Perubahan</button></div>
+        </form>
+        <form method="POST" action="{{ route('anggota.payroll-policy.reset',$data) }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf<input type="hidden" name="kredit_waserba_aktif" value="{{ $payrollResolved['kredit_waserba_aktif']?1:0 }}"><div class="grow"><label class="mb-2 block text-xs font-bold uppercase text-slate-600">Alasan reset</label><input name="alasan" required minlength="5" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"></div><button class="kbsm-btn kbsm-btn--outline-slate">Reset ke Rp1.500.000</button></form>
+      </section>
+    @endif
   </section>
 
   <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">

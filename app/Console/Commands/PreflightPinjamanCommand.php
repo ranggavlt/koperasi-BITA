@@ -23,6 +23,7 @@ class PreflightPinjamanCommand extends Command
             $this->check('nominal_sistem_invalid', 'Pinjaman melebihi Rp5.000.000 atau nominal tidak valid', $this->invalidAmount()),
             $this->check('melebihi_plafon_snapshot', 'Pinjaman lebih besar dari plafon snapshot', $this->exceedsSnapshot()),
             $this->check('bunga_bukan_nol', 'Bunga Pinjaman bukan 0%', $this->nonZeroInterest()),
+            $this->check('biaya_admin_invalid', 'Biaya admin Pinjaman bukan Rp50.000', $this->invalidAdminFee()),
             $this->check('tenor_invalid', 'Tenor di luar 1-12 bulan', $this->invalidTenor()),
             $this->check('pre_disbursement_posting', 'Draft/diajukan/disetujui sudah memiliki Mutasi/Jurnal/Jadwal', $this->preDisbursementPosting()),
             $this->check('aktif_tanpa_mutasi', 'Pinjaman aktif tanpa Mutasi pencairan', $this->activeWithoutPosting('mutasi_kas')),
@@ -181,6 +182,15 @@ class PreflightPinjamanCommand extends Command
         }
 
         return DB::table('pinjaman')->where('bunga_persen', '!=', 0)->count();
+    }
+
+    private function invalidAdminFee(): int
+    {
+        if (! Schema::hasTable('pinjaman')) {
+            return 0;
+        }
+
+        return DB::table('pinjaman')->where('biaya_admin', '!=', 50000)->count();
     }
 
     private function invalidTenor(): int

@@ -57,7 +57,7 @@ class SewaPrinterTest extends TestCase
             'vendor_alamat' => 'Jl. Vendor Snapshot',
         ]), $finance->id);
 
-        $this->assertMatchesRegularExpression('/^SWP-\d{6}-\d{6}$/', $sewa->kode_sewa);
+        $this->assertMatchesRegularExpression('/^SWH-\d{6}-\d{6}$/', $sewa->kode_sewa);
         $this->assertSame(2000333, $sewa->total_harga_vendor);
         $this->assertSame(300050, $sewa->total_margin);
         $this->assertSame(2300383, $sewa->total_tagihan_perusahaan);
@@ -87,7 +87,8 @@ class SewaPrinterTest extends TestCase
             'is_active' => true,
             'must_change_password' => false,
         ]);
-        Karyawan::factory()->create(['nama' => 'Pemohon Printer Aktif']);
+        $company = \App\Models\Perusahaan::query()->create(['kode' => 'BEE', 'nama' => 'Bita Enarcon Engineering']);
+        Karyawan::factory()->create(['nama' => 'Pemohon Printer Aktif', 'perusahaan_id' => $company->id]);
 
         $this->get(route('sewa-printer.index'))->assertRedirect(route('login'));
         $this->actingAs($kasir)->get(route('sewa-printer.index'))->assertForbidden();
@@ -97,16 +98,16 @@ class SewaPrinterTest extends TestCase
 
         $indexResponse = $this->actingAs($finance)->get(route('sewa-printer.index'));
         $indexResponse->assertOk()
-            ->assertSee('Filter Sewa Printer')
-            ->assertSee('Daftar Sewa Printer')
-            ->assertSee('+ TAMBAH SEWA PRINTER')
+            ->assertSee('Filter Sewa Hardware')
+            ->assertSee('Daftar Sewa Hardware')
+            ->assertSee('+ TAMBAH SEWA HARDWARE')
             ->assertSee('href="' . route('sewa-printer.create') . '"', false)
             ->assertDontSee('data-sewa-printer-form', false);
 
         $response = $this->actingAs($finance)->get(route('sewa-printer.create'));
         $response->assertOk()
-            ->assertSee('Tambah Sewa Printer')
-            ->assertSee('Kembali ke Daftar Sewa Printer')
+            ->assertSee('Tambah Sewa Hardware')
+            ->assertSee('Kembali ke Daftar Sewa Hardware')
             ->assertSee('Pemohon Printer Aktif')
             ->assertSee('Vendor')
             ->assertSee('Tambah Printer')
@@ -116,11 +117,11 @@ class SewaPrinterTest extends TestCase
         $this->assertSame(1, substr_count($content, 'name="details[0][jenis_model_printer]"'));
         $this->assertStringNotContainsString('name="details[1][jenis_model_printer]"', $content);
 
-        $draft = app(SewaPrinterService::class)->createDraft($this->payload(Karyawan::factory()->create(['nama' => 'Pemohon Edit Printer'])), $finance->id);
+        $draft = app(SewaPrinterService::class)->createDraft($this->payload(Karyawan::factory()->create(['nama' => 'Pemohon Edit Printer', 'perusahaan_id' => $company->id])), $finance->id);
         $this->actingAs($finance)
             ->get(route('sewa-printer.edit', $draft))
             ->assertOk()
-            ->assertSee('Edit Draft Sewa Printer')
+            ->assertSee('Edit Draft Sewa Hardware')
             ->assertSee('Pemohon Edit Printer')
             ->assertSee('data-sewa-printer-form', false);
 
@@ -389,17 +390,9 @@ class SewaPrinterTest extends TestCase
             'status' => SewaPrinter::STATUS_DIKONFIRMASI,
             'status_pembayaran' => SewaPrinter::PEMBAYARAN_BELUM_BAYAR,
         ]);
-        $this->assertDatabaseHas('sewa_printer', [
-            'status' => SewaPrinter::STATUS_DIKONFIRMASI,
-            'status_pembayaran' => SewaPrinter::PEMBAYARAN_PAID,
-        ]);
-        $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_BERJALAN]);
-        $this->assertDatabaseHas('sewa_printer', ['status' => SewaPrinter::STATUS_SELESAI]);
-        $this->assertDatabaseHas('sewa_printer', [
-            'status' => SewaPrinter::STATUS_DIBATALKAN,
-            'status_pembayaran' => SewaPrinter::PEMBAYARAN_BELUM_BAYAR,
-        ]);
-        $this->assertTrue(DB::table('sewa_printer_detail')->where('kuantitas', '>', 1)->exists());
+        $this->assertDatabaseHas('pembayaran_vendor_sewa', ['sewa_type' => SewaPrinter::class, 'status' => 'paid']);
+        $this->assertDatabaseHas('invoice_penagihan_detail', ['referensi_type' => SewaPrinter::class]);
+        $this->assertDatabaseHas('invoice_penagihan', ['status' => 'partial']);
         $this->assertSame(0, DB::table('jurnal_umum_detail')->where('akun_kode', '405')->where('kredit', '>', 0)->count());
         $this->assertSame(0, PemakaianPotongGaji::query()->whereIn('source_type', [SewaPrinter::class, PembayaranSewaPrinter::class])->count());
         $this->artisan('koperasi:preflight-sewa-printer')->assertExitCode(0);

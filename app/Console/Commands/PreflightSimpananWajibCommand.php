@@ -33,7 +33,7 @@ class PreflightSimpananWajibCommand extends Command
             $this->check('ledger_aktif_ganda', 'Ledger aktif ganda untuk satu jadwal Wajib', $this->duplicateActiveLedger()),
             $this->check('ledger_nominal_mismatch', 'Nominal ledger tidak sama dengan snapshot jadwal', $this->ledgerNominalMismatch()),
             $this->check('reserved_tanpa_ledger', 'Jadwal reserved tanpa ledger reserved', $this->reservedWithoutLedger()),
-            $this->check('settled_tanpa_payroll', 'Jadwal settled tanpa ledger payroll settled', $this->settledWithoutPayroll()),
+            $this->check('settled_tanpa_posting', 'Jadwal settled tanpa posting payroll atau pembayaran langsung yang valid', $this->settledWithoutPosting()),
             $this->check('ledger_settled_source_belum_settled', 'Ledger settled tetapi jadwal/simpanan belum settled', $this->ledgerSettledButSourceOpen()),
             $this->check('pos_priority_violation', 'POS payroll aktif saat Wajib jatuh tempo belum dialokasikan', $this->posPriorityViolation()),
             $this->check('pos_tunai_ada_ledger_payroll', 'POS non-payroll mempunyai ledger potong gaji', $this->posNonPayrollWithLedger()),
@@ -41,6 +41,7 @@ class PreflightSimpananWajibCommand extends Command
             $this->check('ledger_category_invalid', 'Kategori ledger potong gaji tidak dikenal', $this->invalidLedgerCategory()),
             $this->check('idempotency_wajib_duplicate', 'Duplicate idempotency Simpanan Wajib/ledger/Mutasi/Jurnal', $this->duplicateWajibIdempotency()),
             $this->check('posting_payroll_wajib_invalid', 'Mutasi/Jurnal payroll Simpanan Wajib hilang, ganda, atau orphan', $this->invalidPayrollPosting()),
+            $this->check('posting_direct_wajib_invalid', 'Mutasi/Jurnal pembayaran langsung Simpanan Wajib hilang atau ganda', $this->invalidDirectPosting()),
             $this->check('jurnal_wajib_tidak_seimbang', 'Jurnal Simpanan Wajib/payroll tidak seimbang', $this->unbalancedWajibJournal()),
         ];
 
@@ -279,22 +280,36 @@ class PreflightSimpananWajibCommand extends Command
             ->count('j.id');
     }
 
-    private function settledWithoutPayroll(): int
+    private function settledWithoutPosting(): int
     {
-        if (! $this->hasTables(['jadwal_simpanan_wajib', 'pemakaian_potong_gaji'])) {
+        if (! $this->hasTables(['jadwal_simpanan_wajib', 'simpanan', 'pemakaian_potong_gaji', 'mutasi_kas', 'jurnal_umum'])) {
             return 0;
         }
 
         return DB::table('jadwal_simpanan_wajib as j')
-            ->leftJoin('pemakaian_potong_gaji as p', function ($join): void {
-                $join->on('p.source_id', '=', 'j.id')
-                    ->where('p.source_type', '=', JadwalSimpananWajib::class)
-                    ->where('p.kategori', '=', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
-                    ->where('p.status', '=', PemakaianPotongGaji::STATUS_SETTLED);
-            })
+            ->leftJoin('simpanan as s', 's.jadwal_simpanan_wajib_id', '=', 'j.id')
             ->where('j.status', JadwalSimpananWajib::STATUS_SETTLED)
-            ->whereNull('p.id')
-            ->count('j.id');
+            ->get(['j.id', 's.id as simpanan_id'])
+            ->filter(function ($row): bool {
+                $payroll = DB::table('pemakaian_potong_gaji')
+                    ->where('source_type', JadwalSimpananWajib::class)
+                    ->where('source_id', $row->id)
+                    ->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)
+                    ->where('status', PemakaianPotongGaji::STATUS_SETTLED)
+                    ->exists();
+
+                if ($payroll) {
+                    return false;
+                }
+
+                if (! $row->simpanan_id) {
+                    return true;
+                }
+
+                return DB::table('mutasi_kas')->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$row->simpanan_id)->count() !== 1
+                    || DB::table('jurnal_umum')->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$row->simpanan_id)->count() !== 1;
+            })
+            ->count();
     }
 
     private function ledgerSettledButSourceOpen(): int
@@ -376,6 +391,7 @@ class PreflightSimpananWajibCommand extends Command
                 PemakaianPotongGaji::KATEGORI_CICILAN,
                 PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK,
                 PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB,
+                PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA,
                 PemakaianPotongGaji::KATEGORI_POS,
                 PemakaianPotongGaji::KATEGORI_JASA_PRINT,
             ])
@@ -449,6 +465,23 @@ class PreflightSimpananWajibCommand extends Command
             ->count();
 
         return $issues;
+    }
+
+    private function invalidDirectPosting(): int
+    {
+        if (! $this->hasTables(['simpanan', 'mutasi_kas', 'jurnal_umum'])) {
+            return 0;
+        }
+
+        return DB::table('simpanan')
+            ->where('kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('status', Simpanan::STATUS_SETTLED_CASH)
+            ->get(['id'])
+            ->filter(fn ($simpanan): bool =>
+                DB::table('mutasi_kas')->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$simpanan->id)->count() !== 1
+                || DB::table('jurnal_umum')->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$simpanan->id)->count() !== 1
+            )
+            ->count();
     }
 
     private function unbalancedWajibJournal(): int

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class ShuKoperasi extends Model
 {
@@ -41,6 +42,12 @@ class ShuKoperasi extends Model
         'dihitung_pada',
         'keterangan',
         'json_pengurus_split',
+        'status',
+        'config_snapshot',
+        'source_snapshot',
+        'closed_at',
+        'closed_by',
+        'idempotency_key',
     ];
 
     protected $casts = [
@@ -71,7 +78,20 @@ class ShuKoperasi extends Model
         'nominal_jasa_usaha' => 'decimal:2',
         'total_bobot_modal' => 'decimal:2',
         'total_bobot_usaha' => 'decimal:2',
+        'config_snapshot' => 'array',
+        'source_snapshot' => 'array',
+        'closed_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(fn () => throw new RuntimeException('Periode SHU adalah histori audit dan tidak boleh dihapus permanen.'));
+        static::updating(function (self $model): void {
+            if ($model->getOriginal('status') === 'closed' || $model->getOriginal('closed_at') !== null) {
+                throw new RuntimeException('Periode SHU yang sudah ditutup bersifat immutable.');
+            }
+        });
+    }
 
     public function transaksi()
     {

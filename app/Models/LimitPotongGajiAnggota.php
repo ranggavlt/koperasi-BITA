@@ -26,6 +26,11 @@ class LimitPotongGajiAnggota extends Model
         'anggota_id',
         'dompet_penerimaan_id',
         'limit_nominal',
+        'sumber_limit_snapshot',
+        'perusahaan_id_snapshot',
+        'kode_perusahaan_snapshot',
+        'nama_perusahaan_snapshot',
+        'kredit_waserba_aktif_snapshot',
         'status',
         'activated_by',
         'confirmed_by',
@@ -40,6 +45,7 @@ class LimitPotongGajiAnggota extends Model
 
     protected $casts = [
         'limit_nominal' => 'decimal:2',
+        'kredit_waserba_aktif_snapshot' => 'boolean',
         'activated_at' => 'datetime',
         'closed_at' => 'datetime',
         'confirmed_at' => 'datetime',

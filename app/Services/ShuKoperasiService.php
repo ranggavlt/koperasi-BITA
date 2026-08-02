@@ -11,6 +11,7 @@ use App\Models\Simpanan;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class ShuKoperasiService
 {
@@ -26,6 +27,7 @@ class ShuKoperasiService
     public function update(ShuKoperasi $shuKoperasi, array $data): ShuKoperasi
     {
         return DB::transaction(function () use ($shuKoperasi, $data) {
+            $this->assertMutable($shuKoperasi);
             $shuKoperasi->update($data);
 
             return $this->refresh($shuKoperasi);
@@ -35,6 +37,7 @@ class ShuKoperasiService
     public function addTransaksi(ShuKoperasi $shuKoperasi, array $data): ShuTransaksi
     {
         return DB::transaction(function () use ($shuKoperasi, $data) {
+            $this->assertMutable($shuKoperasi);
             $transaksi = $shuKoperasi->transaksi()->create($data);
 
             $this->refresh($shuKoperasi->fresh());
@@ -45,20 +48,13 @@ class ShuKoperasiService
 
     public function deleteTransaksi(ShuTransaksi $shuTransaksi): void
     {
-        DB::transaction(function () use ($shuTransaksi) {
-            $shuKoperasi = $shuTransaksi->shuKoperasi;
-
-            $shuTransaksi->delete();
-
-            if ($shuKoperasi) {
-                $this->refresh($shuKoperasi->fresh());
-            }
-        });
+        throw new RuntimeException('Penghapusan transaksi SHU dinonaktifkan. Data sumber wajib immutable dan dikoreksi melalui mekanisme audit setelah formula final disetujui.');
     }
 
     public function refresh(ShuKoperasi $shuKoperasi): ShuKoperasi
     {
         return DB::transaction(function () use ($shuKoperasi) {
+            $this->assertMutable($shuKoperasi);
             $shuKoperasi->load('transaksi');
 
             $totalPendapatan = round((float) $shuKoperasi->transaksi
@@ -212,5 +208,12 @@ class ShuKoperasiService
     protected function calculateNominal(float $nilaiDasar, float $persen): float
     {
         return round($nilaiDasar * $persen / 100, 2);
+    }
+
+    private function assertMutable(ShuKoperasi $shuKoperasi): void
+    {
+        if ($shuKoperasi->status === 'closed' || $shuKoperasi->closed_at !== null) {
+            throw new RuntimeException('Periode SHU yang sudah ditutup bersifat immutable dan tidak dapat dihitung ulang.');
+        }
     }
 }

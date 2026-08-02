@@ -18,27 +18,35 @@ class SemanticMergeHardeningTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_domain_simpanan_final_adalah_sukarela_dengan_alias_manasuka_non_data(): void
+    public function test_domain_simpanan_final_adalah_manasuka_dengan_alias_legacy_non_data(): void
     {
-        $this->assertSame('SIMPANAN_SUKARELA', JenisSimpanan::KODE_SIMPANAN_SUKARELA);
-        $this->assertSame('sukarela', JenisSimpanan::KATEGORI_SUKARELA);
+        $this->assertSame('SIMPANAN_MANASUKA', JenisSimpanan::KODE_SIMPANAN_SUKARELA);
+        $this->assertSame('manasuka', JenisSimpanan::KATEGORI_SUKARELA);
         $this->assertSame(JenisSimpanan::KODE_SIMPANAN_SUKARELA, JenisSimpanan::KODE_SIMPANAN_MANASUKA);
         $this->assertSame(JenisSimpanan::KATEGORI_SUKARELA, JenisSimpanan::KATEGORI_MANASUKA);
-        $this->assertSame('Sukarela', JenisSimpanan::KATEGORI[JenisSimpanan::KATEGORI_SUKARELA]);
+        $this->assertSame('Manasuka', JenisSimpanan::KATEGORI[JenisSimpanan::KATEGORI_SUKARELA]);
     }
 
-    public function test_seeder_membuat_satu_master_pokok_wajib_sukarela_dan_tidak_membuat_manasuka_terpisah(): void
+    public function test_seeder_membuat_satu_master_manasuka_canonical_tanpa_alias_sukarela(): void
     {
         $this->seed(AkunSeeder::class);
         $this->seed(KoperasiDummySeeder::class);
 
-        $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_POKOK)->count());
+        $this->assertSame(0, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_POKOK)->count());
         $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_WAJIB)->count());
         $this->assertSame(1, JenisSimpanan::query()->where('aktif', true)->where('kategori', JenisSimpanan::KATEGORI_SUKARELA)->count());
-        $this->assertSame(0, JenisSimpanan::query()
+        $this->assertSame(2, JenisSimpanan::query()->where('aktif', true)->count());
+        $wajib = JenisSimpanan::query()->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)->firstOrFail();
+        $this->assertSame('10000.00', $wajib->nominal_default);
+        $this->assertNull($wajib->interval_bulan);
+        $this->assertSame(1, JenisSimpanan::query()
             ->where('kode', 'SIMPANAN_MANASUKA')
-            ->orWhere('kategori', 'manasuka')
-            ->orWhere('nama_jenis', 'like', '%Manasuka%')
+            ->where('kategori', 'manasuka')
+            ->where('nama_jenis', 'Simpanan Manasuka')
+            ->count());
+        $this->assertSame(0, JenisSimpanan::query()
+            ->where('kode', 'SIMPANAN_SUKARELA')
+            ->orWhere('kategori', 'sukarela')
             ->count());
     }
 
@@ -100,8 +108,8 @@ class SemanticMergeHardeningTest extends TestCase
 
     public function test_modul_incoming_tetap_memiliki_route_admin(): void
     {
-        $this->assertTrue(Route::has('vendor.index'));
+        $this->assertFalse(Route::has('vendor.index'));
         $this->assertTrue(Route::has('invoice-penagihan.index'));
-        $this->assertTrue(Route::has('klaim-dana-khusus.index'));
+        $this->assertTrue(Route::has('klaim-dana-sosial.index'));
     }
 }

@@ -130,6 +130,7 @@ class PreflightSewaMobilCommand extends Command
 
         return DB::table('sewa_mobil')
             ->select('id', 'tanggal_mulai', 'tanggal_selesai', 'jumlah_hari', 'tarif_harian_snapshot', 'total_sewa')
+            ->when(Schema::hasColumn('sewa_mobil', 'model_sumber'), fn ($query) => $query->where(fn ($scope) => $scope->whereNull('model_sumber')->orWhere('model_sumber', '!=', 'vendor')))
             ->get()
             ->filter(function ($row): bool {
                 try {
@@ -228,8 +229,8 @@ class PreflightSewaMobilCommand extends Command
 
         return DB::table('sewa_mobil')
             ->where('status', SewaMobil::STATUS_SELESAI)
-            ->pluck('id')
-            ->filter(fn ($id): bool => ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $id)->exists())
+            ->get(['id', ...(Schema::hasColumn('sewa_mobil', 'model_sumber') ? ['model_sumber'] : [])])
+            ->filter(fn ($row): bool => ! DB::table('jurnal_umum')->where('idempotency_key', ($row->model_sumber ?? null) === 'vendor' ? 'b2b:margin:jurnal:'.SewaMobil::class.':'.$row->id : 'sewa-mobil:pengakuan-pendapatan:jurnal:'.$row->id)->exists())
             ->count();
     }
 

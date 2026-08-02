@@ -28,25 +28,16 @@
     <div>
       <p class="kbsm-business-eyebrow">Usaha Koperasi</p>
       <h1 class="kbsm-business-title">Sewa Mobil</h1>
-      <p class="kbsm-business-subtitle">Finance mencatat transaksi untuk Karyawan aktif BITA. Tarif dihitung otomatis dari Master Mobil dan disnapshot agar perubahan tarif master tidak mengubah transaksi lama.</p>
+      <p class="kbsm-business-subtitle">Vendor dibayar lebih dahulu dari Kas Operasional. Perusahaan BEE/BBS/BKM ditagih terpisah melalui invoice.</p>
     </div>
   </div>
 
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Filter Sewa Mobil</h2>
-      <p class="kbsm-business-panel__copy">Gunakan filter Mobil, Karyawan, dan rentang tanggal untuk meninjau transaksi yang periodenya bersinggungan dengan tanggal pilihan.</p>
+      <p class="kbsm-business-panel__copy">Gunakan filter Karyawan dan rentang tanggal untuk meninjau kontrak vendor.</p>
     </div>
     <form method="GET" action="{{ route('sewa-mobil.finance.index') }}" class="kbsm-business-filter kbsm-business-filter--sewa">
-      <div class="kbsm-business-field">
-        <label class="kbsm-business-label">Mobil</label>
-        <select name="aset_koperasi_id" class="kbsm-business-control">
-          <option value="">Semua</option>
-          @foreach($mobilOptions as $mobil)
-            <option value="{{ $mobil->id }}" {{ (string) request('aset_koperasi_id') === (string) $mobil->id ? 'selected' : '' }}>{{ $mobil->kode_aset }} - {{ $mobil->mobil->plat_nomor ?? '-' }}</option>
-          @endforeach
-        </select>
-      </div>
       <div class="kbsm-business-field">
         <label class="kbsm-business-label">Karyawan</label>
         <select name="karyawan_id" class="kbsm-business-control">
@@ -82,7 +73,7 @@
       <table class="kbsm-business-table">
         <thead>
           <tr>
-            <th>Kode</th><th>Pemohon</th><th>Mobil</th><th>Kegiatan</th><th>Periode</th><th>Kalkulasi</th><th>Status</th><th>Approval</th><th>Posting</th><th>Aksi</th>
+            <th>Kode</th><th>Karyawan</th><th>Vendor/Kendaraan</th><th>Kegiatan</th><th>Periode</th><th>Nilai</th><th>Status B2B</th><th>Approval</th><th>Posting</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody>
@@ -95,8 +86,9 @@
                 <div class="kbsm-business-muted">Dicatat: {{ $item->recorder->name ?? $item->creator->name ?? '-' }}</div>
               </td>
               <td>
-                <div class="kbsm-business-strong">{{ $item->aset->kode_aset }} - {{ $item->aset->merek }} {{ $item->aset->model }}</div>
-                <div class="kbsm-business-muted">{{ $item->aset->mobil->plat_nomor ?? '-' }} / {{ $item->aset->status_label }}</div>
+                <div class="kbsm-business-strong">{{ $item->vendor_nama_snapshot }}</div>
+                <div class="kbsm-business-muted">{{ $item->kendaraan_jenis_snapshot }} — {{ $item->kendaraan_merk_tipe_snapshot }}</div>
+                <div class="kbsm-business-muted">{{ $item->nomor_polisi_snapshot }}</div>
               </td>
               <td>
                 <div class="kbsm-business-strong">{{ $item->nama_kegiatan }}</div>
@@ -108,15 +100,14 @@
                 <div>{{ $item->tanggal_selesai?->format('d/m/Y') ?? '-' }}</div>
               </td>
               <td>
-                <div>{{ $item->jumlah_hari }} hari x Rp {{ number_format((int) $item->tarif_harian_snapshot, 0, ',', '.') }}</div>
-                <div class="kbsm-business-strong">Rp {{ number_format((int) $item->total_sewa, 0, ',', '.') }}</div>
-                @if($item->pembayaran)
-                  <div class="kbsm-business-muted">{{ $item->pembayaran->metode_pembayaran }} / {{ $item->pembayaran->dompet->nama_dompet ?? '-' }}</div>
-                @endif
+                <div>Vendor: Rp {{ number_format((int) $item->harga_vendor_total, 0, ',', '.') }}</div>
+                <div>Markup: Rp {{ number_format((int) $item->markup_total, 0, ',', '.') }}</div>
+                <div class="kbsm-business-strong">Tagihan: Rp {{ number_format((int) $item->total_tagihan_perusahaan, 0, ',', '.') }}</div>
               </td>
               <td>
                 <span class="{{ $badge($item->status) }}">{{ $item->status_label }}</span>
-                <div class="kbsm-business-muted">Payment: {{ $item->status_pembayaran }}</div>
+                <div class="kbsm-business-muted">Vendor: {{ $item->pembayaranVendor ? 'dibayar' : 'belum dibayar' }}</div>
+                <div class="kbsm-business-muted">Invoice: {{ $item->invoiceDetail?->invoice?->nomor_invoice ?? 'belum dibuat' }}</div>
               </td>
               <td class="kbsm-business-muted">
                 {{ $item->nama_pengurus_snapshot ?: '-' }}<br>
@@ -159,25 +150,21 @@
                     </form>
                   @endif
 
-                  @if($item->status === 'disetujui' && $item->status_pembayaran === 'belum_bayar')
-                    <form method="POST" action="{{ route('sewa-mobil.finance.pay', $item) }}" class="kbsm-business-inline-row">
+                  @if($item->status === 'disetujui' && !$item->pembayaranVendor)
+                    <form method="POST" action="{{ route('sewa-mobil.finance.pay-vendor', $item) }}" class="kbsm-business-inline-row">
                       @csrf
-                      <select name="metode_pembayaran" required class="kbsm-business-control">
-                        <option value="tunai">Tunai</option>
-                        <option value="transfer_bank">Transfer Bank</option>
-                      </select>
                       <select name="dompet_id" required class="kbsm-business-control">
-                        <option value="">Dompet</option>
-                        @foreach($dompetOptions as $dompet)
-                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} ({{ $dompet->jenis_dompet }})</option>
+                        <option value="">Kas Operasional</option>
+                        @foreach($kasOperasionalOptions as $dompet)
+                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }}</option>
                         @endforeach
                       </select>
-                      <input type="number" name="jumlah_bayar" readonly value="{{ (int) $item->total_sewa }}" class="kbsm-business-control">
-                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Bayar</button>
+                      <input type="date" name="tanggal_bayar" required value="{{ now()->toDateString() }}" class="kbsm-business-control">
+                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Bayar Vendor</button>
                     </form>
                   @endif
 
-                  @if($item->status === 'disetujui' && $item->status_pembayaran === 'paid')
+                  @if($item->status === 'disetujui' && $item->pembayaranVendor)
                     <form method="POST" action="{{ route('sewa-mobil.finance.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
                   @endif
 

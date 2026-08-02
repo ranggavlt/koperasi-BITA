@@ -118,13 +118,8 @@
                 <div class="kbsm-business-muted">Payment: {{ $item->status_pembayaran }}</div>
               </td>
               <td class="kbsm-business-muted">
-                @if($item->pembayaran)
-                  Terima: {{ $item->pembayaran->metode_penerimaan }} / {{ $item->pembayaran->dompetPenerimaan->nama_dompet ?? '-' }}<br>
-                  Vendor: {{ $item->pembayaran->metode_pembayaran_vendor }} / {{ $item->pembayaran->dompetVendor->nama_dompet ?? '-' }}<br>
-                  {{ $item->pembayaran->paid_at->format('d/m/Y H:i') }}
-                @else
-                  Belum bayar
-                @endif
+                Vendor: {{ $item->pembayaranVendor ? 'dibayar dari '.$item->pembayaranVendor->dompet->nama_dompet : 'belum dibayar' }}<br>
+                Invoice: {{ $item->invoiceDetail?->invoice?->nomor_invoice ?? 'belum dibuat' }}
               </td>
               <td class="kbsm-business-muted">
                 <div>Jurnal kontrak: {{ $item->jurnal->count() }}</div>
@@ -145,32 +140,17 @@
                     </form>
                   @endif
 
-                  @if($item->status === 'dikonfirmasi' && $item->status_pembayaran === 'belum_bayar')
-                    <form method="POST" action="{{ route('sewa-printer.pay', $item) }}" class="kbsm-business-inline-row">
+                  @if($item->status === 'dikonfirmasi' && !$item->pembayaranVendor)
+                    <form method="POST" action="{{ route('sewa-printer.pay-vendor', $item) }}" class="kbsm-business-inline-row">
                       @csrf
-                      <select name="metode_penerimaan" required class="kbsm-business-control">
-                        <option value="tunai">Terima Tunai</option>
-                        <option value="transfer_bank">Terima Transfer Bank</option>
-                      </select>
-                      <select name="dompet_penerimaan_id" required class="kbsm-business-control">
-                        <option value="">Dompet Penerimaan</option>
-                        @foreach($dompetOptions as $dompet)
-                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} ({{ $dompet->jenis_dompet }})</option>
+                      <select name="dompet_id" required class="kbsm-business-control">
+                        <option value="">Kas Operasional</option>
+                        @foreach($kasOperasionalOptions as $dompet)
+                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }}</option>
                         @endforeach
                       </select>
-                      <select name="metode_pembayaran_vendor" required class="kbsm-business-control">
-                        <option value="tunai">Bayar Vendor Tunai</option>
-                        <option value="transfer_bank">Bayar Vendor Transfer Bank</option>
-                      </select>
-                      <select name="dompet_vendor_id" required class="kbsm-business-control">
-                        <option value="">Dompet Vendor</option>
-                        @foreach($dompetOptions as $dompet)
-                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} ({{ $dompet->jenis_dompet }})</option>
-                        @endforeach
-                      </select>
-                      <input type="number" name="jumlah_diterima" readonly value="{{ (int) $item->total_tagihan_perusahaan }}" class="kbsm-business-control">
-                      <input type="number" name="jumlah_bayar_vendor" readonly value="{{ (int) $item->total_harga_vendor }}" class="kbsm-business-control">
-                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Pelunasan</button>
+                      <input type="date" name="tanggal_bayar" required value="{{ now()->toDateString() }}" class="kbsm-business-control">
+                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Bayar Vendor</button>
                     </form>
                     <form method="POST" action="{{ route('sewa-printer.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Batalkan kontrak yang belum dibayar ini?')">
                       @csrf
@@ -179,7 +159,7 @@
                     </form>
                   @endif
 
-                  @if($item->status === 'dikonfirmasi' && $item->status_pembayaran === 'paid')
+                  @if($item->status === 'dikonfirmasi' && $item->pembayaranVendor)
                     <form method="POST" action="{{ route('sewa-printer.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
                   @endif
 

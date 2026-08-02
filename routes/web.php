@@ -38,7 +38,8 @@ use App\Http\Controllers\RekonsiliasiPotongGajiController;
 use App\Http\Controllers\ReversalTransaksiController;
 use App\Http\Controllers\PenyelesaianKeanggotaanController;
 use App\Http\Controllers\InvoicePenagihanController;
-use App\Http\Controllers\VendorController;
+use App\Http\Controllers\B2BPaymentController;
+use App\Http\Controllers\DanaSosialController;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
 
@@ -112,6 +113,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/simpanan/saldo-manasuka/{anggota}', [SimpananController::class, 'saldoManasuka'])
         ->name('simpanan.saldo-manasuka');
+    Route::get('/jadwal-simpanan-wajib', [SimpananController::class, 'wajibIndex'])
+        ->name('jadwal-simpanan-wajib.index');
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
 
 
@@ -154,8 +157,12 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
 
     Route::get('/mutasi-kas', [MutasiKasController::class,'index'])->name('mutasi-kas.index');
 
-    Route::resource('invoice-penagihan', InvoicePenagihanController::class);
-    Route::resource('vendor', VendorController::class)->except(['create', 'show']);
+    Route::get('/invoice-penagihan', [InvoicePenagihanController::class, 'index'])
+        ->name('invoice-penagihan.index');
+    Route::post('/invoice-penagihan', [InvoicePenagihanController::class, 'store'])
+        ->name('invoice-penagihan.store');
+    Route::post('/invoice-penagihan/{invoicePenagihan}/payments', [InvoicePenagihanController::class, 'pay'])
+        ->name('invoice-penagihan.pay');
 
     // KARYAWAN
     Route::get('karyawan/template', [KaryawanController::class, 'downloadTemplate'])->name('karyawan.template');
@@ -172,22 +179,33 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('anggota.deactivate');
     Route::patch('/anggota/{anggota}/aktifkan', [AnggotaController::class, 'activate'])
         ->name('anggota.activate');
+    Route::post('/anggota/{anggota}/payroll-policy', [AnggotaController::class, 'updatePayrollPolicy'])
+        ->name('anggota.payroll-policy.update');
+    Route::post('/anggota/{anggota}/payroll-policy/reset', [AnggotaController::class, 'resetPayrollPolicy'])
+        ->name('anggota.payroll-policy.reset');
 
     // SHU sementara ditunda menunggu keputusan RAT/client. Route tetap ada,
     // tetapi middleware feature mengembalikan 404 saat flag nonaktif.
     Route::middleware('feature:shu_enabled')->group(function (): void {
+        Route::get('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'index'])->name('shu-config.index');
+        Route::post('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'update'])->name('shu-config.update');
+
         Route::get('/shu-koperasi', [ShuKoperasiController::class, 'index'])->name('shu-koperasi.index');
         Route::post('/shu-koperasi', [ShuKoperasiController::class, 'store'])->name('shu-koperasi.store');
         Route::get('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'show'])->name('shu-koperasi.show');
         Route::put('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'update'])->name('shu-koperasi.update');
-        Route::delete('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'destroy'])->name('shu-koperasi.destroy');
         Route::post('/shu-koperasi/{shuKoperasi}/refresh', [ShuKoperasiController::class, 'refresh'])->name('shu-koperasi.refresh');
         Route::post('/shu-koperasi/{shuKoperasi}/transaksi', [ShuKoperasiController::class, 'storeTransaksi'])->name('shu-koperasi.transaksi.store');
-        Route::delete('/shu-koperasi/{shuKoperasi}/transaksi/{shuTransaksi}', [ShuKoperasiController::class, 'destroyTransaksi'])->name('shu-koperasi.transaksi.destroy');
-        Route::post('/shu-koperasi/cairkan/{shuAnggota}', [ShuKoperasiController::class, 'cairkan'])->name('shu-koperasi.cairkan');
     });
 
-    Route::resource('klaim-dana-khusus', \App\Http\Controllers\KlaimDanaKhususController::class)->only(['index', 'store']);
+    Route::get('/klaim-dana-sosial', [DanaSosialController::class, 'index'])->name('klaim-dana-sosial.index');
+    Route::post('/klaim-dana-sosial/sources', [DanaSosialController::class, 'storeSource'])->name('klaim-dana-sosial.sources.store');
+    Route::post('/klaim-dana-sosial/sources/{source}/approve', [DanaSosialController::class, 'approveSource'])->name('klaim-dana-sosial.sources.approve');
+    Route::post('/klaim-dana-sosial/claims', [DanaSosialController::class, 'storeClaim'])->name('klaim-dana-sosial.claims.store');
+    Route::post('/klaim-dana-sosial/claims/{claim}/submit', [DanaSosialController::class, 'submit'])->name('klaim-dana-sosial.claims.submit');
+    Route::post('/klaim-dana-sosial/claims/{claim}/approve', [DanaSosialController::class, 'approve'])->name('klaim-dana-sosial.claims.approve');
+    Route::post('/klaim-dana-sosial/claims/{claim}/reject', [DanaSosialController::class, 'reject'])->name('klaim-dana-sosial.claims.reject');
+    Route::post('/klaim-dana-sosial/claims/{claim}/pay', [DanaSosialController::class, 'pay'])->name('klaim-dana-sosial.claims.pay');
 
     Route::get('/laporan-potong-gaji', [LaporanPotongGajiController::class, 'index'])
         ->name('laporan.potong-gaji');
@@ -239,10 +257,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('sewa-mobil.finance.submit');
     Route::post('/sewa-mobil/{sewaMobil}/approve', [FinanceSewaMobilController::class, 'approve'])
         ->name('sewa-mobil.finance.approve');
+    Route::post('/sewa-mobil/{sewaMobil}/pay-vendor', [B2BPaymentController::class, 'payMobilVendor'])
+        ->name('sewa-mobil.finance.pay-vendor');
     Route::post('/sewa-mobil/{sewaMobil}/reject', [FinanceSewaMobilController::class, 'reject'])
         ->name('sewa-mobil.finance.reject');
-    Route::post('/sewa-mobil/{sewaMobil}/pay', [FinanceSewaMobilController::class, 'pay'])
-        ->name('sewa-mobil.finance.pay');
     Route::post('/sewa-mobil/{sewaMobil}/start', [FinanceSewaMobilController::class, 'start'])
         ->name('sewa-mobil.finance.start');
     Route::post('/sewa-mobil/{sewaMobil}/complete', [FinanceSewaMobilController::class, 'complete'])
@@ -262,8 +280,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('sewa-printer.update');
     Route::post('/sewa-printer/{sewaPrinter}/confirm', [FinanceSewaPrinterController::class, 'confirm'])
         ->name('sewa-printer.confirm');
-    Route::post('/sewa-printer/{sewaPrinter}/pay', [FinanceSewaPrinterController::class, 'pay'])
-        ->name('sewa-printer.pay');
+    Route::post('/sewa-printer/{sewaPrinter}/pay-vendor', [B2BPaymentController::class, 'payHardwareVendor'])
+        ->name('sewa-printer.pay-vendor');
     Route::post('/sewa-printer/{sewaPrinter}/start', [FinanceSewaPrinterController::class, 'start'])
         ->name('sewa-printer.start');
     Route::post('/sewa-printer/{sewaPrinter}/complete', [FinanceSewaPrinterController::class, 'complete'])
