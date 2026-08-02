@@ -3,6 +3,8 @@
 @section('content')
 @php
   $editing = (bool) $pinjaman;
+  $selectedDompetId = (string) old('dompet_id', $pinjaman?->dompet_id);
+  $selectedDompet = $dompet->firstWhere('id', (int) $selectedDompetId);
 @endphp
 
 <div class="w-full px-6 py-6 mx-auto">
@@ -101,12 +103,24 @@
         </div>
         <div>
           <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Sumber Dana (Dompet)</label>
-          <select name="dompet_id" required class="kbsm-focus block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
-            <option value="">-- Pilih Kas/Bank --</option>
-            @foreach($dompet as $d)
-              <option value="{{ $d->id }}" @selected(old('dompet_id', $pinjaman?->dompet_id) == $d->id)>{{ $d->nama_dompet }}</option>
-            @endforeach
-          </select>
+          <div class="pinjaman-dompet-picker" data-dompet-picker>
+            <input type="hidden" name="dompet_id" value="{{ $selectedDompetId }}" data-dompet-input>
+            <button type="button" class="pinjaman-dompet-picker__trigger" data-dompet-trigger aria-expanded="false" aria-haspopup="listbox">
+              <span data-dompet-label>{{ $selectedDompet?->nama_dompet ?? '-- Pilih Kas/Bank --' }}</span>
+              <svg class="pinjaman-dompet-picker__chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>
+            </button>
+            <div class="pinjaman-dompet-picker__options hidden" data-dompet-options role="listbox" aria-label="Pilih sumber dana">
+              @forelse($dompet as $d)
+                <button type="button" class="pinjaman-dompet-picker__option {{ (string) $d->id === $selectedDompetId ? 'is-selected' : '' }}" data-dompet-option data-dompet-id="{{ $d->id }}" data-dompet-label="{{ $d->nama_dompet }}" role="option" aria-selected="{{ (string) $d->id === $selectedDompetId ? 'true' : 'false' }}">
+                  <span class="pinjaman-dompet-picker__option-name">{{ $d->nama_dompet }}</span>
+                  <span class="pinjaman-dompet-picker__option-meta">{{ strtoupper($d->jenis_dompet) }} &bull; Saldo Rp {{ number_format((float) $d->saldo, 0, ',', '.') }}</span>
+                </button>
+              @empty
+                <p class="pinjaman-dompet-picker__empty">Belum ada Dompet Kas/Bank. Tambahkan melalui menu Dompet Koperasi.</p>
+              @endforelse
+            </div>
+          </div>
+          <p class="mt-1 text-xs text-slate-400">Pilih Kas atau Bank yang digunakan untuk mencairkan Pinjaman.</p>
         </div>
       </div>
 
@@ -117,4 +131,60 @@
     </form>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const pickers = Array.from(document.querySelectorAll('[data-dompet-picker]'));
+
+    const closePicker = (picker) => {
+      const trigger = picker.querySelector('[data-dompet-trigger]');
+      const options = picker.querySelector('[data-dompet-options]');
+
+      options.classList.add('hidden');
+      trigger.setAttribute('aria-expanded', 'false');
+    };
+
+    pickers.forEach((picker) => {
+      const trigger = picker.querySelector('[data-dompet-trigger]');
+      const options = picker.querySelector('[data-dompet-options]');
+      const input = picker.querySelector('[data-dompet-input]');
+      const label = picker.querySelector('[data-dompet-label]');
+
+      trigger.addEventListener('click', () => {
+        const willOpen = options.classList.contains('hidden');
+        pickers.forEach(closePicker);
+
+        if (willOpen) {
+          options.classList.remove('hidden');
+          trigger.setAttribute('aria-expanded', 'true');
+        }
+      });
+
+      options.querySelectorAll('[data-dompet-option]').forEach((option) => {
+        option.addEventListener('click', () => {
+          input.value = option.dataset.dompetId;
+          label.textContent = option.dataset.dompetLabel;
+
+          options.querySelectorAll('[data-dompet-option]').forEach((item) => {
+            const selected = item === option;
+            item.classList.toggle('is-selected', selected);
+            item.setAttribute('aria-selected', selected ? 'true' : 'false');
+          });
+
+          closePicker(picker);
+        });
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      pickers.filter((picker) => !picker.contains(event.target)).forEach(closePicker);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        pickers.forEach(closePicker);
+      }
+    });
+  });
+</script>
 @endsection

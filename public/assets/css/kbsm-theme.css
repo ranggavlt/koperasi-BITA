@@ -3757,6 +3757,103 @@ textarea.kbsm-business-control {
   text-align: center;
 }
 
+/* Pemilih dompet pencairan Pinjaman */
+.pinjaman-dompet-picker {
+  position: relative;
+}
+
+.pinjaman-dompet-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 0.6rem 0.75rem;
+  color: var(--kbsm-text);
+  background: var(--kbsm-white);
+  border: 1px solid rgb(209 213 219);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.pinjaman-dompet-picker__trigger:hover,
+.pinjaman-dompet-picker__trigger[aria-expanded='true'] {
+  border-color: var(--kbsm-green);
+}
+
+.pinjaman-dompet-picker__trigger:focus-visible {
+  border-color: var(--kbsm-green);
+  outline: 3px solid var(--kbsm-green-ring);
+  outline-offset: 1px;
+}
+
+.pinjaman-dompet-picker__chevron {
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--kbsm-muted);
+  transition: transform 150ms ease;
+}
+
+.pinjaman-dompet-picker__trigger[aria-expanded='true'] .pinjaman-dompet-picker__chevron {
+  transform: rotate(180deg);
+}
+
+.pinjaman-dompet-picker__options {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: 0;
+  max-height: 15rem;
+  padding: 0.35rem;
+  overflow-y: auto;
+  background: var(--kbsm-white);
+  border: 1px solid rgba(7, 59, 92, 0.16);
+  border-radius: 0.65rem;
+  box-shadow: 0 12px 24px rgba(7, 59, 92, 0.14);
+}
+
+.pinjaman-dompet-picker__option {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.15rem;
+  padding: 0.65rem 0.7rem;
+  color: var(--kbsm-text);
+  background: transparent;
+  border: 0;
+  border-radius: 0.45rem;
+  text-align: left;
+}
+
+.pinjaman-dompet-picker__option:hover,
+.pinjaman-dompet-picker__option:focus-visible,
+.pinjaman-dompet-picker__option.is-selected {
+  color: var(--kbsm-navy);
+  background: var(--kbsm-green-soft);
+  outline: none;
+}
+
+.pinjaman-dompet-picker__option-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pinjaman-dompet-picker__option-meta {
+  color: var(--kbsm-muted);
+  font-size: 0.72rem;
+}
+
+.pinjaman-dompet-picker__empty {
+  margin: 0;
+  padding: 0.7rem;
+  color: var(--kbsm-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 1199px) {
   .kbsm-cashier-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
