@@ -20,6 +20,8 @@ class AccessMatrixTest extends TestCase
 
         config([
             'features.shu_enabled' => false,
+            'features.dana_sosial_enabled' => false,
+            'features.dana_sosial_alternative_sources_enabled' => false,
             'features.jasa_print_enabled' => false,
             'features.master_printer_enabled' => false,
         ]);
@@ -45,8 +47,10 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($finance)->get(route('users.index'))->assertOk();
         $this->actingAs($finance)->get(route('waserba.index'))->assertForbidden();
         $this->actingAs($finance)->get(route('pembayaran-konsinyasi.index'))->assertForbidden();
-        $this->actingAs($finance)->get(route('konsinyasi.report'))->assertForbidden();
+        $this->actingAs($finance)->get(route('konsinyasi.report'))->assertOk();
+        $this->actingAs($finance)->get(route('shu-config.index'))->assertOk();
         $this->actingAs($finance)->get(route('shu-koperasi.index'))->assertNotFound();
+        $this->actingAs($finance)->get(route('klaim-dana-sosial.index'))->assertNotFound();
         $this->assertFalse(Route::has('users.destroy'));
 
         $this->actingAs($kasir)->get(route('waserba.index'))->assertOk();
@@ -54,6 +58,7 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($kasir)->get(route('periode-potong-gaji.index'))->assertForbidden();
         $this->actingAs($kasir)->get(route('sewa-mobil.finance.index'))->assertForbidden();
         $this->actingAs($kasir)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($kasir)->get(route('shu-config.index'))->assertForbidden();
 
         $this->assertFalse(Route::has('sewa-mobil.karyawan.index'));
         $this->actingAs($employee)->get('/pengajuan-sewa-mobil')->assertNotFound();
@@ -78,10 +83,11 @@ class AccessMatrixTest extends TestCase
             ->assertSee('Tagihan Tunai')
             ->assertSee('Riwayat Koreksi Transaksi')
             ->assertSee('Daftar Akun / COA')
+            ->assertSee('Pengaturan SHU')
             ->assertDontSee('POS / Kasir')
             ->assertDontSee('Penjualan / Kasir')
             ->assertDontSee('Pembayaran Konsinyasi')
-            ->assertDontSee('Laporan Konsinyasi')
+            ->assertSee('Laporan Konsinyasi')
             ->assertDontSee('Transaksi SHU')
             ->assertDontSee('Klaim Dana Sosial')
             ->assertDontSee('Jasa Print')
@@ -280,7 +286,11 @@ class AccessMatrixTest extends TestCase
         $this->assertFalse((bool) $kasir->must_change_password);
         $this->assertTrue(Hash::check('Kbsm12345!', $kasir->password));
 
-        $this->assertSame(1, User::query()->where('role', 'admin')->count());
+        $this->assertSame(2, User::query()->where('role', 'admin')->count());
+        $approval = User::query()->where('email', 'approval@kbsm.test')->firstOrFail();
+        $this->assertTrue((bool) $approval->is_active);
+        $this->assertFalse((bool) $approval->must_change_password);
+        $this->assertTrue(Hash::check('Kbsm12345!', $approval->password));
         $this->assertSame(1, User::query()->where('role', 'kasir')->count());
         $this->assertGreaterThan(0, User::query()->where('role', 'karyawan')->count());
         $this->assertSame(0, User::query()->where('role', 'keuangan')->count());

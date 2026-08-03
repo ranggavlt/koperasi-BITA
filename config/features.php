@@ -20,6 +20,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dana Sosial
+    |--------------------------------------------------------------------------
+    |
+    | Sumber alternatif telah diputuskan hanya Donasi Resmi melalui Dompet.
+    | Route utama tetap tertutup sampai migration, test, dan UAT final lulus.
+    |
+    */
+    'dana_sosial_enabled' => $boolean('FEATURE_DANA_SOSIAL_ENABLED', false),
+    'dana_sosial_alternative_sources_enabled' => $boolean('FEATURE_DANA_SOSIAL_ALTERNATIVE_SOURCES_ENABLED', true),
+
+    'dependencies' => [
+        'dana_sosial_enabled' => ['shu_enabled'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Jasa Print
     |--------------------------------------------------------------------------
     |

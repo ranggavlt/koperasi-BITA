@@ -26,24 +26,8 @@ class MutasiKas extends Model
 
     protected static function booted(): void
     {
-        static::deleting(function (MutasiKas $mutasi): void {
-            if (in_array($mutasi->referensi_tipe, [
-                Pinjaman::class,
-                CicilanPinjaman::class,
-                Penjualan::class,
-                Pembayaran::class,
-                Simpanan::class,
-                PemakaianPotongGaji::class,
-                ReversalTransaksi::class,
-                PembayaranOutstandingCash::class,
-                PembayaranSewaMobil::class,
-                PembayaranSewaHardware::class,
-                BebanOperasional::class,
-                PenyelesaianKeanggotaan::class,
-            ], true)) {
-                throw new RuntimeException('Mutasi transaksi koperasi tidak boleh dihapus permanen. Gunakan reversal/adjustment.');
-            }
-        });
+        static::deleting(fn () => throw new RuntimeException('Mutasi Kas/Bank tidak boleh dihapus permanen. Gunakan reversal/adjustment.'));
+        static::updating(fn () => throw new RuntimeException('Mutasi Kas/Bank final tidak boleh diedit. Gunakan reversal/adjustment.'));
     }
 
     public function dompet()
@@ -62,11 +46,13 @@ class MutasiKas extends Model
             \App\Models\PemakaianPotongGaji::class => 'Ledger Potong Gaji',
             \App\Models\PembayaranKonsinyasi::class => 'Pembayaran Konsinyasi',
             \App\Models\ReversalTransaksi::class => 'Reversal Transaksi',
-            \App\Models\PembayaranOutstandingCash::class => 'Pembayaran Outstanding Cash',
+            \App\Models\PembayaranOutstandingCash::class => 'Pembayaran Tagihan Tunai',
             \App\Models\PembayaranSewaMobil::class => 'Pembayaran Sewa Mobil',
             \App\Models\PembayaranSewaHardware::class => 'Pembayaran Sewa Hardware',
             \App\Models\BebanOperasional::class => 'Beban Operasional',
             \App\Models\PenyelesaianKeanggotaan::class => 'Penyelesaian Keanggotaan',
+            \App\Models\DanaSosialSumber::class => 'Donasi Dana Sosial',
+            \App\Models\KlaimDanaSosial::class => 'Klaim Dana Sosial',
             default => 'Manual',
         };
     }

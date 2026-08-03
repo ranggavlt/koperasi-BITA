@@ -5,13 +5,21 @@
   @if(session('success'))<div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>@endif
   @if($errors->any())<div class="kbsm-business-alert kbsm-business-alert--danger"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
   <div class="kbsm-business-header"><div><p class="kbsm-business-eyebrow">Keuangan B2B</p><h1 class="kbsm-business-title">Invoice Perusahaan</h1><p class="kbsm-business-subtitle">Satu invoice dapat menggabungkan beberapa Sewa Mobil dan Sewa Hardware dari perusahaan yang sama. Pembayaran perusahaan terpisah dari pembayaran vendor dan boleh parsial.</p></div></div>
+  <div class="kbsm-business-grid">
+    @foreach($companySummaries as $summary)
+      <section class="kbsm-business-panel">
+        <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">{{ $summary['kode'] }}</h2><p class="kbsm-business-panel__copy">{{ $summary['nama'] }} · {{ $summary['jumlah_invoice'] }} invoice</p></div>
+        <div class="kbsm-business-readonly"><div>Total tagihan: <strong>Rp {{ number_format($summary['total_tagihan'],0,',','.') }}</strong></div><div>Total terbayar: <strong>Rp {{ number_format($summary['total_dibayar'],0,',','.') }}</strong></div><div>Sisa utang: <strong>Rp {{ number_format($summary['sisa_tagihan'],0,',','.') }}</strong></div></div>
+      </section>
+    @endforeach
+  </div>
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Buat Invoice Final</h2><p class="kbsm-business-panel__copy">Hanya kontrak dengan vendor yang sudah dibayar dan belum pernah masuk invoice yang dapat dipilih.</p></div>
     <form method="POST" action="{{ route('invoice-penagihan.store') }}" class="kbsm-business-form">@csrf
       <div class="kbsm-business-grid">
         <div class="kbsm-business-field"><label class="kbsm-business-label">Perusahaan</label><select name="perusahaan_id" required class="kbsm-business-control"><option value="">Pilih BEE/BBS/BKM</option>@foreach($perusahaan as $p)<option value="{{ $p->id }}" @selected((string)old('perusahaan_id')===(string)$p->id)>{{ $p->kode }} — {{ $p->nama }}</option>@endforeach</select></div>
         <div class="kbsm-business-field"><label class="kbsm-business-label">Tanggal Invoice</label><input type="date" name="tanggal_invoice" required value="{{ old('tanggal_invoice',now()->toDateString()) }}" class="kbsm-business-control"></div>
-        <div class="kbsm-business-field"><label class="kbsm-business-label">Jatuh Tempo</label><input type="date" name="jatuh_tempo" required value="{{ old('jatuh_tempo',now()->addDays(30)->toDateString()) }}" class="kbsm-business-control"></div>
+        <div class="kbsm-business-field"><label class="kbsm-business-label">Jatuh Tempo</label><input type="date" name="jatuh_tempo" required min="{{ old('tanggal_invoice', now()->toDateString()) }}" value="{{ old('jatuh_tempo') }}" class="kbsm-business-control"><p class="kbsm-business-help">Pilih sesuai termin perusahaan yang telah disepakati; sistem tidak menetapkan asumsi jumlah hari.</p></div>
       </div>
       <div class="kbsm-business-grid">
         <section class="kbsm-business-section"><h3 class="kbsm-business-section__title">Sewa Mobil Eligible</h3>@forelse($eligibleMobil as $item)<label class="kbsm-business-readonly"><input type="checkbox" name="sewa_mobil_ids[]" value="{{ $item->id }}" @checked(in_array($item->id,old('sewa_mobil_ids',[])))> {{ $item->kode_sewa }} · {{ $item->kode_perusahaan_snapshot }} · {{ $item->vendor_nama_snapshot }} · Rp {{ number_format($item->total_tagihan_perusahaan,0,',','.') }}</label>@empty<p class="kbsm-business-muted">Tidak ada kontrak eligible.</p>@endforelse</section>

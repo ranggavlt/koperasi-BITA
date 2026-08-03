@@ -107,6 +107,17 @@ class B2BRentalService
             return DB::transaction(function () use ($company, $data, $userId): InvoicePenagihan {
                 $lockedCompany = Perusahaan::query()->lockForUpdate()->findOrFail($company->id);
                 $date = CarbonImmutable::parse($data['tanggal_invoice'] ?? now(), config('app.timezone', 'Asia/Jakarta'));
+                if (empty($data['jatuh_tempo'])) {
+                    throw ValidationException::withMessages([
+                        'jatuh_tempo' => 'Tanggal jatuh tempo wajib dipilih secara eksplisit sesuai termin perusahaan.',
+                    ]);
+                }
+                $dueDate = CarbonImmutable::parse($data['jatuh_tempo'], config('app.timezone', 'Asia/Jakarta'));
+                if ($dueDate->lt($date)) {
+                    throw ValidationException::withMessages([
+                        'jatuh_tempo' => 'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.',
+                    ]);
+                }
                 $key = (string) ($data['idempotency_key'] ?? 'invoice:'.$lockedCompany->id.':'.$date->format('Ym').':'.sha1(json_encode($data)));
                 if ($existing = InvoicePenagihan::query()->where('idempotency_key', $key)->first()) {
                     return $existing->load(['detail.referensi', 'pembayaran', 'perusahaan']);
@@ -132,7 +143,7 @@ class B2BRentalService
                     'nomor_invoice' => $this->nextCode('invoice_penagihan', 'INV-'.$lockedCompany->kode, $date),
                     'perusahaan_id' => $lockedCompany->id,
                     'tanggal_invoice' => $date->toDateString(),
-                    'jatuh_tempo' => CarbonImmutable::parse($data['jatuh_tempo'] ?? $date->addDays(14))->toDateString(),
+                    'jatuh_tempo' => $dueDate->toDateString(),
                     'total_tagihan' => $total,
                     'jumlah_dibayar' => 0,
                     'sisa_tagihan' => $total,

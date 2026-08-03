@@ -16,13 +16,32 @@ class InvoicePenagihanController extends Controller
 {
     public function index(): View
     {
+        $companies = Perusahaan::query()->whereIn('kode', ['BEE', 'BBS', 'BKM'])->orderBy('kode')->get();
+        $totals = InvoicePenagihan::query()
+            ->selectRaw('perusahaan_id, SUM(total_tagihan) as total_tagihan, SUM(jumlah_dibayar) as total_dibayar, SUM(sisa_tagihan) as sisa_tagihan, COUNT(*) as jumlah_invoice')
+            ->whereIn('perusahaan_id', $companies->pluck('id'))
+            ->groupBy('perusahaan_id')
+            ->get()
+            ->keyBy('perusahaan_id');
+
         return view('pages.invoice-penagihan.index', [
             'invoices' => InvoicePenagihan::query()
                 ->with(['perusahaan', 'detail', 'pembayaran.dompet'])
                 ->latest('tanggal_invoice')
                 ->latest('id')
                 ->paginate(12),
-            'perusahaan' => Perusahaan::query()->whereIn('kode', ['BEE', 'BBS', 'BKM'])->orderBy('kode')->get(),
+            'perusahaan' => $companies,
+            'companySummaries' => $companies->map(function (Perusahaan $company) use ($totals): array {
+                $total = $totals->get($company->id);
+                return [
+                    'kode' => $company->kode,
+                    'nama' => $company->nama,
+                    'jumlah_invoice' => (int) ($total?->jumlah_invoice ?? 0),
+                    'total_tagihan' => (float) ($total?->total_tagihan ?? 0),
+                    'total_dibayar' => (float) ($total?->total_dibayar ?? 0),
+                    'sisa_tagihan' => (float) ($total?->sisa_tagihan ?? 0),
+                ];
+            }),
             'eligibleMobil' => SewaMobil::query()
                 ->with(['karyawan.perusahaan', 'pembayaranVendor'])
                 ->whereHas('pembayaranVendor')

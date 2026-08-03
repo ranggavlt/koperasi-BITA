@@ -186,28 +186,36 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('anggota.deactivate');
     Route::patch('/anggota/{anggota}/aktifkan', [AnggotaController::class, 'activate'])
         ->name('anggota.activate');
-    // SHU sementara ditunda menunggu keputusan RAT/client. Route tetap ada,
-    // tetapi middleware feature mengembalikan 404 saat flag nonaktif.
-    Route::middleware('feature:shu_enabled')->group(function (): void {
-        Route::get('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'index'])->name('shu-config.index');
-        Route::post('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'update'])->name('shu-config.update');
+    // Admin boleh menyiapkan konfigurasi persentase meskipun operasional SHU
+    // masih ditutup. Setiap simpan membuat versi audit baru.
+    Route::get('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'index'])->name('shu-config.index');
+    Route::post('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'update'])->name('shu-config.update');
 
+    // Operasional SHU tetap ditunda sampai seluruh hardening dan UAT lulus.
+    Route::middleware('feature:shu_enabled')->group(function (): void {
         Route::get('/shu-koperasi', [ShuKoperasiController::class, 'index'])->name('shu-koperasi.index');
         Route::post('/shu-koperasi', [ShuKoperasiController::class, 'store'])->name('shu-koperasi.store');
         Route::get('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'show'])->name('shu-koperasi.show');
-        Route::put('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'update'])->name('shu-koperasi.update');
-        Route::post('/shu-koperasi/{shuKoperasi}/refresh', [ShuKoperasiController::class, 'refresh'])->name('shu-koperasi.refresh');
-        Route::post('/shu-koperasi/{shuKoperasi}/transaksi', [ShuKoperasiController::class, 'storeTransaksi'])->name('shu-koperasi.transaksi.store');
+        Route::post('/shu-koperasi/{shuKoperasi}/approve', [ShuKoperasiController::class, 'approve'])->name('shu-koperasi.approve');
+        Route::post('/shu-koperasi/{shuKoperasi}/post', [ShuKoperasiController::class, 'post'])->name('shu-koperasi.post');
+        Route::post('/shu-koperasi/{shuKoperasi}/reverse', [ShuKoperasiController::class, 'reverse'])->name('shu-koperasi.reverse');
     });
 
-    Route::get('/klaim-dana-sosial', [DanaSosialController::class, 'index'])->name('klaim-dana-sosial.index');
-    Route::post('/klaim-dana-sosial/sources', [DanaSosialController::class, 'storeSource'])->name('klaim-dana-sosial.sources.store');
-    Route::post('/klaim-dana-sosial/sources/{source}/approve', [DanaSosialController::class, 'approveSource'])->name('klaim-dana-sosial.sources.approve');
-    Route::post('/klaim-dana-sosial/claims', [DanaSosialController::class, 'storeClaim'])->name('klaim-dana-sosial.claims.store');
-    Route::post('/klaim-dana-sosial/claims/{claim}/submit', [DanaSosialController::class, 'submit'])->name('klaim-dana-sosial.claims.submit');
-    Route::post('/klaim-dana-sosial/claims/{claim}/approve', [DanaSosialController::class, 'approve'])->name('klaim-dana-sosial.claims.approve');
-    Route::post('/klaim-dana-sosial/claims/{claim}/reject', [DanaSosialController::class, 'reject'])->name('klaim-dana-sosial.claims.reject');
-    Route::post('/klaim-dana-sosial/claims/{claim}/pay', [DanaSosialController::class, 'pay'])->name('klaim-dana-sosial.claims.pay');
+    // Dana Sosial bergantung pada SHU final dan keputusan sumber alternatif.
+    // Middleware feature mengembalikan 404 untuk seluruh direct URL saat disabled.
+    Route::middleware('feature:dana_sosial_enabled')->group(function (): void {
+        Route::get('/klaim-dana-sosial', [DanaSosialController::class, 'index'])->name('klaim-dana-sosial.index');
+        Route::post('/klaim-dana-sosial/limits', [DanaSosialController::class, 'storeLimit'])->name('klaim-dana-sosial.limits.store');
+        Route::post('/klaim-dana-sosial/sources', [DanaSosialController::class, 'storeSource'])->name('klaim-dana-sosial.sources.store');
+        Route::post('/klaim-dana-sosial/sources/{source}/approve', [DanaSosialController::class, 'approveSource'])->name('klaim-dana-sosial.sources.approve');
+        Route::post('/klaim-dana-sosial/sources/{source}/reverse', [DanaSosialController::class, 'reverseSource'])->name('klaim-dana-sosial.sources.reverse');
+        Route::post('/klaim-dana-sosial/claims', [DanaSosialController::class, 'storeClaim'])->name('klaim-dana-sosial.claims.store');
+        Route::post('/klaim-dana-sosial/claims/{claim}/submit', [DanaSosialController::class, 'submit'])->name('klaim-dana-sosial.claims.submit');
+        Route::post('/klaim-dana-sosial/claims/{claim}/approve', [DanaSosialController::class, 'approve'])->name('klaim-dana-sosial.claims.approve');
+        Route::post('/klaim-dana-sosial/claims/{claim}/reject', [DanaSosialController::class, 'reject'])->name('klaim-dana-sosial.claims.reject');
+        Route::post('/klaim-dana-sosial/claims/{claim}/pay', [DanaSosialController::class, 'pay'])->name('klaim-dana-sosial.claims.pay');
+        Route::post('/klaim-dana-sosial/claims/{claim}/reverse', [DanaSosialController::class, 'reverse'])->name('klaim-dana-sosial.claims.reverse');
+    });
 
     Route::get('/laporan-potong-gaji', [LaporanPotongGajiController::class, 'index'])
         ->name('laporan.potong-gaji');
@@ -317,12 +325,19 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('akun.beban-operasional-eligibility');
     Route::get('/akuntansi/jurnal-umum', [JurnalUmumPeriodikController::class, 'index'])->name('akuntansi.jurnal-umum');
     Route::get('/akuntansi/buku-besar', [BukuBesarController::class, 'index'])->name('akuntansi.buku-besar');
+    Route::get('/akuntansi/periode', [App\Http\Controllers\AccountingPeriodController::class, 'index'])->name('akuntansi.periode.index');
+    Route::post('/akuntansi/periode', [App\Http\Controllers\AccountingPeriodController::class, 'store'])->name('akuntansi.periode.store');
+    Route::post('/akuntansi/periode/{periodeAkuntansi}/close', [App\Http\Controllers\AccountingPeriodController::class, 'close'])->name('akuntansi.periode.close');
+});
+
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin,kasir'])->group(function () {
+    // Report bersifat read-only: Kasir mengoperasikan, Finance memonitor.
+    Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
+        ->name('konsinyasi.report');
 });
 
 Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir'])->group(function () {
-    // Konsinyasi operasional khusus Kasir
-    Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
-        ->name('konsinyasi.report');
+    // Pembayaran konsinyasi tetap merupakan operasi khusus Kasir.
     Route::get('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'index'])
         ->name('pembayaran-konsinyasi.index');
     Route::post('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'store'])

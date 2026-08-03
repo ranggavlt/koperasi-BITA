@@ -15,6 +15,10 @@ class EnsureFeatureEnabled
     {
         abort_unless((bool) config("features.{$feature}", false), 404);
 
+        foreach ((array) config("features.dependencies.{$feature}", []) as $dependency) {
+            abort_unless((bool) config("features.{$dependency}", false), 404);
+        }
+
         return $next($request);
     }
 }

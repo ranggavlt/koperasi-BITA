@@ -201,6 +201,7 @@ class MutasiKasBankReportTest extends TestCase
                 'Invoice Penagihan B2B',
                 'Operasional',
                 'Beban Operasional',
+                'Laporan Konsinyasi',
                 'Akuntansi',
                 'Daftar Akun / COA',
                 'Jurnal Umum Periodik',
@@ -212,7 +213,6 @@ class MutasiKasBankReportTest extends TestCase
             ->assertDontSee('POS / Kasir')
             ->assertDontSee('Penjualan / Kasir')
             ->assertDontSee('Pembayaran Konsinyasi')
-            ->assertDontSee('Laporan Konsinyasi')
             ->assertDontSee('Mobil Koperasi')
             ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Transaksi SHU')

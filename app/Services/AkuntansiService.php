@@ -6,6 +6,7 @@ use App\Models\Akun;
 use App\Models\BebanOperasional;
 use App\Models\CicilanPinjaman;
 use App\Models\JurnalUmum;
+use App\Models\PeriodeAkuntansi;
 use App\Models\PembayaranKonsinyasi;
 use App\Models\PembayaranOutstandingCash;
 use App\Models\PembayaranSewaMobil;
@@ -49,7 +50,13 @@ class AkuntansiService
             throw new RuntimeException('Jurnal tidak balance (debit != kredit).');
         }
 
-        return DB::transaction(function () use ($header, $normalizedLines): JurnalUmum {
+        $periodOperation = (bool) ($header['is_period_operation'] ?? false);
+        unset($header['is_period_operation']);
+        $header['status'] = JurnalUmum::STATUS_POSTED;
+        $header['posted_at'] = $header['posted_at'] ?? now();
+
+        return DB::transaction(function () use ($header, $normalizedLines, $periodOperation): JurnalUmum {
+            $this->assertDateWritable($header, $periodOperation);
             $jurnal = JurnalUmum::create($header);
 
             $jurnal->details()->createMany($normalizedLines);
@@ -58,13 +65,42 @@ class AkuntansiService
         });
     }
 
-    public function reverseByReference(string $referensiTipe, int $referensiId): void
+    public function recordCorrection(PeriodeAkuntansi $closedPeriod, array $header, array $lines, string $reason): JurnalUmum
     {
-        JurnalUmum::query()
-            ->where('referensi_tipe', $referensiTipe)
-            ->where('referensi_id', $referensiId)
-            ->get()
-            ->each(fn (JurnalUmum $jurnal) => $jurnal->delete());
+        if ($closedPeriod->status !== PeriodeAkuntansi::STATUS_CLOSED) {
+            throw new RuntimeException('Koreksi resmi hanya dapat merujuk periode yang sudah ditutup.');
+        }
+
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 5) {
+            throw new RuntimeException('Alasan koreksi resmi wajib diisi minimal 5 karakter.');
+        }
+
+        $header['is_adjustment'] = true;
+        $header['correction_period_id'] = $closedPeriod->id;
+        $header['correction_reason'] = $reason;
+
+        return $this->record($header, $lines);
+    }
+
+    private function assertDateWritable(array &$header, bool $periodOperation): void
+    {
+        $date = (string) ($header['tanggal'] ?? now()->toDateString());
+        $period = PeriodeAkuntansi::query()
+            ->where('tanggal_mulai', '<=', $date)
+            ->where('tanggal_selesai', '>=', $date)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $period) {
+            return;
+        }
+
+        if (in_array($period->status, [PeriodeAkuntansi::STATUS_CLOSING, PeriodeAkuntansi::STATUS_CLOSED], true) && ! $periodOperation) {
+            throw new RuntimeException('Tanggal jurnal berada pada periode akuntansi yang sudah dikunci. Gunakan koreksi resmi pada periode terbuka.');
+        }
+
+        $header['periode_akuntansi_id'] = $period->id;
     }
 
     public function recordPenjualan(Penjualan $penjualan, string $metodePembayaran): void

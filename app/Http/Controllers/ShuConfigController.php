@@ -2,17 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ShuConfig;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ShuConfigController extends Controller
 {
     public function index()
     {
-        $shuConfig = \App\Models\ShuConfig::first() ?? new \App\Models\ShuConfig();
-        return view('pages.shu-koperasi.config', compact('shuConfig'));
+        $shuConfig = ShuConfig::query()
+            ->approved()
+            ->orderByDesc('berlaku_mulai')
+            ->orderByDesc('approved_at')
+            ->orderByDesc('id')
+            ->first() ?? new ShuConfig();
+        $configHistory = ShuConfig::query()
+            ->with('approver:id,name')
+            ->orderByDesc('berlaku_mulai')
+            ->orderByDesc('id')
+            ->paginate(10);
+
+        return view('pages.shu-koperasi.config', compact('shuConfig', 'configHistory'));
     }
 
-    public function update(\Illuminate\Http\Request $request)
+    public function update(Request $request)
     {
         $validated = $request->validate([
             'persen_pembina' => 'required|numeric|min:0|max:100',
@@ -24,6 +38,13 @@ class ShuConfigController extends Controller
             'persen_dana_pendidikan' => 'required|numeric|min:0|max:100',
             'persen_jasa_modal' => 'required|numeric|min:0|max:100',
             'persen_jasa_usaha' => 'required|numeric|min:0|max:100',
+            'berlaku_mulai' => [
+                'required',
+                'date',
+                Rule::unique('shu_configs', 'berlaku_mulai')
+                    ->where('status_persetujuan', ShuConfig::STATUS_APPROVED),
+            ],
+            'dasar_persetujuan' => 'required|string|min:5|max:1000',
         ]);
 
         $totalPembagian = round(
@@ -51,10 +72,15 @@ class ShuConfigController extends Controller
             return back()->withErrors(['persen_jasa_modal' => 'Total persentase Jasa Modal dan Jasa Usaha harus tepat 100%.'])->withInput();
         }
 
-        $shuConfig = \App\Models\ShuConfig::first() ?? new \App\Models\ShuConfig();
-        $shuConfig->fill($validated);
-        $shuConfig->save();
+        DB::transaction(function () use ($validated, $request): void {
+            ShuConfig::query()->create([
+                ...$validated,
+                'status_persetujuan' => ShuConfig::STATUS_APPROVED,
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+            ]);
+        });
 
-        return redirect()->back()->with('success', 'Konfigurasi SHU berhasil diperbarui.');
+        return redirect()->back()->with('success', 'Versi konfigurasi SHU berhasil disimpan. Periode lama tidak berubah.');
     }
 }

@@ -25,16 +25,24 @@ class DompetKoperasi extends Model
         'is_kas_operasional',
         'default_payroll_marker',
         'saldo',
+        'saldo_awal',
     ];
 
     protected $casts = [
         'is_default_penerimaan_payroll' => 'boolean',
         'is_kas_operasional' => 'boolean',
         'saldo' => 'decimal:2',
+        'saldo_awal' => 'decimal:2',
     ];
 
     protected static function booted(): void
     {
+        static::creating(function (DompetKoperasi $dompet): void {
+            if ($dompet->saldo_awal === null) {
+                $dompet->saldo_awal = $dompet->saldo ?? 0;
+            }
+        });
+
         static::saving(function (DompetKoperasi $dompet): void {
             if ($dompet->is_default_penerimaan_payroll && $dompet->jenis_dompet !== self::JENIS_BANK) {
                 throw new RuntimeException('Dompet default penerimaan payroll harus berjenis bank.');

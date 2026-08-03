@@ -7,6 +7,7 @@ Dokumen ini menjadi checklist presentasi client. Gunakan data dummy hasil `php a
 | Peran | Email | Password | Hasil yang diharapkan |
 |---|---|---|---|
 | Finance | `keuangan@kbsm.test` | `Kbsm12345!` | Seluruh transaksi keuangan dan master yang diizinkan |
+| Approval Admin | `approval@kbsm.test` | `Kbsm12345!` | Checker berbeda untuk Donasi dan Klaim Dana Sosial |
 | Kasir | `kasir@kbsm.test` | `Kbsm12345!` | POS, pembayaran konsinyasi, dan laporan konsinyasi |
 
 Public registration harus menghasilkan 404. User nonaktif harus gagal login dan dikeluarkan jika session lama masih aktif. Role Karyawan tidak boleh membuka transaksi keuangan melalui URL langsung.
@@ -58,19 +59,27 @@ Prioritas payroll final: Cicilan Pinjaman, Simpanan Wajib, Manasuka rutin, lalu 
 - Uji POS tunai dan potong gaji. POS tunai tidak boleh membuat ledger payroll.
 - Uji stok, konsinyasi, pembayaran reseller, laporan konsinyasi, reversal, dan pengulangan checkout/idempotency.
 
-### 5. Klaim Dana Sosial
+### 5. Periode Akuntansi, SHU, dan Dana Sosial
 
-- Tambah sumber dana yang disetujui, lalu ajukan klaim meninggal, melahirkan, khitan, atau proposal sosial.
-- Uji alur draft, diajukan, disetujui/ditolak, dan pembayaran.
-- Klaim melebihi saldo tersedia harus ditolak.
-- Pembayaran harus mengurangi sumber, mengurangi Dompet, serta membuat Mutasi Dana Sosial, Mutasi Kas, dan Jurnal balance tepat satu kali.
+- Buat periode akuntansi, pastikan seluruh jurnal posted dan balance, lalu tutup periode. Cocokkan snapshot pendapatan, beban, laba, checksum, dan jurnal penutup.
+- Pastikan transaksi biasa bertanggal pada periode closed ditolak; koreksi wajib berupa counter-entry pada periode terbuka.
+- Aktifkan feature flag hanya pada environment UAT, pilih periode closed pada SHU, lalu pastikan laba tidak dapat diketik manual.
+- Review, approve, dan posting SHU. Cocokkan total alokasi dengan laba serta jurnal Debit COA 304 dan kredit akun tujuan.
+- Masuk sebagai Finance untuk membuat draft Donasi Resmi. Pastikan Dompet belum berubah.
+- Masuk sebagai Approval Admin untuk menyetujui donasi. Pastikan jurnal Debit Kas/Bank dan Kredit COA 210 terbentuk tepat sekali.
+- Pastikan Finance pembuat tidak dapat menyetujui donasinya sendiri.
+- Buat versi batas Kematian, Kelahiran, Khitan, dan Proposal Sosial; periksa tanggal berlaku dan histori.
+- Buat dan ajukan klaim sebagai maker, lalu setujui memakai Admin berbeda. Self-approval harus ditolak.
+- Klaim melebihi batas atau saldo tersedia harus ditolak dan saldo tidak boleh negatif.
+- Pembayaran harus mengurangi sumber dan Dompet serta membuat Mutasi Dana Sosial, Mutasi Kas, dan jurnal balance tepat satu kali.
+- Uji reversal klaim dan donasi yang belum terpakai; transaksi asli wajib tetap tersimpan.
 
-### 6. SHU dan fitur ditunda
+### 6. Feature gate dan fitur ditunda
 
 - Menu/route SHU tetap tersembunyi selama `SHU_ENABLED=false`.
 - Tidak boleh ada hard delete transaksi/snapshot SHU atau pencairan langsung dari kode legacy.
 - Jasa Print, Master Mobil, Master Printer, public registration, mixed payment, dan self-service Karyawan tidak boleh aktif.
-- Aktivasi SHU ditunda sampai client menyetujui persentase Pembina/Pengawas/Pengurus/Anggota/Dana Sosial, formula Anggota, tanggal tutup, sumber snapshot, accounting, dan reversal.
+- SHU dan Dana Sosial hanya boleh diaktifkan setelah seluruh automated gate dan UAT bagian 5 lulus.
 
 ## Release checklist
 

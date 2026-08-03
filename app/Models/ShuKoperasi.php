@@ -13,6 +13,7 @@ class ShuKoperasi extends Model
     protected $table = 'shu_koperasi';
 
     protected $fillable = [
+        'periode_akuntansi_id',
         'judul',
         'tanggal_mulai',
         'tanggal_selesai',
@@ -48,6 +49,19 @@ class ShuKoperasi extends Model
         'closed_at',
         'closed_by',
         'idempotency_key',
+        'created_by',
+        'calculated_by',
+        'calculated_at',
+        'approved_by',
+        'approved_at',
+        'approval_reason',
+        'allocation_journal_id',
+        'posted_by',
+        'posted_at',
+        'reversal_journal_id',
+        'reversed_by',
+        'reversed_at',
+        'reversal_reason',
     ];
 
     protected $casts = [
@@ -81,6 +95,10 @@ class ShuKoperasi extends Model
         'config_snapshot' => 'array',
         'source_snapshot' => 'array',
         'closed_at' => 'datetime',
+        'calculated_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'posted_at' => 'datetime',
+        'reversed_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -88,7 +106,10 @@ class ShuKoperasi extends Model
         static::deleting(fn () => throw new RuntimeException('Periode SHU adalah histori audit dan tidak boleh dihapus permanen.'));
         static::updating(function (self $model): void {
             if ($model->getOriginal('status') === 'closed' || $model->getOriginal('closed_at') !== null) {
-                throw new RuntimeException('Periode SHU yang sudah ditutup bersifat immutable.');
+                $allowed = ['status', 'reversal_journal_id', 'reversed_by', 'reversed_at', 'reversal_reason', 'updated_at'];
+                if (array_diff(array_keys($model->getDirty()), $allowed) !== [] || $model->status !== 'reversed') {
+                    throw new RuntimeException('Periode SHU yang sudah ditutup bersifat immutable.');
+                }
             }
         });
     }
@@ -102,4 +123,12 @@ class ShuKoperasi extends Model
     {
         return $this->hasMany(ShuAnggota::class, 'shu_koperasi_id');
     }
+
+    public function periodeAkuntansi() { return $this->belongsTo(PeriodeAkuntansi::class, 'periode_akuntansi_id'); }
+    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
+    public function approver() { return $this->belongsTo(User::class, 'approved_by'); }
+    public function poster() { return $this->belongsTo(User::class, 'posted_by'); }
+    public function allocationJournal() { return $this->belongsTo(JurnalUmum::class, 'allocation_journal_id'); }
+    public function reversalJournal() { return $this->belongsTo(JurnalUmum::class, 'reversal_journal_id'); }
+    public function socialFundSource() { return $this->hasOne(DanaSosialSumber::class, 'shu_koperasi_id'); }
 }
