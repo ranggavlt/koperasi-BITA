@@ -36,7 +36,7 @@
       <h2 class="kbsm-business-panel__title">Filter Cicilan Pinjaman</h2>
       <p class="kbsm-business-panel__copy">Filter ini hanya membaca data jadwal, ledger payroll, dan bukti pembayaran.</p>
     </div>
-    <form method="GET" action="{{ route('cicilan-pinjaman.index') }}" class="kbsm-business-filter kbsm-business-filter--wajib">
+    <form method="GET" action="{{ route('cicilan-pinjaman.index') }}" class="kbsm-business-filter kbsm-business-filter--cicilan">
       <div class="kbsm-business-field">
         <label class="kbsm-business-label" for="anggota_id">Anggota</label>
         <select id="anggota_id" name="anggota_id" class="kbsm-business-control">

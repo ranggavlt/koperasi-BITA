@@ -118,8 +118,8 @@
 /* Global layout shell: one source of truth for sidebar/content spacing. */
 .kbsm-layout-main {
   min-width: 0;
+  min-height: 100vh;
   width: 100%;
-  overflow-x: clip;
 }
 
 .kbsm-navbar {
@@ -2259,6 +2259,197 @@ textarea.kbsm-business-control {
   padding-top: 0.85rem;
 }
 
+/* Sewa Hardware detail editor */
+.kbsm-hardware-detail-section {
+  min-width: 0;
+  max-width: 100%;
+  padding: 1.15rem;
+  background: #f9fcf9;
+}
+
+.kbsm-hardware-detail-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-color: rgba(7, 59, 92, 0.35) rgba(7, 59, 92, 0.07);
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  background: var(--kbsm-white);
+  border: 1px solid rgba(7, 59, 92, 0.09);
+  border-radius: 0.9rem;
+  box-shadow: 0 10px 24px rgba(5, 44, 70, 0.045);
+}
+
+.kbsm-hardware-detail-wrap::-webkit-scrollbar {
+  height: 10px;
+}
+
+.kbsm-hardware-detail-wrap::-webkit-scrollbar-track {
+  background: rgba(7, 59, 92, 0.07);
+  border-radius: 999px;
+}
+
+.kbsm-hardware-detail-wrap::-webkit-scrollbar-thumb {
+  background: rgba(7, 59, 92, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+}
+
+.kbsm-hardware-detail-table {
+  min-width: 1100px;
+  table-layout: fixed;
+}
+
+.kbsm-hardware-col--type { width: 10%; }
+.kbsm-hardware-col--name { width: 16%; }
+.kbsm-hardware-col--spec { width: 18%; }
+.kbsm-hardware-col--qty { width: 10%; }
+.kbsm-hardware-col--price { width: 14%; }
+.kbsm-hardware-col--amount { width: 12%; }
+.kbsm-hardware-col--action { width: 8%; }
+
+.kbsm-hardware-detail-table th {
+  padding: 0.9rem 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  background: var(--kbsm-navy);
+  border-bottom: 0;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.kbsm-hardware-detail-table td {
+  padding: 1rem 0.65rem;
+  background: var(--kbsm-white);
+  vertical-align: middle;
+}
+
+.kbsm-hardware-detail-table tbody tr:hover td {
+  background: rgba(234, 245, 232, 0.32);
+}
+
+.kbsm-hardware-detail-table .kbsm-business-control {
+  min-height: 3rem;
+  padding: 0.72rem 0.78rem;
+  font-size: 0.8rem;
+}
+
+.kbsm-hardware-detail-table textarea.kbsm-business-control {
+  min-height: 5rem;
+}
+
+.kbsm-hardware-detail-amount {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  color: var(--kbsm-navy-dark);
+  background: rgba(7, 59, 92, 0.07);
+  border-radius: 0.7rem;
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.kbsm-hardware-detail-amount--margin {
+  color: #23712d;
+  background: rgba(47, 143, 58, 0.1);
+}
+
+.kbsm-hardware-detail-action .kbsm-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.kbsm-hardware-detail-section .kbsm-business-detail-actions {
+  padding-top: 1rem;
+}
+
+.kbsm-hardware-detail-section [data-hardware-add] {
+  min-width: 14.5rem;
+}
+
+@media (max-width: 1199px) {
+  .kbsm-hardware-detail-wrap {
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .kbsm-hardware-detail-table,
+  .kbsm-hardware-detail-table tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  .kbsm-hardware-detail-table colgroup,
+  .kbsm-hardware-detail-table thead {
+    display: none;
+  }
+
+  .kbsm-hardware-detail-table tbody {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .kbsm-hardware-detail-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding: 0.9rem;
+    background: var(--kbsm-white);
+    border: 1px solid rgba(7, 59, 92, 0.09);
+    border-radius: 0.85rem;
+    box-shadow: 0 8px 20px rgba(5, 44, 70, 0.045);
+  }
+
+  .kbsm-hardware-detail-table td {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0;
+    background: transparent !important;
+    border: 0;
+  }
+
+  .kbsm-hardware-detail-table td::before {
+    color: var(--kbsm-muted);
+    content: attr(data-label);
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .kbsm-hardware-detail-action {
+    grid-column: 1 / -1;
+  }
+
+  .kbsm-hardware-detail-action .kbsm-btn {
+    width: auto;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 639px) {
+  .kbsm-hardware-detail-table tbody tr {
+    grid-template-columns: 1fr;
+  }
+
+  .kbsm-hardware-detail-action {
+    grid-column: auto;
+  }
+
+  .kbsm-hardware-detail-action .kbsm-btn,
+  .kbsm-hardware-detail-section [data-hardware-add] {
+    width: 100%;
+  }
+}
+
 .kbsm-business-pagination {
   padding: 1rem 1.25rem;
   border-top: 1px solid rgba(7, 59, 92, 0.07);
@@ -2363,6 +2554,17 @@ textarea.kbsm-business-control {
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
 }
 
+/* Keep the seven Sewa Mobil filters balanced instead of leaving a lone date field. */
+.kbsm-business-filter--sewa-mobil {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+}
+
+.kbsm-business-filter--sewa-mobil .kbsm-business-filter__actions {
+  grid-column: span 2;
+  justify-content: flex-start;
+}
+
 .kbsm-business-filter__actions {
   display: flex;
   align-items: end;
@@ -2381,6 +2583,16 @@ textarea.kbsm-business-control {
 
 .kbsm-business-filter--wajib {
   grid-template-columns: repeat(2, minmax(0, 18rem)) repeat(2, minmax(0, 20rem)) auto;
+}
+
+/* Arrange the six cicilan controls as two balanced rows on desktop. */
+.kbsm-business-filter--cicilan {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.kbsm-business-filter--cicilan .kbsm-business-filter__actions {
+  justify-content: flex-start;
 }
 
 .kbsm-business-filter--simpanan {
@@ -2468,6 +2680,15 @@ textarea.kbsm-business-control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .kbsm-business-filter--sewa-mobil {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kbsm-business-filter--sewa-mobil .kbsm-business-filter__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
   .kbsm-business-filter--beban {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2478,6 +2699,15 @@ textarea.kbsm-business-control {
   .kbsm-business-summary--simpanan,
   .kbsm-business-summary--form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kbsm-business-filter--cicilan {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kbsm-business-filter--cicilan .kbsm-business-filter__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 
   .kbsm-business-filter__actions {
@@ -2501,6 +2731,14 @@ textarea.kbsm-business-control {
     grid-template-columns: 1fr;
   }
 
+  .kbsm-business-filter--sewa-mobil {
+    grid-template-columns: 1fr;
+  }
+
+  .kbsm-business-filter--sewa-mobil .kbsm-business-filter__actions {
+    grid-column: auto;
+  }
+
   .kbsm-business-filter--beban {
     grid-template-columns: 1fr;
   }
@@ -2510,6 +2748,10 @@ textarea.kbsm-business-control {
   .kbsm-business-summary--wajib,
   .kbsm-business-summary--simpanan,
   .kbsm-business-summary--form {
+    grid-template-columns: 1fr;
+  }
+
+  .kbsm-business-filter--cicilan {
     grid-template-columns: 1fr;
   }
 

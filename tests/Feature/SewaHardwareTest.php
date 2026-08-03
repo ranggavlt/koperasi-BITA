@@ -114,6 +114,9 @@ class SewaHardwareTest extends TestCase
             ->assertSee('Pemohon Hardware Aktif')
             ->assertSee('Vendor')
             ->assertSee('Tambah Hardware')
+            ->assertSee('kbsm-hardware-detail-section', false)
+            ->assertSee('kbsm-hardware-detail-table', false)
+            ->assertSee('data-label="Tagihan/Unit"', false)
             ->assertSee('data-sewa-hardware-form', false);
 
         $content = $response->getContent();

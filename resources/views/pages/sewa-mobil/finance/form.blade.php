@@ -170,7 +170,7 @@
         <h3 class="kbsm-business-section__title">Pembayaran dan Approval</h3>
         <p class="kbsm-business-section__copy">Approval Pengurus dan pembayaran penuh dicatat setelah draft diajukan. Tidak ada self-service Karyawan atau pemotongan payroll.</p>
         <div class="kbsm-business-actions">
-          <button class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
+          <button type="submit" class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
           @if($editData)
             <a href="{{ route('sewa-mobil.finance.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal Edit</a>
           @endif

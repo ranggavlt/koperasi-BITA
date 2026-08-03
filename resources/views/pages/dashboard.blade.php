@@ -94,7 +94,7 @@
     <div class="flex flex-wrap mt-6 -mx-3">
         <div class="w-full px-3 mb-6 lg:mb-0 lg:w-5/12 lg:flex-none">
             <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border p-4 h-full">
-                <div class="relative h-full overflow-hidden bg-cover rounded-xl" style="background-image: url('../assets/img/ivancik.jpg')">
+                <div class="relative h-full overflow-hidden bg-cover rounded-xl" style="background-image: url('{{ asset('assets/img/home-decor-1.jpg') }}')">
                     <span class="kbsm-gradient-brand absolute top-0 left-0 w-full h-full bg-center bg-cover opacity-90"></span>
                     <div class="relative z-10 flex flex-col flex-auto h-full p-4">
                         <h5 class="pt-2 mb-6 font-bold text-white">Ringkasan Keuangan</h5>

@@ -81,6 +81,7 @@ class SewaMobilTest extends TestCase
             ->get(route('sewa-mobil.finance.index'))
             ->assertOk()
             ->assertSee('Filter Sewa Mobil')
+            ->assertSee('kbsm-business-filter--sewa-mobil', false)
             ->assertSee('Daftar Sewa Mobil')
             ->assertSee('+ TAMBAH SEWA MOBIL')
             ->assertDontSee('name="aset_koperasi_id"', false);
