@@ -101,7 +101,7 @@ class NavigationFinalizationTest extends TestCase
                 'Potong Gaji',
                 'Periode Potong Gaji',
                 'Laporan Potong Gaji',
-                'Rekonsiliasi Potong Gaji',
+                'Pengecekan Potong Gaji',
                 'Tagihan Tunai',
                 'Usaha Koperasi',
                 'Sewa Mobil',

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Perusahaan;
 use App\Services\PotongGajiReportService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class RekonsiliasiPotongGajiController extends Controller
 {
@@ -13,9 +15,19 @@ class RekonsiliasiPotongGajiController extends Controller
 
     public function index(Request $request)
     {
-        $periode = $request->get('periode', now(config('app.timezone'))->format('Y-m'));
-        $rekonsiliasi = $this->reportService->reconciliation($periode);
+        $validated = $request->validate([
+            'periode' => ['nullable', 'date_format:Y-m'],
+            'perusahaan_id' => ['nullable', 'integer', Rule::exists('perusahaan', 'id')],
+        ]);
 
-        return view('pages.rekonsiliasi-potong-gaji.index', compact('periode', 'rekonsiliasi'));
+        $periode = $validated['periode'] ?? now(config('app.timezone'))->format('Y-m');
+        $perusahaanId = isset($validated['perusahaan_id']) ? (int) $validated['perusahaan_id'] : null;
+        $rekonsiliasi = $this->reportService->reconciliation($periode, $perusahaanId);
+        $perusahaanList = Perusahaan::query()
+            ->whereIn('kode', ['BEE', 'BBS', 'BKM'])
+            ->orderBy('kode')
+            ->get();
+
+        return view('pages.rekonsiliasi-potong-gaji.index', compact('periode', 'perusahaanId', 'perusahaanList', 'rekonsiliasi'));
     }
 }

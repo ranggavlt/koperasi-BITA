@@ -27,6 +27,6 @@
 
   <!-- Main Styling -->
   <link href="{{ asset('assets/css/soft-ui-dashboard-tailwind.css') }}?v=1.0.5" rel="stylesheet" />
-  <link href="{{ asset('assets/css/kbsm-theme.css') }}?v=20260803-2" rel="stylesheet" />
+  <link href="{{ asset('assets/css/kbsm-theme.css') }}?v=20260804-1" rel="stylesheet" />
   @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

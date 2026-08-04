@@ -28,9 +28,13 @@ class PotongGajiReportService
         $periodeRow = PeriodePotongGaji::query()->whereDate('periode', $mulai->toDateString())->first();
 
         $limits = LimitPotongGajiAnggota::query()
-            ->with(['anggota.karyawan', 'pemakaian', 'periodePotongGaji', 'dompetPenerimaan'])
+            ->with(['anggota.karyawan.perusahaan', 'pemakaian', 'periodePotongGaji', 'dompetPenerimaan'])
             ->when($periodeRow, fn ($query) => $query->where('periode_potong_gaji_id', $periodeRow->id))
             ->when(! $periodeRow, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($filters['perusahaan_id'] ?? null, fn ($query, $companyId) => $query->whereHas(
+                'anggota.karyawan',
+                fn ($employeeQuery) => $employeeQuery->where('perusahaan_id', $companyId)
+            ))
             ->when($filters['anggota_id'] ?? null, fn ($query, $anggotaId) => $query->where('anggota_id', $anggotaId))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderBy('anggota_id')
@@ -40,6 +44,9 @@ class PotongGajiReportService
         $dueCicilanWithoutLedger = $periodeRow
             ? app(PinjamanReportService::class)
                 ->dueCicilanWithoutLedgerForPayroll($mulai->format('Y-m'), isset($filters['anggota_id']) ? (int) $filters['anggota_id'] : null)
+                ->when($filters['perusahaan_id'] ?? null, fn (Collection $rows, $companyId) => $rows->filter(
+                    fn ($row): bool => (int) ($row->anggota?->karyawan?->perusahaan_id ?? 0) === (int) $companyId
+                )->values())
                 ->groupBy(fn ($row) => (int) ($row->anggota?->id ?? 0))
             : collect();
         $creditByLimit = $limitIds === []
@@ -71,6 +78,7 @@ class PotongGajiReportService
                 ->sum(fn ($row) => (float) $row->nominal_sisa);
             $simpananPokok = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK)->sum('nominal');
             $simpananWajib = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB)->sum('nominal');
+            $simpananManasuka = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA)->sum('nominal');
             $pos = (float) $activeLedgers->where('kategori', PemakaianPotongGaji::KATEGORI_POS)->sum('nominal');
             $reserved = (float) $ledgers->where('status', PemakaianPotongGaji::STATUS_RESERVED)->sum('nominal');
             $consumed = (float) $ledgers->where('status', PemakaianPotongGaji::STATUS_CONSUMED)->sum('nominal');
@@ -96,6 +104,7 @@ class PotongGajiReportService
                 'cicilan_belum_dialokasikan' => $cicilanUnallocated,
                 'simpanan_pokok' => $simpananPokok,
                 'simpanan_wajib' => $simpananWajib,
+                'simpanan_manasuka' => $simpananManasuka,
                 'pos' => $pos,
                 'jasa_print' => 0,
                 'reserved' => $reserved,
@@ -120,6 +129,7 @@ class PotongGajiReportService
                 PemakaianPotongGaji::KATEGORI_CICILAN => $row->cicilan,
                 PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => $row->simpanan_pokok,
                 PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => $row->simpanan_wajib,
+                PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA => $row->simpanan_manasuka,
                 PemakaianPotongGaji::KATEGORI_POS => $row->pos,
                 PemakaianPotongGaji::KATEGORI_JASA_PRINT => $row->jasa_print,
                 default => $row->gross_payroll,
@@ -236,14 +246,21 @@ class PotongGajiReportService
         ];
     }
 
-    public function reconciliation(string $periode): array
+    public function reconciliation(string $periode, ?int $perusahaanId = null): array
     {
         [$mulai, $akhir] = $this->periodRange($periode);
         $periodeRow = PeriodePotongGaji::query()->whereDate('periode', $mulai->toDateString())->first();
         $limitIds = $periodeRow
-            ? LimitPotongGajiAnggota::query()->where('periode_potong_gaji_id', $periodeRow->id)->pluck('id')->all()
+            ? LimitPotongGajiAnggota::query()
+                ->where('periode_potong_gaji_id', $periodeRow->id)
+                ->when($perusahaanId, fn ($query, $companyId) => $query->whereHas(
+                    'anggota.karyawan',
+                    fn ($employeeQuery) => $employeeQuery->where('perusahaan_id', $companyId)
+                ))
+                ->pluck('id')
+                ->all()
             : [];
-        $ledgerIds = $this->settledPayrollLedgerIds($periodeRow?->id);
+        $ledgerIds = $this->settledPayrollLedgerIds($periodeRow?->id, $limitIds);
 
         $gross = $ledgerIds === []
             ? 0.0
@@ -265,10 +282,10 @@ class PotongGajiReportService
             ->sum('nominal');
 
         $differences = [
-            'Potongan tercatat vs bukti pembayaran' => round($gross - $proof, 2),
-            'Penerimaan bersih vs Mutasi Bank' => round($net - $mutasi, 2),
-            'Penerimaan bersih vs Debit Bank Jurnal' => round($net - $bankDebit, 2),
-            'Potongan tercatat vs Kredit Piutang Jurnal' => round($gross - $creditPiutang, 2),
+            'Potongan gaji dibandingkan dengan bukti pemotongan' => round($gross - $proof, 2),
+            'Uang yang seharusnya diterima dibandingkan dengan Bank' => round($net - $mutasi, 2),
+            'Uang yang seharusnya diterima dibandingkan dengan Jurnal' => round($net - $bankDebit, 2),
+            'Potongan gaji dibandingkan dengan pelunasan tagihan anggota' => round($gross - $creditPiutang, 2),
         ];
 
         $status = collect($differences)->every(fn ($diff) => abs((float) $diff) < 0.01)
@@ -332,6 +349,7 @@ class PotongGajiReportService
             PemakaianPotongGaji::KATEGORI_CICILAN => 'Cicilan Pinjaman',
             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK => 'Legacy Pokok',
             PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB => 'Simpanan Wajib',
+            PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA => 'Manasuka Rutin',
             PemakaianPotongGaji::KATEGORI_POS => 'POS Potong Gaji',
             PemakaianPotongGaji::KATEGORI_JASA_PRINT => 'Jasa Print',
             default => ucfirst(str_replace('_', ' ', $kategori)),
@@ -379,7 +397,7 @@ class PotongGajiReportService
     /**
      * @return array<int,int>
      */
-    private function settledPayrollLedgerIds(?int $periodeId): array
+    private function settledPayrollLedgerIds(?int $periodeId, ?array $limitIds = null): array
     {
         if (! $periodeId) {
             return [];
@@ -388,6 +406,7 @@ class PotongGajiReportService
         return PemakaianPotongGaji::query()
             ->join('limit_potong_gaji_anggota as l', 'l.id', '=', 'pemakaian_potong_gaji.limit_potong_gaji_anggota_id')
             ->where('l.periode_potong_gaji_id', $periodeId)
+            ->when($limitIds !== null, fn ($query) => $query->whereIn('l.id', $limitIds))
             ->where('pemakaian_potong_gaji.status', PemakaianPotongGaji::STATUS_SETTLED)
             ->pluck('pemakaian_potong_gaji.id')
             ->map(fn ($id) => (int) $id)

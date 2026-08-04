@@ -14,7 +14,7 @@
   $selectedPeriodDate = $selectedPeriode?->periode?->toDateString() ?? CarbonImmutable::now(config('app.timezone', 'Asia/Jakarta'))->startOfMonth()->toDateString();
 @endphp
 
-<div class="kbsm-business-page">
+<div class="kbsm-business-page kbsm-ux-page">
   @if (session('success'))
     <div class="kbsm-business-alert kbsm-business-alert--success">
       {{ session('success') }}
@@ -33,7 +33,7 @@
 
   @if (! empty($generationWarnings))
     <div class="kbsm-business-alert kbsm-business-alert--warning">
-      <p class="mb-2 font-bold">Warning generate limit otomatis:</p>
+      <p class="mb-2 font-medium">Peringatan saat menyiapkan limit:</p>
       <ul>
         @foreach($generationWarnings as $warning)
           <li>{{ $warning }}</li>
@@ -46,7 +46,7 @@
     <div>
       <p class="kbsm-business-eyebrow">Payroll & Cicilan</p>
       <h1 class="kbsm-business-title">Periode Potong Gaji</h1>
-      <p class="kbsm-business-subtitle">Kelola limit umum Rp1.500.000, limit khusus anggota, snapshot perusahaan, dan status kredit Waserba per periode.</p>
+      <p class="kbsm-business-subtitle">Siapkan, periksa, sesuaikan, lalu aktifkan limit potong gaji anggota untuk periode yang dipilih.</p>
     </div>
     <div class="kbsm-business-actions">
       <a href="{{ route('periode-potong-gaji.create') }}" class="kbsm-btn kbsm-btn--navy">
@@ -65,11 +65,11 @@
     </div>
     <div class="p-6 grid gap-6 lg:grid-cols-2">
       <div class="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
-        <p class="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-700">Limit Umum Aktif</p>
-        <h3 class="mb-1 text-2xl font-black text-slate-800">{{ $activePolicy ? $fmt($activePolicy->nominal_limit) : 'Belum tersedia' }}</h3>
+        <p class="mb-1 text-xs font-medium uppercase tracking-wider text-emerald-700">Limit Umum Aktif</p>
+        <p class="mb-1 text-2xl font-medium text-slate-800">{{ $activePolicy ? $fmt($activePolicy->nominal_limit) : 'Belum tersedia' }}</p>
         <p class="mb-0 text-sm text-slate-500">
           Berlaku mulai:
-          <span class="font-bold text-slate-700">{{ $activePolicy?->berlaku_mulai_periode?->format('d M Y') ?? '-' }}</span>
+          <span class="font-medium text-slate-700">{{ $activePolicy?->berlaku_mulai_periode?->format('d M Y') ?? '-' }}</span>
         </p>
       </div>
 
@@ -77,15 +77,15 @@
         @csrf
         @method('PATCH')
         <div>
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Nominal Limit Umum</label>
-          <input type="number" min="0" name="nominal_limit" value="{{ old('nominal_limit', $activePolicy ? (int) $activePolicy->nominal_limit : 1500000) }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Nominal Limit Umum</label>
+          <input type="number" min="0" name="nominal_limit" value="{{ old('nominal_limit', $activePolicy ? (int) $activePolicy->nominal_limit : '') }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
         <div>
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Berlaku Mulai Periode</label>
+          <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Berlaku Mulai Periode</label>
           <input type="date" name="berlaku_mulai_periode" value="{{ old('berlaku_mulai_periode', $nextPolicyStart) }}" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
         </div>
         <div class="sm:col-span-2">
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Alasan Perubahan</label>
+          <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Alasan Perubahan</label>
           <textarea name="alasan" rows="2" class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" required>{{ old('alasan', 'Perubahan kebijakan limit umum periode berikutnya.') }}</textarea>
         </div>
         <div class="sm:col-span-2 flex justify-end">
@@ -98,12 +98,12 @@
   <section class="kbsm-business-panel mb-6">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">Pilih Periode</h2>
-      <p class="kbsm-business-panel__copy">Generate otomatis dapat diulang secara idempotent; limit yang sudah ada tidak dibuat ganda.</p>
+      <p class="kbsm-business-panel__copy">Limit yang sudah ada tidak akan dibuat ulang.</p>
     </div>
     <div class="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
       @foreach($periodeList as $periode)
-        <a href="{{ route('periode-potong-gaji.index', ['periode_id' => $periode->id] + request()->only(['search', 'perusahaan_id', 'status'])) }}"
-          class="px-4 py-2 text-xs font-bold uppercase rounded-lg border {{ $selectedPeriode && $selectedPeriode->id === $periode->id ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' }} transition-colors">
+        <a href="{{ route('periode-potong-gaji.index', ['periode_id' => $periode->id] + request()->only(['perusahaan_id', 'anggota_id', 'status'])) }}"
+          class="px-4 py-2 text-xs font-medium uppercase rounded-lg border {{ $selectedPeriode && $selectedPeriode->id === $periode->id ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' }} transition-colors">
           {{ $periode->periode->format('M Y') }}
           <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] {{ $selectedPeriode && $selectedPeriode->id === $periode->id ? 'bg-emerald-700' : 'bg-slate-100' }}">{{ $periode->status }}</span>
         </a>
@@ -117,33 +117,29 @@
       <div class="p-6 space-y-6">
         <div class="grid gap-4 md:grid-cols-4">
           <div class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <p class="mb-1 text-xs font-bold uppercase text-slate-400">Limit Umum</p>
-            <p class="mb-0 text-2xl font-black text-slate-800">{{ $summary['limit_umum'] }}</p>
+            <p class="mb-1 text-xs font-medium uppercase text-slate-400">Menggunakan Limit Umum</p>
+            <p class="mb-0 text-2xl font-medium text-slate-800">{{ $summary['limit_umum'] }}</p>
           </div>
           <div class="rounded-2xl border border-amber-100 bg-amber-50/50 p-4 shadow-sm">
-            <p class="mb-1 text-xs font-bold uppercase text-amber-700">Limit Khusus</p>
-            <p class="mb-0 text-2xl font-black text-slate-800">{{ $summary['limit_khusus'] }}</p>
+            <p class="mb-1 text-xs font-medium uppercase text-amber-700">Menggunakan Limit Khusus</p>
+            <p class="mb-0 text-2xl font-medium text-slate-800">{{ $summary['limit_khusus'] }}</p>
           </div>
           <div class="rounded-2xl border border-red-100 bg-red-50 p-4 shadow-sm">
-            <p class="mb-1 text-xs font-bold uppercase text-red-700">Kredit Waserba Nonaktif</p>
-            <p class="mb-0 text-2xl font-black text-slate-800">{{ $summary['kredit_waserba_nonaktif'] }}</p>
+            <p class="mb-1 text-xs font-medium uppercase text-red-700">Kredit Waserba Nonaktif</p>
+            <p class="mb-0 text-2xl font-medium text-slate-800">{{ $summary['kredit_waserba_nonaktif'] }}</p>
           </div>
           <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
-            <p class="mb-1 text-xs font-bold uppercase text-blue-700">Belum Dibuatkan Limit</p>
-            <p class="mb-0 text-2xl font-black text-slate-800">{{ $summary['belum_limit'] }}</p>
+            <p class="mb-1 text-xs font-medium uppercase text-blue-700">Limit Belum Disiapkan</p>
+            <p class="mb-0 text-2xl font-medium text-slate-800">{{ $summary['belum_limit'] }}</p>
           </div>
         </div>
 
         <div class="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-          <form method="GET" action="{{ route('periode-potong-gaji.index') }}" class="grid gap-4 lg:grid-cols-2">
+          <form method="GET" action="{{ route('periode-potong-gaji.index') }}" class="kbsm-ux-filter-grid" data-member-filter>
             <input type="hidden" name="periode_id" value="{{ $selectedPeriode->id }}">
             <div>
-              <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Cari Anggota</label>
-              <input type="text" name="search" value="{{ $filters['search'] }}" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" placeholder="Nomor, nama, atau email">
-            </div>
-            <div>
-              <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Perusahaan</label>
-              <select name="perusahaan_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+              <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Perusahaan</label>
+              <select name="perusahaan_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" data-company-select>
                 <option value="">Semua Perusahaan</option>
                 @foreach($perusahaanList as $perusahaan)
                   <option value="{{ $perusahaan->id }}" @selected((string) $filters['perusahaan_id'] === (string) $perusahaan->id)>{{ $perusahaan->kode }} — {{ $perusahaan->nama }}</option>
@@ -151,16 +147,28 @@
               </select>
             </div>
             <div>
-              <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Status</label>
-              <select name="status" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                <option value="">Semua Status</option>
-                <option value="limit_umum" @selected($filters['status'] === 'limit_umum')>Memakai Limit Umum</option>
-                <option value="limit_khusus" @selected($filters['status'] === 'limit_khusus')>Memakai Limit Khusus</option>
-                <option value="kredit_nonaktif" @selected($filters['status'] === 'kredit_nonaktif')>Kredit Waserba Nonaktif</option>
-                <option value="belum_limit" @selected($filters['status'] === 'belum_limit')>Belum Dibuatkan Limit</option>
+              <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Anggota</label>
+              <input type="search" class="kbsm-focus mb-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Cari nama atau nomor anggota" autocomplete="off" data-member-search>
+              <select name="anggota_id" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" data-member-select>
+                <option value="">Semua Anggota</option>
+                @foreach($allEligible as $anggota)
+                  <option value="{{ $anggota->id }}" data-company-id="{{ $anggota->karyawan?->perusahaan_id }}" @selected((string) $filters['anggota_id'] === (string) $anggota->id)>
+                    {{ $anggota->nomor_anggota }} — {{ $anggota->karyawan?->nama }}
+                  </option>
+                @endforeach
               </select>
             </div>
-            <div class="flex items-end gap-3">
+            <div>
+              <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Status Limit</label>
+              <select name="status" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                <option value="">Semua Status</option>
+                <option value="limit_umum" @selected($filters['status'] === 'limit_umum')>Menggunakan Limit Umum</option>
+                <option value="limit_khusus" @selected($filters['status'] === 'limit_khusus')>Menggunakan Limit Khusus</option>
+                <option value="kredit_nonaktif" @selected($filters['status'] === 'kredit_nonaktif')>Kredit Waserba Nonaktif</option>
+                <option value="belum_limit" @selected($filters['status'] === 'belum_limit')>Limit Belum Disiapkan</option>
+              </select>
+            </div>
+            <div class="kbsm-ux-filter-actions">
               <button class="kbsm-btn kbsm-btn--navy">Filter</button>
               <a href="{{ route('periode-potong-gaji.index', ['periode_id' => $selectedPeriode->id]) }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a>
             </div>
@@ -169,17 +177,17 @@
 
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 class="font-bold text-slate-800 text-lg mb-1">Limit Anggota: {{ $periodeLabel }}</h3>
-            <p class="mb-0 text-sm text-slate-500">Prioritas pemakaian tetap: Cicilan Pinjaman → Simpanan Wajib → Waserba kredit.</p>
+            <h3 class="font-medium text-slate-800 text-lg mb-1">Limit Anggota: {{ $periodeLabel }}</h3>
+            <p class="mb-0 text-sm text-slate-500">Prioritas pemakaian tetap: Cicilan Pinjaman → Simpanan Wajib → Manasuka Rutin → Waserba.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <form action="{{ route('periode-potong-gaji.bulk-generate', $selectedPeriode) }}" method="POST">
+            <form action="{{ route('periode-potong-gaji.bulk-generate', $selectedPeriode) }}" method="POST" data-confirm="Siapkan limit bulan ini untuk seluruh anggota yang memenuhi syarat? Limit yang sudah ada tidak akan dibuat ulang.">
               @csrf
-              <button class="kbsm-btn kbsm-btn--emerald">Bulk Generate Limit</button>
+              <button class="kbsm-btn kbsm-btn--emerald">Siapkan Limit Bulanan</button>
             </form>
-            <form action="{{ route('periode-potong-gaji.bulk-activate', $selectedPeriode) }}" method="POST">
+            <form action="{{ route('periode-potong-gaji.bulk-activate', $selectedPeriode) }}" method="POST" data-confirm="Aktifkan seluruh limit draft yang sudah diperiksa agar dapat digunakan untuk potong gaji?">
               @csrf
-              <button class="kbsm-btn kbsm-btn--navy">Bulk Activate</button>
+              <button class="kbsm-btn kbsm-btn--navy">Aktifkan Semua Limit</button>
             </form>
           </div>
         </div>
@@ -189,10 +197,10 @@
             <thead class="bg-slate-100 text-xs uppercase tracking-wider text-slate-500">
               <tr>
                 <th class="px-4 py-3 font-semibold border-b border-slate-200">Anggota</th>
-                <th class="px-4 py-3 font-semibold border-b border-slate-200">Snapshot Limit</th>
-                <th class="px-4 py-3 font-semibold border-b border-slate-200">Pemakaian</th>
-                <th class="px-4 py-3 font-semibold border-b border-slate-200">Override & Kredit Waserba</th>
-                <th class="px-4 py-3 font-semibold border-b border-slate-200 text-right">Lifecycle</th>
+                <th class="px-4 py-3 font-medium border-b border-slate-200">Limit Bulan Ini</th>
+                <th class="px-4 py-3 font-medium border-b border-slate-200">Pemakaian</th>
+                <th class="px-4 py-3 font-medium border-b border-slate-200">Pengaturan Khusus</th>
+                <th class="px-4 py-3 font-medium border-b border-slate-200 text-right">Status Limit</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -209,30 +217,38 @@
                   $sourceLabel = match ($limit?->sumber_limit) {
                     LimitPotongGajiAnggota::SUMBER_OVERRIDE_ANGGOTA => 'Limit Khusus',
                     LimitPotongGajiAnggota::SUMBER_LIMIT_UMUM => 'Limit Umum',
-                    LimitPotongGajiAnggota::SUMBER_MANUAL => 'Manual Legacy',
-                    default => $limit ? 'Belum Snapshot' : 'Belum Ada Limit',
+                    LimitPotongGajiAnggota::SUMBER_MANUAL => 'Dibuat Manual',
+                    default => $limit ? 'Belum Disiapkan' : 'Limit Belum Disiapkan',
                   };
                   $sourceClass = $limit?->sumber_limit === LimitPotongGajiAnggota::SUMBER_OVERRIDE_ANGGOTA
                     ? 'bg-amber-100 text-amber-700'
                     : ($limit ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600');
                   $creditEnabled = $setting?->kredit_waserba_enabled ?? true;
+                  $limitStatusLabel = match ($limit?->status) {
+                    LimitPotongGajiAnggota::STATUS_DRAFT => 'Draft',
+                    LimitPotongGajiAnggota::STATUS_ACTIVE => 'Aktif',
+                    LimitPotongGajiAnggota::STATUS_CLOSED_PENDING_CONFIRMATION => 'Menunggu Konfirmasi',
+                    LimitPotongGajiAnggota::STATUS_CONFIRMED => 'Selesai',
+                    LimitPotongGajiAnggota::STATUS_CANCELLED => 'Dibatalkan',
+                    default => '-',
+                  };
                 @endphp
                 <tr class="hover:bg-slate-50/50 transition-colors align-top">
                   <td class="px-4 py-4">
-                    <p class="mb-0 font-bold text-slate-800">{{ $anggota->nomor_anggota }}</p>
+                    <p class="mb-0 font-medium text-slate-800">{{ $anggota->nomor_anggota }}</p>
                     <p class="mb-0 text-sm font-medium text-slate-600">{{ $anggota->karyawan->nama ?? '-' }}</p>
                     <p class="mb-0 text-xs text-slate-400 mt-1">{{ $anggota->karyawan->perusahaan?->kode ?? '-' }} / {{ $anggota->karyawan->perusahaan?->nama ?? 'Tanpa perusahaan' }}</p>
                   </td>
 
                   <td class="px-4 py-4">
                     @if($limit)
-                      <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider {{ $sourceClass }}">{{ $sourceLabel }}</span>
-                      <p class="mt-2 mb-0 text-xl font-black text-slate-800">{{ $fmt($limit->limit_nominal) }}</p>
-                      <p class="mb-0 text-xs text-slate-400">Perusahaan snapshot: {{ $limit->perusahaan_kode_snapshot ?? '-' }} — {{ $limit->perusahaan_nama_snapshot ?? '-' }}</p>
-                      <p class="mb-0 text-xs text-slate-400">Generated: {{ $limit->generated_at?->format('d M Y H:i') ?? '-' }}</p>
+                      <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider {{ $sourceClass }}">{{ $sourceLabel }}</span>
+                      <p class="mt-2 mb-0 text-xl font-medium text-slate-800">{{ $fmt($limit->limit_nominal) }}</p>
+                      <p class="mb-0 text-xs text-slate-400">Perusahaan saat disiapkan: {{ $limit->perusahaan_kode_snapshot ?? '-' }} — {{ $limit->perusahaan_nama_snapshot ?? '-' }}</p>
+                      <p class="mb-0 text-xs text-slate-400">Disiapkan: {{ $limit->generated_at?->format('d M Y H:i') ?? '-' }}</p>
                     @else
-                      <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">Belum berhasil dibuatkan limit</span>
-                      <p class="mt-2 mb-0 text-xs text-slate-400">Klik Bulk Generate setelah data perusahaan lengkap.</p>
+                      <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider bg-amber-100 text-amber-700">Limit Belum Disiapkan</span>
+                      <p class="mt-2 mb-0 text-xs text-slate-400">Klik Siapkan Limit Bulanan setelah data perusahaan lengkap.</p>
                     @endif
                   </td>
 
@@ -244,14 +260,14 @@
                       </div>
                       <div class="flex justify-between gap-4">
                         <span class="text-slate-500">Sisa Limit</span>
-                        <span class="font-bold text-emerald-600">{{ $limit ? $fmt($sisa) : '-' }}</span>
+                        <span class="font-medium text-emerald-600">{{ $limit ? $fmt($sisa) : '-' }}</span>
                       </div>
                       <div class="flex justify-between gap-4 pt-1 border-t border-slate-100">
-                        <span class="text-slate-400">Reserved</span>
+                        <span class="text-slate-400">Sudah Dialokasikan</span>
                         <span class="text-slate-600">{{ $fmt($reserved) }}</span>
                       </div>
                       <div class="flex justify-between gap-4">
-                        <span class="text-slate-400">Consumed</span>
+                        <span class="text-slate-400">Sudah Digunakan</span>
                         <span class="text-slate-600">{{ $fmt($consumed) }}</span>
                       </div>
                     </div>
@@ -275,7 +291,7 @@
                     @endif
 
                     <div class="mt-3 rounded-xl border {{ $creditEnabled ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50' }} p-3">
-                      <p class="mb-2 text-xs font-bold uppercase {{ $creditEnabled ? 'text-emerald-700' : 'text-red-700' }}">
+                      <p class="mb-2 text-xs font-medium uppercase {{ $creditEnabled ? 'text-emerald-700' : 'text-red-700' }}">
                         Kredit Waserba: {{ $creditEnabled ? 'Aktif' : 'Nonaktif' }}
                       </p>
                       @if($creditEnabled)
@@ -297,12 +313,12 @@
                   <td class="px-4 py-4 text-right">
                     @if($limit)
                       <div class="flex flex-col items-end gap-2">
-                        <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider
+                        <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider
                           {{ $limit->status === 'draft' ? 'bg-slate-100 text-slate-600' : '' }}
                           {{ $limit->status === 'active' ? 'bg-emerald-100 text-emerald-700' : '' }}
                           {{ str_contains($limit->status, 'closed') ? 'bg-blue-100 text-blue-700' : '' }}
                           {{ $limit->status === 'confirmed' ? 'bg-green-100 text-green-700' : '' }}
-                        ">{{ str_replace('_', ' ', $limit->status) }}</span>
+                        ">{{ $limitStatusLabel }}</span>
 
                         @if($limit->status === LimitPotongGajiAnggota::STATUS_DRAFT)
                           <form action="{{ route('periode-potong-gaji.limit.activate', $limit) }}" method="POST">@csrf @method('PATCH')
@@ -311,7 +327,7 @@
                         @endif
                         @if($limit->status === LimitPotongGajiAnggota::STATUS_ACTIVE)
                           <form action="{{ route('periode-potong-gaji.limit.payoff-payroll', $limit) }}" method="POST">@csrf
-                            <button class="kbsm-btn kbsm-btn--sm kbsm-btn--navy !text-[10px] !py-1 !px-2 mb-1">Bayar via Payroll</button>
+                            <button class="kbsm-btn kbsm-btn--sm kbsm-btn--navy !text-[10px] !py-1 !px-2 mb-1">Potong melalui Gaji</button>
                           </form>
                           <form action="{{ route('periode-potong-gaji.limit.close', $limit) }}" method="POST">@csrf @method('PATCH')
                             <button class="kbsm-btn kbsm-btn--sm kbsm-btn--outline-slate !text-[10px] !py-1 !px-2">Tutup Limit</button>
@@ -324,7 +340,7 @@
                         @endif
                       </div>
                     @else
-                      <span class="text-xs text-slate-400 italic">Belum ada lifecycle limit</span>
+                      <span class="text-xs text-slate-400 italic">Status limit belum tersedia</span>
                     @endif
                   </td>
                 </tr>

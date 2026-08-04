@@ -16,6 +16,246 @@
   --kbsm-content-offset: calc(var(--kbsm-sidebar-width) + (var(--kbsm-sidebar-gap) * 2));
 }
 
+/* ================================================================
+   Focused UX: Kas & Bank, Pinjaman, and Potong Gaji
+   ================================================================ */
+
+.mkb-page .kbsm-btn,
+.mkb-page table th,
+.mkb-page .font-bold {
+  font-weight: 600;
+}
+
+.kbsm-ux-page .kbsm-business-eyebrow,
+.kbsm-ux-page .kbsm-business-panel__title,
+.kbsm-ux-page .kbsm-business-section__title,
+.kbsm-ux-page .kbsm-business-label,
+.kbsm-ux-page .kbsm-business-summary-label,
+.kbsm-ux-page .kbsm-business-code,
+.kbsm-ux-page .kbsm-business-strong,
+.kbsm-ux-page .kbsm-btn,
+.kbsm-ux-page table th {
+  font-weight: 500;
+}
+
+.kbsm-ux-page .kbsm-business-summary-value {
+  font-weight: 500;
+}
+
+.kbsm-ux-page .kbsm-business-amount {
+  font-weight: 400;
+}
+
+.kbsm-ux-page .kbsm-business-amount--emphasis {
+  color: var(--kbsm-green);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.kbsm-ux-filter-grid,
+.kbsm-ux-check-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.kbsm-ux-filter-grid {
+  padding: 0;
+}
+
+.kbsm-ux-filter-grid--report,
+.kbsm-ux-check-filter {
+  padding: 1rem 1.25rem;
+  background: #fbfdfb;
+}
+
+.kbsm-ux-check-filter {
+  grid-template-columns: repeat(2, minmax(0, 20rem)) auto;
+  justify-content: start;
+}
+
+.kbsm-ux-filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.kbsm-ux-filter-actions .kbsm-btn {
+  min-width: 6.75rem;
+}
+
+.kbsm-member-search {
+  min-height: 2.25rem;
+  margin-bottom: 0.4rem;
+  padding-block: 0.45rem;
+}
+
+.kbsm-ux-toggle {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--kbsm-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.kbsm-ux-toggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--kbsm-green);
+}
+
+.kbsm-ux-page .kbsm-business-summary--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 1.25rem;
+}
+
+.kbsm-business-table--payroll-compact {
+  min-width: 960px;
+}
+
+.kbsm-ux-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0.5rem 1.25rem 1.25rem;
+}
+
+.kbsm-ux-breakdown > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border-bottom: 1px solid rgba(7, 59, 92, 0.08);
+}
+
+.kbsm-ux-breakdown dt,
+.kbsm-ux-breakdown dd {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.kbsm-ux-breakdown dt {
+  color: var(--kbsm-muted);
+}
+
+.kbsm-ux-breakdown dd {
+  color: var(--kbsm-navy-dark);
+  text-align: right;
+}
+
+.kbsm-ux-breakdown__total {
+  background: var(--kbsm-green-soft);
+}
+
+.kbsm-ux-breakdown__total dt,
+.kbsm-ux-breakdown__total dd {
+  color: #256f31;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.kbsm-ux-details {
+  margin: 0 1.25rem 1.25rem;
+  overflow: hidden;
+  border: 1px solid rgba(7, 59, 92, 0.1);
+  border-radius: 0.85rem;
+}
+
+.kbsm-ux-details > summary {
+  padding: 0.85rem 1rem;
+  color: var(--kbsm-navy);
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.kbsm-ux-breakdown--technical {
+  padding: 0.35rem 0.75rem 0.75rem;
+}
+
+.kbsm-ux-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.kbsm-ux-status p {
+  margin: 0;
+  color: var(--kbsm-text);
+  font-size: 0.86rem;
+}
+
+.kbsm-ux-status--success {
+  background: var(--kbsm-green-soft);
+}
+
+.kbsm-ux-status--danger {
+  background: #fff1f2;
+}
+
+.kbsm-ux-success-state {
+  margin: 0 1.25rem 1.25rem;
+  padding: 1.15rem;
+  color: #256f31;
+  background: #f5fbf3;
+  border: 1px dashed rgba(47, 143, 58, 0.28);
+  border-radius: 0.85rem;
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+.kbsm-ux-formula {
+  margin: 0;
+  padding: 0 1rem 1rem;
+  color: var(--kbsm-muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 991px) {
+  .kbsm-ux-filter-grid,
+  .kbsm-ux-check-filter,
+  .kbsm-ux-page .kbsm-business-summary--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kbsm-ux-filter-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .kbsm-ux-filter-grid,
+  .kbsm-ux-check-filter,
+  .kbsm-ux-page .kbsm-business-summary--three,
+  .kbsm-ux-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .kbsm-ux-filter-actions {
+    grid-column: auto;
+  }
+
+  .kbsm-ux-filter-actions .kbsm-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .kbsm-ux-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .kbsm-app {
   background:
     radial-gradient(circle at 100% 0%, rgba(99, 181, 50, 0.08), transparent 24rem),
@@ -1339,7 +1579,7 @@ textarea.coa-input {
   margin: 0 0 0.25rem;
   color: var(--kbsm-green);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1377,7 +1617,8 @@ textarea.coa-input {
 }
 
 .mkb-filter-panel {
-  max-width: 58rem;
+  width: 100%;
+  max-width: none;
   margin-bottom: 1.35rem;
   overflow: hidden;
   background: var(--kbsm-white);
@@ -1394,7 +1635,7 @@ textarea.coa-input {
   margin: 0;
   color: var(--kbsm-navy-dark);
   font-size: 0.92rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .mkb-filter-subtitle {
@@ -1406,9 +1647,13 @@ textarea.coa-input {
 
 .mkb-filter-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.95rem 1rem;
   padding: 1.05rem 1.15rem 1.15rem;
+}
+
+.mkb-filter-form--three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .mkb-field {
@@ -1420,7 +1665,7 @@ textarea.coa-input {
   margin-bottom: 0.42rem;
   color: var(--kbsm-muted);
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0.06em;
   line-height: 1.2;
   text-transform: uppercase;
@@ -1548,7 +1793,7 @@ textarea.coa-input {
   margin: 0 0 0.38rem;
   color: var(--kbsm-muted);
   font-size: 0.67rem;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0.055em;
   text-transform: uppercase;
 }
@@ -1557,7 +1802,7 @@ textarea.coa-input {
   margin: 0;
   color: var(--kbsm-navy-dark);
   font-size: clamp(1.1rem, 2vw, 1.55rem);
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.1;
   word-break: break-word;
 }
@@ -1581,7 +1826,7 @@ textarea.coa-input {
 
 .mkb-dompet-cell {
   color: var(--kbsm-text);
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .mkb-center-cell {
@@ -1595,7 +1840,7 @@ textarea.coa-input {
 
 .mkb-money-cell {
   color: var(--kbsm-text);
-  font-weight: 800;
+  font-weight: 400;
   text-align: right;
   white-space: nowrap;
 }
@@ -1614,11 +1859,12 @@ textarea.coa-input {
 
 @media (max-width: 991px) {
   .mkb-filter-panel {
-    max-width: 44rem;
+    max-width: none;
   }
 
-  .mkb-filter-form {
-    grid-template-columns: 1fr;
+  .mkb-filter-form,
+  .mkb-filter-form--three-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .mkb-filter-actions-field {
@@ -1637,6 +1883,15 @@ textarea.coa-input {
 
   .mkb-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mkb-filter-form,
+  .mkb-filter-form--three-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .mkb-filter-actions .kbsm-btn {
+    flex: 1 1 0;
   }
 }
 

@@ -10,16 +10,41 @@ use App\Models\PeriodePotongGaji;
 use App\Models\Perusahaan;
 use App\Services\PotongGajiBulananService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PeriodePotongGajiController extends Controller
 {
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'periode_id' => ['nullable', 'integer', Rule::exists('periode_potong_gaji', 'id')],
+            'perusahaan_id' => ['nullable', 'integer', Rule::exists('perusahaan', 'id')],
+            'anggota_id' => ['nullable', 'integer', Rule::exists('anggota', 'id')],
+            'status' => ['nullable', Rule::in(['limit_umum', 'limit_khusus', 'kredit_nonaktif', 'belum_limit'])],
+        ]);
+
+        if (! empty($validated['anggota_id'])) {
+            $memberIsValid = Anggota::query()
+                ->aktif()
+                ->whereKey($validated['anggota_id'])
+                ->whereHas('karyawan', function ($query) use ($validated): void {
+                    $query->where('status_kerja', \App\Models\Karyawan::STATUS_AKTIF)
+                        ->when($validated['perusahaan_id'] ?? null, fn ($query, $companyId) => $query->where('perusahaan_id', $companyId));
+                })
+                ->exists();
+
+            if (! $memberIsValid) {
+                throw ValidationException::withMessages([
+                    'anggota_id' => 'Anggota yang dipilih tidak aktif atau tidak termasuk perusahaan terpilih.',
+                ]);
+            }
+        }
+
         $filters = [
-            'search' => trim((string) $request->query('search', '')),
-            'perusahaan_id' => $request->query('perusahaan_id'),
-            'status' => $request->query('status'),
+            'perusahaan_id' => $validated['perusahaan_id'] ?? null,
+            'anggota_id' => $validated['anggota_id'] ?? null,
+            'status' => $validated['status'] ?? null,
         ];
 
         $periodeList = PeriodePotongGaji::query()
@@ -27,12 +52,15 @@ class PeriodePotongGajiController extends Controller
             ->orderByDesc('periode')
             ->paginate(12);
 
-        $selectedPeriode = $request->integer('periode_id')
-            ? PeriodePotongGaji::query()->find($request->integer('periode_id'))
+        $selectedPeriode = ! empty($validated['periode_id'])
+            ? PeriodePotongGaji::query()->find($validated['periode_id'])
             : PeriodePotongGaji::query()->orderByDesc('periode')->first();
 
         $limits = collect();
-        $perusahaanList = Perusahaan::query()->orderBy('kode')->get();
+        $perusahaanList = Perusahaan::query()
+            ->whereIn('kode', ['BEE', 'BBS', 'BKM'])
+            ->orderBy('kode')
+            ->get();
         $activePolicy = KebijakanLimitPotongGaji::query()
             ->where('status', KebijakanLimitPotongGaji::STATUS_ACTIVE)
             ->whereNull('berlaku_sampai_periode')
@@ -65,19 +93,11 @@ class PeriodePotongGajiController extends Controller
                 $limit = $limits->get($anggota->id);
                 $setting = $anggota->overrideLimitPotongGaji;
 
-                if ($filters['search'] !== '') {
-                    $haystack = strtolower(implode(' ', [
-                        $anggota->nomor_anggota,
-                        $anggota->karyawan?->nama,
-                        $anggota->karyawan?->email,
-                    ]));
-
-                    if (! str_contains($haystack, strtolower($filters['search']))) {
-                        return false;
-                    }
+                if ($filters['perusahaan_id'] && (int) $anggota->karyawan?->perusahaan_id !== (int) $filters['perusahaan_id']) {
+                    return false;
                 }
 
-                if ($filters['perusahaan_id'] && (int) $anggota->karyawan?->perusahaan_id !== (int) $filters['perusahaan_id']) {
+                if ($filters['anggota_id'] && (int) $anggota->id !== (int) $filters['anggota_id']) {
                     return false;
                 }
 

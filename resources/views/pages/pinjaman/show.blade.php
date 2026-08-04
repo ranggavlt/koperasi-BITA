@@ -22,7 +22,7 @@
     );
 @endphp
 
-<div class="w-full px-6 py-6 mx-auto">
+<div class="kbsm-ux-page w-full px-6 py-6 mx-auto">
   @if (session('success'))
     <div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
       {{ session('success') }}
@@ -46,7 +46,7 @@
         {{ $pinjaman->anggota->nomor_anggota ?? '-' }} - {{ $pinjaman->anggota->karyawan->nama ?? '-' }}
       </p>
       @if($detailSummary['old_cycle'] ?? false)
-        <div class="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-bold uppercase text-amber-700">
+        <div class="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-medium uppercase text-amber-700">
           Kewajiban Siklus Lama â€” pembayaran tunai
         </div>
       @endif
@@ -56,37 +56,37 @@
 
   <div class="mb-6 grid gap-4 md:grid-cols-6">
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
-      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Nominal</p>
-      <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($pinjaman->jumlah_pinjaman) }}</p>
+      <p class="mb-1 text-xs font-medium uppercase text-slate-400">Nominal</p>
+      <p class="mb-0 text-sm text-slate-700">{{ $money($pinjaman->jumlah_pinjaman) }}</p>
     </div>
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
-      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Sisa</p>
-      <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($pinjaman->sisa_pinjaman) }}</p>
+      <p class="mb-1 text-xs font-medium uppercase text-slate-400">Sisa</p>
+      <p class="mb-0 text-sm text-slate-700">{{ $money($pinjaman->sisa_pinjaman) }}</p>
     </div>
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
-      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Total Offset</p>
-      <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($detailSummary['total_offset'] ?? 0) }}</p>
+      <p class="mb-1 text-xs font-medium uppercase text-slate-400">Total Offset</p>
+      <p class="mb-0 text-sm text-slate-700">{{ $money($detailSummary['total_offset'] ?? 0) }}</p>
     </div>
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
-      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Total Pembayaran</p>
-      <p class="mb-0 text-sm font-bold text-slate-700">{{ $money($detailSummary['total_pembayaran'] ?? 0) }}</p>
+      <p class="mb-1 text-xs font-medium uppercase text-slate-400">Total Pembayaran</p>
+      <p class="mb-0 text-sm text-slate-700">{{ $money($detailSummary['total_pembayaran'] ?? 0) }}</p>
     </div>
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
-      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Status</p>
+      <p class="mb-1 text-xs font-medium uppercase text-slate-400">Status</p>
       <span class="kbsm-status {{ $statusClass[$pinjaman->status] ?? 'kbsm-status--slate' }}">{{ $pinjaman->status_label }}</span>
     </div>
     <div class="rounded-xl bg-white p-4 shadow-soft-xl">
-      <p class="mb-1 text-xs font-bold uppercase text-slate-400">Jurnal</p>
-      <p class="mb-0 text-sm font-bold text-slate-700">{{ $pinjaman->jurnal?->nomor_bukti ?? 'Belum ada' }}</p>
+      <p class="mb-1 text-xs font-medium uppercase text-slate-400">Jurnal</p>
+      <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->jurnal?->nomor_bukti ?? 'Belum ada' }}</p>
     </div>
   </div>
 
   <div class="mb-6 grid gap-6 lg:grid-cols-3">
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl lg:col-span-2">
-      <h2 class="mb-4 text-base font-bold text-slate-700">Informasi Pengajuan</h2>
+      <h2 class="mb-4 text-base font-medium text-slate-700">Informasi Pengajuan</h2>
       <div class="grid gap-4 md:grid-cols-2">
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Siklus Keanggotaan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Siklus Keanggotaan</p>
           <p class="text-sm text-slate-700">
             Siklus {{ $pinjaman->siklusKeanggotaan?->siklus_ke ?? '-' }}
             @if($pinjaman->siklusKeanggotaan?->status)
@@ -95,43 +95,49 @@
           </p>
         </div>
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Tanggal Pengajuan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Tanggal Pengajuan</p>
           <p class="text-sm text-slate-700">{{ optional($pinjaman->tanggal_pengajuan)->format('d/m/Y') ?? '-' }}</p>
         </div>
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Tanggal Pencairan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Tanggal Pencairan</p>
           <p class="text-sm text-slate-700">{{ optional($pinjaman->tanggal_pinjaman)->format('d/m/Y') ?? '-' }}</p>
         </div>
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Plafon Snapshot</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Plafon saat Pengajuan</p>
           <p class="text-sm text-slate-700">{{ $money($pinjaman->plafon_pinjaman_snapshot) }}</p>
         </div>
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Tenor & Bunga</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Tenor & Bunga</p>
           <p class="text-sm text-slate-700">{{ $pinjaman->tenor_bulan }} bulan &bull; 0%</p>
         </div>
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Dompet Pencairan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Dompet Pencairan</p>
           <p class="text-sm text-slate-700">{{ $pinjaman->dompet->nama_dompet ?? 'Belum dicairkan' }}</p>
         </div>
         <div>
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Mutasi Kas</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Mutasi Kas</p>
           <p class="text-sm text-slate-700">{{ $pinjaman->mutasiKas?->keterangan ?? 'Belum ada' }}</p>
         </div>
         <div class="md:col-span-2">
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Keterangan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Keterangan</p>
           <p class="text-sm text-slate-700">{{ $pinjaman->keterangan ?: '-' }}</p>
         </div>
-        @if($pinjaman->rejection_reason || $pinjaman->cancellation_reason)
+        @if($pinjaman->rejection_reason)
           <div class="md:col-span-2 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-            {{ $pinjaman->rejection_reason ?: $pinjaman->cancellation_reason }}
+            <p class="mb-1 text-xs font-medium uppercase">Alasan Penolakan</p>
+            <p class="mb-0">{{ $pinjaman->rejection_reason }}</p>
+          </div>
+        @elseif($pinjaman->cancellation_reason)
+          <div class="md:col-span-2 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+            <p class="mb-1 text-xs font-medium uppercase">Alasan Pembatalan</p>
+            <p class="mb-0">{{ $pinjaman->cancellation_reason }}</p>
           </div>
         @endif
       </div>
     </div>
 
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl">
-      <h2 class="mb-4 text-base font-bold text-slate-700">Timeline Audit</h2>
+      <h2 class="mb-4 text-base font-medium text-slate-700">Riwayat Proses</h2>
       <div class="space-y-3 text-sm text-slate-600">
         <p>Dibuat: {{ optional($pinjaman->created_at)->format('d/m/Y H:i') ?? '-' }}</p>
         <p>Diajukan: {{ optional($pinjaman->submitted_at)->format('d/m/Y H:i') ?? '-' }}</p>
@@ -145,8 +151,9 @@
 
   @if(in_array($pinjaman->status, [\App\Models\Pinjaman::STATUS_DRAFT, \App\Models\Pinjaman::STATUS_DIAJUKAN, \App\Models\Pinjaman::STATUS_DISETUJUI], true))
     <div class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl">
-      <h2 class="mb-2 text-base font-bold text-slate-700">Aksi Finance</h2>
-      <p class="mb-4 text-sm text-slate-400">Aksi sebelum pencairan tidak membuat Mutasi Kas, Jurnal, Jadwal Cicilan, atau ledger payroll.</p>
+      <h2 class="mb-2 text-base font-medium text-slate-700">Aksi Finance</h2>
+      <p class="mb-1 text-sm text-slate-400">Draft → Diajukan → Disetujui → Dicairkan dan Aktif → Lunas.</p>
+      <p class="mb-4 text-sm text-slate-400">Cairkan adalah tindakan yang mengubah status Disetujui menjadi Aktif. Aksi sebelum pencairan tidak membuat Mutasi Kas, Jurnal, Jadwal Cicilan, atau catatan potong gaji.</p>
 
       <div class="grid gap-4 lg:grid-cols-3">
         @if($pinjaman->status === \App\Models\Pinjaman::STATUS_DRAFT)
@@ -164,26 +171,26 @@
             <p class="mb-3 text-sm text-emerald-800">Setujui pengajuan setelah validasi dokumen di luar aplikasi.</p>
             <form method="POST" action="{{ route('pinjaman.approve', $pinjaman) }}">@csrf<button class="kbsm-btn kbsm-btn--green">Setujui</button></form>
           </div>
-          <form method="POST" action="{{ route('pinjaman.reject', $pinjaman) }}" class="rounded-xl border border-red-100 bg-red-50 p-4">
+          <form id="pinjaman-reject-form" method="POST" action="{{ route('pinjaman.reject', $pinjaman) }}" class="rounded-xl border border-red-100 bg-red-50 p-4">
             @csrf
-            <label class="mb-2 block text-xs font-bold uppercase text-red-700">Alasan Penolakan</label>
+            <label class="mb-2 block text-xs font-medium uppercase text-red-700">Alasan Penolakan</label>
             <textarea name="alasan" rows="3" class="mb-3 block w-full rounded-lg border border-red-200 px-3 py-2 text-sm" required></textarea>
             <button class="kbsm-btn kbsm-btn--outline-red">Tolak</button>
           </form>
         @endif
 
         @if($pinjaman->status === \App\Models\Pinjaman::STATUS_DISETUJUI)
-          <form method="POST" action="{{ route('pinjaman.disburse', $pinjaman) }}" class="rounded-xl border border-emerald-100 bg-emerald-50 p-4 lg:col-span-2">
+          <form id="pinjaman-disburse-form" method="POST" action="{{ route('pinjaman.disburse', $pinjaman) }}" class="rounded-xl border border-emerald-100 bg-emerald-50 p-4 lg:col-span-2">
             @csrf
-            <h3 class="mb-3 text-sm font-bold text-emerald-900">Cairkan Pinjaman</h3>
+            <h3 class="mb-3 text-sm font-medium text-emerald-900">Cairkan Pinjaman</h3>
             <div class="grid gap-3 md:grid-cols-2">
               <div>
-                <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Tanggal Pencairan</label>
+                <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Tanggal Pencairan</label>
                 <input type="date" name="tanggal_pencairan" value="{{ now(config('app.timezone'))->format('Y-m-d') }}"
                   class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" required>
               </div>
               <div>
-                <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Dompet Sumber Dana</label>
+                <label class="mb-2 block text-xs font-medium uppercase text-slate-600">Dompet Sumber Dana</label>
                 <select name="dompet_id" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" required>
                   <option value="">-- Pilih Dompet --</option>
                   @foreach($dompet as $item)
@@ -199,41 +206,43 @@
           </form>
         @endif
 
-        <form method="POST" action="{{ route('pinjaman.cancel', $pinjaman) }}" class="rounded-xl border border-red-100 p-4">
-          @csrf
-          <label class="mb-2 block text-xs font-bold uppercase text-red-700">Alasan Pembatalan</label>
-          <textarea name="alasan" rows="3" class="mb-3 block w-full rounded-lg border border-red-200 px-3 py-2 text-sm" required></textarea>
-          <button class="kbsm-btn kbsm-btn--outline-red">Batalkan</button>
-        </form>
+        @if($pinjaman->status === \App\Models\Pinjaman::STATUS_DISETUJUI)
+          <form id="pinjaman-cancel-form" method="POST" action="{{ route('pinjaman.cancel', $pinjaman) }}" class="rounded-xl border border-red-100 p-4">
+            @csrf
+            <label class="mb-2 block text-xs font-medium uppercase text-red-700">Alasan Pembatalan</label>
+            <textarea name="alasan" rows="3" class="mb-3 block w-full rounded-lg border border-red-200 px-3 py-2 text-sm" required></textarea>
+            <button class="kbsm-btn kbsm-btn--outline-red">Batalkan</button>
+          </form>
+        @endif
       </div>
     </div>
   @endif
 
   @if($cashAllowed)
     <div class="mb-6 rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-700 p-6 text-white shadow-soft-xl">
-      <h2 class="mb-1 text-base font-bold text-white">Pembayaran Tunai Mantan Karyawan</h2>
+      <h2 class="mb-1 text-base font-medium text-white">Pembayaran Tunai Mantan Karyawan</h2>
       <p class="text-sm text-emerald-50">Nominal tidak dapat diedit; sistem memakai jadwal unpaid paling awal atau seluruh sisa Pinjaman.</p>
       <div class="mt-4 grid gap-4 md:grid-cols-2">
         <form action="{{ route('pinjaman.cash-schedule', $pinjaman) }}" method="POST" class="rounded-xl bg-white/10 p-4">
           @csrf
-          <label class="mb-2 block text-xs font-bold uppercase text-emerald-50">Dompet Kas penerimaan</label>
+          <label class="mb-2 block text-xs font-medium uppercase text-emerald-50">Dompet Kas penerimaan</label>
           <select name="dompet_id" class="mb-3 w-full rounded-lg border-0 px-3 py-2 text-sm text-slate-700">
             @foreach($dompetKas as $kas)
               <option value="{{ $kas->id }}">{{ $kas->nama_dompet }} &bull; {{ $kas->akun?->kode_akun ?? 'COA?' }}</option>
             @endforeach
           </select>
-          <button class="rounded-lg bg-white px-4 py-2 text-xs font-bold uppercase text-slate-900">Bayar Cicilan Terjadwal</button>
+          <button class="rounded-lg bg-white px-4 py-2 text-xs font-medium uppercase text-slate-900">Bayar Cicilan Terjadwal</button>
         </form>
         <form action="{{ route('pinjaman.cash-full', $pinjaman) }}" method="POST" class="rounded-xl bg-white/10 p-4"
           onsubmit="return confirm('Lunasi seluruh sisa pinjaman secara tunai?')">
           @csrf
-          <label class="mb-2 block text-xs font-bold uppercase text-emerald-50">Dompet Kas penerimaan</label>
+          <label class="mb-2 block text-xs font-medium uppercase text-emerald-50">Dompet Kas penerimaan</label>
           <select name="dompet_id" class="mb-3 w-full rounded-lg border-0 px-3 py-2 text-sm text-slate-700">
             @foreach($dompetKas as $kas)
               <option value="{{ $kas->id }}">{{ $kas->nama_dompet }} &bull; {{ $kas->akun?->kode_akun ?? 'COA?' }}</option>
             @endforeach
           </select>
-          <button class="rounded-lg bg-emerald-100 px-4 py-2 text-xs font-bold uppercase text-emerald-900">Lunasi Seluruh Sisa Tunai</button>
+          <button class="rounded-lg bg-emerald-100 px-4 py-2 text-xs font-medium uppercase text-emerald-900">Lunasi Seluruh Sisa Tunai</button>
         </form>
       </div>
     </div>
@@ -325,18 +334,18 @@
       </div>
       <div class="p-5">
         <div class="mb-4 rounded-xl border border-slate-100 p-4">
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Mutasi Pencairan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Mutasi Pencairan</p>
           <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->mutasiKas?->tanggal ?? '-' }} &bull; {{ $pinjaman->mutasiKas?->dompet?->nama_dompet ?? $pinjaman->dompet?->nama_dompet ?? '-' }} &bull; {{ $pinjaman->mutasiKas ? $money($pinjaman->mutasiKas->jumlah) : '-' }}</p>
         </div>
         <div class="mb-4 rounded-xl border border-slate-100 p-4">
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Jurnal Pencairan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Jurnal Pencairan</p>
           <p class="mb-0 text-sm text-slate-700">{{ $pinjaman->jurnal?->nomor_bukti ?? 'Belum ada' }}</p>
           @if($pinjaman->jurnal)
             <p class="mt-1 text-xs text-slate-400">Debit {{ $money($pinjaman->jurnal->details->sum('debit')) }} &bull; Kredit {{ $money($pinjaman->jurnal->details->sum('kredit')) }}</p>
           @endif
         </div>
         <div class="rounded-xl border border-slate-100 p-4">
-          <p class="mb-1 text-xs font-bold uppercase text-slate-400">Posting Pembayaran Cicilan</p>
+          <p class="mb-1 text-xs font-medium uppercase text-slate-400">Posting Pembayaran Cicilan</p>
           <p class="mb-0 text-sm text-slate-700">{{ $payments->where('status', 'sudah_bayar')->count() }} pembayaran &bull; {{ $money($payments->where('status', 'sudah_bayar')->sum(fn ($row) => (float) $row->jumlah_cicilan)) }}</p>
         </div>
       </div>

@@ -28,7 +28,7 @@
             <p class="mkb-filter-subtitle">Gunakan rentang tanggal, dompet, tipe, dan sumber untuk membaca mutasi yang sudah tercatat.</p>
         </div>
 
-        <form method="GET" action="{{ route('mutasi-kas.index') }}" class="mkb-filter-form">
+        <form method="GET" action="{{ route('mutasi-kas.index') }}" class="mkb-filter-form mkb-filter-form--three-columns">
             <div class="mkb-field">
                 <label for="tanggal_mulai" class="mkb-label">
                     Tanggal Mulai

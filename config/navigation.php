@@ -328,12 +328,12 @@ return [
             'roles' => ['admin'],
             'sidebar' => true,
             'search' => true,
-            'description' => 'Lihat rekap payroll berdasarkan ledger potong gaji.',
+            'description' => 'Lihat anggota, keperluan, dan total potongan gaji per periode.',
             'keywords' => ['laporan payroll', 'laporan potong gaji'],
         ],
         [
             'key' => 'rekonsiliasi_potong_gaji',
-            'label' => 'Rekonsiliasi Potong Gaji',
+            'label' => 'Pengecekan Potong Gaji',
             'route' => 'rekonsiliasi-potong-gaji.index',
             'route_patterns' => ['rekonsiliasi-potong-gaji.*'],
             'icon' => 'reconcile',
@@ -342,7 +342,7 @@ return [
             'roles' => ['admin'],
             'sidebar' => true,
             'search' => true,
-            'description' => 'Bandingkan ledger, pembayaran, mutasi, dan jurnal payroll.',
+            'description' => 'Pastikan potongan gaji, uang masuk Bank, dan Jurnal sudah sama.',
             'keywords' => ['rekonsiliasi', 'payroll', 'potong gaji'],
         ],
         [

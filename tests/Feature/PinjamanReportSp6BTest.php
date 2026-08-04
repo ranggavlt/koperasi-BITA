@@ -191,7 +191,7 @@ class PinjamanReportSp6BTest extends TestCase
             ->get(route('rekonsiliasi-potong-gaji.index', ['periode' => '2026-07']))
             ->assertOk()
             ->assertSee('Perlu Diperiksa')
-            ->assertSee('Penerimaan bersih vs Mutasi Bank');
+            ->assertSee('Uang yang seharusnya diterima dibandingkan dengan Bank');
     }
 
     public function test_outstanding_cash_memuat_pinjaman_mantan_karyawan_dan_tidak_memuat_anggota_aktif(): void
