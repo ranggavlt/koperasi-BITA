@@ -48,21 +48,21 @@
       <table class="kbsm-business-table">
         <thead>
           <tr>
-            <th>Kode</th>
+            {{-- <th>Kode</th> --}}
             <th>Nama</th>
             <th>Kategori</th>
             <th>Nominal Default</th>
             <th>Aturan</th>
-            <th>COA</th>
+            {{-- <th>COA</th> --}}
             <th>Status</th>
-            <th>Riwayat Terakhir</th>
+            <th>Perubahan Terakhir</th>
             <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
           @forelse($jenisSimpanan as $jenis)
             <tr>
-              <td><span class="kbsm-business-code">{{ $jenis->kode }}</span></td>
+              {{-- <td><span class="kbsm-business-code">{{ $jenis->kode }}</span></td> --}}
               <td>
                 <div class="kbsm-business-strong">{{ $jenis->nama_jenis }}</div>
                 <div class="kbsm-business-muted">{{ $jenis->keterangan ?: '-' }}</div>
@@ -70,10 +70,10 @@
               <td>{{ $jenis->kategori_label }}</td>
               <td class="kbsm-business-amount">{{ $rupiah($jenis->nominal_default) }}</td>
               <td>{{ $jenis->frekuensi_label }}</td>
-              <td>
+              {{-- <td>
                 <div class="kbsm-business-strong">{{ $jenis->akun?->kode_akun ?? '-' }}</div>
                 <div class="kbsm-business-muted">{{ $jenis->akun?->nama_akun ?? '-' }}</div>
-              </td>
+              </td> --}}
               <td>
                 <span class="kbsm-status {{ $jenis->aktif ? 'kbsm-status--green' : 'kbsm-status--red' }}">
                   {{ $jenis->aktif ? 'Aktif' : 'Nonaktif' }}

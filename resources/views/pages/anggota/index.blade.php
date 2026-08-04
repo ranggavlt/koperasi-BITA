@@ -37,7 +37,7 @@
             <select id="karyawan_id" name="karyawan_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
               <option value="">Pilih Karyawan yang belum menjadi Anggota</option>
               @foreach($karyawanTersedia as $item)
-                <option value="{{ $item->id }}" {{ (string) old('karyawan_id', request('karyawan_id')) === (string) $item->id ? 'selected' : '' }}>{{ $item->nama }} â€” {{ $item->jabatan }}</option>
+                <option value="{{ $item->id }}" {{ (string) old('karyawan_id', request('karyawan_id')) === (string) $item->id ? 'selected' : '' }}>{{ $item->nama }} - {{ $item->jabatan }}</option>
               @endforeach
             </select>
           </div>
