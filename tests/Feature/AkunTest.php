@@ -30,16 +30,16 @@ class AkunTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('akun.store'), [
-                'kode_akun' => '107',
-                'nama_akun' => 'Piutang Usaha',
+                'kode_akun' => '199',
+                'nama_akun' => 'Aset Lainnya',
                 'kategori' => 'aset',
                 'keterangan' => 'Tagihan selain potong gaji.',
             ])
             ->assertRedirect(route('akun.index'));
 
         $this->assertDatabaseHas('akun', [
-            'kode_akun' => '107',
-            'nama_akun' => 'Piutang Usaha',
+            'kode_akun' => '199',
+            'nama_akun' => 'Aset Lainnya',
             'kategori' => 'aset',
             'posisi_saldo' => 'debit',
             'is_sistem' => false,

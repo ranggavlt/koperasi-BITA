@@ -89,7 +89,7 @@ class FinanceSewaMobilController extends Controller
         }
 
         $sewaMobil = $query->latest()->paginate(10)->withQueryString();
-        $karyawanOptions = Karyawan::query()->orderBy('nama')->get();
+        $karyawanOptions = $this->officialKaryawanQuery()->get();
         $pengurusOptions = PengurusKoperasi::query()
             ->aktif()
             ->with('anggota.karyawan')
@@ -200,7 +200,16 @@ class FinanceSewaMobilController extends Controller
     {
         return [
             'editData' => $editData,
-            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
+            'karyawanOptions' => $this->officialKaryawanQuery()->get(),
         ];
+    }
+
+    private function officialKaryawanQuery()
+    {
+        return Karyawan::query()
+            ->aktif()
+            ->whereHas('perusahaan', fn ($query) => $query->whereIn('kode', ['BEE', 'BBS', 'BKM']))
+            ->with('perusahaan')
+            ->orderBy('nama');
     }
 }

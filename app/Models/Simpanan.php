@@ -34,6 +34,8 @@ class Simpanan extends Model
 
     public const STATUS_SETTLED_OFFSET = 'settled_offset';
 
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $table = 'simpanan';
 
     protected $fillable = [
@@ -49,6 +51,7 @@ class Simpanan extends Model
         'simpanan_pokok_siklus_id',
         'simpanan_wajib_siklus_id',
         'siklus_keanggotaan_id',
+        'konfigurasi_manasuka_rutin_id',
         'penyelesaian_keanggotaan_id',
         'jenis_simpanan_id',
         'kode_jenis_snapshot',
@@ -164,6 +167,11 @@ class Simpanan extends Model
         return $this->belongsTo(SiklusKeanggotaan::class, 'siklus_keanggotaan_id');
     }
 
+    public function konfigurasiManasukaRutin()
+    {
+        return $this->belongsTo(KonfigurasiManasukaRutin::class, 'konfigurasi_manasuka_rutin_id');
+    }
+
     public function penyelesaianKeanggotaan()
     {
         return $this->belongsTo(PenyelesaianKeanggotaan::class, 'penyelesaian_keanggotaan_id');
@@ -209,6 +217,7 @@ class Simpanan extends Model
             self::STATUS_REVERSED => 'Dikoreksi',
             self::STATUS_REVERSED_DUE_TO_EXIT => 'Dikoreksi Keluar Anggota',
             self::STATUS_SETTLED_OFFSET => 'Diselesaikan Offset',
+            self::STATUS_CANCELLED => 'Dibatalkan',
             default => str_replace('_', ' ', (string) $this->status),
         };
     }

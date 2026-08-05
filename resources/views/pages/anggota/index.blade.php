@@ -37,7 +37,7 @@
             <select id="karyawan_id" name="karyawan_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
               <option value="">Pilih Karyawan yang belum menjadi Anggota</option>
               @foreach($karyawanTersedia as $item)
-                <option value="{{ $item->id }}" {{ (string) old('karyawan_id', request('karyawan_id')) === (string) $item->id ? 'selected' : '' }}>{{ $item->nama }} â€” {{ $item->jabatan }}</option>
+                <option value="{{ $item->id }}" {{ (string) old('karyawan_id', request('karyawan_id')) === (string) $item->id ? 'selected' : '' }}>{{ $item->nama }} - {{ $item->jabatan }}</option>
               @endforeach
             </select>
           </div>
@@ -45,6 +45,44 @@
           <div>
             <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Karyawan</label>
             <div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">{{ $data->karyawan->nama }}</div>
+          </div>
+        @endif
+        @if(isset($data))
+          <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 class="mb-1 text-sm font-bold uppercase text-slate-700">Simpanan Manasuka Rutin (PG-2)</h3>
+            <p class="mb-4 text-xs text-slate-500">
+              Konfigurasi saat ini: <strong>{{ $manasukaConfig ? ucfirst($manasukaConfig->status) : 'Belum diatur' }}</strong>
+              @if($manasukaConfig)
+                &bull; Rp {{ number_format((float) $manasukaConfig->nominal_snapshot, 0, ',', '.') }}
+                &bull; berlaku {{ $manasukaConfig->berlaku_mulai->format('m/Y') }}
+              @endif
+            </p>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="manasuka_rutin_status">Perubahan Status</label>
+                <select id="manasuka_rutin_status" name="manasuka_rutin_status" class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                  <option value="">Tidak mengubah konfigurasi</option>
+                  <option value="aktif" @selected(old('manasuka_rutin_status') === 'aktif')>Aktif</option>
+                  <option value="dijeda" @selected(old('manasuka_rutin_status') === 'dijeda')>Dijeda</option>
+                  <option value="dihentikan" @selected(old('manasuka_rutin_status') === 'dihentikan')>Dihentikan</option>
+                </select>
+                <p class="mt-1 text-xs text-slate-400">Perubahan berlaku mulai {{ $manasukaEffectivePeriod->format('m/Y') }}.</p>
+              </div>
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="manasuka_rutin_nominal">Nominal Potongan per Bulan</label>
+                <input id="manasuka_rutin_nominal" name="manasuka_rutin_nominal" type="number" min="0" step="1000"
+                  value="{{ old('manasuka_rutin_nominal', (int) ($manasukaConfig->nominal_snapshot ?? $data->manasuka_rutin_nominal ?? 0)) }}"
+                  class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
+                <p class="mt-1 text-xs text-slate-400">Potongan harus penuh; jika limit tidak cukup, nominal bulan tersebut dilewati.</p>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-xs font-bold uppercase text-slate-600" for="manasuka_rutin_alasan">Alasan Perubahan</label>
+                <textarea id="manasuka_rutin_alasan" name="manasuka_rutin_alasan" rows="2" maxlength="1000"
+                  class="kbsm-focus w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                  placeholder="Wajib diisi saat konfigurasi diubah (minimal 5 karakter).">{{ old('manasuka_rutin_alasan') }}</textarea>
+              </div>
+            </div>
+            <input type="hidden" name="manasuka_rutin_idempotency_key" value="{{ old('manasuka_rutin_idempotency_key', $manasukaIdempotencyKey) }}" />
           </div>
         @endif
         <div>

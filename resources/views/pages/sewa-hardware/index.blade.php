@@ -137,7 +137,14 @@
                 <div class="rental-payment-state"><span>Perusahaan</span>{{ $action['company_status_label'] }}</div>
               </td>
               <td class="kbsm-business-muted">
-                @if($item->pembayaran)
+                @if($item->pembayaranVendor)
+                  Vendor: {{ $item->pembayaranVendor->vendor_nama_snapshot }}<br>
+                  Kas: {{ $item->pembayaranVendor->dompet->nama_dompet ?? '-' }}<br>
+                  {{ $item->pembayaranVendor->tanggal_bayar?->format('d/m/Y') ?? '-' }}
+                  @if($item->invoiceDetail?->invoice)
+                    <br>Invoice: {{ $item->invoiceDetail->invoice->nomor_invoice }}
+                  @endif
+                @elseif($item->pembayaran)
                   Terima: {{ $methodLabel($item->pembayaran->metode_penerimaan) }} / {{ $item->pembayaran->dompetPenerimaan->nama_dompet ?? '-' }}<br>
                   Vendor: {{ $methodLabel($item->pembayaran->metode_pembayaran_vendor) }} / {{ $item->pembayaran->dompetVendor->nama_dompet ?? '-' }}<br>
                   {{ $item->pembayaran->paid_at->format('d/m/Y H:i') }}

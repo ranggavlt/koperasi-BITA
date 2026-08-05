@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class ShuAnggota extends Model
 {
@@ -29,6 +30,12 @@ class ShuAnggota extends Model
         'nominal_jasa_usaha' => 'decimal:2',
         'nominal_shu' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(fn () => throw new RuntimeException('Snapshot pembagian SHU tidak boleh dihapus permanen.'));
+        static::updating(fn () => throw new RuntimeException('Snapshot pembagian SHU tidak boleh diedit.'));
+    }
 
     public function shuKoperasi()
     {

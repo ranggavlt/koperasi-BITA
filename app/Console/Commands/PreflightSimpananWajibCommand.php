@@ -3,11 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Anggota;
-use App\Models\JadwalSimpananWajib;
 use App\Models\JenisSimpanan;
-use App\Models\JurnalUmum;
 use App\Models\Karyawan;
-use App\Models\MutasiKas;
 use App\Models\PemakaianPotongGaji;
 use App\Models\Simpanan;
 use Illuminate\Console\Command;
@@ -186,12 +183,12 @@ class PreflightSimpananWajibCommand extends Command
 
     private function newLegacySchedules(): int
     {
-        if (! Schema::hasTable('jadwal_simpanan_wajib') || ! Schema::hasColumn('jadwal_simpanan_wajib', 'created_at')) {
+        if (! Schema::hasTable('jadwal_simpanan_wajib') || ! Schema::hasColumn('jadwal_simpanan_wajib', 'sp7_archived_at')) {
             return 0;
         }
 
         return DB::table('jadwal_simpanan_wajib')
-            ->where('created_at', '>=', '2026-08-02 00:00:00')
+            ->whereNull('sp7_archived_at')
             ->count();
     }
 
@@ -226,12 +223,12 @@ class PreflightSimpananWajibCommand extends Command
             ->get(['id'])
             ->filter(function ($simpanan): bool {
                 $mutasi = DB::table('mutasi_kas')
-                    ->where('idempotency_key', 'simpanan-wajib:direct:mutasi:' . $simpanan->id)
+                    ->where('idempotency_key', 'simpanan-wajib:direct:mutasi:'.$simpanan->id)
                     ->where('referensi_tipe', Simpanan::class)
                     ->where('referensi_id', $simpanan->id)
                     ->count();
                 $jurnal = DB::table('jurnal_umum')
-                    ->where('idempotency_key', 'simpanan-wajib:direct:jurnal:' . $simpanan->id)
+                    ->where('idempotency_key', 'simpanan-wajib:direct:jurnal:'.$simpanan->id)
                     ->where('referensi_tipe', Simpanan::class)
                     ->where('referensi_id', $simpanan->id)
                     ->count();
@@ -253,7 +250,7 @@ class PreflightSimpananWajibCommand extends Command
             ->whereNotIn('status', [Simpanan::STATUS_REVERSED, Simpanan::STATUS_REVERSED_DUE_TO_EXIT])
             ->get(['id'])
             ->filter(fn ($simpanan): bool => DB::table('jurnal_umum')
-                ->where('idempotency_key', 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id)
+                ->where('idempotency_key', 'simpanan-wajib:pengakuan:jurnal:'.$simpanan->id)
                 ->where('referensi_tipe', Simpanan::class)
                 ->where('referensi_id', $simpanan->id)
                 ->count() !== 1)
@@ -269,6 +266,7 @@ class PreflightSimpananWajibCommand extends Command
         $issues = DB::table('simpanan as s')
             ->leftJoin('pemakaian_potong_gaji as p', 'p.id', '=', 's.pemakaian_potong_gaji_id')
             ->where('s.kode_jenis_snapshot', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->whereNull('s.jadwal_simpanan_wajib_id')
             ->where('s.metode_pembayaran', Simpanan::METODE_POTONG_GAJI)
             ->whereIn('s.status', [Simpanan::STATUS_ALLOCATED, Simpanan::STATUS_SETTLED])
             ->where(function ($query): void {
@@ -326,7 +324,12 @@ class PreflightSimpananWajibCommand extends Command
 
         return DB::table('jurnal_umum as j')
             ->join('jurnal_umum_detail as d', 'd.jurnal_umum_id', '=', 'j.id')
+            ->leftJoin('simpanan as s', function ($join): void {
+                $join->on('s.id', '=', 'j.referensi_id')
+                    ->where('j.referensi_tipe', Simpanan::class);
+            })
             ->where('d.akun_kode', '302')
+            ->whereNull('s.jadwal_simpanan_wajib_id')
             ->where(function ($query): void {
                 $query->where('j.idempotency_key', 'like', 'simpanan-wajib:%')
                     ->orWhere('j.idempotency_key', 'like', 'PG-SWJ-%');

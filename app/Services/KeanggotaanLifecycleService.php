@@ -656,6 +656,22 @@ class KeanggotaanLifecycleService
         return $simpanan;
     }
 
+    private function createInitialMembershipSavingForCycle(Anggota $anggota, SiklusKeanggotaan $cycle, ?int $userId): void
+    {
+        $hasActivePokok = JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
+            ->where('aktif', true)
+            ->exists();
+
+        if (! $hasActivePokok) {
+            app(SimpananWajibService::class)->createForMembershipCycle($anggota, $cycle, $userId);
+
+            return;
+        }
+
+        $this->createSimpananPokokForCycle($anggota, $cycle, $userId);
+    }
+
     /**
      * @return array<int, string>
      */

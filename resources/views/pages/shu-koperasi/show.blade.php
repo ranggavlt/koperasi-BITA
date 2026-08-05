@@ -1,5 +1,4 @@
 @extends('layout.main')
-
 @section('content')
 @php
     $money = fn ($value, $dash = true) => $dash && (float) $value === 0.0 ? '–' : 'Rp ' . number_format((float) $value, 0, ',', '.');

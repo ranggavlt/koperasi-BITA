@@ -12,12 +12,24 @@ return new class extends Migration
         $this->guardDuplicateRentalReferences();
 
         Schema::table('invoice_penagihan', function (Blueprint $table): void {
-            $table->decimal('total_dibayar', 15, 2)->default(0)->after('total_tagihan');
-            $table->decimal('sisa_tagihan', 15, 2)->default(0)->after('total_dibayar');
-            $table->foreignId('created_by')->nullable()->after('status')->constrained('users', indexName: 'invoice_b2b_creator_fk')->restrictOnDelete();
-            $table->timestamp('finalized_at')->nullable()->after('created_by');
-            $table->string('idempotency_key', 191)->nullable()->after('finalized_at')->unique();
-            $table->index(['perusahaan_id', 'status', 'jatuh_tempo'], 'invoice_b2b_company_status_due_idx');
+            if (! Schema::hasColumn('invoice_penagihan', 'total_dibayar')) {
+                $table->decimal('total_dibayar', 15, 2)->default(0)->after('total_tagihan');
+            }
+            if (! Schema::hasColumn('invoice_penagihan', 'sisa_tagihan')) {
+                $table->decimal('sisa_tagihan', 15, 2)->default(0)->after('total_dibayar');
+            }
+            if (! Schema::hasColumn('invoice_penagihan', 'created_by')) {
+                $table->foreignId('created_by')->nullable()->after('status')->constrained('users', indexName: 'invoice_b2b_creator_fk')->restrictOnDelete();
+            }
+            if (! Schema::hasColumn('invoice_penagihan', 'finalized_at')) {
+                $table->timestamp('finalized_at')->nullable()->after('created_by');
+            }
+            if (! Schema::hasColumn('invoice_penagihan', 'idempotency_key')) {
+                $table->string('idempotency_key', 191)->nullable()->after('finalized_at')->unique();
+            }
+            if (! Schema::hasIndex('invoice_penagihan', 'invoice_b2b_company_status_due_idx')) {
+                $table->index(['perusahaan_id', 'status', 'jatuh_tempo'], 'invoice_b2b_company_status_due_idx');
+            }
         });
 
         DB::table('invoice_penagihan')->update([
@@ -25,12 +37,19 @@ return new class extends Migration
         ]);
 
         Schema::table('invoice_penagihan_detail', function (Blueprint $table): void {
-            $table->string('status', 20)->default('aktif')->after('nominal');
-            $table->decimal('total_dikembalikan', 15, 2)->default(0)->after('status');
-            $table->unique(['referensi_type', 'referensi_id'], 'invoice_detail_rental_reference_uq');
+            if (! Schema::hasColumn('invoice_penagihan_detail', 'status')) {
+                $table->string('status', 20)->default('aktif')->after('nominal');
+            }
+            if (! Schema::hasColumn('invoice_penagihan_detail', 'total_dikembalikan')) {
+                $table->decimal('total_dikembalikan', 15, 2)->default(0)->after('status');
+            }
+            if (! Schema::hasIndex('invoice_penagihan_detail', ['referensi_type', 'referensi_id'], 'unique')) {
+                $table->unique(['referensi_type', 'referensi_id'], 'invoice_detail_rental_reference_uq');
+            }
         });
 
-        Schema::create('pembayaran_invoice_penagihan', function (Blueprint $table): void {
+        if (! Schema::hasTable('pembayaran_invoice_penagihan')) {
+            Schema::create('pembayaran_invoice_penagihan', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('invoice_penagihan_id')->constrained('invoice_penagihan', indexName: 'invoice_payment_invoice_fk')->restrictOnDelete();
             $table->foreignId('dompet_id')->constrained('dompet_koperasi', indexName: 'invoice_payment_wallet_fk')->restrictOnDelete();
@@ -43,9 +62,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['invoice_penagihan_id', 'tanggal_bayar'], 'invoice_payment_invoice_date_idx');
-        });
+            });
+        }
 
-        Schema::create('alokasi_pembayaran_invoice', function (Blueprint $table): void {
+        if (! Schema::hasTable('alokasi_pembayaran_invoice')) {
+            Schema::create('alokasi_pembayaran_invoice', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('pembayaran_invoice_id')->constrained('pembayaran_invoice_penagihan', indexName: 'invoice_alloc_payment_fk')->restrictOnDelete();
             $table->foreignId('invoice_penagihan_detail_id')->constrained('invoice_penagihan_detail', indexName: 'invoice_alloc_detail_fk')->restrictOnDelete();
@@ -53,32 +74,66 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['pembayaran_invoice_id', 'invoice_penagihan_detail_id'], 'invoice_payment_allocation_uq');
-        });
+            });
+        }
 
-        Schema::create('pembayaran_vendor_sewa', function (Blueprint $table): void {
-            $table->id();
-            $table->string('sewa_type');
-            $table->unsignedBigInteger('sewa_id');
-            $table->foreignId('dompet_id')->constrained('dompet_koperasi', indexName: 'vendor_payment_wallet_fk')->restrictOnDelete();
-            $table->string('metode', 30);
-            $table->decimal('jumlah', 15, 2);
-            $table->date('tanggal_bayar');
-            $table->string('nomor_referensi', 120)->nullable();
-            $table->string('status', 30)->default('dibayar');
-            $table->text('alasan_pengembalian')->nullable();
-            $table->timestamp('diminta_kembali_pada')->nullable();
-            $table->foreignId('diminta_kembali_oleh')->nullable()->constrained('users', indexName: 'vendor_refund_requester_fk')->restrictOnDelete();
-            $table->timestamp('dikembalikan_pada')->nullable();
-            $table->foreignId('dikembalikan_oleh')->nullable()->constrained('users', indexName: 'vendor_refund_confirmer_fk')->restrictOnDelete();
-            $table->foreignId('created_by')->constrained('users', indexName: 'vendor_payment_creator_fk')->restrictOnDelete();
-            $table->string('idempotency_key', 191)->unique();
-            $table->timestamps();
+        if (! Schema::hasTable('pembayaran_vendor_sewa')) {
+            Schema::create('pembayaran_vendor_sewa', function (Blueprint $table): void {
+                $table->id();
+                $table->string('sewa_type');
+                $table->unsignedBigInteger('sewa_id');
+                $table->foreignId('dompet_id')->constrained('dompet_koperasi', indexName: 'vendor_payment_wallet_fk')->restrictOnDelete();
+                $table->string('metode', 30);
+                $table->decimal('jumlah', 15, 2);
+                $table->date('tanggal_bayar');
+                $table->string('nomor_referensi', 120)->nullable();
+                $table->string('status', 30)->default('dibayar');
+                $table->text('alasan_pengembalian')->nullable();
+                $table->timestamp('diminta_kembali_pada')->nullable();
+                $table->foreignId('diminta_kembali_oleh')->nullable()->constrained('users', indexName: 'vendor_refund_requester_fk')->restrictOnDelete();
+                $table->timestamp('dikembalikan_pada')->nullable();
+                $table->foreignId('dikembalikan_oleh')->nullable()->constrained('users', indexName: 'vendor_refund_confirmer_fk')->restrictOnDelete();
+                $table->foreignId('created_by')->constrained('users', indexName: 'vendor_payment_creator_fk')->restrictOnDelete();
+                $table->string('idempotency_key', 191)->unique();
+                $table->timestamps();
 
-            $table->unique(['sewa_type', 'sewa_id'], 'vendor_rental_payment_reference_uq');
-            $table->index(['status', 'tanggal_bayar'], 'vendor_rental_payment_status_date_idx');
-        });
+                $table->unique(['sewa_type', 'sewa_id'], 'vendor_rental_payment_reference_uq');
+                $table->index(['status', 'tanggal_bayar'], 'vendor_rental_payment_status_date_idx');
+            });
+        } else {
+            Schema::table('pembayaran_vendor_sewa', function (Blueprint $table): void {
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'metode')) {
+                    $table->string('metode', 30)->nullable();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'jumlah')) {
+                    $table->decimal('jumlah', 15, 2)->nullable();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'nomor_referensi')) {
+                    $table->string('nomor_referensi', 120)->nullable();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'alasan_pengembalian')) {
+                    $table->text('alasan_pengembalian')->nullable();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'diminta_kembali_pada')) {
+                    $table->timestamp('diminta_kembali_pada')->nullable();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'diminta_kembali_oleh')) {
+                    $table->foreignId('diminta_kembali_oleh')->nullable()->constrained('users', indexName: 'vendor_refund_requester_fk')->restrictOnDelete();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'dikembalikan_pada')) {
+                    $table->timestamp('dikembalikan_pada')->nullable();
+                }
+                if (! Schema::hasColumn('pembayaran_vendor_sewa', 'dikembalikan_oleh')) {
+                    $table->foreignId('dikembalikan_oleh')->nullable()->constrained('users', indexName: 'vendor_refund_confirmer_fk')->restrictOnDelete();
+                }
+                if (! Schema::hasIndex('pembayaran_vendor_sewa', 'vendor_rental_payment_status_date_idx')) {
+                    $table->index(['status', 'tanggal_bayar'], 'vendor_rental_payment_status_date_idx');
+                }
+            });
+        }
 
-        Schema::create('pengembalian_invoice_penagihan', function (Blueprint $table): void {
+        if (! Schema::hasTable('pengembalian_invoice_penagihan')) {
+            Schema::create('pengembalian_invoice_penagihan', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('invoice_penagihan_detail_id')->constrained('invoice_penagihan_detail', indexName: 'invoice_refund_detail_fk')->restrictOnDelete();
             $table->foreignId('dompet_id')->constrained('dompet_koperasi', indexName: 'invoice_refund_wallet_fk')->restrictOnDelete();
@@ -92,7 +147,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['invoice_penagihan_detail_id', 'tanggal_pengembalian'], 'invoice_refund_detail_date_idx');
-        });
+            });
+        }
     }
 
     public function down(): void

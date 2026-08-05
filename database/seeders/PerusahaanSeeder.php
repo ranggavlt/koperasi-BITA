@@ -24,5 +24,11 @@ class PerusahaanSeeder extends Seeder
                 ['nama' => $c['nama']]
             );
         }
+
+        $ids = \App\Models\Perusahaan::query()->whereIn('kode', ['BEE', 'BBS', 'BKM'])->orderBy('kode')->pluck('id')->values();
+        if ($ids->count() === 3) {
+            \App\Models\Karyawan::query()->whereNull('perusahaan_id')->orderBy('id')->get()
+                ->each(fn ($employee, $index) => $employee->update(['perusahaan_id' => $ids[$index % 3]]));
+        }
     }
 }

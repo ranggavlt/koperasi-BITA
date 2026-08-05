@@ -33,8 +33,9 @@ class SewaMobilService
     public function createDraft(array $data, int $financeUserId): SewaMobil
     {
         return DB::transaction(function () use ($data, $financeUserId): SewaMobil {
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
+            $this->assertOfficialCompany($karyawan);
 
             [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
             $totals = $this->calculateTotals($data);
@@ -42,10 +43,21 @@ class SewaMobilService
             return SewaMobil::query()->create([
                 'kode_sewa' => null,
                 'aset_koperasi_id' => null,
+                'perusahaan_id' => $karyawan->perusahaan->id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan->kode,
+                'vendor_nama_snapshot' => $this->normalizeText($data['vendor_nama']),
+                'vendor_kontak_snapshot' => $this->nullableText($data['vendor_kontak'] ?? null),
+                'vendor_alamat_snapshot' => $this->nullableText($data['vendor_alamat'] ?? null),
+                'kendaraan_jenis_snapshot' => $this->normalizeText($data['jenis_kendaraan']),
+                'kendaraan_merk_tipe_snapshot' => trim($this->normalizeText($data['merek_kendaraan']).' '.$this->normalizeText($data['model_kendaraan'])),
+                'nomor_polisi_snapshot' => $this->nullableText($data['plat_nomor_snapshot'] ?? null),
+                'harga_vendor_total' => $totals['vendor'],
+                'markup_total' => $totals['markup'],
+                'model_sumber' => 'vendor',
                 'karyawan_id' => $karyawan->id,
                 'pemohon_user_id' => null,
                 'recorded_by' => $financeUserId,
-                'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan->nama,
                 'nama_kegiatan' => $this->normalizeText($data['nama_kegiatan']),
                 'lokasi_kegiatan' => $this->normalizeText($data['lokasi_kegiatan']),
                 'vendor_nama' => $this->nullableText($data['vendor_nama'] ?? null),
@@ -86,14 +98,27 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DRAFT], 'Draft yang sudah diajukan tidak dapat diedit.');
 
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
+            $this->assertOfficialCompany($karyawan);
 
             [$mulai, $selesai, $jumlahHari] = $this->normalizePeriod($data['tanggal_mulai'], $data['tanggal_selesai']);
             $totals = $this->calculateTotals($data);
 
             $locked->update([
                 'aset_koperasi_id' => null,
+                'perusahaan_id' => $karyawan->perusahaan->id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan->kode,
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan->nama,
+                'vendor_nama_snapshot' => $this->normalizeText($data['vendor_nama']),
+                'vendor_kontak_snapshot' => $this->nullableText($data['vendor_kontak'] ?? null),
+                'vendor_alamat_snapshot' => $this->nullableText($data['vendor_alamat'] ?? null),
+                'kendaraan_jenis_snapshot' => $this->normalizeText($data['jenis_kendaraan']),
+                'kendaraan_merk_tipe_snapshot' => trim($this->normalizeText($data['merek_kendaraan']).' '.$this->normalizeText($data['model_kendaraan'])),
+                'nomor_polisi_snapshot' => $this->nullableText($data['plat_nomor_snapshot'] ?? null),
+                'harga_vendor_total' => $totals['vendor'],
+                'markup_total' => $totals['markup'],
+                'model_sumber' => 'vendor',
                 'karyawan_id' => $karyawan->id,
                 'recorded_by' => $locked->recorded_by ?? $financeUserId,
                 'nama_kegiatan' => $this->normalizeText($data['nama_kegiatan']),
@@ -216,6 +241,10 @@ class SewaMobilService
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
+            if ($locked->model_sumber === 'vendor') {
+                throw ValidationException::withMessages(['pembayaran' => 'Pembayaran perusahaan Sewa Mobil vendor dilakukan melalui Invoice Perusahaan dan boleh dicicil.']);
+            }
+
             $this->assertStatus($locked, [SewaMobil::STATUS_DISETUJUI], 'Pembayaran hanya untuk sewa yang sudah disetujui.');
 
             if ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_BELUM_BAYAR || $locked->pembayaran) {
@@ -336,7 +365,7 @@ class SewaMobilService
     {
         return DB::transaction(function () use ($sewaMobil, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
-                ->with(['pembayaran'])
+                ->with(['pembayaran', 'pembayaranVendor', 'invoiceDetail.invoice'])
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
@@ -346,7 +375,10 @@ class SewaMobilService
 
             $this->assertStatus($locked, [SewaMobil::STATUS_BERJALAN], 'Hanya sewa berjalan yang dapat diselesaikan.');
 
-            if ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if ($locked->model_sumber === 'vendor' && ! $locked->pembayaranVendor) {
+                throw ValidationException::withMessages(['pembayaran' => 'Pembayaran vendor wajib tersedia sebelum sewa diselesaikan.']);
+            }
+            if ($locked->model_sumber !== 'vendor' && ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran)) {
                 throw ValidationException::withMessages([
                     'pembayaran' => 'Sewa wajib paid sebelum diselesaikan.',
                 ]);
@@ -359,7 +391,11 @@ class SewaMobilService
                 'updated_by' => $financeUserId,
             ]);
 
-            $this->akuntansiService->recordPengakuanPendapatanSewaMobil($locked->fresh(), $financeUserId);
+            if ($locked->model_sumber === 'vendor') {
+                app(B2BRentalService::class)->recognizeRentalMargin($locked->fresh(), $financeUserId);
+            } else {
+                $this->akuntansiService->recordPengakuanPendapatanSewaMobil($locked->fresh(), $financeUserId);
+            }
 
             return $locked->fresh(['karyawan', 'recorder', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
         });
@@ -387,6 +423,10 @@ class SewaMobilService
                 throw ValidationException::withMessages([
                     'sewa' => 'Sewa Mobil ini sudah dibatalkan.',
                 ]);
+            }
+
+            if ($locked->pembayaranVendor) {
+                throw ValidationException::withMessages(['sewa' => 'Sewa dengan pembayaran vendor final tidak dapat dibatalkan langsung. Gunakan reversal penuh pembayaran vendor.']);
             }
 
             if ($locked->status_pembayaran === SewaMobil::PEMBAYARAN_PAID && $locked->pembayaran) {
@@ -609,6 +649,15 @@ class SewaMobilService
         if (! $karyawan || $karyawan->status_kerja !== Karyawan::STATUS_AKTIF) {
             throw ValidationException::withMessages([
                 'karyawan_id' => 'Sewa Mobil hanya untuk Karyawan aktif.',
+            ]);
+        }
+    }
+
+    private function assertOfficialCompany(Karyawan $karyawan): void
+    {
+        if (! $karyawan->perusahaan || ! in_array($karyawan->perusahaan->kode, ['BEE', 'BBS', 'BKM'], true)) {
+            throw ValidationException::withMessages([
+                'karyawan_id' => 'Karyawan harus terhubung ke perusahaan resmi BEE, BBS, atau BKM.',
             ]);
         }
     }

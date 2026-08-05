@@ -11,15 +11,7 @@
 @endphp
 
 <div class="kbsm-business-page">
-  @if (session('success'))
-    <div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>
-  @endif
-  @if ($errors->any())
-    <div class="kbsm-business-alert kbsm-business-alert--danger">
-      <ul class="mb-0 list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-    </div>
-  @endif
-
+  @if($errors->any())<div class="kbsm-business-alert kbsm-business-alert--danger"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
       <p class="kbsm-business-eyebrow">Usaha Koperasi</p>
@@ -28,7 +20,6 @@
     </div>
     <a href="{{ route('sewa-mobil.finance.index') }}" class="kbsm-business-back-link">Kembali ke Daftar Sewa Mobil</a>
   </div>
-
   <section class="kbsm-business-panel">
     <div class="kbsm-business-panel__header">
       <h2 class="kbsm-business-panel__title">{{ $editData ? 'Edit Draft Sewa Mobil' : 'Buat Draft Sewa Mobil' }}</h2>
@@ -179,7 +170,7 @@
         <h3 class="kbsm-business-section__title">Pembayaran dan Approval</h3>
         <p class="kbsm-business-section__copy">Approval Pengurus dan pembayaran penuh dicatat setelah draft diajukan. Tidak ada self-service Karyawan atau pemotongan payroll.</p>
         <div class="kbsm-business-actions">
-          <button class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
+          <button type="submit" class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
           @if($editData)
             <a href="{{ route('sewa-mobil.finance.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal Edit</a>
           @endif

@@ -81,6 +81,12 @@ class MasterDataKoperasiService
                 $anggota = $locked->anggota()->lockForUpdate()->first();
 
                 if ($anggota) {
+                    app(ManasukaRutinService::class)->pauseForInactive(
+                        $anggota,
+                        auth()->id(),
+                        'Dijeda otomatis karena Karyawan berhenti.'
+                    );
+
                     $anggota->update([
                         'status' => Anggota::STATUS_NONAKTIF,
                         'tanggal_nonaktif' => $locked->tanggal_berhenti,
@@ -170,10 +176,34 @@ class MasterDataKoperasiService
     {
         return DB::transaction(function () use ($anggota, $data): Anggota {
             $locked = Anggota::query()->lockForUpdate()->findOrFail($anggota->id);
+
+            $manasukaStatus = $data['manasuka_rutin_status'] ?? null;
+            $manasukaNominal = $data['manasuka_rutin_nominal'] ?? null;
+            $manasukaAlasan = $data['manasuka_rutin_alasan'] ?? null;
+            $manasukaIdempotency = $data['manasuka_rutin_idempotency_key'] ?? null;
+            unset(
+                $data['manasuka_rutin_status'],
+                $data['manasuka_rutin_nominal'],
+                $data['manasuka_rutin_alasan'],
+                $data['manasuka_rutin_idempotency_key']
+            );
+
             $locked->update($data);
+
+            if ($manasukaStatus !== null) {
+                app(ManasukaRutinService::class)->schedule(
+                    $locked,
+                    $manasukaStatus,
+                    $manasukaNominal,
+                    auth()->id(),
+                    (string) $manasukaAlasan,
+                    (string) $manasukaIdempotency
+                );
+            }
+
             $this->syncLegacyIsAnggota($locked->karyawan);
 
-            return $locked->fresh('karyawan');
+            return $locked->fresh(['karyawan', 'konfigurasiManasukaRutin']);
         });
     }
 
@@ -488,6 +518,27 @@ class MasterDataKoperasiService
         ]);
 
         app(AkuntansiService::class)->recordSimpananPokokPayroll($simpanan, auth()->id());
+    }
+
+    private function createInitialMembershipSaving(Anggota $anggota, SiklusKeanggotaan $cycle): void
+    {
+        $usesFinalPolicy = JenisSimpanan::query()
+            ->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)
+            ->where('kategori', JenisSimpanan::KATEGORI_WAJIB)
+            ->where('aktif', true)
+            ->exists()
+            && ! JenisSimpanan::query()
+                ->where('kode', JenisSimpanan::KODE_SIMPANAN_POKOK)
+                ->where('aktif', true)
+                ->exists();
+
+        if ($usesFinalPolicy) {
+            app(SimpananWajibService::class)->createForMembershipCycle($anggota, $cycle, auth()->id());
+
+            return;
+        }
+
+        $this->createSimpananPokokForAnggota($anggota, $cycle);
     }
 
     private function resolveSimpananPokokMaster(): JenisSimpanan

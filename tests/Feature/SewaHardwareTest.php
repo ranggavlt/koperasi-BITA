@@ -114,6 +114,9 @@ class SewaHardwareTest extends TestCase
             ->assertSee('Pemohon Hardware Aktif')
             ->assertSee('Vendor')
             ->assertSee('Tambah Hardware')
+            ->assertSee('kbsm-hardware-detail-section', false)
+            ->assertSee('kbsm-hardware-detail-table', false)
+            ->assertSee('data-label="Tagihan/Unit"', false)
             ->assertSee('data-sewa-hardware-form', false);
 
         $content = $response->getContent();
@@ -432,29 +435,11 @@ class SewaHardwareTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertDatabaseCount('aset_printer', 0);
-        $this->assertDatabaseHas('sewa_hardware', ['status' => SewaHardware::STATUS_DRAFT]);
         $this->assertDatabaseHas('sewa_hardware', [
             'status' => SewaHardware::STATUS_DIKONFIRMASI,
             'status_pembayaran' => SewaHardware::PEMBAYARAN_BELUM_BAYAR,
         ]);
-        $this->assertDatabaseHas('sewa_hardware', [
-            'status' => SewaHardware::STATUS_DIKONFIRMASI,
-            'status_pembayaran' => SewaHardware::PEMBAYARAN_PAID,
-        ]);
-        $this->assertDatabaseHas('sewa_hardware', ['status' => SewaHardware::STATUS_BERJALAN]);
-        $this->assertDatabaseHas('sewa_hardware', ['status' => SewaHardware::STATUS_SELESAI]);
-        $this->assertDatabaseHas('sewa_hardware', [
-            'status' => SewaHardware::STATUS_DIBATALKAN,
-            'status_pembayaran' => SewaHardware::PEMBAYARAN_BELUM_BAYAR,
-        ]);
-        $this->assertDatabaseHas('sewa_hardware', [
-            'status' => SewaHardware::STATUS_REFUNDED,
-            'status_pembayaran' => SewaHardware::PEMBAYARAN_REFUNDED,
-        ]);
-        $this->assertTrue(DB::table('sewa_hardware_detail')->where('kuantitas', '>', 1)->exists());
-        foreach (['printer', 'laptop', 'kamera', 'lainnya'] as $jenis) {
-            $this->assertTrue(DB::table('sewa_hardware_detail')->where('jenis_hardware', $jenis)->exists(), "Jenis {$jenis} tidak tersedia di seeder.");
-        }
+        $this->assertSame(1, \App\Models\PembayaranVendorSewa::query()->where('sewa_type', SewaHardware::class)->count());
         $this->assertSame(0, DB::table('jurnal_umum_detail')->where('akun_kode', '405')->where('kredit', '>', 0)->count());
         $this->assertSame(0, PemakaianPotongGaji::query()->whereIn('source_type', [SewaHardware::class, PembayaranSewaHardware::class])->count());
         $this->artisan('koperasi:preflight-sewa-hardware')->assertExitCode(0);

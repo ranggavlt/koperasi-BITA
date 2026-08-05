@@ -7,6 +7,7 @@ use RuntimeException;
 
 class PembayaranVendorSewa extends Model
 {
+    public const STATUS_PAID = 'paid';
     public const STATUS_DIBAYAR = 'dibayar';
     public const STATUS_MENUNGGU_PENGEMBALIAN = 'menunggu_pengembalian';
     public const STATUS_DIKEMBALIKAN = 'dikembalikan';
@@ -14,7 +15,10 @@ class PembayaranVendorSewa extends Model
     protected $table = 'pembayaran_vendor_sewa';
 
     protected $fillable = [
+        'kode_pembayaran',
         'sewa_type', 'sewa_id', 'dompet_id', 'metode', 'jumlah', 'tanggal_bayar',
+        'metode_pembayaran', 'jumlah_bayar', 'vendor_nama_snapshot',
+        'vendor_kontak_snapshot', 'vendor_alamat_snapshot',
         'nomor_referensi', 'status', 'alasan_pengembalian', 'diminta_kembali_pada',
         'diminta_kembali_oleh', 'dikembalikan_pada', 'dikembalikan_oleh',
         'created_by', 'idempotency_key',
@@ -22,6 +26,7 @@ class PembayaranVendorSewa extends Model
 
     protected $casts = [
         'jumlah' => 'decimal:2',
+        'jumlah_bayar' => 'decimal:2',
         'tanggal_bayar' => 'date',
         'diminta_kembali_pada' => 'datetime',
         'dikembalikan_pada' => 'datetime',

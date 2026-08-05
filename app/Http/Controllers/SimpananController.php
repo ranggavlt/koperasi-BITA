@@ -6,6 +6,7 @@ use App\Http\Requests\StoreSimpananRequest;
 use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\JenisSimpanan;
+use App\Models\JadwalSimpananWajib;
 use App\Models\Karyawan;
 use App\Models\Simpanan;
 use App\Services\SimpananManasukaService;
@@ -126,7 +127,17 @@ class SimpananController extends Controller
     public function store(StoreSimpananRequest $request, SimpananManasukaService $service): RedirectResponse
     {
         try {
-            $service->create($request->validated(), $request->user()?->id);
+            $data = $request->validated();
+            $jenis = JenisSimpanan::query()->findOrFail((int) $data['jenis_simpanan_id']);
+            if ($jenis->kode === JenisSimpanan::KODE_SIMPANAN_WAJIB) {
+                $wajibService->settleDirect(
+                    Anggota::query()->findOrFail((int) $data['anggota_id']),
+                    $data,
+                    (int) $request->user()?->id
+                );
+            } else {
+                $service->create($data, $request->user()?->id);
+            }
 
             return redirect()
                 ->route('simpanan.index')
@@ -144,7 +155,6 @@ class SimpananController extends Controller
 
     public function saldoManasuka(Anggota $anggota, SimpananManasukaService $service): JsonResponse
     {
-        $saldo = $service->getSaldoCached($anggota);
         $anggota->loadMissing('karyawan');
 
         if ($anggota->status !== Anggota::STATUS_AKTIF || $anggota->karyawan?->status_kerja !== Karyawan::STATUS_AKTIF) {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class ShuTransaksi extends Model
 {
@@ -23,6 +24,11 @@ class ShuTransaksi extends Model
         'tanggal' => 'date',
         'jumlah' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(fn () => throw new RuntimeException('Sumber transaksi SHU tidak boleh dihapus permanen.'));
+    }
 
     public function shuKoperasi()
     {

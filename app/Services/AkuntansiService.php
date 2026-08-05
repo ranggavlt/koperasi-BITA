@@ -6,6 +6,7 @@ use App\Models\Akun;
 use App\Models\BebanOperasional;
 use App\Models\CicilanPinjaman;
 use App\Models\JurnalUmum;
+use App\Models\PeriodeAkuntansi;
 use App\Models\PembayaranKonsinyasi;
 use App\Models\PembayaranOutstandingCash;
 use App\Models\PembayaranSewaMobil;
@@ -61,7 +62,13 @@ class AkuntansiService
             throw new RuntimeException('Jurnal tidak balance (debit != kredit).');
         }
 
-        return DB::transaction(function () use ($header, $normalizedLines): JurnalUmum {
+        $periodOperation = (bool) ($header['is_period_operation'] ?? false);
+        unset($header['is_period_operation']);
+        $header['status'] = JurnalUmum::STATUS_POSTED;
+        $header['posted_at'] = $header['posted_at'] ?? now();
+
+        return DB::transaction(function () use ($header, $normalizedLines, $periodOperation): JurnalUmum {
+            $this->assertDateWritable($header, $periodOperation);
             $jurnal = JurnalUmum::create($header);
 
             $jurnal->details()->createMany($normalizedLines);
@@ -267,13 +274,42 @@ class AkuntansiService
         ]);
     }
 
-    public function reverseByReference(string $referensiTipe, int $referensiId): void
+    public function recordCorrection(PeriodeAkuntansi $closedPeriod, array $header, array $lines, string $reason): JurnalUmum
     {
-        JurnalUmum::query()
-            ->where('referensi_tipe', $referensiTipe)
-            ->where('referensi_id', $referensiId)
-            ->get()
-            ->each(fn (JurnalUmum $jurnal) => $jurnal->delete());
+        if ($closedPeriod->status !== PeriodeAkuntansi::STATUS_CLOSED) {
+            throw new RuntimeException('Koreksi resmi hanya dapat merujuk periode yang sudah ditutup.');
+        }
+
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 5) {
+            throw new RuntimeException('Alasan koreksi resmi wajib diisi minimal 5 karakter.');
+        }
+
+        $header['is_adjustment'] = true;
+        $header['correction_period_id'] = $closedPeriod->id;
+        $header['correction_reason'] = $reason;
+
+        return $this->record($header, $lines);
+    }
+
+    private function assertDateWritable(array &$header, bool $periodOperation): void
+    {
+        $date = (string) ($header['tanggal'] ?? now()->toDateString());
+        $period = PeriodeAkuntansi::query()
+            ->where('tanggal_mulai', '<=', $date)
+            ->where('tanggal_selesai', '>=', $date)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $period) {
+            return;
+        }
+
+        if (in_array($period->status, [PeriodeAkuntansi::STATUS_CLOSING, PeriodeAkuntansi::STATUS_CLOSED], true) && ! $periodOperation) {
+            throw new RuntimeException('Tanggal jurnal berada pada periode akuntansi yang sudah dikunci. Gunakan koreksi resmi pada periode terbuka.');
+        }
+
+        $header['periode_akuntansi_id'] = $period->id;
     }
 
     public function recordPenjualan(Penjualan $penjualan, string $metodePembayaran): void
@@ -469,6 +505,34 @@ class AkuntansiService
                 'kredit',
                 $jumlah
             ),
+        ]);
+    }
+
+    public function recordPenerimaanSimpananWajibDirect(Simpanan $simpanan, Akun $akunDompet, ?int $userId = null): JurnalUmum
+    {
+        $key = 'simpanan-wajib:direct:jurnal:'.$simpanan->id;
+        $existing = JurnalUmum::query()->where('idempotency_key', $key)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! $akunDompet->is_aktif || $akunDompet->kategori !== 'aset' || $akunDompet->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet penerimaan Simpanan Wajib harus Aset aktif dengan saldo normal Debit.');
+        }
+
+        $jumlah = (float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah);
+
+        return $this->record([
+            'idempotency_key' => $key,
+            'tanggal' => (string) $simpanan->tanggal,
+            'nomor_bukti' => 'SWJ-DIR-'.$simpanan->id,
+            'keterangan' => 'Penerimaan langsung Simpanan Wajib Anggota',
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
+            'created_by' => $userId,
+        ], [
+            $this->akunResolver->line($akunDompet, 'debit', $jumlah),
+            $this->akunResolver->line($this->akunResolver->posting('penjualan.piutang_potong_gaji'), 'kredit', $jumlah),
         ]);
     }
 
@@ -1390,6 +1454,67 @@ class AkuntansiService
             'keterangan' => 'Penerimaan payroll potong gaji net ' . $nomorBukti,
             'referensi_tipe' => $referensiTipe,
             'referensi_id' => $referensiId,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordSimpananManasukaPayrollNet(
+        Simpanan $simpanan,
+        Akun $akunBank,
+        float|int $creditApplied = 0,
+        ?int $userId = null
+    ): JurnalUmum {
+        $idempotencyKey = 'simpanan-manasuka:payroll:jurnal:' . $simpanan->id;
+        $existing = JurnalUmum::query()->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $simpanan->loadMissing('jenisSimpanan.akun');
+        $akunSimpanan = $simpanan->jenisSimpanan?->akun;
+
+        if (! $akunSimpanan || ! $akunSimpanan->is_aktif
+            || ! in_array($akunSimpanan->kategori, ['kewajiban', 'ekuitas'], true)
+            || $akunSimpanan->posisi_saldo !== 'kredit') {
+            throw new RuntimeException('Akun Simpanan Manasuka harus aktif, kategori Kewajiban/Ekuitas, dan saldo normal Kredit.');
+        }
+
+        if (! $akunBank->is_aktif || $akunBank->kategori !== 'aset' || $akunBank->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Bank payroll harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+
+        $gross = round((float) ($simpanan->nominal_snapshot ?? $simpanan->jumlah), 2);
+        $creditApplied = round((float) $creditApplied, 2);
+        $net = round($gross - $creditApplied, 2);
+
+        if ($gross <= 0 || $creditApplied < 0 || $net < 0) {
+            throw new RuntimeException('Nominal payroll Simpanan Manasuka tidak valid.');
+        }
+
+        $lines = [];
+
+        if ($net > 0) {
+            $lines[] = $this->akunResolver->line($akunBank, 'debit', $net);
+        }
+
+        if ($creditApplied > 0) {
+            $lines[] = $this->akunResolver->line(
+                $this->akunResolver->posting('refund.utang_anggota'),
+                'debit',
+                $creditApplied
+            );
+        }
+
+        $lines[] = $this->akunResolver->line($akunSimpanan, 'kredit', $gross);
+
+        return $this->record([
+            'idempotency_key' => $idempotencyKey,
+            'tanggal' => now(config('app.timezone', 'Asia/Jakarta'))->toDateString(),
+            'nomor_bukti' => $simpanan->kode_transaksi,
+            'keterangan' => 'Setoran payroll Simpanan Manasuka ' . $simpanan->kode_transaksi,
+            'referensi_tipe' => Simpanan::class,
+            'referensi_id' => $simpanan->id,
             'created_by' => $userId ?? auth()->id(),
         ], $lines);
     }

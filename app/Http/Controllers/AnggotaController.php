@@ -7,7 +7,9 @@ use App\Http\Requests\UpdateAnggotaRequest;
 use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\Karyawan;
+use App\Services\ManasukaRutinService;
 use App\Services\MasterDataKoperasiService;
+use Illuminate\Support\Str;
 
 class AnggotaController extends Controller
 {
@@ -66,6 +68,10 @@ class AnggotaController extends Controller
 
     private function renderIndex(?Anggota $data = null)
     {
+        if ($data) {
+            $data->loadMissing(['karyawan', 'siklusAktif']);
+        }
+
         $anggota = Anggota::query()
             ->with(['karyawan', 'pengurusAktif'])
             ->latest('id')
@@ -89,6 +95,21 @@ class AnggotaController extends Controller
             ->orderBy('nama_dompet')
             ->get();
 
-        return view('pages.anggota.index', compact('anggota', 'karyawanTersedia', 'data', 'dompetKas', 'dompetBank'));
+        $manasukaConfig = $data
+            ? app(ManasukaRutinService::class)->latestScheduled($data, $data->siklusAktif?->id)
+            : null;
+        $manasukaEffectivePeriod = app(ManasukaRutinService::class)->nextEffectivePeriod();
+        $manasukaIdempotencyKey = (string) Str::uuid();
+
+        return view('pages.anggota.index', compact(
+            'anggota',
+            'karyawanTersedia',
+            'data',
+            'dompetKas',
+            'dompetBank',
+            'manasukaConfig',
+            'manasukaEffectivePeriod',
+            'manasukaIdempotencyKey'
+        ));
     }
 }

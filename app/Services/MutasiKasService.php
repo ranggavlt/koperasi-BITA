@@ -54,26 +54,9 @@ class MutasiKasService
         return $mutasi;
     }
 
-    public function reverseByReference(string $referensiTipe, int $referensiId): void
-    {
-        MutasiKas::where('referensi_tipe', $referensiTipe)
-            ->where('referensi_id', $referensiId)
-            ->get()
-            ->each(fn (MutasiKas $mutasi) => $this->deleteAndReverse($mutasi));
-    }
-
     public function backfillHistoricalTransactions(): void
     {
         throw new RuntimeException('Backfill historis Mutasi Kas & Bank dinonaktifkan. Mutasi hanya boleh dibuat oleh service transaksi resmi dengan Dompet eksplisit.');
-    }
-
-    public function deleteAndReverse(MutasiKas $mutasi): void
-    {
-        if ($mutasi->dompet) {
-            $this->reverseSaldo($mutasi->dompet, $mutasi->tipe, (float) $mutasi->jumlah);
-        }
-
-        $mutasi->delete();
     }
 
     protected function resolveDompet(?int $dompetId = null): DompetKoperasi
@@ -100,19 +83,6 @@ class MutasiKasService
         $saldoBaru = $tipe === 'masuk'
             ? $saldoInt + $jumlahInt
             : $saldoInt - $jumlahInt;
-
-        $dompet->update([
-            'saldo' => $this->rupiahDecimal($saldoBaru),
-        ]);
-    }
-
-    protected function reverseSaldo(DompetKoperasi $dompet, string $tipe, float|int|string $jumlah): void
-    {
-        $jumlahInt = $this->rupiahInt($jumlah);
-        $saldoInt = $this->rupiahInt($dompet->saldo);
-        $saldoBaru = $tipe === 'masuk'
-            ? $saldoInt - $jumlahInt
-            : $saldoInt + $jumlahInt;
 
         $dompet->update([
             'saldo' => $this->rupiahDecimal($saldoBaru),

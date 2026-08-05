@@ -32,6 +32,9 @@ class SewaHardware extends Model
 
     protected $fillable = [
         'kode_sewa',
+        'perusahaan_id',
+        'kode_perusahaan_snapshot',
+        'model_sumber',
         'nama_perusahaan_snapshot',
         'karyawan_id',
         'mulai_tanggal',
@@ -133,6 +136,21 @@ class SewaHardware extends Model
         return $this->belongsTo(Karyawan::class, 'karyawan_id');
     }
 
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class);
+    }
+
+    public function pembayaranVendor()
+    {
+        return $this->morphOne(PembayaranVendorSewa::class, 'sewa');
+    }
+
+    public function invoiceDetail()
+    {
+        return $this->morphOne(InvoicePenagihanDetail::class, 'referensi');
+    }
+
     public function pembayaran()
     {
         return $this->hasOne(PembayaranSewaHardware::class, 'sewa_hardware_id');
@@ -141,11 +159,6 @@ class SewaHardware extends Model
     public function pembayaranVendorBaru()
     {
         return $this->morphOne(PembayaranVendorSewa::class, 'sewa', 'sewa_type', 'sewa_id');
-    }
-
-    public function invoiceDetail()
-    {
-        return $this->morphOne(InvoicePenagihanDetail::class, 'referensi');
     }
 
     public function creator()

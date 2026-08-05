@@ -49,7 +49,7 @@
       <h2 class="kbsm-business-panel__title">Filter Sewa Mobil</h2>
       <p class="kbsm-business-panel__copy">Filter berdasarkan Karyawan, status, vendor, plat, dan periode yang bersinggungan dengan tanggal pilihan.</p>
     </div>
-    <form method="GET" action="{{ route('sewa-mobil.finance.index') }}" class="kbsm-business-filter kbsm-business-filter--sewa">
+    <form method="GET" action="{{ route('sewa-mobil.finance.index') }}" class="kbsm-business-filter kbsm-business-filter--sewa-mobil">
       <div class="kbsm-business-field">
         <label class="kbsm-business-label">Karyawan</label>
         <select name="karyawan_id" class="kbsm-business-control">

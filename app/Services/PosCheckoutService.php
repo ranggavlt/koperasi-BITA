@@ -193,6 +193,12 @@ class PosCheckoutService
             ]);
         }
 
+        if (! $limit->kredit_waserba_enabled_snapshot) {
+            throw ValidationException::withMessages([
+                'metode_pembayaran' => 'Kredit Waserba dinonaktifkan untuk Anggota ini mulai periode berjalan.',
+            ]);
+        }
+
         $this->potongGajiService->assertNoUnreservedDueInstallmentsForPayroll($anggota, $tanggal);
 
         if ($this->simpananWajibService->hasBlockingOutstandingBeforePos($anggota, $tanggal)) {

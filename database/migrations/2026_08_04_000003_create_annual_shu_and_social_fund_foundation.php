@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('shu_config', function (Blueprint $table): void {
+        if (! Schema::hasTable('shu_config')) {
+            Schema::create('shu_config', function (Blueprint $table): void {
             $table->id();
             $table->unsignedInteger('versi')->unique();
             $table->date('berlaku_mulai')->index();
@@ -24,26 +25,56 @@ return new class extends Migration
             $table->decimal('persen_jasa_usaha', 5, 2);
             $table->foreignId('created_by')->constrained('users', indexName: 'shu_config_creator_fk')->restrictOnDelete();
             $table->timestamps();
-        });
+            });
+        }
 
         Schema::table('shu_koperasi', function (Blueprint $table): void {
-            $table->foreignId('periode_akuntansi_id')->nullable()->after('id')->constrained('periode_akuntansi', indexName: 'shu_period_fk')->restrictOnDelete()->unique();
-            $table->foreignId('shu_config_id')->nullable()->after('periode_akuntansi_id')->constrained('shu_config', indexName: 'shu_config_fk')->restrictOnDelete();
-            $table->json('config_snapshot')->nullable()->after('shu_config_id');
-            $table->string('status', 30)->default('draft')->after('judul')->index();
-            $table->decimal('total_dibayar', 15, 2)->default(0)->after('shu_total');
-            $table->decimal('total_belum_dibayar', 15, 2)->default(0)->after('total_dibayar');
-            $table->foreignId('created_by')->nullable()->after('keterangan')->constrained('users', indexName: 'shu_creator_fk')->restrictOnDelete();
-            $table->foreignId('calculated_by')->nullable()->after('created_by')->constrained('users', indexName: 'shu_calculator_fk')->restrictOnDelete();
-            $table->foreignId('submitted_by')->nullable()->after('calculated_by')->constrained('users', indexName: 'shu_submitter_fk')->restrictOnDelete();
-            $table->foreignId('approved_by')->nullable()->after('submitted_by')->constrained('users', indexName: 'shu_approver_fk')->restrictOnDelete();
-            $table->timestamp('submitted_at')->nullable()->after('approved_by');
-            $table->timestamp('approved_at')->nullable()->after('submitted_at');
-            $table->timestamp('completed_at')->nullable()->after('approved_at');
-            $table->string('idempotency_key', 191)->nullable()->after('completed_at')->unique();
+            if (! Schema::hasColumn('shu_koperasi', 'periode_akuntansi_id')) {
+                $table->foreignId('periode_akuntansi_id')->nullable()->after('id')->constrained('periode_akuntansi', indexName: 'shu_period_fk')->restrictOnDelete()->unique();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'shu_config_id')) {
+                $table->foreignId('shu_config_id')->nullable()->after('periode_akuntansi_id')->constrained('shu_config', indexName: 'shu_config_fk')->restrictOnDelete();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'config_snapshot')) {
+                $table->json('config_snapshot')->nullable()->after('shu_config_id');
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'status')) {
+                $table->string('status', 30)->default('draft')->after('judul')->index();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'total_dibayar')) {
+                $table->decimal('total_dibayar', 15, 2)->default(0)->after('shu_total');
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'total_belum_dibayar')) {
+                $table->decimal('total_belum_dibayar', 15, 2)->default(0)->after('total_dibayar');
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'created_by')) {
+                $table->foreignId('created_by')->nullable()->after('keterangan')->constrained('users', indexName: 'shu_creator_fk')->restrictOnDelete();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'calculated_by')) {
+                $table->foreignId('calculated_by')->nullable()->after('created_by')->constrained('users', indexName: 'shu_calculator_fk')->restrictOnDelete();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'submitted_by')) {
+                $table->foreignId('submitted_by')->nullable()->after('calculated_by')->constrained('users', indexName: 'shu_submitter_fk')->restrictOnDelete();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'approved_by')) {
+                $table->foreignId('approved_by')->nullable()->after('submitted_by')->constrained('users', indexName: 'shu_approver_fk')->restrictOnDelete();
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'submitted_at')) {
+                $table->timestamp('submitted_at')->nullable()->after('approved_by');
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'approved_at')) {
+                $table->timestamp('approved_at')->nullable()->after('submitted_at');
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'completed_at')) {
+                $table->timestamp('completed_at')->nullable()->after('approved_at');
+            }
+            if (! Schema::hasColumn('shu_koperasi', 'idempotency_key')) {
+                $table->string('idempotency_key', 191)->nullable()->after('completed_at')->unique();
+            }
         });
 
-        Schema::create('shu_penerima', function (Blueprint $table): void {
+        if (! Schema::hasTable('shu_penerima')) {
+            Schema::create('shu_penerima', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('shu_koperasi_id')->constrained('shu_koperasi', indexName: 'shu_recipient_shu_fk')->restrictOnDelete();
             $table->string('jenis_penerima', 30);
@@ -62,9 +93,11 @@ return new class extends Migration
 
             $table->unique(['shu_koperasi_id', 'jenis_penerima', 'anggota_id'], 'shu_recipient_member_uq');
             $table->index(['shu_koperasi_id', 'jenis_penerima', 'status_pembayaran'], 'shu_recipient_type_status_idx');
-        });
+            });
+        }
 
-        Schema::create('pembayaran_shu', function (Blueprint $table): void {
+        if (! Schema::hasTable('pembayaran_shu')) {
+            Schema::create('pembayaran_shu', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('shu_penerima_id')->constrained('shu_penerima', indexName: 'shu_payment_recipient_fk')->restrictOnDelete()->unique();
             $table->foreignId('dompet_id')->constrained('dompet_koperasi', indexName: 'shu_payment_wallet_fk')->restrictOnDelete();
@@ -75,9 +108,11 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users', indexName: 'shu_payment_creator_fk')->restrictOnDelete();
             $table->string('idempotency_key', 191)->unique();
             $table->timestamps();
-        });
+            });
+        }
 
-        Schema::create('dana_sosial_sumber', function (Blueprint $table): void {
+        if (! Schema::hasTable('dana_sosial_sumber')) {
+            Schema::create('dana_sosial_sumber', function (Blueprint $table): void {
             $table->id();
             $table->string('kode_sumber', 40)->unique();
             $table->string('jenis', 30);
@@ -94,9 +129,26 @@ return new class extends Migration
             $table->string('status', 20)->default('approved');
             $table->string('idempotency_key', 191)->unique();
             $table->timestamps();
-        });
+            });
+        } else {
+            Schema::table('dana_sosial_sumber', function (Blueprint $table): void {
+                if (! Schema::hasColumn('dana_sosial_sumber', 'jenis')) {
+                    $table->string('jenis', 30)->nullable();
+                }
+                if (! Schema::hasColumn('dana_sosial_sumber', 'jumlah')) {
+                    $table->decimal('jumlah', 15, 2)->nullable();
+                }
+                if (! Schema::hasColumn('dana_sosial_sumber', 'tanggal')) {
+                    $table->date('tanggal')->nullable();
+                }
+                if (! Schema::hasIndex('dana_sosial_sumber', ['shu_koperasi_id'], 'unique')) {
+                    $table->unique('shu_koperasi_id', 'social_source_shu_unique');
+                }
+            });
+        }
 
-        Schema::create('dana_sosial_limit', function (Blueprint $table): void {
+        if (! Schema::hasTable('dana_sosial_limit')) {
+            Schema::create('dana_sosial_limit', function (Blueprint $table): void {
             $table->id();
             $table->string('kategori', 40)->unique();
             $table->string('label', 100);
@@ -104,9 +156,11 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->foreignId('updated_by')->nullable()->constrained('users', indexName: 'social_limit_updater_fk')->restrictOnDelete();
             $table->timestamps();
-        });
+            });
+        }
 
-        Schema::create('klaim_dana_sosial', function (Blueprint $table): void {
+        if (! Schema::hasTable('klaim_dana_sosial')) {
+            Schema::create('klaim_dana_sosial', function (Blueprint $table): void {
             $table->id();
             $table->string('kode_klaim', 40)->unique();
             $table->foreignId('anggota_id')->nullable()->constrained('anggota', indexName: 'social_claim_member_fk')->restrictOnDelete();
@@ -128,16 +182,43 @@ return new class extends Migration
             $table->timestamp('paid_at')->nullable();
             $table->string('idempotency_key', 191)->unique();
             $table->timestamps();
-        });
+            });
+        } else {
+            Schema::table('klaim_dana_sosial', function (Blueprint $table): void {
+                if (! Schema::hasColumn('klaim_dana_sosial', 'penerima_manfaat')) {
+                    $table->string('penerima_manfaat', 150)->nullable();
+                }
+                if (! Schema::hasColumn('klaim_dana_sosial', 'tanggal_kejadian')) {
+                    $table->date('tanggal_kejadian')->nullable();
+                }
+                if (! Schema::hasColumn('klaim_dana_sosial', 'nominal_diajukan')) {
+                    $table->decimal('nominal_diajukan', 15, 2)->nullable();
+                }
+                if (! Schema::hasColumn('klaim_dana_sosial', 'catatan')) {
+                    $table->text('catatan')->nullable();
+                }
+                if (! Schema::hasColumn('klaim_dana_sosial', 'dokumen_path')) {
+                    $table->string('dokumen_path')->nullable();
+                }
+                if (! Schema::hasColumn('klaim_dana_sosial', 'tanggal_bayar')) {
+                    $table->date('tanggal_bayar')->nullable();
+                }
+                if (! Schema::hasColumn('klaim_dana_sosial', 'nomor_referensi')) {
+                    $table->string('nomor_referensi', 120)->nullable();
+                }
+            });
+        }
 
-        Schema::create('alokasi_klaim_dana_sosial', function (Blueprint $table): void {
+        if (! Schema::hasTable('alokasi_klaim_dana_sosial')) {
+            Schema::create('alokasi_klaim_dana_sosial', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('klaim_dana_sosial_id')->constrained('klaim_dana_sosial', indexName: 'social_alloc_claim_fk')->restrictOnDelete();
             $table->foreignId('dana_sosial_sumber_id')->constrained('dana_sosial_sumber', indexName: 'social_alloc_source_fk')->restrictOnDelete();
             $table->decimal('jumlah', 15, 2);
             $table->timestamps();
             $table->unique(['klaim_dana_sosial_id', 'dana_sosial_sumber_id'], 'social_claim_source_allocation_uq');
-        });
+            });
+        }
     }
 
     public function down(): void

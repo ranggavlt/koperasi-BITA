@@ -21,6 +21,7 @@ class PreflightAccessCommand extends Command
             $this->check('route_finance_tanpa_role', 'Route Finance tanpa role:admin', $this->financeRoutesWithoutRole()),
             $this->check('route_karyawan_tanpa_ownership', 'Route Karyawan tanpa proteksi ownership', $this->employeeRoutesWithoutOwnership()),
             $this->check('shu_route_aktif_disabled', 'Route SHU aktif saat feature disabled', $this->shuRoutesActiveWhileDisabled()),
+            $this->check('dana_sosial_route_aktif_disabled', 'Route Dana Sosial aktif saat feature disabled', $this->featureRoutesActiveWhileDisabled('klaim-dana-sosial.', 'dana_sosial_enabled')),
             $this->check('master_printer_route_aktif_disabled', 'Route Master Printer aktif saat feature disabled', $this->featureRoutesActiveWhileDisabled('aset-printer.', 'master_printer_enabled')),
             $this->check('menu_disabled_visible', 'Menu/module disabled masih terlihat', $this->disabledFeatureVisibleInNavigation()),
             $this->check('route_hard_delete_final', 'Route hard delete/edit transaksi final masih tersedia', $this->hardDeleteFinalRoutes()),
@@ -125,6 +126,15 @@ class PreflightAccessCommand extends Command
             $issues += $this->plainTextInFile(resource_path('views/layout/navbar.blade.php'), 'atau SHU');
         }
 
+        if (! (bool) config('features.dana_sosial_enabled', false)) {
+            $danaSosialModulesWithoutFlag = collect(config('navigation.modules', []))
+                ->filter(fn (array $module): bool => ($module['key'] ?? null) === 'klaim_dana_sosial')
+                ->filter(fn (array $module): bool => ($module['feature'] ?? null) !== 'dana_sosial_enabled')
+                ->count();
+
+            $issues += $danaSosialModulesWithoutFlag;
+        }
+
         if (! (bool) config('features.jasa_print_enabled', false)) {
             foreach ([
                 config_path('navigation.php'),
@@ -227,9 +237,16 @@ class PreflightAccessCommand extends Command
 
     private function invalidFeatureFlags(): int
     {
-        return collect(['shu_enabled', 'jasa_print_enabled', 'master_printer_enabled'])
+        $invalid = collect(['shu_enabled', 'dana_sosial_enabled', 'dana_sosial_alternative_sources_enabled', 'jasa_print_enabled', 'master_printer_enabled'])
             ->filter(fn (string $key): bool => ! is_bool(config("features.{$key}")))
             ->count();
+
+        if ((bool) config('features.dana_sosial_enabled', false)
+            && ! (bool) config('features.shu_enabled', false)) {
+            $invalid++;
+        }
+
+        return $invalid;
     }
 
     private function webRoutes()

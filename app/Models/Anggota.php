@@ -23,12 +23,16 @@ class Anggota extends Model
         'status',
         'tanggal_nonaktif',
         'plafon_pinjaman',
+        'manasuka_rutin_nominal',
+        'is_manasuka_rutin_active',
     ];
 
     protected $casts = [
         'tanggal_bergabung' => 'date',
         'tanggal_nonaktif' => 'date',
         'plafon_pinjaman' => 'decimal:2',
+        'manasuka_rutin_nominal' => 'decimal:2',
+        'is_manasuka_rutin_active' => 'boolean',
     ];
 
     public function karyawan()
@@ -75,6 +79,13 @@ class Anggota extends Model
     public function jadwalSimpananWajib()
     {
         return $this->hasMany(JadwalSimpananWajib::class, 'anggota_id');
+    }
+
+    public function konfigurasiManasukaRutin()
+    {
+        return $this->hasMany(KonfigurasiManasukaRutin::class, 'anggota_id')
+            ->orderBy('berlaku_mulai')
+            ->orderBy('id');
     }
 
     public function siklusKeanggotaan()

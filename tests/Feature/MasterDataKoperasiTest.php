@@ -448,6 +448,7 @@ class MasterDataKoperasiTest extends TestCase
             'jabatan' => 'Staf Uji',
             'perusahaan_id' => $perusahaan->id,
             'status_kerja' => 'aktif',
+            'perusahaan_id' => $perusahaan->id,
         ])->assertRedirect(route('karyawan.index'));
 
         $karyawan = Karyawan::query()->where('email', 'karyawan.kelola@example.test')->firstOrFail();

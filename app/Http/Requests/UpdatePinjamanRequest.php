@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StorePinjamanRequest extends FormRequest
+class UpdatePinjamanRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -18,10 +18,9 @@ class StorePinjamanRequest extends FormRequest
             'tanggal_pengajuan' => ['required', 'date', 'before_or_equal:today'],
             'jumlah_pinjaman' => ['required', 'numeric', 'min:1', 'max:5000000'],
             'tenor_bulan' => ['required', 'integer', 'min:1', 'max:12'],
-            'biaya_admin' => ['required', 'numeric', 'min:0'],
+            'biaya_admin' => ['required', 'integer', 'in:50000'],
             'cara_bayar_admin' => ['required', 'in:tunai,potong_pinjaman'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
-            'dompet_id' => ['required', 'integer', 'exists:dompet_koperasi,id'],
         ];
     }
 

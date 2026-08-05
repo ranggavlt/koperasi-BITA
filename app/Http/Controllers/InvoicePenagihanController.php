@@ -84,7 +84,7 @@ class InvoicePenagihanController extends Controller
         return view('pages.invoice-penagihan.create', compact('companies', 'companyId', 'mobil', 'hardware'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, B2BRentalService $service): RedirectResponse
     {
         $validated = $request->validate([
             'perusahaan_id' => ['required', 'integer', 'exists:perusahaan,id'],

@@ -213,6 +213,7 @@ class PreflightSewaMobilCommand extends Command
         }
 
         return DB::table('sewa_mobil')
+            ->where('model_sumber', 'vendor')
             ->whereNotIn('status', [SewaMobil::STATUS_DIBATALKAN])
             ->where(fn ($query) => $query
                 ->whereNull('vendor_nama')->orWhere('vendor_nama', '')
@@ -228,6 +229,7 @@ class PreflightSewaMobilCommand extends Command
         }
 
         return DB::table('sewa_mobil')
+            ->where('model_sumber', 'vendor')
             ->whereNotIn('status', [SewaMobil::STATUS_DIBATALKAN])
             ->where(fn ($query) => $query
                 ->whereNull('jenis_kendaraan')->orWhere('jenis_kendaraan', '')
@@ -245,6 +247,7 @@ class PreflightSewaMobilCommand extends Command
         }
 
         return DB::table('sewa_mobil')
+            ->where('model_sumber', 'vendor')
             ->whereIn('status', [SewaMobil::STATUS_DISETUJUI, SewaMobil::STATUS_BERJALAN, SewaMobil::STATUS_SELESAI])
             ->where(fn ($query) => $query
                 ->whereNull('plat_nomor_snapshot')->orWhere('plat_nomor_snapshot', '')
@@ -270,6 +273,7 @@ class PreflightSewaMobilCommand extends Command
         }
 
         return DB::table('sewa_mobil')
+            ->where('model_sumber', 'vendor')
             ->select('id', 'tanggal_mulai', 'tanggal_selesai', 'jumlah_hari', 'total_harga_vendor', 'total_markup', 'total_tagihan_perusahaan', 'total_sewa')
             ->get()
             ->filter(function ($row): bool {
@@ -352,6 +356,7 @@ class PreflightSewaMobilCommand extends Command
 
         return DB::table('pembayaran_sewa_mobil as p')
             ->join('sewa_mobil as s', 's.id', '=', 'p.sewa_mobil_id')
+            ->where('s.model_sumber', 'vendor')
             ->whereIn('p.status', [PembayaranSewaMobil::STATUS_PAID, PembayaranSewaMobil::STATUS_REFUNDED])
             ->where(fn ($query) => $query
                 ->whereColumn('p.jumlah_diterima', '!=', 's.total_tagihan_perusahaan')
@@ -368,10 +373,12 @@ class PreflightSewaMobilCommand extends Command
         }
 
         return DB::table('pembayaran_sewa_mobil as p')
+            ->join('sewa_mobil as s', 's.id', '=', 'p.sewa_mobil_id')
             ->leftJoin('dompet_koperasi as dp', 'dp.id', '=', 'p.dompet_penerimaan_id')
             ->leftJoin('akun as ap', 'ap.id', '=', 'dp.akun_id')
             ->leftJoin('dompet_koperasi as dv', 'dv.id', '=', 'p.dompet_vendor_id')
             ->leftJoin('akun as av', 'av.id', '=', 'dv.akun_id')
+            ->where('s.model_sumber', 'vendor')
             ->whereIn('p.status', [PembayaranSewaMobil::STATUS_PAID, PembayaranSewaMobil::STATUS_REFUNDED])
             ->where(function ($query): void {
                 $query->whereNull('dp.id')
@@ -394,11 +401,13 @@ class PreflightSewaMobilCommand extends Command
             return 0;
         }
 
-        return DB::table('pembayaran_sewa_mobil')
-            ->whereIn('status', [PembayaranSewaMobil::STATUS_PAID, PembayaranSewaMobil::STATUS_REFUNDED])
-            ->pluck('id')
-            ->filter(fn ($id): bool => ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:penerimaan:mutasi:' . $id)->exists()
-                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:pembayaran-vendor:mutasi:' . $id)->exists())
+        return DB::table('pembayaran_sewa_mobil as p')
+            ->join('sewa_mobil as s', 's.id', '=', 'p.sewa_mobil_id')
+            ->where('s.model_sumber', 'vendor')
+            ->whereIn('p.status', [PembayaranSewaMobil::STATUS_PAID, PembayaranSewaMobil::STATUS_REFUNDED])
+            ->pluck('p.id')
+            ->filter(fn ($id): bool => ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:penerimaan:mutasi:'.$id)->exists()
+                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:pembayaran-vendor:mutasi:'.$id)->exists())
             ->count();
     }
 
@@ -408,11 +417,13 @@ class PreflightSewaMobilCommand extends Command
             return 0;
         }
 
-        return DB::table('pembayaran_sewa_mobil')
-            ->whereIn('status', [PembayaranSewaMobil::STATUS_PAID, PembayaranSewaMobil::STATUS_REFUNDED])
-            ->pluck('id')
-            ->filter(fn ($id): bool => ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:pembayaran-dimuka:jurnal:' . $id)->exists()
-                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:pembayaran-vendor:jurnal:' . $id)->exists())
+        return DB::table('pembayaran_sewa_mobil as p')
+            ->join('sewa_mobil as s', 's.id', '=', 'p.sewa_mobil_id')
+            ->where('s.model_sumber', 'vendor')
+            ->whereIn('p.status', [PembayaranSewaMobil::STATUS_PAID, PembayaranSewaMobil::STATUS_REFUNDED])
+            ->pluck('p.id')
+            ->filter(fn ($id): bool => ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:pembayaran-dimuka:jurnal:'.$id)->exists()
+                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:pembayaran-vendor:jurnal:'.$id)->exists())
             ->count();
     }
 
@@ -424,8 +435,8 @@ class PreflightSewaMobilCommand extends Command
 
         return DB::table('sewa_mobil')
             ->where('status', SewaMobil::STATUS_SELESAI)
-            ->pluck('id')
-            ->filter(fn ($id): bool => ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:pengakuan-pendapatan:jurnal:' . $id)->exists())
+            ->get(['id', ...(Schema::hasColumn('sewa_mobil', 'model_sumber') ? ['model_sumber'] : [])])
+            ->filter(fn ($row): bool => ! DB::table('jurnal_umum')->where('idempotency_key', ($row->model_sumber ?? null) === 'vendor' ? 'b2b:margin:jurnal:'.SewaMobil::class.':'.$row->id : 'sewa-mobil:pengakuan-pendapatan:jurnal:'.$row->id)->exists())
             ->count();
     }
 
@@ -443,6 +454,7 @@ class PreflightSewaMobilCommand extends Command
             ->join('pembayaran_sewa_mobil as p', 'p.sewa_mobil_id', '=', 's.id')
             ->leftJoin('reversal_transaksi as rs', 'rs.id', '=', 's.reversal_transaksi_id')
             ->leftJoin('reversal_transaksi as rp', 'rp.id', '=', 'p.reversal_transaksi_id')
+            ->where('s.model_sumber', 'vendor')
             ->where(fn ($query) => $query
                 ->where('s.status', SewaMobil::STATUS_REFUNDED)
                 ->orWhere('s.status_pembayaran', SewaMobil::PEMBAYARAN_REFUNDED)
@@ -451,10 +463,10 @@ class PreflightSewaMobilCommand extends Command
             ->get()
             ->filter(fn ($row): bool => ! $row->sewa_reversal_id
                 || ! $row->payment_reversal_id
-                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:refund-vendor:mutasi:' . $row->payment_id)->exists()
-                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:refund-perusahaan:mutasi:' . $row->payment_id)->exists()
-                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:refund-vendor:jurnal:' . $row->payment_id)->exists()
-                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:refund-perusahaan:jurnal:' . $row->payment_id)->exists())
+                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:refund-vendor:mutasi:'.$row->payment_id)->exists()
+                || ! DB::table('mutasi_kas')->where('idempotency_key', 'sewa-mobil:refund-perusahaan:mutasi:'.$row->payment_id)->exists()
+                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:refund-vendor:jurnal:'.$row->payment_id)->exists()
+                || ! DB::table('jurnal_umum')->where('idempotency_key', 'sewa-mobil:refund-perusahaan:jurnal:'.$row->payment_id)->exists())
             ->count();
     }
 

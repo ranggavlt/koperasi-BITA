@@ -167,7 +167,9 @@ class JenisSimpananService
     private function normalizePayload(array $data, ?JenisSimpanan $existing = null): array
     {
         $kategori = (string) ($data['kategori'] ?? $existing?->kategori ?? '');
-        $rawInterval = $data['interval_bulan'] ?? $existing?->interval_bulan ?? null;
+        $rawInterval = array_key_exists('interval_bulan', $data)
+            ? $data['interval_bulan']
+            : $existing?->interval_bulan;
 
         return [
             'akun_id' => (int) ($data['akun_id'] ?? $existing?->akun_id ?? 0),

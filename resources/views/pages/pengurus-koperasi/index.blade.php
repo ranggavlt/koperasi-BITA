@@ -22,10 +22,10 @@
           <select id="anggota_id" name="anggota_id" required class="kbsm-focus w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
             <option value="">Pilih Anggota</option>
             @if(isset($data) && !$anggotaAktif->contains('id', $data->anggota_id))
-              <option value="{{ $data->anggota_id }}" selected>{{ $data->anggota->nomor_anggota }} â€” {{ $data->anggota->karyawan->nama }} (histori)</option>
+              <option value="{{ $data->anggota_id }}" selected>{{ $data->anggota->nomor_anggota }} - {{ $data->anggota->karyawan->nama }} (histori)</option>
             @endif
             @foreach($anggotaAktif as $item)
-              <option value="{{ $item->id }}" {{ (string) old('anggota_id', $data->anggota_id ?? '') === (string) $item->id ? 'selected' : '' }}>{{ $item->nomor_anggota }} â€” {{ $item->karyawan->nama }}</option>
+              <option value="{{ $item->id }}" {{ (string) old('anggota_id', $data->anggota_id ?? '') === (string) $item->id ? 'selected' : '' }}>{{ $item->nomor_anggota }} - {{ $item->karyawan->nama }}</option>
             @endforeach
           </select>
         </div>

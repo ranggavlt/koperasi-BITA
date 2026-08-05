@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Anggota;
 use App\Models\Akun;
+use App\Models\Anggota;
 use App\Models\DompetKoperasi;
 use App\Models\JadwalSimpananWajib;
 use App\Models\JenisSimpanan;
@@ -18,6 +18,7 @@ use App\Services\PotongGajiBulananService;
 use App\Services\SimpananWajibService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -63,13 +64,13 @@ class SimpananWajibSp7Test extends TestCase
         $this->assertSame(Simpanan::METODE_POTONG_GAJI, $simpanan->metode_pembayaran);
         $this->assertSame(Simpanan::STATUS_PENDING_PAYROLL, $simpanan->status);
         $this->assertSame('10000.00', $simpanan->nominal_snapshot);
-        $this->assertSame('simpanan-wajib:siklus:' . $anggota->siklusAktif->id, $simpanan->idempotency_key);
+        $this->assertSame('simpanan-wajib:siklus:'.$anggota->siklusAktif->id, $simpanan->idempotency_key);
         $this->assertDatabaseMissing('mutasi_kas', [
             'referensi_tipe' => Simpanan::class,
             'referensi_id' => $simpanan->id,
         ]);
         $this->assertDatabaseHas('jurnal_umum', [
-            'idempotency_key' => 'simpanan-wajib:pengakuan:jurnal:' . $simpanan->id,
+            'idempotency_key' => 'simpanan-wajib:pengakuan:jurnal:'.$simpanan->id,
             'referensi_tipe' => Simpanan::class,
             'referensi_id' => $simpanan->id,
         ]);
@@ -114,13 +115,13 @@ class SimpananWajibSp7Test extends TestCase
             $this->assertSame(Simpanan::STATUS_SETTLED, $simpanan->status);
             $this->assertNull($simpanan->pemakaian_potong_gaji_id);
             $this->assertDatabaseHas('mutasi_kas', [
-                'idempotency_key' => 'simpanan-wajib:direct:mutasi:' . $simpanan->id,
+                'idempotency_key' => 'simpanan-wajib:direct:mutasi:'.$simpanan->id,
                 'dompet_id' => $dompet->id,
                 'tipe' => 'masuk',
                 'jumlah' => '10000.00',
             ]);
             $this->assertDatabaseHas('jurnal_umum', [
-                'idempotency_key' => 'simpanan-wajib:direct:jurnal:' . $simpanan->id,
+                'idempotency_key' => 'simpanan-wajib:direct:jurnal:'.$simpanan->id,
                 'referensi_tipe' => Simpanan::class,
                 'referensi_id' => $simpanan->id,
             ]);
@@ -207,6 +208,30 @@ class SimpananWajibSp7Test extends TestCase
     public function test_preflight_simpanan_wajib_bersih_untuk_fixture_minimal(): void
     {
         $this->assertSame(0, Artisan::call('koperasi:preflight-simpanan-wajib'));
+    }
+
+    public function test_preflight_menolak_jadwal_berkala_baru_setelah_sp7(): void
+    {
+        $anggota = $this->registerAnggota();
+        $wajib = JenisSimpanan::query()->where('kode', JenisSimpanan::KODE_SIMPANAN_WAJIB)->firstOrFail();
+
+        DB::table('jadwal_simpanan_wajib')->insert([
+            'kode_tagihan' => 'SWJ-SP7-BROKEN-001',
+            'anggota_id' => $anggota->id,
+            'siklus_keanggotaan_id' => $anggota->siklusAktif->id,
+            'jenis_simpanan_id' => $wajib->id,
+            'periode' => '2026-09-01',
+            'nominal_snapshot' => 10000,
+            'interval_bulan_snapshot' => 1,
+            'kode_jenis_snapshot' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
+            'nama_jenis_snapshot' => 'Simpanan Wajib',
+            'status' => JadwalSimpananWajib::STATUS_OUTSTANDING,
+            'sp7_archived_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertSame(1, Artisan::call('koperasi:preflight-simpanan-wajib'));
     }
 
     private function registerAnggota(array $overrides = []): Anggota

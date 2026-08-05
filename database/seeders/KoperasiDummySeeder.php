@@ -6,6 +6,7 @@ use App\Models\Anggota;
 use App\Models\Akun;
 use App\Models\AsetKoperasi;
 use App\Models\BebanOperasional;
+use App\Models\BatasKlaimDanaSosial;
 use App\Models\CicilanPinjaman;
 use App\Models\DetailPenjualan;
 use App\Models\DompetKoperasi;
@@ -30,6 +31,7 @@ use App\Models\User;
 use App\Services\MutasiKasService;
 use App\Services\AsetKoperasiService;
 use App\Services\BebanOperasionalService;
+use App\Services\B2BRentalService;
 use App\Services\KaryawanAccountService;
 use App\Services\KeanggotaanLifecycleService;
 use App\Services\JenisSimpananService;
@@ -51,6 +53,7 @@ class KoperasiDummySeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(PerusahaanSeeder::class);
         DB::transaction(function (): void {
             $today = Carbon::today();
             $awalBulanIni = $today->copy()->startOfMonth();
@@ -71,6 +74,7 @@ class KoperasiDummySeeder extends Seeder
             $reversalService = app(TransaksiReversalService::class);
 
             $keuangan = $this->seedUserDummy();
+            $this->seedDanaSocialLimits($keuangan);
 
             $perusahaan = $this->seedPerusahaan();
             $potongGajiService->createDefaultGlobalPolicyIfMissing($keuangan->id);
@@ -202,14 +206,16 @@ class KoperasiDummySeeder extends Seeder
                 'Limit dummy untuk Simpanan Wajib Januari paid sebelum Agus keluar.'
             );
 
-            $masterDataService->updateKaryawan($karyawan['agus'], [
-                'nama' => $karyawan['agus']->nama,
-                'email' => $karyawan['agus']->email,
-                'telepon' => $karyawan['agus']->telepon,
-                'jabatan' => $karyawan['agus']->jabatan,
-                'status_kerja' => Karyawan::STATUS_BERHENTI,
-                'tanggal_berhenti' => $awalBulanIni->copy()->subDay()->toDateString(),
-            ]);
+            if ($karyawan['agus']->fresh()->status_kerja !== Karyawan::STATUS_BERHENTI) {
+                $masterDataService->updateKaryawan($karyawan['agus'], [
+                    'nama' => $karyawan['agus']->nama,
+                    'email' => $karyawan['agus']->email,
+                    'telepon' => $karyawan['agus']->telepon,
+                    'jabatan' => $karyawan['agus']->jabatan,
+                    'status_kerja' => Karyawan::STATUS_BERHENTI,
+                    'tanggal_berhenti' => $awalBulanIni->copy()->subDay()->toDateString(),
+                ]);
+            }
 
             $this->seedPotongGaji2C($potongGajiService, $karyawan, $keuangan, $awalBulanIni, $pinjaman);
             $potongGajiService->bulkGenerateLimitsForPeriod($awalBulanIni, $keuangan->id);
@@ -350,6 +356,20 @@ class KoperasiDummySeeder extends Seeder
         );
 
         User::updateOrCreate(
+            ['email' => 'approval@kbsm.test'],
+            [
+                'name' => 'Admin Approval KBSM',
+                'password' => Hash::make('Kbsm12345!'),
+                'role' => 'admin',
+                'karyawan_id' => null,
+                'is_active' => true,
+                'must_change_password' => false,
+                'password_changed_at' => now(),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        User::updateOrCreate(
             ['email' => 'kasir@kbsm.test'],
             [
                 'name' => 'Kasir KBSM',
@@ -364,6 +384,27 @@ class KoperasiDummySeeder extends Seeder
         );
 
         return $finance;
+    }
+
+    private function seedDanaSocialLimits(User $admin): void
+    {
+        $limits = [
+            'meninggal' => 5000000,
+            'melahirkan' => 3000000,
+            'khitan' => 2000000,
+            'proposal_sosial' => 10000000,
+        ];
+
+        foreach ($limits as $category => $amount) {
+            BatasKlaimDanaSosial::query()->firstOrCreate(
+                ['kategori' => $category, 'berlaku_mulai' => '2026-01-01'],
+                [
+                    'nominal_maksimal' => $amount,
+                    'alasan' => 'Batas dummy untuk UAT; Admin dapat membuat versi baru.',
+                    'created_by' => $admin->id,
+                ]
+            );
+        }
     }
 
     private function seedPerusahaan(): array
@@ -387,6 +428,7 @@ class KoperasiDummySeeder extends Seeder
 
     private function seedKaryawan(MasterDataKoperasiService $service, array $perusahaan): array
     {
+        $companyIds = \App\Models\Perusahaan::query()->whereIn('kode', ['BEE', 'BBS', 'BKM'])->pluck('id', 'kode');
         $rows = [
             'andi' => [
                 'nama' => 'Andi Saputra',
@@ -487,8 +529,11 @@ class KoperasiDummySeeder extends Seeder
         ];
 
         $result = [];
+        $companyCodes = ['BEE', 'BBS', 'BKM'];
+        $companyIndex = 0;
         foreach ($rows as $key => $row) {
             $data = $row + [
+                'perusahaan_id' => $companyIds[$companyCodes[$companyIndex % 3]],
                 'status_kerja' => Karyawan::STATUS_AKTIF,
                 'tanggal_berhenti' => null,
                 'perusahaan_id' => match ($key) {
@@ -497,7 +542,15 @@ class KoperasiDummySeeder extends Seeder
                     default => $perusahaan['BEE']->id,
                 },
             ];
+            $companyIndex++;
             $existing = Karyawan::query()->where('email', $row['email'])->first();
+
+            // Rerun seeder UAT tidak boleh membatalkan lifecycle nyata yang sudah
+            // terjadi pada data dummy (berhenti/nonaktif + settlement terbuka).
+            if ($existing?->status_kerja === Karyawan::STATUS_BERHENTI) {
+                $result[$key] = $existing;
+                continue;
+            }
 
             $result[$key] = $existing
                 ? $service->updateKaryawan($existing, $data)
@@ -547,11 +600,14 @@ class KoperasiDummySeeder extends Seeder
             if (! $anggota) {
                 $anggota = $service->createAnggota($row + ['karyawan_id' => $karyawan[$key]->id]);
             } else {
-                if ($anggota->status !== Anggota::STATUS_AKTIF) {
+                if ($anggota->status !== Anggota::STATUS_AKTIF
+                    && $karyawan[$key]->status_kerja === Karyawan::STATUS_AKTIF) {
                     $service->activateAnggota($anggota);
                 }
 
-                $anggota = $service->updateAnggota($anggota, $row);
+                $updateRow = $row;
+                unset($updateRow['simpanan_wajib_metode_pembayaran'], $updateRow['simpanan_wajib_dompet_id']);
+                $anggota = $service->updateAnggota($anggota, $updateRow);
             }
 
             $result[$key] = $anggota;
@@ -803,6 +859,7 @@ class KoperasiDummySeeder extends Seeder
                 'akun_id' => $kasAkunId,
                 'jenis_dompet' => 'kas',
                 'is_default_penerimaan_payroll' => false,
+                'is_kas_operasional' => true,
                 'saldo_awal' => 12500000,
             ],
             'bank_bca' => [
@@ -810,6 +867,7 @@ class KoperasiDummySeeder extends Seeder
                 'akun_id' => $bankAkunId,
                 'jenis_dompet' => 'bank',
                 'is_default_penerimaan_payroll' => true,
+                'is_kas_operasional' => false,
                 'saldo_awal' => 25000000,
             ],
             'qris' => [
@@ -817,6 +875,7 @@ class KoperasiDummySeeder extends Seeder
                 'akun_id' => $bankAkunId,
                 'jenis_dompet' => 'bank',
                 'is_default_penerimaan_payroll' => false,
+                'is_kas_operasional' => false,
                 'saldo_awal' => 2500000,
             ],
         ];
@@ -834,9 +893,11 @@ class KoperasiDummySeeder extends Seeder
                 ['nama_dompet' => $row['nama_dompet']],
                 [
                     'saldo' => $row['saldo_awal'],
+                    'saldo_awal' => $row['saldo_awal'],
                     'akun_id' => $row['akun_id'],
                     'jenis_dompet' => $row['jenis_dompet'],
                     'is_default_penerimaan_payroll' => $row['is_default_penerimaan_payroll'],
+                    'is_kas_operasional' => $row['is_kas_operasional'],
                 ]
             );
 
@@ -844,11 +905,15 @@ class KoperasiDummySeeder extends Seeder
                 (int) $dompet->akun_id !== (int) $row['akun_id']
                 || $dompet->jenis_dompet !== $row['jenis_dompet']
                 || (bool) $dompet->is_default_penerimaan_payroll !== (bool) $row['is_default_penerimaan_payroll']
+                || (bool) $dompet->is_kas_operasional !== (bool) $row['is_kas_operasional']
+                || (int) $dompet->saldo_awal !== (int) $row['saldo_awal']
             ) {
                 $dompet->update([
                     'akun_id' => $row['akun_id'],
                     'jenis_dompet' => $row['jenis_dompet'],
                     'is_default_penerimaan_payroll' => $row['is_default_penerimaan_payroll'],
+                    'is_kas_operasional' => $row['is_kas_operasional'],
+                    'saldo_awal' => $row['saldo_awal'],
                 ]);
             }
 
@@ -1069,6 +1134,27 @@ class KoperasiDummySeeder extends Seeder
 
         $base = $awalBulanIni->copy()->day(10);
 
+        $approved = $service->createDraft($this->sewaMobilPayload($karyawan['budi'], $base->copy()->addDays(8), [
+            'nama_kegiatan' => 'Kunjungan Audit Lapangan BKM',
+            'lokasi_kegiatan' => 'Purwakarta',
+            'tanggal_selesai' => $base->copy()->addDays(9)->toDateString(),
+            'plat_nomor_snapshot' => 'B 7007 KBS',
+            'total_harga_vendor' => 1000000,
+            'total_markup' => 150000,
+            'keterangan' => 'Contoh B2B vendor-first Sewa Mobil [dummy-koperasi-bita]',
+        ]), $keuangan->id);
+        $approved = $service->submit($approved, $keuangan->id);
+        $approved = $service->approve($approved, [
+            'pengurus_penyetuju_id' => $pengurus->id,
+        ], $keuangan->id);
+        app(B2BRentalService::class)->payVendor($approved, [
+            'dompet_id' => $dompet['kas_operasional']->id,
+            'tanggal_bayar' => $base->copy()->addDays(8)->toDateString(),
+            'idempotency_key' => 'dummy-b2b-car-vendor',
+        ], $keuangan->id);
+
+        return;
+
         $draft = $service->createDraft($this->sewaMobilPayload($karyawan['maya'], $base->copy(), [
             'nama_kegiatan' => 'Survey Lokasi Vendor',
             'lokasi_kegiatan' => 'Cikarang',
@@ -1245,6 +1331,45 @@ class KoperasiDummySeeder extends Seeder
         if (! Schema::hasTable('sewa_hardware') || SewaHardware::query()->exists()) {
             return;
         }
+
+        $confirmed = $service->createDraft($this->sewaHardwarePayload($karyawan['budi'], $awalBulanIni->copy()->addDays(19), [
+            'details' => [[
+                'jenis_hardware' => 'printer',
+                'nama_model_hardware' => 'Epson WorkForce Pro',
+                'spesifikasi_kebutuhan' => 'Printer proyek BKM',
+                'kuantitas' => 1,
+                'harga_vendor_per_unit' => 1000000,
+            ]],
+            'keterangan' => 'Contoh B2B vendor-first Sewa Hardware [dummy-koperasi-bita]',
+        ]), $keuangan->id);
+        $confirmed = $service->confirm($confirmed, $keuangan->id);
+
+        $b2b = app(B2BRentalService::class);
+        $b2b->payVendor($confirmed, [
+            'dompet_id' => $dompet['kas_operasional']->id,
+            'tanggal_bayar' => $awalBulanIni->copy()->addDays(19)->toDateString(),
+            'idempotency_key' => 'dummy-b2b-hardware-vendor',
+        ], $keuangan->id);
+
+        $car = SewaMobil::query()->whereHas('pembayaranVendor')->firstOrFail();
+        $company = $karyawan['budi']->perusahaan()->firstOrFail();
+        $invoice = $b2b->createInvoice($company, [
+            'sewa_mobil_ids' => [$car->id],
+            'sewa_hardware_ids' => [$confirmed->id],
+            'tanggal_invoice' => $awalBulanIni->copy()->addDays(20)->toDateString(),
+            'jatuh_tempo' => $awalBulanIni->copy()->addDays(35)->toDateString(),
+            'idempotency_key' => 'dummy-b2b-invoice-bkm',
+        ], $keuangan->id);
+        $b2b->payInvoice($invoice, [
+            'dompet_id' => $dompet['bank_bca']->id,
+            'metode_pembayaran' => 'transfer_bank',
+            'jumlah_bayar' => 1000000,
+            'tanggal_bayar' => $awalBulanIni->copy()->addDays(21)->toDateString(),
+            'nomor_referensi' => 'BKM-PARTIAL-001',
+            'idempotency_key' => 'dummy-b2b-invoice-partial',
+        ], $keuangan->id);
+
+        return;
 
         $draft = $service->createDraft($this->sewaHardwarePayload($karyawan['maya'], $awalBulanIni->copy()->addDays(40), [
             'details' => [
@@ -1589,6 +1714,17 @@ class KoperasiDummySeeder extends Seeder
     ): void {
         foreach ($rows as $row) {
             $anggotaModel = $karyawan[$row['anggota']]->anggota()->first();
+            if (! $anggotaModel
+                || $anggotaModel->status !== Anggota::STATUS_AKTIF
+                || $karyawan[$row['anggota']]->status_kerja !== Karyawan::STATUS_AKTIF) {
+                continue;
+            }
+            $activeCycleId = $anggotaModel->siklusAktif()->value('id');
+            if ($activeCycleId && $anggotaModel->penyelesaianKeanggotaan()
+                ->where('re_registered_cycle_id', $activeCycleId)
+                ->exists()) {
+                continue;
+            }
             $jenis = $jenisSimpanan[$row['jenis']];
             $idempotencyKey = 'dummy-simpanan:' . $row['anggota'] . ':' . $row['jenis'] . ':' . ($row['jenis_transaksi'] ?? 'setoran') . ':' . $row['dompet'] . ':' . $row['tanggal']->format('Ymd');
 
@@ -2113,7 +2249,8 @@ class KoperasiDummySeeder extends Seeder
                 ->latest('id')
                 ->first();
 
-            if ($penyelesaian) {
+            if ($penyelesaian
+                && $penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED) {
                 $penyelesaian = $service->refreshSnapshot($penyelesaian);
 
                 if ((float) $penyelesaian->total_offset <= 0 && (float) $penyelesaian->total_hak_anggota > 0) {
@@ -2123,7 +2260,9 @@ class KoperasiDummySeeder extends Seeder
         }
 
         $lilis = $karyawan['lilis']->anggota()->with('siklusKeanggotaan.penyelesaian')->first();
-        if ($lilis && $lilis->status === Anggota::STATUS_AKTIF) {
+        if ($lilis
+            && $lilis->status === Anggota::STATUS_AKTIF
+            && ! $lilis->penyelesaianKeanggotaan()->exists()) {
             $masterDataService->updateKaryawan($karyawan['lilis']->fresh(), [
                 'nama' => $karyawan['lilis']->nama,
                 'email' => $karyawan['lilis']->email,
@@ -2155,7 +2294,8 @@ class KoperasiDummySeeder extends Seeder
             return;
         }
 
-        if ($nina->status === Anggota::STATUS_AKTIF) {
+        if ($nina->status === Anggota::STATUS_AKTIF
+            && ! $nina->penyelesaianKeanggotaan()->exists()) {
             $this->confirmDummyPayrollLimit(
                 $potongGajiService,
                 $nina,
@@ -2185,6 +2325,10 @@ class KoperasiDummySeeder extends Seeder
             ->first();
 
         if (! $penyelesaianNina) {
+            return;
+        }
+
+        if ($penyelesaianNina->status === \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED) {
             return;
         }
 

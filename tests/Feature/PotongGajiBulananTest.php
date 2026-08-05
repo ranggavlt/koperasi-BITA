@@ -304,6 +304,13 @@ class PotongGajiBulananTest extends TestCase
             ->where('kode', JenisSimpanan::KODE_SIMPANAN_MANASUKA)
             ->where('aktif', true)
             ->count());
+        $this->assertSame(2, JenisSimpanan::query()->where('aktif', true)->count());
+        $this->assertDatabaseHas('jenis_simpanan', [
+            'kode' => JenisSimpanan::KODE_SIMPANAN_WAJIB,
+            'nominal_default' => 10000,
+            'interval_bulan' => null,
+            'aktif' => true,
+        ]);
     }
 
     private function user(): User

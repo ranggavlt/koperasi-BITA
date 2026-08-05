@@ -27,8 +27,9 @@ class SewaHardwareService
     {
         return DB::transaction(function () use ($data, $financeUserId): SewaHardware {
             [$mulai, $selesai] = $this->normalizePeriod($data['mulai_tanggal'], $data['selesai_tanggal']);
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
+            $this->assertOfficialCompany($karyawan);
 
             $detailRows = $this->buildDetailRows($data['details'] ?? []);
             $totals = $this->calculateTotals($detailRows);
@@ -36,7 +37,10 @@ class SewaHardwareService
 
             $sewa = SewaHardware::query()->create([
                 'kode_sewa' => $this->nextKodeSewa($createdAt),
-                'nama_perusahaan_snapshot' => config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering'),
+                'perusahaan_id' => $karyawan->perusahaan->id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan->kode,
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan->nama,
+                'model_sumber' => 'vendor',
                 'karyawan_id' => $karyawan->id,
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
@@ -73,8 +77,9 @@ class SewaHardwareService
             $this->assertStatus($locked, [SewaHardware::STATUS_DRAFT], 'Kontrak yang sudah dikonfirmasi tidak dapat diedit.');
 
             [$mulai, $selesai] = $this->normalizePeriod($data['mulai_tanggal'], $data['selesai_tanggal']);
-            $karyawan = Karyawan::query()->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
+            $karyawan = Karyawan::query()->with('perusahaan')->lockForUpdate()->findOrFail((int) $data['karyawan_id']);
             $this->assertActiveKaryawan($karyawan);
+            $this->assertOfficialCompany($karyawan);
 
             $detailRows = $this->buildDetailRows($data['details'] ?? []);
             $totals = $this->calculateTotals($detailRows);
@@ -84,6 +89,10 @@ class SewaHardwareService
 
             $locked->update([
                 'karyawan_id' => $karyawan->id,
+                'perusahaan_id' => $karyawan->perusahaan->id,
+                'kode_perusahaan_snapshot' => $karyawan->perusahaan->kode,
+                'nama_perusahaan_snapshot' => $karyawan->perusahaan->nama,
+                'model_sumber' => 'vendor',
                 'mulai_tanggal' => $mulai->toDateString(),
                 'selesai_tanggal' => $selesai->toDateString(),
                 'kebutuhan' => $this->nullableText($data['kebutuhan'] ?? null),
@@ -261,7 +270,7 @@ class SewaHardwareService
     {
         return DB::transaction(function () use ($sewaHardware, $financeUserId): SewaHardware {
             $locked = SewaHardware::query()
-                ->with(['details', 'pembayaran'])
+                ->with(['details', 'pembayaran', 'pembayaranVendor', 'invoiceDetail.invoice'])
                 ->lockForUpdate()
                 ->findOrFail($sewaHardware->id);
 
@@ -271,9 +280,10 @@ class SewaHardwareService
 
             $this->assertStatus($locked, [SewaHardware::STATUS_BERJALAN], 'Hanya kontrak berjalan yang dapat diselesaikan.');
 
-            if ($locked->status_pembayaran !== SewaHardware::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if (! $locked->pembayaranVendor
+                && ($locked->status_pembayaran !== SewaHardware::PEMBAYARAN_PAID || ! $locked->pembayaran)) {
                 throw ValidationException::withMessages([
-                    'pembayaran' => 'Kontrak wajib paid sebelum diselesaikan.',
+                    'pembayaran' => 'Pembayaran vendor wajib tersedia sebelum kontrak diselesaikan.',
                 ]);
             }
 
@@ -284,7 +294,11 @@ class SewaHardwareService
                 'updated_by' => $financeUserId,
             ]);
 
-            $this->akuntansiService->recordPengakuanPendapatanSewaHardware($locked->fresh(), $financeUserId);
+            if ($locked->pembayaranVendor) {
+                app(B2BRentalService::class)->recognizeRentalMargin($locked->fresh(), $financeUserId);
+            } else {
+                $this->akuntansiService->recordPengakuanPendapatanSewaHardware($locked->fresh(), $financeUserId);
+            }
 
             return $locked->fresh(['details', 'karyawan', 'pembayaran.dompetPenerimaan', 'pembayaran.dompetVendor', 'jurnal.details']);
         });
@@ -586,6 +600,15 @@ class SewaHardwareService
         if (! $karyawan || $karyawan->status_kerja !== Karyawan::STATUS_AKTIF) {
             throw ValidationException::withMessages([
                 'karyawan_id' => 'Sewa Hardware hanya untuk Karyawan aktif.',
+            ]);
+        }
+    }
+
+    private function assertOfficialCompany(Karyawan $karyawan): void
+    {
+        if (! $karyawan->perusahaan || ! in_array($karyawan->perusahaan->kode, ['BEE', 'BBS', 'BKM'], true)) {
+            throw ValidationException::withMessages([
+                'karyawan_id' => 'Karyawan harus terhubung ke perusahaan resmi BEE, BBS, atau BKM.',
             ]);
         }
     }

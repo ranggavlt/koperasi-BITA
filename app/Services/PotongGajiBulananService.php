@@ -34,8 +34,10 @@ use RuntimeException;
 
 class PotongGajiBulananService
 {
-    public function __construct(private readonly AkuntansiService $akuntansiService)
-    {
+    public function __construct(
+        private readonly AkuntansiService $akuntansiService,
+        private readonly ManasukaRutinService $manasukaRutinService
+    ) {
     }
 
     public function businessTimezone(): string
@@ -577,7 +579,6 @@ class PotongGajiBulananService
                 : Anggota::query()->with('karyawan.perusahaan')->lockForUpdate()->findOrFail($anggota);
 
             $periodeModel = $this->createPeriodeDraft($periode, $changedBy);
-
             $existing = LimitPotongGajiAnggota::query()
                 ->where('periode_potong_gaji_id', $periodeModel->id)
                 ->where('anggota_id', $anggotaModel->id)
@@ -654,6 +655,7 @@ class PotongGajiBulananService
             if ($locked->status === LimitPotongGajiAnggota::STATUS_ACTIVE) {
                 $this->reserveDueInstallmentsForLimit($locked, $changedBy);
                 app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $changedBy);
+                $this->manasukaRutinService->reserveForLimit($locked, $changedBy);
             }
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
@@ -695,6 +697,7 @@ class PotongGajiBulananService
 
             $this->reserveDueInstallmentsForLimit($locked, $userId);
             app(SimpananWajibService::class)->reserveOutstandingForLimit($locked, $userId);
+            $this->manasukaRutinService->reserveForLimit($locked, $userId);
 
             return $locked->fresh(['periodePotongGaji', 'anggota.karyawan', 'pemakaian']);
         });
@@ -757,6 +760,10 @@ class PotongGajiBulananService
                             ->whereIn('source_type', [Simpanan::class, JadwalSimpananWajib::class])
                             ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
                     })->orWhere(function ($subQuery): void {
+                        $subQuery->where('kategori', PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA)
+                            ->where('source_type', Simpanan::class)
+                            ->where('status', PemakaianPotongGaji::STATUS_RESERVED);
+                    })->orWhere(function ($subQuery): void {
                         $subQuery->whereIn('kategori', [
                             PemakaianPotongGaji::KATEGORI_SIMPANAN_POKOK,
                             PemakaianPotongGaji::KATEGORI_POS,
@@ -787,6 +794,11 @@ class PotongGajiBulananService
 
                 if ($entry->kategori === PemakaianPotongGaji::KATEGORI_SIMPANAN_WAJIB) {
                     app(SimpananWajibService::class)->settleUsage($locked, $entry, $dompetPayroll, $userId, $creditCents);
+                    continue;
+                }
+
+                if ($entry->kategori === PemakaianPotongGaji::KATEGORI_SIMPANAN_MANASUKA) {
+                    $this->manasukaRutinService->settleUsage($locked, $entry, $dompetPayroll, $userId, $creditCents);
                     continue;
                 }
 
@@ -1093,6 +1105,12 @@ class PotongGajiBulananService
                     $limit,
                     $userId,
                     'Karyawan berhenti sebelum payroll confirmed; Simpanan Wajib final kembali pending untuk dibatalkan pada settlement.'
+                );
+
+                $this->manasukaRutinService->releaseReservationsForLimit(
+                    $limit,
+                    $userId,
+                    'Karyawan/Anggota nonaktif sebelum payroll confirmed.'
                 );
 
                 $usages = PemakaianPotongGaji::query()
@@ -1423,7 +1441,6 @@ class PotongGajiBulananService
             })
             ->exists();
     }
-
     private function allocatePendingSimpananPokokForLimit(LimitPotongGajiAnggota $limit, int $userId): void
     {
         $pendingRows = Simpanan::query()

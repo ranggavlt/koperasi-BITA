@@ -55,17 +55,17 @@
         <h3 class="kbsm-business-section__title">Pemohon dan Kebutuhan</h3>
         <div class="kbsm-business-grid">
           <div class="kbsm-business-field">
-            <label class="kbsm-business-label">Karyawan</label>
+            <label class="kbsm-business-label">Pemohon Karyawan Aktif</label>
             <select name="karyawan_id" required class="kbsm-business-control">
               <option value="">Pilih Karyawan aktif</option>
               @foreach($karyawanOptions as $karyawan)
-                <option value="{{ $karyawan->id }}" {{ (string) old('karyawan_id', $editData?->karyawan_id) === (string) $karyawan->id ? 'selected' : '' }}>{{ $karyawan->nama }} - {{ $karyawan->jabatan }}</option>
+                <option value="{{ $karyawan->id }}" {{ (string) old('karyawan_id', $editData?->karyawan_id) === (string) $karyawan->id ? 'selected' : '' }}>{{ $karyawan->nama }} - {{ $karyawan->perusahaan?->kode }} - {{ $karyawan->jabatan }}</option>
               @endforeach
             </select>
           </div>
           <div class="kbsm-business-field">
             <label class="kbsm-business-label">Perusahaan</label>
-            <div class="kbsm-business-readonly">{{ config('koperasi.nama_perusahaan_penyewa', 'Bita Enarcon Engineering') }}</div>
+            <div class="kbsm-business-readonly">Mengikuti perusahaan resmi Karyawan terpilih (BEE/BBS/BKM)</div>
           </div>
           <div class="kbsm-business-field kbsm-business-field--full">
             <label class="kbsm-business-label">Kebutuhan Hardware</label>
@@ -107,11 +107,21 @@
         </div>
       </section>
 
-      <section class="kbsm-business-section">
+      <section class="kbsm-business-section kbsm-hardware-detail-section">
         <h3 class="kbsm-business-section__title">Detail Hardware</h3>
         <p class="kbsm-business-section__copy">Tambah baris sesuai kebutuhan. Margin 15% dihitung per unit menggunakan pembulatan Rupiah half-up.</p>
-        <div class="kbsm-business-table-wrap">
-          <table class="kbsm-business-detail-table">
+        <div class="kbsm-business-table-wrap kbsm-hardware-detail-wrap">
+          <table class="kbsm-business-detail-table kbsm-hardware-detail-table">
+            <colgroup>
+              <col class="kbsm-hardware-col--type">
+              <col class="kbsm-hardware-col--name">
+              <col class="kbsm-hardware-col--spec">
+              <col class="kbsm-hardware-col--qty">
+              <col class="kbsm-hardware-col--price">
+              <col class="kbsm-hardware-col--amount">
+              <col class="kbsm-hardware-col--amount">
+              <col class="kbsm-hardware-col--action">
+            </colgroup>
             <thead>
               <tr>
                 <th>Jenis</th>
@@ -127,20 +137,20 @@
             <tbody data-hardware-detail-body>
               @foreach($detailRows as $i => $row)
                 <tr data-hardware-row>
-                  <td>
+                  <td data-label="Jenis">
                     <select name="details[{{ $i }}][jenis_hardware]" required class="kbsm-business-control">
                       @foreach($jenisHardwareOptions as $value => $label)
                         <option value="{{ $value }}" {{ ($row['jenis_hardware'] ?? 'printer') === $value ? 'selected' : '' }}>{{ $label }}</option>
                       @endforeach
                     </select>
                   </td>
-                  <td><input name="details[{{ $i }}][nama_model_hardware]" required maxlength="150" value="{{ $row['nama_model_hardware'] ?? '' }}" class="kbsm-business-control" placeholder="Epson EcoTank / Lenovo ThinkPad / Sony Alpha"></td>
-                  <td><textarea name="details[{{ $i }}][spesifikasi_kebutuhan]" rows="2" maxlength="1000" class="kbsm-business-control" placeholder="A3, duplex, warna, scan">{{ $row['spesifikasi_kebutuhan'] ?? '' }}</textarea></td>
-                  <td><input type="number" min="1" name="details[{{ $i }}][kuantitas]" value="{{ $row['kuantitas'] ?? 1 }}" class="kbsm-business-control" data-hardware-qty></td>
-                  <td><input type="number" min="1" name="details[{{ $i }}][harga_vendor_per_unit]" value="{{ $row['harga_vendor_per_unit'] ?? '' }}" class="kbsm-business-control" data-hardware-price placeholder="1000000"></td>
-                  <td class="kbsm-business-strong" data-hardware-margin>Rp 0</td>
-                  <td class="kbsm-business-strong" data-hardware-total>Rp 0</td>
-                  <td><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-hardware-remove>Hapus</button></td>
+                  <td data-label="Nama/Model Hardware"><input name="details[{{ $i }}][nama_model_hardware]" required maxlength="150" value="{{ $row['nama_model_hardware'] ?? '' }}" class="kbsm-business-control" placeholder="Contoh: Epson EcoTank L3210"></td>
+                  <td data-label="Spesifikasi"><textarea name="details[{{ $i }}][spesifikasi_kebutuhan]" rows="2" maxlength="1000" class="kbsm-business-control" placeholder="Contoh: A3, duplex, warna, scan">{{ $row['spesifikasi_kebutuhan'] ?? '' }}</textarea></td>
+                  <td data-label="Kuantitas"><input type="number" min="1" name="details[{{ $i }}][kuantitas]" value="{{ $row['kuantitas'] ?? 1 }}" class="kbsm-business-control" data-hardware-qty></td>
+                  <td data-label="Harga Vendor/Unit"><input type="number" min="1" name="details[{{ $i }}][harga_vendor_per_unit]" value="{{ $row['harga_vendor_per_unit'] ?? '' }}" class="kbsm-business-control" data-hardware-price placeholder="Contoh: 1000000"></td>
+                  <td data-label="Margin/Unit"><span class="kbsm-hardware-detail-amount kbsm-hardware-detail-amount--margin" data-hardware-margin>Rp 0</span></td>
+                  <td data-label="Tagihan/Unit"><span class="kbsm-hardware-detail-amount kbsm-hardware-detail-amount--total" data-hardware-total>Rp 0</span></td>
+                  <td class="kbsm-hardware-detail-action" data-label="Aksi"><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-hardware-remove>Hapus</button></td>
                 </tr>
               @endforeach
             </tbody>
@@ -173,7 +183,7 @@
         <h3 class="kbsm-business-section__title">Pembayaran Vendor dan Pembayaran Perusahaan</h3>
         <p class="kbsm-business-section__copy">Pelunasan dilakukan setelah kontrak dikonfirmasi. Draft hanya menyimpan kebutuhan, vendor, dan snapshot harga.</p>
         <div class="kbsm-business-actions">
-          <button class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
+          <button type="submit" class="kbsm-btn kbsm-btn--navy">{{ $editData ? 'Simpan Draft' : 'Buat Draft' }}</button>
           @if($editData)
             <a href="{{ route('sewa-hardware.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Batal Edit</a>
           @endif
@@ -199,20 +209,20 @@
       const row = document.createElement('tr');
       row.setAttribute('data-hardware-row', '');
       row.innerHTML = `
-        <td>
+        <td data-label="Jenis">
           <select required class="kbsm-business-control" data-name="jenis_hardware">
             @foreach($jenisHardwareOptions as $value => $label)
               <option value="{{ $value }}">{{ $label }}</option>
             @endforeach
           </select>
         </td>
-        <td><input required maxlength="150" class="kbsm-business-control" placeholder="Epson EcoTank / Lenovo ThinkPad / Sony Alpha" data-name="nama_model_hardware"></td>
-        <td><textarea rows="2" maxlength="1000" class="kbsm-business-control" placeholder="A3, duplex, warna, scan" data-name="spesifikasi_kebutuhan"></textarea></td>
-        <td><input type="number" min="1" value="1" class="kbsm-business-control" data-hardware-qty data-name="kuantitas"></td>
-        <td><input type="number" min="1" class="kbsm-business-control" data-hardware-price data-name="harga_vendor_per_unit" placeholder="1000000"></td>
-        <td class="kbsm-business-strong" data-hardware-margin>Rp 0</td>
-        <td class="kbsm-business-strong" data-hardware-total>Rp 0</td>
-        <td><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-hardware-remove>Hapus</button></td>
+        <td data-label="Nama/Model Hardware"><input required maxlength="150" class="kbsm-business-control" placeholder="Contoh: Epson EcoTank L3210" data-name="nama_model_hardware"></td>
+        <td data-label="Spesifikasi"><textarea rows="2" maxlength="1000" class="kbsm-business-control" placeholder="Contoh: A3, duplex, warna, scan" data-name="spesifikasi_kebutuhan"></textarea></td>
+        <td data-label="Kuantitas"><input type="number" min="1" value="1" class="kbsm-business-control" data-hardware-qty data-name="kuantitas"></td>
+        <td data-label="Harga Vendor/Unit"><input type="number" min="1" class="kbsm-business-control" data-hardware-price data-name="harga_vendor_per_unit" placeholder="Contoh: 1000000"></td>
+        <td data-label="Margin/Unit"><span class="kbsm-hardware-detail-amount kbsm-hardware-detail-amount--margin" data-hardware-margin>Rp 0</span></td>
+        <td data-label="Tagihan/Unit"><span class="kbsm-hardware-detail-amount kbsm-hardware-detail-amount--total" data-hardware-total>Rp 0</span></td>
+        <td class="kbsm-hardware-detail-action" data-label="Aksi"><button type="button" class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm" data-hardware-remove>Hapus</button></td>
       `;
       return row;
     };

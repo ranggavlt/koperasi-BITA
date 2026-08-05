@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class JurnalUmumDetail extends Model
 {
@@ -30,5 +31,17 @@ class JurnalUmumDetail extends Model
     public function akun()
     {
         return $this->belongsTo(Akun::class, 'akun_id');
+    }
+
+    protected static function booted(): void
+    {
+        $guard = function (self $detail): void {
+            if ($detail->jurnal()->where('status', JurnalUmum::STATUS_POSTED)->exists()) {
+                throw new RuntimeException('Detail jurnal posted bersifat immutable. Gunakan reversal/counter-entry.');
+            }
+        };
+
+        static::updating($guard);
+        static::deleting($guard);
     }
 }

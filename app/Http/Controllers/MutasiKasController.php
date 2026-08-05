@@ -117,7 +117,7 @@ class MutasiKasController extends Controller
             PemakaianPotongGaji::class => 'Ledger Potong Gaji',
             PembayaranKonsinyasi::class => 'Pembayaran Konsinyasi',
             ReversalTransaksi::class => 'Refund/Reversal',
-            PembayaranOutstandingCash::class => 'Outstanding Cash',
+            PembayaranOutstandingCash::class => 'Tagihan Tunai',
             PembayaranSewaMobil::class => 'Sewa Mobil',
             PembayaranSewaHardware::class => 'Sewa Hardware',
             BebanOperasional::class => 'Beban Operasional',

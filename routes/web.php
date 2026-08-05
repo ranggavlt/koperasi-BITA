@@ -1,50 +1,46 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProdukController;
-use App\Http\Controllers\KategoriProdukController;
-use App\Http\Controllers\KasirController;
-
-
-use App\Http\Controllers\KaryawanController;
-
-use App\Http\Controllers\DompetKoperasiController;
-use App\Http\Controllers\SimpananController;
-use App\Http\Controllers\PinjamanController;
-use App\Http\Controllers\CicilanPinjamanController;
-use App\Http\Controllers\FinanceSewaMobilController;
-use App\Http\Controllers\FinanceSewaHardwareController;
-use App\Http\Controllers\FinanceBebanOperasionalController;
-use App\Http\Controllers\MutasiKasController;
-use App\Http\Controllers\WaserbaController;
-use App\Http\Controllers\ResellerController;
-use App\Http\Controllers\PembayaranKonsinyasiController;
-use App\Http\Controllers\KonsinyasiReportController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PengurusKoperasiController;
-use App\Http\Controllers\LaporanPotongGajiController;
-use App\Http\Controllers\ShuKoperasiController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\JurnalUmumPeriodikController;
-use App\Http\Controllers\BukuBesarController;
 use App\Http\Controllers\AkunController;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnggotaController;
-use App\Http\Controllers\JenisSimpananController;
-
 use App\Http\Controllers\AsetPrinterController;
-use App\Http\Controllers\PeriodePotongGajiController;
-use App\Http\Controllers\OutstandingCashController;
-use App\Http\Controllers\RekonsiliasiPotongGajiController;
-use App\Http\Controllers\ReversalTransaksiController;
-use App\Http\Controllers\PenyelesaianKeanggotaanController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\B2BPaymentController;
+use App\Http\Controllers\BukuBesarController;
+use App\Http\Controllers\CicilanPinjamanController;
+use App\Http\Controllers\DanaSosialController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DompetKoperasiController;
+use App\Http\Controllers\FinanceBebanOperasionalController;
+use App\Http\Controllers\FinanceSewaHardwareController;
+use App\Http\Controllers\FinanceSewaMobilController;
 use App\Http\Controllers\InvoicePenagihanController;
 use App\Http\Controllers\RentalPaymentController;
 use App\Http\Controllers\AccountingPeriodController;
 use App\Http\Controllers\ShuConfigController;
-use App\Http\Controllers\DanaSosialController;
 use App\Http\Controllers\JadwalSimpananWajibController;
+use App\Http\Controllers\JenisSimpananController;
+use App\Http\Controllers\JurnalUmumPeriodikController;
+use App\Http\Controllers\KaryawanController;
+use App\Http\Controllers\KategoriProdukController;
+use App\Http\Controllers\KonsinyasiReportController;
+use App\Http\Controllers\LaporanPotongGajiController;
+use App\Http\Controllers\MutasiKasController;
+use App\Http\Controllers\OutstandingCashController;
+use App\Http\Controllers\PembayaranKonsinyasiController;
+use App\Http\Controllers\PengurusKoperasiController;
+use App\Http\Controllers\PenyelesaianKeanggotaanController;
+use App\Http\Controllers\PeriodePotongGajiController;
+use App\Http\Controllers\PinjamanController;
+use App\Http\Controllers\ProdukController;
+use App\Http\Controllers\RekonsiliasiPotongGajiController;
+use App\Http\Controllers\ResellerController;
+use App\Http\Controllers\ReversalTransaksiController;
+use App\Http\Controllers\ShuKoperasiController;
+use App\Http\Controllers\SimpananController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\WaserbaController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('pages.dashboard'));
 
@@ -70,8 +66,8 @@ Route::middleware(['auth', 'active_user', 'password_changed'])->prefix('pages')-
     Route::view('/rtl', 'pages.rtl')->name('pages.rtl');
 });
 
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,admin'])->group(function () {
-    //WASERBA (Kasir & Admin)
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir'])->group(function () {
+    // WASERBA khusus Kasir
     Route::resource('waserba', WaserbaController::class)->only(['index', 'store']);
 });
 
@@ -90,13 +86,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     // RESELLER (Konsinyasi)
     Route::resource('reseller', ResellerController::class)->except(['create', 'show']);
 
-
-
-
-
     Route::resource('dompet-koperasi', DompetKoperasiController::class)->except(['create', 'show']);
-
-
 
     Route::middleware('feature:master_printer_enabled')->group(function (): void {
         Route::get('/aset-printer', [AsetPrinterController::class, 'index'])->name('aset-printer.index');
@@ -124,7 +114,6 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::resource('simpanan', SimpananController::class)->only(['index', 'create', 'store']);
     Route::get('/jadwal-simpanan-wajib', [JadwalSimpananWajibController::class, 'index'])
         ->name('jadwal-simpanan-wajib.index');
-
 
     Route::resource('pinjaman', PinjamanController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
     Route::post('/pinjaman/{pinjaman}/ajukan', [PinjamanController::class, 'submit'])
@@ -177,7 +166,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::post('/periode-potong-gaji/limit/{limit}/pelunasan-payroll', [PeriodePotongGajiController::class, 'payoffPayroll'])
         ->name('periode-potong-gaji.limit.payoff-payroll');
 
-    Route::get('/mutasi-kas', [MutasiKasController::class,'index'])->name('mutasi-kas.index');
+    Route::get('/mutasi-kas', [MutasiKasController::class, 'index'])->name('mutasi-kas.index');
 
     Route::get('/invoice-penagihan', [InvoicePenagihanController::class, 'index'])->name('invoice-penagihan.index');
     Route::get('/invoice-penagihan/create', [InvoicePenagihanController::class, 'create'])->name('invoice-penagihan.create');
@@ -202,9 +191,17 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('anggota.deactivate');
     Route::patch('/anggota/{anggota}/aktifkan', [AnggotaController::class, 'activate'])
         ->name('anggota.activate');
+    // Admin boleh menyiapkan konfigurasi persentase meskipun operasional SHU
+    // masih ditutup. Setiap simpan membuat versi audit baru.
+    Route::get('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'index'])->name('shu-config.index');
+    Route::post('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'update'])->name('shu-config.update');
 
     Route::get('/pengaturan-shu', [ShuConfigController::class, 'index'])->name('shu-config.index');
     Route::post('/pengaturan-shu', [ShuConfigController::class, 'store'])->name('shu-config.store');
+
+    Route::get('/klaim-dana-sosial', [DanaSosialController::class, 'index'])
+        ->middleware(['feature:shu_enabled', 'feature:dana_sosial_enabled'])
+        ->name('klaim-dana-sosial.index');
 
     // Operasional SHU tetap dapat dinonaktifkan melalui feature flag saat diperlukan.
     Route::middleware('feature:shu_enabled')->group(function (): void {
@@ -280,10 +277,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('sewa-mobil.finance.submit');
     Route::post('/sewa-mobil/{sewaMobil}/approve', [FinanceSewaMobilController::class, 'approve'])
         ->name('sewa-mobil.finance.approve');
+    Route::post('/sewa-mobil/{sewaMobil}/pay-vendor', [B2BPaymentController::class, 'payMobilVendor'])
+        ->name('sewa-mobil.finance.pay-vendor');
     Route::post('/sewa-mobil/{sewaMobil}/reject', [FinanceSewaMobilController::class, 'reject'])
         ->name('sewa-mobil.finance.reject');
-    Route::post('/sewa-mobil/{sewaMobil}/pay', [FinanceSewaMobilController::class, 'pay'])
-        ->name('sewa-mobil.finance.pay');
     Route::post('/sewa-mobil/{sewaMobil}/start', [FinanceSewaMobilController::class, 'start'])
         ->name('sewa-mobil.finance.start');
     Route::post('/sewa-mobil/{sewaMobil}/complete', [FinanceSewaMobilController::class, 'complete'])
@@ -311,8 +308,8 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('sewa-hardware.update');
     Route::post('/sewa-hardware/{sewaHardware}/confirm', [FinanceSewaHardwareController::class, 'confirm'])
         ->name('sewa-hardware.confirm');
-    Route::post('/sewa-hardware/{sewaHardware}/pay', [FinanceSewaHardwareController::class, 'pay'])
-        ->name('sewa-hardware.pay');
+    Route::post('/sewa-hardware/{sewaHardware}/pay-vendor', [B2BPaymentController::class, 'payHardwareVendor'])
+        ->name('sewa-hardware.pay-vendor');
     Route::post('/sewa-hardware/{sewaHardware}/start', [FinanceSewaHardwareController::class, 'start'])
         ->name('sewa-hardware.start');
     Route::post('/sewa-hardware/{sewaHardware}/complete', [FinanceSewaHardwareController::class, 'complete'])
@@ -364,10 +361,14 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::post('/akuntansi/periode/{periode}/tutup', [AccountingPeriodController::class, 'close'])->name('akuntansi.periode.close');
 });
 
-Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir,admin'])->group(function () {
-    // LAPORAN KONSINYASI (operasional, boleh kasir & keuangan)
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin,kasir'])->group(function () {
+    // Report bersifat read-only: Kasir mengoperasikan, Finance memonitor.
     Route::get('/laporan-konsinyasi', [KonsinyasiReportController::class, 'index'])
         ->name('konsinyasi.report');
+});
+
+Route::middleware(['auth', 'active_user', 'password_changed', 'role:kasir'])->group(function () {
+    // Pembayaran konsinyasi tetap merupakan operasi khusus Kasir.
     Route::get('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'index'])
         ->name('pembayaran-konsinyasi.index');
     Route::post('/pembayaran-konsinyasi', [PembayaranKonsinyasiController::class, 'store'])

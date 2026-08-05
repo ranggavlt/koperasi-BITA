@@ -17,7 +17,9 @@
 */
 var page = window.location.pathname.split("/").pop().split(".")[0];
 var aux = window.location.pathname.split("/");
-var to_build = (aux.includes('pages')?'../':'./');
+// Assets always live below the public /assets directory. Relative paths break
+// on nested Laravel routes such as /sewa-mobil/create.
+var to_build = "/";
 var root = window.location.pathname.split("/")
 if (!aux.includes("pages")) {
   page = "dashboard";
@@ -53,8 +55,11 @@ if (document.querySelector("[navbar-main]")) {
   loadJS(to_build + "assets/js/navbar-sticky.js", true);
 }
 
-if (document.querySelector("canvas")) {
+if (document.getElementById("chart-bars")) {
   loadJS(to_build + "assets/js/chart-1.js", true);
+}
+
+if (document.getElementById("chart-line")) {
   loadJS(to_build + "assets/js/chart-2.js", true);
 }
 

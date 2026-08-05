@@ -18,6 +18,8 @@ class NavigationFinalizationTest extends TestCase
 
         config([
             'features.shu_enabled' => false,
+            'features.dana_sosial_enabled' => false,
+            'features.dana_sosial_alternative_sources_enabled' => false,
             'features.jasa_print_enabled' => false,
             'features.master_printer_enabled' => false,
         ]);
@@ -79,12 +81,8 @@ class NavigationFinalizationTest extends TestCase
             ->get(route('pages.dashboard'))
             ->assertOk()
             ->assertSee('data-sidebar-accordion', false)
-            ->assertSee('kbsm_sidebar_groups:' . $admin->id, false)
+            ->assertSee('kbsm_sidebar_groups:'.$admin->id, false)
             ->assertSeeInOrder([
-                'POS / Kasir',
-                'Penjualan / Kasir',
-                'Pembayaran Konsinyasi',
-                'Laporan Konsinyasi',
                 'Master Data',
                 'Manajemen User',
                 'Karyawan',
@@ -108,6 +106,7 @@ class NavigationFinalizationTest extends TestCase
                 'Invoice Penagihan B2B',
                 'Operasional',
                 'Beban Operasional',
+                'Laporan Konsinyasi',
                 'Akuntansi',
                 'Daftar Akun / COA',
                 'Jurnal Umum Periodik',
@@ -118,6 +117,9 @@ class NavigationFinalizationTest extends TestCase
                 'SHU & Dana Sosial',
                 'Pengaturan SHU',
             ], false)
+            ->assertDontSee('POS / Kasir')
+            ->assertDontSee('Penjualan / Kasir')
+            ->assertDontSee('Pembayaran Konsinyasi')
             ->assertDontSee('Printer Koperasi')
             ->assertDontSee('Outstanding Cash')
             ->assertDontSee('Audit Reversal')
@@ -228,5 +230,4 @@ class NavigationFinalizationTest extends TestCase
             'must_change_password' => false,
         ]);
     }
-
 }

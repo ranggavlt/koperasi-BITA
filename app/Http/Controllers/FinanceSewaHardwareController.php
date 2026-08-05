@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CancelSewaHardwareRequest;
-use App\Http\Requests\PaySewaHardwareRequest;
 use App\Http\Requests\RefundSewaHardwareRequest;
 use App\Http\Requests\StoreSewaHardwareRequest;
 use App\Http\Requests\UpdateSewaHardwareRequest;
@@ -53,6 +52,8 @@ class FinanceSewaHardwareController extends Controller
                 'pembayaran.jurnal.details',
                 'jurnal.details',
                 'reversal',
+                'pembayaranVendor.dompet.akun',
+                'invoiceDetail.invoice',
             ]);
 
         if (! empty($filters['status'])) {
@@ -79,8 +80,14 @@ class FinanceSewaHardwareController extends Controller
 
         return view('pages.sewa-hardware.index', [
             'sewaHardware' => $sewaHardware,
-            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
+            'karyawanOptions' => $this->officialKaryawanQuery()->get(),
             'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
+            'kasOperasionalOptions' => DompetKoperasi::query()
+                ->where('jenis_dompet', DompetKoperasi::JENIS_KAS)
+                ->where('is_kas_operasional', true)
+                ->with('akun')
+                ->orderBy('nama_dompet')
+                ->get(),
             'statuses' => SewaHardware::statusLabels(),
             'paymentStatuses' => SewaHardware::paymentStatuses(),
             'jenisHardwareOptions' => SewaHardwareDetail::jenisOptions(),
@@ -126,14 +133,6 @@ class FinanceSewaHardwareController extends Controller
             ->with('success', 'Kontrak Sewa Hardware berhasil dikonfirmasi.');
     }
 
-    public function pay(PaySewaHardwareRequest $request, SewaHardware $sewaHardware)
-    {
-        $this->service->pay($sewaHardware, $request->validated(), $request->user()->id);
-
-        return redirect()->route('sewa-hardware.index')
-            ->with('success', 'Pembayaran penuh Sewa Hardware berhasil dicatat.');
-    }
-
     public function start(Request $request, SewaHardware $sewaHardware)
     {
         abort_unless($request->user()?->role === 'admin', 403);
@@ -174,9 +173,18 @@ class FinanceSewaHardwareController extends Controller
     {
         return [
             'editData' => $editData,
-            'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
+            'karyawanOptions' => $this->officialKaryawanQuery()->get(),
             'dompetOptions' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
             'jenisHardwareOptions' => SewaHardwareDetail::jenisOptions(),
         ];
+    }
+
+    private function officialKaryawanQuery()
+    {
+        return Karyawan::query()
+            ->aktif()
+            ->whereHas('perusahaan', fn ($query) => $query->whereIn('kode', ['BEE', 'BBS', 'BKM']))
+            ->with('perusahaan')
+            ->orderBy('nama');
     }
 }

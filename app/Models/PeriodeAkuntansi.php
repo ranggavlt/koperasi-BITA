@@ -8,6 +8,7 @@ use RuntimeException;
 class PeriodeAkuntansi extends Model
 {
     public const STATUS_OPEN = 'open';
+    public const STATUS_CLOSING = 'closing';
     public const STATUS_CLOSED = 'closed';
 
     protected $table = 'periode_akuntansi';

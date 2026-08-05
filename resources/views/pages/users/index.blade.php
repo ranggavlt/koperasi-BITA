@@ -75,45 +75,49 @@
       <h2 class="text-base font-bold text-slate-700 m-0">Daftar Akun Pengguna</h2>
       <p class="text-sm text-slate-400">Kelola semua hak akses login sistem.</p>
     </div>
-    <div style="overflow-x: auto;">
-      <table class="w-full min-w-[1000px] text-left text-sm">
-        <thead class="bg-[#073b5c] text-xs uppercase text-white">
+    <div class="user-management-table-wrap">
+      <table class="user-management-table">
+        <thead>
           <tr>
-            <th class="px-6 py-4">Nama</th>
-            <th class="px-6 py-4">Email</th>
-            <th class="px-6 py-4">Role</th>
-            <th class="px-6 py-4">Status</th>
-            <th class="px-6 py-4 text-center">Aksi</th>
+            <th scope="col">Pengguna</th>
+            <th scope="col">Hak Akses</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="user-management-table__actions-heading">Aksi</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody>
           @forelse($users as $user)
-            <tr class="hover:bg-slate-50">
-              <td class="px-6 py-4 font-semibold text-slate-700">{{ $user->name }}</td>
-              <td class="px-6 py-4 text-slate-600">{{ $user->email }}</td>
-              <td class="px-6 py-4">
-                @if($user->role === 'admin')
-                  <span class="rounded-md bg-purple-100 px-2 py-1 text-xs font-bold text-purple-700">Keuangan / Admin</span>
-                @elseif($user->role === 'kasir')
-                  <span class="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">Kasir</span>
-                @endif
-              </td>
-              <td class="px-6 py-4">
-                <div class="mb-1">
-                  @if($user->is_active)
-                    <span class="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-700">Aktif</span>
-                  @else
-                    <span class="rounded-md bg-red-100 px-2 py-1 text-xs font-bold text-red-700">Nonaktif</span>
-                  @endif
+            <tr>
+              <td>
+                <div class="user-management-identity">
+                  <span class="user-management-identity__avatar" aria-hidden="true">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
+                  <div class="min-w-0">
+                    <p class="user-management-identity__name">{{ $user->name }}</p>
+                    <p class="user-management-identity__email">{{ $user->email }}</p>
+                  </div>
                 </div>
               </td>
-              <td class="px-6 py-4 text-center">
-                <div class="flex flex-wrap items-center justify-center gap-2">
-                  <button type="button" onclick="openEditModal({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ addslashes($user->email) }}', '{{ $user->role }}')" class="rounded-lg px-3 py-2 text-xs font-bold text-white" style="background-color: #073b5c;">Edit</button>
-                  <button type="button" onclick="openResetModal({{ $user->id }}, '{{ addslashes($user->name) }}')" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600">Reset Sandi</button>
-                  <form action="{{ route('users.toggle-status', $user) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin mengubah status akun ini?');">
+              <td>
+                @if($user->role === 'admin')
+                  <span class="user-management-badge user-management-badge--admin">Keuangan / Admin</span>
+                @elseif($user->role === 'kasir')
+                  <span class="user-management-badge user-management-badge--kasir">Kasir</span>
+                @endif
+              </td>
+              <td>
+                @if($user->is_active)
+                  <span class="user-management-badge user-management-badge--active">Aktif</span>
+                @else
+                  <span class="user-management-badge user-management-badge--inactive">Nonaktif</span>
+                @endif
+              </td>
+              <td class="user-management-table__actions-cell">
+                <div class="user-management-actions">
+                  <button type="button" onclick="openEditModal({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ addslashes($user->email) }}', '{{ $user->role }}')" class="user-management-action user-management-action--primary">Edit</button>
+                  <button type="button" onclick="openResetModal({{ $user->id }}, '{{ addslashes($user->name) }}')" class="user-management-action">Reset Sandi</button>
+                  <form action="{{ route('users.toggle-status', $user) }}" method="POST" onsubmit="return confirm('Yakin ingin mengubah status akun ini?');">
                     @csrf @method('PATCH')
-                    <button type="submit" class="rounded-lg border {{ $user->is_active ? 'border-amber-300 text-amber-700' : 'border-[#2f8f3a] text-[#2f8f3a]' }} px-3 py-2 text-xs font-bold">
+                    <button type="submit" class="user-management-action {{ $user->is_active ? 'user-management-action--deactivate' : 'user-management-action--activate' }}">
                       {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                     </button>
                   </form>
@@ -121,7 +125,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="5" class="px-6 py-10 text-center text-slate-400">Belum ada data akun.</td></tr>
+            <tr><td colspan="4" class="user-management-table__empty">Belum ada data akun.</td></tr>
           @endforelse
         </tbody>
       </table>

@@ -16,6 +16,10 @@ class InvoicePenagihanDetail extends Model
         'total_dikembalikan',
         'referensi_type',
         'referensi_id',
+        'kode_sewa_snapshot',
+        'vendor_nama_snapshot',
+        'harga_vendor_snapshot',
+        'margin_snapshot',
     ];
 
     protected $casts = [
