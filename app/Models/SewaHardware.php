@@ -156,6 +156,11 @@ class SewaHardware extends Model
         return $this->hasOne(PembayaranSewaHardware::class, 'sewa_hardware_id');
     }
 
+    public function pembayaranVendorBaru()
+    {
+        return $this->morphOne(PembayaranVendorSewa::class, 'sewa', 'sewa_type', 'sewa_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

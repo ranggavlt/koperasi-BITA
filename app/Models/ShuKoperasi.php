@@ -10,11 +10,19 @@ class ShuKoperasi extends Model
 {
     use HasFactory;
 
+    public const STATUS_DRAFT='draft';
+    public const STATUS_CALCULATED='calculated';
+    public const STATUS_SUBMITTED='submitted';
+    public const STATUS_APPROVED='approved';
+    public const STATUS_READY_TO_PAY='ready_to_pay';
+    public const STATUS_COMPLETED='completed';
+
     protected $table = 'shu_koperasi';
 
     protected $fillable = [
         'periode_akuntansi_id',
         'judul',
+        'periode_akuntansi_id','shu_config_id','config_snapshot','status',
         'tanggal_mulai',
         'tanggal_selesai',
         'persen_dana_cadangan',
@@ -42,6 +50,7 @@ class ShuKoperasi extends Model
         'total_bobot_usaha',
         'dihitung_pada',
         'keterangan',
+        'total_dibayar','total_belum_dibayar','created_by','calculated_by','submitted_by','approved_by','submitted_at','approved_at','completed_at','idempotency_key',
         'json_pengurus_split',
         'status',
         'config_snapshot',
@@ -69,6 +78,7 @@ class ShuKoperasi extends Model
         'tanggal_selesai' => 'date',
         'dihitung_pada' => 'datetime',
         'json_pengurus_split' => 'array',
+        'config_snapshot'=>'array','submitted_at'=>'datetime','approved_at'=>'datetime','completed_at'=>'datetime',
         'persen_dana_cadangan' => 'decimal:2',
         'persen_shu_anggota' => 'decimal:2',
         'persen_pengawas' => 'decimal:2',
@@ -112,6 +122,20 @@ class ShuKoperasi extends Model
                 }
             }
         });
+        static::updating(function (self $shu): void {
+            $immutable = [
+                'periode_akuntansi_id', 'shu_config_id', 'config_snapshot', 'tanggal_mulai', 'tanggal_selesai',
+                'persen_dana_cadangan', 'persen_shu_anggota', 'persen_pengawas', 'persen_pembina',
+                'persen_pengurus', 'persen_dana_sosial', 'persen_dana_pendidikan', 'persen_jasa_modal',
+                'persen_jasa_usaha', 'total_pendapatan', 'total_biaya', 'shu_total', 'nominal_dana_cadangan',
+                'nominal_shu_anggota', 'nominal_pengawas', 'nominal_pembina', 'nominal_pengurus',
+                'nominal_dana_sosial', 'nominal_dana_pendidikan', 'nominal_jasa_modal', 'nominal_jasa_usaha',
+                'total_bobot_modal', 'total_bobot_usaha',
+            ];
+            if ($shu->isDirty($immutable) && in_array($shu->getOriginal('status'), [self::STATUS_SUBMITTED, self::STATUS_APPROVED, self::STATUS_READY_TO_PAY, self::STATUS_COMPLETED], true)) {
+                throw new RuntimeException('Periode, konfigurasi, basis, dan nominal SHU yang sudah diajukan tidak dapat diubah.');
+            }
+        });
     }
 
     public function transaksi()
@@ -124,11 +148,18 @@ class ShuKoperasi extends Model
         return $this->hasMany(ShuAnggota::class, 'shu_koperasi_id');
     }
 
-    public function periodeAkuntansi() { return $this->belongsTo(PeriodeAkuntansi::class, 'periode_akuntansi_id'); }
-    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
-    public function approver() { return $this->belongsTo(User::class, 'approved_by'); }
-    public function poster() { return $this->belongsTo(User::class, 'posted_by'); }
-    public function allocationJournal() { return $this->belongsTo(JurnalUmum::class, 'allocation_journal_id'); }
-    public function reversalJournal() { return $this->belongsTo(JurnalUmum::class, 'reversal_journal_id'); }
-    public function socialFundSource() { return $this->hasOne(DanaSosialSumber::class, 'shu_koperasi_id'); }
+    public function periode(){return $this->belongsTo(PeriodeAkuntansi::class,'periode_akuntansi_id');}
+    public function periodeAkuntansi(){return $this->belongsTo(PeriodeAkuntansi::class,'periode_akuntansi_id');}
+    public function config(){return $this->belongsTo(ShuConfig::class,'shu_config_id');}
+    public function recipients(){return $this->hasMany(ShuPenerima::class,'shu_koperasi_id');}
+    public function socialFund(){return $this->hasOne(DanaSosialSumber::class,'shu_koperasi_id');}
+    public function socialFundSource(){return $this->hasOne(DanaSosialSumber::class,'shu_koperasi_id');}
+    public function creator(){return $this->belongsTo(User::class,'created_by');}
+    public function approver(){return $this->belongsTo(User::class,'approved_by');}
+    public function calculator(){return $this->belongsTo(User::class,'calculated_by');}
+    public function submitter(){return $this->belongsTo(User::class,'submitted_by');}
+    public function poster(){return $this->belongsTo(User::class,'posted_by');}
+    public function allocationJournal(){return $this->belongsTo(JurnalUmum::class,'allocation_journal_id');}
+    public function reversalJournal(){return $this->belongsTo(JurnalUmum::class,'reversal_journal_id');}
+    public function getStatusLabelAttribute():string{return match($this->status){self::STATUS_CALCULATED=>'Sudah Dihitung',self::STATUS_SUBMITTED=>'Menunggu Persetujuan',self::STATUS_APPROVED=>'Disetujui',self::STATUS_READY_TO_PAY=>'Siap Dibayar',self::STATUS_COMPLETED=>'Selesai',default=>'Draft'};}
 }

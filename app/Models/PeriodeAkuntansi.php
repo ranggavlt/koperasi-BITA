@@ -15,54 +15,27 @@ class PeriodeAkuntansi extends Model
 
     protected $fillable = [
         'kode', 'nama', 'tanggal_mulai', 'tanggal_selesai', 'status',
-        'total_pendapatan', 'total_beban', 'laba_bersih', 'jumlah_jurnal',
-        'checksum', 'closing_snapshot', 'closing_journal_id', 'created_by',
-        'closed_by', 'closed_at', 'closing_reason', 'idempotency_key',
+        'total_pendapatan', 'total_beban', 'laba_bersih', 'created_by',
+        'closed_by', 'closed_at', 'closing_journal_id', 'closing_idempotency_key',
     ];
 
     protected $casts = [
-        'tanggal_mulai' => 'date',
-        'tanggal_selesai' => 'date',
-        'total_pendapatan' => 'decimal:2',
-        'total_beban' => 'decimal:2',
-        'laba_bersih' => 'decimal:2',
-        'jumlah_jurnal' => 'integer',
-        'closing_snapshot' => 'array',
-        'closed_at' => 'datetime',
+        'tanggal_mulai' => 'date', 'tanggal_selesai' => 'date', 'closed_at' => 'datetime',
+        'total_pendapatan' => 'decimal:2', 'total_beban' => 'decimal:2', 'laba_bersih' => 'decimal:2',
     ];
 
     protected static function booted(): void
     {
-        static::deleting(fn () => throw new RuntimeException('Periode akuntansi merupakan histori audit dan tidak boleh dihapus.'));
-        static::updating(function (self $period): void {
-            if ($period->getOriginal('status') === self::STATUS_CLOSED) {
-                throw new RuntimeException('Periode akuntansi yang sudah ditutup bersifat immutable.');
-            }
-        });
+        static::deleting(fn () => throw new RuntimeException('Periode pembukuan tidak boleh dihapus.'));
     }
 
-    public function journals()
-    {
-        return $this->hasMany(JurnalUmum::class, 'periode_akuntansi_id');
-    }
+    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
+    public function closer() { return $this->belongsTo(User::class, 'closed_by'); }
+    public function closingJournal() { return $this->belongsTo(JurnalUmum::class, 'closing_journal_id'); }
+    public function shu() { return $this->hasOne(ShuKoperasi::class, 'periode_akuntansi_id'); }
 
-    public function closingJournal()
+    public function getStatusLabelAttribute(): string
     {
-        return $this->belongsTo(JurnalUmum::class, 'closing_journal_id');
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function closer()
-    {
-        return $this->belongsTo(User::class, 'closed_by');
-    }
-
-    public function shuKoperasi()
-    {
-        return $this->hasOne(ShuKoperasi::class, 'periode_akuntansi_id');
+        return $this->status === self::STATUS_CLOSED ? 'Sudah Ditutup' : 'Sedang Berjalan';
     }
 }

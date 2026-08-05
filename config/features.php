@@ -11,12 +11,12 @@ return [
     | Feature flags sementara KBSM
     |--------------------------------------------------------------------------
     |
-    | SHU ditunda sementara sampai keputusan RAT/client berikutnya. Kode,
-    | migration, model, service, dan data historis tetap dipertahankan agar
-    | fitur dapat diaktifkan kembali lewat konfigurasi tanpa restore file.
+    | Operasional SHU tahunan dan Dana Sosial sudah dilengkapi dengan pembagian
+    | berbobot berdasarkan keputusan RAT, maker-checker, pembayaran personal,
+    | jurnal, Mutasi Kas, preflight, dan histori periode.
     |
     */
-    'shu_enabled' => $boolean('FEATURE_SHU_ENABLED', false),
+    'shu_enabled' => $boolean('FEATURE_SHU_ENABLED', true),
 
     /*
     |--------------------------------------------------------------------------

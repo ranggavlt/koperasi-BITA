@@ -89,7 +89,8 @@ class PreflightAccessCommand extends Command
 
     private function shuRoutesActiveWhileDisabled(): int
     {
-        return $this->featureRoutesActiveWhileDisabled('shu-koperasi.', 'shu_enabled');
+        return $this->featureRoutesActiveWhileDisabled('shu-koperasi.', 'shu_enabled')
+            + $this->featureRoutesActiveWhileDisabled('dana-sosial.', 'shu_enabled');
     }
 
     private function featureRoutesActiveWhileDisabled(string $routeNamePrefix, string $feature): int
@@ -110,7 +111,7 @@ class PreflightAccessCommand extends Command
 
         if (! (bool) config('features.shu_enabled', false)) {
             $shuModulesWithoutFlag = collect(config('navigation.modules', []))
-                ->reject(fn (array $module): bool => ($module['key'] ?? null) === 'shu_config')
+                ->reject(fn (array $module): bool => ($module['route'] ?? null) === 'shu-config.index')
                 ->filter(fn (array $module): bool => str_contains(strtolower(implode(' ', [
                     $module['section'] ?? '',
                     $module['label'] ?? '',
@@ -325,6 +326,8 @@ class PreflightAccessCommand extends Command
             'karyawan',
             'anggota',
             'shu-koperasi',
+            'pengaturan-shu',
+            'dana-sosial',
             'laporan-potong-gaji',
             'rekonsiliasi-potong-gaji',
             'outstanding-cash',

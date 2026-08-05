@@ -108,11 +108,11 @@ class PenyelesaianKeanggotaan extends Model
     {
         return match ($this->status) {
             self::STATUS_PENDING_REVIEW => 'Menunggu Penyelesaian',
-            self::STATUS_WAITING_SETTLEMENT => 'Sebagian Diselesaikan',
+            self::STATUS_WAITING_SETTLEMENT => 'Masih Ada Utang',
             self::STATUS_READY_TO_COMPLETE => 'Siap Diselesaikan',
             self::STATUS_COMPLETED => 'Selesai',
             self::STATUS_CANCELLED => 'Dibatalkan',
-            self::STATUS_DEACTIVATION_CANCELLED => 'Penonaktifan Dibatalkan',
+            self::STATUS_DEACTIVATION_CANCELLED => 'Batal Keluar',
             default => str_replace('_', ' ', (string) $this->status),
         };
     }

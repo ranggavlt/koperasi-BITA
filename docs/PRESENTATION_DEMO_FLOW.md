@@ -52,4 +52,3 @@ Target durasi demo inti: 25–35 menit. Gunakan database demo deterministik dari
 ## 8. Fitur deferred
 
 Tunjukkan bahwa SHU dan Dana Sosial tidak ada di sidebar/search dan direct URL 404. Jelaskan bahwa keduanya menunggu keputusan bisnis, bukan error aplikasi.
-

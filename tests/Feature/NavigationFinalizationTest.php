@@ -48,16 +48,13 @@ class NavigationFinalizationTest extends TestCase
         $this->assertSame('Tagihan Tunai', $modules['tagihan_tunai']['label']);
         $this->assertSame('Riwayat Koreksi Transaksi', $modules['riwayat_koreksi_transaksi']['label']);
         $this->assertSame('Daftar Akun / COA', $modules['coa']['label']);
-        $this->assertSame('shu-config.index', $modules['shu_config']['route']);
         $this->assertTrue($modules['shu_config']['sidebar']);
+        $this->assertTrue($modules['shu_config']['search']);
         $this->assertArrayNotHasKey('feature', $modules['shu_config']);
-        $this->assertFalse($modules['shu_koperasi']['sidebar']);
-        $this->assertFalse($modules['shu_koperasi']['search']);
+        $this->assertTrue($modules['shu_koperasi']['sidebar']);
+        $this->assertTrue($modules['shu_koperasi']['search']);
         $this->assertSame('shu_enabled', $modules['shu_koperasi']['feature']);
-        $this->assertSame('klaim-dana-sosial.index', $modules['klaim_dana_sosial']['route']);
-        $this->assertSame('dana_sosial_enabled', $modules['klaim_dana_sosial']['feature']);
-        $this->assertFalse($modules['klaim_dana_sosial']['sidebar']);
-        $this->assertFalse($modules['klaim_dana_sosial']['search']);
+        $this->assertSame('shu_enabled', $modules['dana_sosial']['feature']);
         $this->assertSame('master_printer_enabled', $modules['printer_koperasi']['feature']);
 
         $this->actingAs($this->user('admin'));
@@ -115,7 +112,7 @@ class NavigationFinalizationTest extends TestCase
                 'Jurnal Umum Periodik',
                 'Buku Besar',
                 'Keanggotaan & Koreksi',
-                'Penyelesaian Keanggotaan',
+                'Penyelesaian Anggota Keluar',
                 'Riwayat Koreksi Transaksi',
                 'SHU & Dana Sosial',
                 'Pengaturan SHU',

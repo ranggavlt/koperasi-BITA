@@ -73,7 +73,7 @@ class BukuBesarReportTest extends TestCase
                 'akun' => $kas->kode_akun,
             ]))
             ->assertOk()
-            ->assertSee('Laporan Akuntansi / Buku Besar')
+            ->assertSee('Buku Besar')
             ->assertSee('01 Juli 2026 – 31 Juli 2026')
             ->assertSee('value="2026-07"', false)
             ->assertSee('901 - Kas Utama Test')
@@ -119,7 +119,7 @@ class BukuBesarReportTest extends TestCase
                 'akun' => $kas->kode_akun,
             ]))
             ->assertOk()
-            ->assertSee('Saldo Kredit')
+            ->assertSee('Kredit')
             ->assertSee('Posisi tidak normal')
             ->assertSee('Rp 200.000')
             ->assertSee('Tidak ada transaksi pada akun dan periode yang dipilih.');

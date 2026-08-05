@@ -39,7 +39,7 @@ return [
             'nama_akun' => 'Piutang Perusahaan',
             'kategori' => 'aset',
             'posisi_saldo' => 'debit',
-            'keterangan' => 'Tagihan B2B kepada BEE, BBS, dan BKM berdasarkan invoice final.',
+            'keterangan' => 'Tagihan B2B kepada perusahaan BEE, BBS, dan BKM yang belum diterima koperasi.',
         ],
         'piutang_pinjaman' => [
             'kode_akun' => '105',
@@ -130,7 +130,21 @@ return [
             'nama_akun' => 'Dana Sosial Tersedia',
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Saldo dana sosial yang telah disetujui dan belum dibayarkan sebagai klaim.',
+            'keterangan' => 'Dana sosial yang berasal dari alokasi SHU atau donasi resmi dan belum disalurkan.',
+        ],
+        'utang_shu_penerima' => [
+            'kode_akun' => '216',
+            'nama_akun' => 'Utang Pembayaran SHU',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Hak SHU personal yang sudah disetujui dan belum dibayarkan.',
+        ],
+        'dana_pendidikan' => [
+            'kode_akun' => '212',
+            'nama_akun' => 'Dana Pendidikan',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Alokasi SHU untuk kegiatan pendidikan koperasi.',
         ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
@@ -388,6 +402,9 @@ return [
             'pendapatan_dasar' => 'pendapatan_sewa_hardware_dasar',
             'pendapatan_margin' => 'pendapatan_margin_sewa_hardware',
         ],
+        'invoice_b2b' => [
+            'piutang' => 'piutang_perusahaan',
+        ],
         'b2b' => [
             'piutang_perusahaan' => 'piutang_perusahaan',
             'uang_muka_vendor' => 'uang_muka_vendor',
@@ -400,13 +417,15 @@ return [
             'sumber_alokasi' => 'shu_belum_dibagi',
         ],
         'shu' => [
+            'belum_dibagi' => 'shu_belum_dibagi',
             'laba_belum_dibagi' => 'shu_belum_dibagi',
             'dana_cadangan' => 'dana_cadangan',
+            'dana_sosial' => 'dana_sosial',
+            'utang_penerima' => 'utang_shu_penerima',
             'anggota' => 'utang_shu_anggota',
             'pengurus' => 'utang_shu_pengurus',
             'pengawas' => 'utang_shu_pengawas',
             'pembina' => 'utang_shu_pembina',
-            'dana_sosial' => 'dana_sosial',
             'dana_pendidikan' => 'dana_pendidikan',
         ],
         'keanggotaan' => [

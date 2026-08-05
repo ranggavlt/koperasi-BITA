@@ -22,17 +22,17 @@
 
 @section('content')
 <div class="bb-page">
-  <header class="bb-hero">
+  <header class="kbsm-business-header bb-header">
     <div>
-      <p class="bb-breadcrumb">Laporan Akuntansi / Buku Besar</p>
-      <h1>Buku Besar</h1>
-      <p class="bb-description">
+      <p class="kbsm-business-eyebrow">Akuntansi</p>
+      <h1 class="kbsm-business-title">Buku Besar</h1>
+      <p class="kbsm-business-subtitle">
         Pantau mutasi akun, total debit-kredit, dan saldo berjalan berdasarkan jurnal umum yang sudah tercatat.
       </p>
     </div>
     <div class="bb-period-chip" aria-label="Periode aktif">
-      <span>Periode Aktif</span>
-      <strong>{{ $periodeLabel }}</strong>
+      <span>Periode aktif</span>
+      {{ $periodeLabel }}
     </div>
   </header>
 
@@ -87,18 +87,6 @@
             <span class="bb-badge bb-badge--green">Saldo Normal {{ $sideLabel($normalSide) }}</span>
             <span class="bb-badge bb-badge--soft">{{ $periodeLabel }}</span>
           </div>
-        </div>
-      </div>
-      <div class="bb-account-card__balance">
-        <span>Saldo Akhir</span>
-        <strong>{{ $rupiah($saldoAkhir) }}</strong>
-        <div class="bb-badge-row bb-badge-row--right">
-          <span class="bb-badge {{ $saldoAkhirAbnormal ? 'bb-badge--warning' : 'bb-badge--green' }}">
-            Saldo {{ $sideLabel($saldoAkhirSide) }}
-          </span>
-          @if($saldoAkhirAbnormal)
-            <span class="bb-badge bb-badge--warning">Posisi tidak normal</span>
-          @endif
         </div>
       </div>
     </section>

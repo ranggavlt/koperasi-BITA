@@ -4,37 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\PeriodeAkuntansi;
 use App\Services\AccountingPeriodService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class AccountingPeriodController extends Controller
 {
-    public function index(): View
+    public function __construct(private readonly AccountingPeriodService $service) {}
+
+    public function index()
     {
-        return view('pages.akuntansi.periode', [
-            'periods' => PeriodeAkuntansi::query()->with(['creator', 'closer', 'closingJournal'])->latest('tanggal_mulai')->paginate(12),
-        ]);
+        return view('pages.akuntansi.periode.index', ['periods' => PeriodeAkuntansi::query()->with('closer')->latest('tanggal_mulai')->paginate(15)]);
     }
 
-    public function store(Request $request, AccountingPeriodService $service): RedirectResponse
+    public function create()
     {
-        $data = $request->validate([
+        return view('pages.akuntansi.periode.create');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
             'kode' => ['required', 'string', 'max:30', 'unique:periode_akuntansi,kode'],
-            'nama' => ['required', 'string', 'max:150'],
+            'nama' => ['required', 'string', 'max:120'],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
         ]);
-        $service->create($data, $request->user()->id);
-
-        return back()->with('success', 'Periode akuntansi berhasil dibuat dalam status open.');
+        $period = $this->service->create($validated, (int) $request->user()->id);
+        return redirect()->route('akuntansi.periode.show', $period)->with('success', 'Periode pembukuan berhasil dimulai.');
     }
 
-    public function close(PeriodeAkuntansi $periodeAkuntansi, Request $request, AccountingPeriodService $service): RedirectResponse
+    public function show(PeriodeAkuntansi $periode)
     {
-        $reason = $request->validate(['closing_reason' => ['required', 'string', 'min:5', 'max:1000']])['closing_reason'];
-        $service->close($periodeAkuntansi, $reason, $request->user()->id);
+        return view('pages.akuntansi.periode.show', ['period' => $periode->load(['creator', 'closer', 'closingJournal.details'])]);
+    }
 
-        return back()->with('success', 'Periode berhasil ditutup, dikunci, dan laba jurnal telah disnapshot.');
+    public function close(PeriodeAkuntansi $periode)
+    {
+        $this->service->close($periode, (int) auth()->id());
+        return back()->with('success', 'Tutup buku berhasil diproses dan tanggal periode sudah dikunci.');
     }
 }

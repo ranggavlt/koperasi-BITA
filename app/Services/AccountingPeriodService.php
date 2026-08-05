@@ -2,194 +2,100 @@
 
 namespace App\Services;
 
+use App\Models\Akun;
 use App\Models\JurnalUmum;
 use App\Models\PeriodeAkuntansi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class AccountingPeriodService
 {
-    public function __construct(
-        private readonly AkuntansiService $journal,
-        private readonly AkunResolver $accounts,
-    ) {}
+    public function __construct(private readonly AkuntansiService $akuntansiService) {}
 
     public function create(array $data, int $userId): PeriodeAkuntansi
     {
         return DB::transaction(function () use ($data, $userId): PeriodeAkuntansi {
-            $overlap = PeriodeAkuntansi::query()
-                ->where('tanggal_mulai', '<=', $data['tanggal_selesai'])
-                ->where('tanggal_selesai', '>=', $data['tanggal_mulai'])
-                ->lockForUpdate()
-                ->exists();
-
-            if ($overlap) {
-                throw ValidationException::withMessages([
-                    'tanggal_mulai' => 'Rentang periode bertumpang tindih dengan periode akuntansi yang sudah ada.',
-                ]);
+            if (PeriodeAkuntansi::query()->where('status', PeriodeAkuntansi::STATUS_OPEN)->lockForUpdate()->exists()) {
+                throw ValidationException::withMessages(['tanggal_mulai' => 'Tutup periode yang sedang berjalan sebelum membuka periode baru.']);
+            }
+            if (PeriodeAkuntansi::query()->where('tanggal_mulai', '<=', $data['tanggal_selesai'])->where('tanggal_selesai', '>=', $data['tanggal_mulai'])->exists()) {
+                throw ValidationException::withMessages(['tanggal_mulai' => 'Rentang periode tidak boleh bertumpang tindih.']);
             }
 
             return PeriodeAkuntansi::query()->create([
-                'kode' => trim((string) $data['kode']),
-                'nama' => trim((string) $data['nama']),
-                'tanggal_mulai' => $data['tanggal_mulai'],
-                'tanggal_selesai' => $data['tanggal_selesai'],
+                ...$data,
                 'status' => PeriodeAkuntansi::STATUS_OPEN,
                 'created_by' => $userId,
-                'idempotency_key' => (string) ($data['idempotency_key'] ?? 'accounting-period:'.sha1(json_encode($data))),
             ]);
         });
     }
 
-    public function close(PeriodeAkuntansi $period, string $reason, int $userId): PeriodeAkuntansi
+    public function close(PeriodeAkuntansi $period, int $userId): PeriodeAkuntansi
     {
-        return DB::transaction(function () use ($period, $reason, $userId): PeriodeAkuntansi {
+        return DB::transaction(function () use ($period, $userId): PeriodeAkuntansi {
             $locked = PeriodeAkuntansi::query()->lockForUpdate()->findOrFail($period->id);
-
             if ($locked->status === PeriodeAkuntansi::STATUS_CLOSED) {
-                return $locked;
+                return $locked->fresh(['closingJournal.details']);
             }
 
-            if ($locked->status !== PeriodeAkuntansi::STATUS_OPEN) {
-                throw ValidationException::withMessages(['status' => 'Periode tidak berada pada status open.']);
-            }
-
-            if ($locked->tanggal_selesai->isFuture()) {
-                throw ValidationException::withMessages(['tanggal_selesai' => 'Periode yang belum berakhir tidak dapat ditutup.']);
-            }
-
-            $reason = trim($reason);
-            if (mb_strlen($reason) < 5) {
-                throw ValidationException::withMessages(['closing_reason' => 'Alasan tutup periode wajib diisi minimal 5 karakter.']);
-            }
-
-            $journals = JurnalUmum::query()
-                ->with('details.akun')
-                ->whereBetween('tanggal', [$locked->tanggal_mulai->toDateString(), $locked->tanggal_selesai->toDateString()])
-                ->where(fn ($query) => $query->whereNull('idempotency_key')->orWhere('idempotency_key', '!=', 'accounting-period:closing:'.$locked->id))
-                ->orderBy('tanggal')
-                ->orderBy('id')
-                ->lockForUpdate()
+            $balances = DB::table('jurnal_umum_detail as detail')
+                ->join('jurnal_umum as jurnal', 'jurnal.id', '=', 'detail.jurnal_umum_id')
+                ->join('akun', 'akun.id', '=', 'detail.akun_id')
+                ->whereBetween('jurnal.tanggal', [$locked->tanggal_mulai->toDateString(), $locked->tanggal_selesai->toDateString()])
+                ->whereIn('akun.kategori', ['pendapatan', 'beban'])
+                ->groupBy('akun.id', 'akun.kode_akun', 'akun.nama_akun', 'akun.kategori', 'akun.posisi_saldo')
+                ->selectRaw('akun.id, akun.kode_akun, akun.nama_akun, akun.kategori, akun.posisi_saldo, SUM(detail.debit) total_debit, SUM(detail.kredit) total_kredit')
                 ->get();
 
-            if ($journals->contains(fn (JurnalUmum $journal) => $journal->status !== JurnalUmum::STATUS_POSTED)) {
-                throw ValidationException::withMessages(['status' => 'Semua jurnal dalam periode wajib berstatus posted sebelum periode ditutup.']);
+            $revenue = round((float) $balances->where('kategori', 'pendapatan')->sum(fn ($row) => (float) $row->total_kredit - (float) $row->total_debit), 2);
+            $expense = round((float) $balances->where('kategori', 'beban')->sum(fn ($row) => (float) $row->total_debit - (float) $row->total_kredit), 2);
+            $net = round($revenue - $expense, 2);
+            $lines = [];
+            foreach ($balances as $row) {
+                $balance = $row->kategori === 'pendapatan'
+                    ? (float) $row->total_kredit - (float) $row->total_debit
+                    : (float) $row->total_debit - (float) $row->total_kredit;
+                if ($balance <= 0) continue;
+                $lines[] = ['akun_id' => (int) $row->id, 'akun_kode' => $row->kode_akun, 'akun_nama' => $row->nama_akun, 'debit' => $row->kategori === 'pendapatan' ? $balance : 0, 'kredit' => $row->kategori === 'beban' ? $balance : 0];
             }
 
-            foreach ($journals as $journal) {
-                $debit = round((float) $journal->details->sum('debit'), 2);
-                $credit = round((float) $journal->details->sum('kredit'), 2);
-                if ($debit <= 0 || abs($debit - $credit) > 0.01 || $journal->details->contains(fn ($line) => $line->akun === null)) {
-                    throw ValidationException::withMessages(['status' => 'Terdapat jurnal tidak balance atau detail tanpa master COA: '.$journal->nomor_bukti.'.']);
-                }
+            if ($net != 0.0) {
+                $shuAccount = Akun::query()->where('kode_akun', config('account_map.accounts.shu_belum_dibagi.kode_akun'))->firstOrFail();
+                $lines[] = ['akun_id' => $shuAccount->id, 'akun_kode' => $shuAccount->kode_akun, 'akun_nama' => $shuAccount->nama_akun, 'debit' => $net < 0 ? abs($net) : 0, 'kredit' => $net > 0 ? $net : 0];
             }
 
-            $nominalByAccount = $journals->flatMap->details
-                ->filter(fn ($line) => in_array($line->akun?->kategori, ['pendapatan', 'beban'], true))
-                ->groupBy('akun_id')
-                ->map(function ($lines) {
-                    $account = $lines->first()->akun;
-                    return [
-                        'account' => $account,
-                        'debit' => round((float) $lines->sum('debit'), 2),
-                        'credit' => round((float) $lines->sum('kredit'), 2),
-                    ];
-                });
-
-            $income = round((float) $nominalByAccount
-                ->filter(fn ($row) => $row['account']->kategori === 'pendapatan')
-                ->sum(fn ($row) => $row['credit'] - $row['debit']), 2);
-            $expense = round((float) $nominalByAccount
-                ->filter(fn ($row) => $row['account']->kategori === 'beban')
-                ->sum(fn ($row) => $row['debit'] - $row['credit']), 2);
-            $profit = round($income - $expense, 2);
-
-            $snapshotRows = $journals->map(fn (JurnalUmum $journal) => [
-                'id' => $journal->id,
-                'tanggal' => $journal->tanggal->toDateString(),
-                'nomor_bukti' => $journal->nomor_bukti,
-                'debit' => number_format((float) $journal->details->sum('debit'), 2, '.', ''),
-                'credit' => number_format((float) $journal->details->sum('kredit'), 2, '.', ''),
-            ])->values()->all();
-            $checksum = hash('sha256', json_encode($snapshotRows, JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION));
-
-            $locked->update(['status' => PeriodeAkuntansi::STATUS_CLOSING]);
-            $closingJournal = $this->createClosingJournal($locked, $nominalByAccount, $profit, $userId);
-
-            if ($journals->isNotEmpty()) {
-                JurnalUmum::query()->whereKey($journals->pluck('id'))->update(['periode_akuntansi_id' => $locked->id]);
+            $journal = null;
+            if (count($lines) >= 2) {
+                $journal = $this->akuntansiService->record([
+                    'idempotency_key' => 'tutup-buku:jurnal:' . $locked->id,
+                    'tanggal' => $locked->tanggal_selesai->toDateString(),
+                    'nomor_bukti' => 'TB-' . $locked->kode,
+                    'keterangan' => 'Jurnal penutup ' . $locked->nama,
+                    'referensi_tipe' => PeriodeAkuntansi::class,
+                    'referensi_id' => $locked->id,
+                    'created_by' => $userId,
+                ], $lines);
             }
 
             $locked->update([
                 'status' => PeriodeAkuntansi::STATUS_CLOSED,
-                'total_pendapatan' => $income,
+                'total_pendapatan' => $revenue,
                 'total_beban' => $expense,
-                'laba_bersih' => $profit,
-                'jumlah_jurnal' => $journals->count(),
-                'checksum' => $checksum,
-                'closing_snapshot' => [
-                    'source' => 'posted_general_ledger',
-                    'period' => [$locked->tanggal_mulai->toDateString(), $locked->tanggal_selesai->toDateString()],
-                    'journal_ids' => $journals->pluck('id')->values()->all(),
-                    'journal_count' => $journals->count(),
-                    'checksum' => $checksum,
-                    'total_pendapatan' => number_format($income, 2, '.', ''),
-                    'total_beban' => number_format($expense, 2, '.', ''),
-                    'laba_bersih' => number_format($profit, 2, '.', ''),
-                ],
-                'closing_journal_id' => $closingJournal?->id,
+                'laba_bersih' => $net,
                 'closed_by' => $userId,
                 'closed_at' => now(),
-                'closing_reason' => $reason,
+                'closing_journal_id' => $journal?->id,
+                'closing_idempotency_key' => 'tutup-buku:' . $locked->id,
             ]);
 
             return $locked->fresh(['closingJournal.details', 'closer']);
         });
     }
 
-    private function createClosingJournal(PeriodeAkuntansi $period, $nominalByAccount, float $profit, int $userId): ?JurnalUmum
+    public static function assertDateUnlocked(string $date): void
     {
-        $lines = [];
-        foreach ($nominalByAccount as $row) {
-            $net = $row['account']->kategori === 'pendapatan'
-                ? round($row['credit'] - $row['debit'], 2)
-                : round($row['debit'] - $row['credit'], 2);
-            if (abs($net) < 0.01) {
-                continue;
-            }
-            $side = $row['account']->kategori === 'pendapatan'
-                ? ($net > 0 ? 'debit' : 'kredit')
-                : ($net > 0 ? 'kredit' : 'debit');
-            $lines[] = $this->accounts->line($row['account'], $side, abs($net));
+        if (PeriodeAkuntansi::query()->where('status', PeriodeAkuntansi::STATUS_CLOSED)->whereDate('tanggal_mulai', '<=', $date)->whereDate('tanggal_selesai', '>=', $date)->exists()) {
+            throw ValidationException::withMessages(['tanggal' => 'Tanggal berada pada periode yang sudah ditutup.']);
         }
-
-        if (abs($profit) >= 0.01) {
-            $lines[] = $this->accounts->line(
-                $this->accounts->posting('shu.laba_belum_dibagi'),
-                $profit > 0 ? 'kredit' : 'debit',
-                abs($profit)
-            );
-        }
-
-        if ($lines === []) {
-            return null;
-        }
-
-        if (count($lines) < 2) {
-            throw new RuntimeException('Jurnal penutup tidak mempunyai pasangan akun yang balance.');
-        }
-
-        return $this->journal->record([
-            'idempotency_key' => 'accounting-period:closing:'.$period->id,
-            'periode_akuntansi_id' => $period->id,
-            'tanggal' => $period->tanggal_selesai->toDateString(),
-            'nomor_bukti' => 'CLOSE-'.$period->kode,
-            'keterangan' => 'Jurnal penutup periode '.$period->nama,
-            'referensi_tipe' => PeriodeAkuntansi::class,
-            'referensi_id' => $period->id,
-            'created_by' => $userId,
-            'is_period_operation' => true,
-        ], $lines);
     }
 }

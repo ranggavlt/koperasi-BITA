@@ -20,7 +20,7 @@ class PengurusKoperasiController extends Controller
         $service->createPengurus($request->validated());
 
         return redirect()->route('pengurus-koperasi.index')
-            ->with('success', 'Jabatan Pengurus aktif berhasil ditambahkan.');
+            ->with('success', 'Jabatan organisasi aktif berhasil ditambahkan.');
     }
 
     public function edit(PengurusKoperasi $pengurusKoperasi)
@@ -36,7 +36,7 @@ class PengurusKoperasiController extends Controller
         $service->updatePengurus($pengurusKoperasi, $request->validated());
 
         return redirect()->route('pengurus-koperasi.index')
-            ->with('success', 'Data Pengurus berhasil diperbarui.');
+            ->with('success', 'Data jabatan organisasi berhasil diperbarui.');
     }
 
     public function deactivate(PengurusKoperasi $pengurusKoperasi, MasterDataKoperasiService $service)

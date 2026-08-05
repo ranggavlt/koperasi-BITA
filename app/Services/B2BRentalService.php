@@ -7,6 +7,7 @@ use App\Models\InvoicePenagihan;
 use App\Models\InvoicePenagihanDetail;
 use App\Models\MutasiKas;
 use App\Models\PembayaranInvoicePerusahaan;
+use App\Models\PembayaranInvoicePenagihan;
 use App\Models\PembayaranVendorSewa;
 use App\Models\Perusahaan;
 use App\Models\SewaMobil;
@@ -145,6 +146,7 @@ class B2BRentalService
                     'tanggal_invoice' => $date->toDateString(),
                     'jatuh_tempo' => $dueDate->toDateString(),
                     'total_tagihan' => $total,
+                    'total_dibayar' => 0,
                     'jumlah_dibayar' => 0,
                     'sisa_tagihan' => $total,
                     'status' => 'unpaid',
@@ -202,9 +204,10 @@ class B2BRentalService
     public function payInvoice(InvoicePenagihan $invoice, array $data, int $userId): PembayaranInvoicePerusahaan
     {
         return DB::transaction(function () use ($invoice, $data, $userId): PembayaranInvoicePerusahaan {
-            $locked = InvoicePenagihan::query()->with('pembayaran')->lockForUpdate()->findOrFail($invoice->id);
+            $locked = InvoicePenagihan::query()->with('pembayaranPerusahaan')->lockForUpdate()->findOrFail($invoice->id);
             $key = (string) ($data['idempotency_key'] ?? 'invoice-payment:'.$locked->id.':'.sha1(json_encode($data)));
             if ($existing = PembayaranInvoicePerusahaan::query()->where('idempotency_key', $key)->first()) {
+                $this->mirrorInvoicePayment($existing);
                 return $existing;
             }
             if ($locked->status === 'paid' || (int) $locked->sisa_tagihan <= 0) {
@@ -255,12 +258,29 @@ class B2BRentalService
                 $this->akunResolver->line($this->akunResolver->posting('b2b.piutang_perusahaan'), 'kredit', $amount),
             ]);
 
-            $paid = (int) $locked->pembayaran()->where('status', PembayaranInvoicePerusahaan::STATUS_PAID)->sum('jumlah_bayar');
+            $this->mirrorInvoicePayment($payment);
+
+            $paid = (int) $locked->pembayaranPerusahaan()->where('status', PembayaranInvoicePerusahaan::STATUS_PAID)->sum('jumlah_bayar');
             $remaining = max(0, (int) $locked->total_tagihan - $paid);
-            $locked->update(['jumlah_dibayar' => $paid, 'sisa_tagihan' => $remaining, 'status' => $remaining === 0 ? 'paid' : 'partial']);
+            $locked->update(['jumlah_dibayar' => $paid, 'total_dibayar' => $paid, 'sisa_tagihan' => $remaining, 'status' => $remaining === 0 ? 'paid' : 'partial']);
 
             return $payment->fresh(['invoice.perusahaan', 'dompet.akun', 'mutasiKas', 'jurnal.details']);
         });
+    }
+
+    private function mirrorInvoicePayment(PembayaranInvoicePerusahaan $payment): void
+    {
+        PembayaranInvoicePenagihan::query()->updateOrCreate([
+            'idempotency_key' => 'legacy-b2b-payment:'.$payment->id,
+        ], [
+            'invoice_penagihan_id' => $payment->invoice_penagihan_id,
+            'dompet_id' => $payment->dompet_id,
+            'metode' => $payment->metode_pembayaran,
+            'jumlah' => $payment->jumlah_bayar,
+            'tanggal_bayar' => $payment->tanggal_bayar,
+            'nomor_referensi' => $payment->nomor_referensi,
+            'created_by' => $payment->created_by,
+        ]);
     }
 
     public function recognizeRentalMargin(SewaMobil|SewaHardware $rental, int $userId): void

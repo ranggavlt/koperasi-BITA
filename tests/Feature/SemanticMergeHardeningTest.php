@@ -110,6 +110,6 @@ class SemanticMergeHardeningTest extends TestCase
     {
         $this->assertFalse(Route::has('vendor.index'));
         $this->assertTrue(Route::has('invoice-penagihan.index'));
-        $this->assertTrue(Route::has('klaim-dana-sosial.index'));
+        $this->assertTrue(Route::has('dana-sosial.index'));
     }
 }

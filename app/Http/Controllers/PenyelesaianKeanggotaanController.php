@@ -91,7 +91,7 @@ class PenyelesaianKeanggotaanController extends Controller
     {
         $this->service->refreshSnapshot($penyelesaian);
 
-        return back()->with('success', 'Snapshot penyelesaian berhasil diperbarui.');
+        return back()->with('success', 'Perhitungan hak dan kewajiban berhasil diperbarui.');
     }
 
     public function processOffset(PenyelesaianKeanggotaan $penyelesaian): RedirectResponse

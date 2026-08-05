@@ -11,6 +11,14 @@ use App\Models\PembayaranKonsinyasi;
 use App\Models\PembayaranOutstandingCash;
 use App\Models\PembayaranSewaMobil;
 use App\Models\PembayaranSewaHardware;
+use App\Models\PembayaranInvoicePenagihan;
+use App\Models\PembayaranVendorSewa;
+use App\Models\PengembalianInvoicePenagihan;
+use App\Models\InvoicePenagihan;
+use App\Models\ShuKoperasi;
+use App\Models\PembayaranShu;
+use App\Models\DanaSosialSumber;
+use App\Models\KlaimDanaSosial;
 use App\Models\Pembayaran;
 use App\Models\Penjualan;
 use App\Models\PenyelesaianKeanggotaan;
@@ -21,6 +29,7 @@ use App\Models\SewaMobil;
 use App\Models\SewaHardware;
 use App\Models\Simpanan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class AkuntansiService
@@ -34,6 +43,9 @@ class AkuntansiService
      */
     public function record(array $header, array $lines): JurnalUmum
     {
+        if (Schema::hasTable('periode_akuntansi') && ! empty($header['tanggal'])) {
+            AccountingPeriodService::assertDateUnlocked((string) $header['tanggal']);
+        }
         if (count($lines) < 2) {
             throw new RuntimeException('Jurnal harus memiliki minimal dua baris akun.');
         }
@@ -63,6 +75,203 @@ class AkuntansiService
 
             return $jurnal;
         });
+    }
+
+    public function recordInvoiceB2bFinalization(InvoicePenagihan $invoice, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()->where('idempotency_key', 'invoice-b2b:finalisasi:jurnal:' . $invoice->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $invoice->loadMissing('detail.referensi');
+        $components = [
+            'mobil_vendor' => 0.0,
+            'mobil_margin' => 0.0,
+            'hardware_vendor' => 0.0,
+            'hardware_margin' => 0.0,
+        ];
+
+        foreach ($invoice->detail as $detail) {
+            $reference = $detail->referensi;
+            if ($reference instanceof SewaMobil) {
+                $components['mobil_vendor'] += (float) $reference->total_harga_vendor;
+                $components['mobil_margin'] += (float) $reference->total_markup;
+            } elseif ($reference instanceof SewaHardware) {
+                $components['hardware_vendor'] += (float) $reference->total_harga_vendor;
+                $components['hardware_margin'] += (float) $reference->total_margin;
+            }
+        }
+
+        $lines = [$this->akunResolver->line($this->akunResolver->posting('invoice_b2b.piutang'), 'debit', $invoice->total_tagihan)];
+        foreach ([
+            ['mobil_vendor', 'sewa_mobil.utang_vendor'],
+            ['mobil_margin', 'sewa_mobil.pendapatan_diterima_dimuka_margin'],
+            ['hardware_vendor', 'sewa_hardware.utang_vendor'],
+            ['hardware_margin', 'sewa_hardware.pendapatan_diterima_dimuka_margin'],
+        ] as [$component, $posting]) {
+            if ($components[$component] > 0) {
+                $lines[] = $this->akunResolver->line($this->akunResolver->posting($posting), 'kredit', $components[$component]);
+            }
+        }
+
+        return $this->record([
+            'idempotency_key' => 'invoice-b2b:finalisasi:jurnal:' . $invoice->id,
+            'tanggal' => $invoice->tanggal_invoice->toDateString(),
+            'nomor_bukti' => $invoice->nomor_invoice,
+            'keterangan' => 'Penerbitan invoice perusahaan ' . $invoice->nomor_invoice,
+            'referensi_tipe' => InvoicePenagihan::class,
+            'referensi_id' => $invoice->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
+    }
+
+    public function recordInvoiceB2bPayment(PembayaranInvoicePenagihan $payment, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()->where('idempotency_key', 'invoice-b2b:pembayaran:jurnal:' . $payment->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $payment->loadMissing(['invoice', 'dompet.akun']);
+        $this->assertCashAccount($payment->dompet->akun, 'penerimaan invoice perusahaan');
+
+        return $this->record([
+            'idempotency_key' => 'invoice-b2b:pembayaran:jurnal:' . $payment->id,
+            'tanggal' => $payment->tanggal_bayar->toDateString(),
+            'nomor_bukti' => $payment->invoice->nomor_invoice,
+            'keterangan' => 'Pembayaran invoice perusahaan ' . $payment->invoice->nomor_invoice,
+            'referensi_tipe' => PembayaranInvoicePenagihan::class,
+            'referensi_id' => $payment->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($payment->dompet->akun, 'debit', $payment->jumlah),
+            $this->akunResolver->line($this->akunResolver->posting('invoice_b2b.piutang'), 'kredit', $payment->jumlah),
+        ]);
+    }
+
+    public function recordVendorRentalPayment(PembayaranVendorSewa $payment, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()->where('idempotency_key', 'sewa:vendor:pembayaran:jurnal:' . $payment->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $payment->loadMissing(['sewa', 'dompet.akun']);
+        $this->assertCashAccount($payment->dompet->akun, 'pembayaran vendor sewa');
+        $posting = $payment->sewa instanceof SewaMobil ? 'sewa_mobil.utang_vendor' : 'sewa_hardware.utang_vendor';
+
+        return $this->record([
+            'idempotency_key' => 'sewa:vendor:pembayaran:jurnal:' . $payment->id,
+            'tanggal' => $payment->tanggal_bayar->toDateString(),
+            'nomor_bukti' => $payment->sewa->kode_sewa,
+            'keterangan' => 'Pembayaran vendor untuk ' . $payment->sewa->kode_sewa,
+            'referensi_tipe' => PembayaranVendorSewa::class,
+            'referensi_id' => $payment->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($this->akunResolver->posting($posting), 'debit', $payment->jumlah),
+            $this->akunResolver->line($payment->dompet->akun, 'kredit', $payment->jumlah),
+        ]);
+    }
+
+    public function recordVendorRentalRefund(PembayaranVendorSewa $payment, ReversalTransaksi $reversal, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()->where('idempotency_key', 'sewa:vendor:pengembalian:jurnal:' . $payment->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $payment->loadMissing(['sewa', 'dompet.akun']);
+        $this->assertCashAccount($payment->dompet->akun, 'pengembalian dana vendor');
+        $posting = $payment->sewa instanceof SewaMobil ? 'sewa_mobil.utang_vendor' : 'sewa_hardware.utang_vendor';
+
+        return $this->record([
+            'idempotency_key' => 'sewa:vendor:pengembalian:jurnal:' . $payment->id,
+            'tanggal' => optional($payment->dikembalikan_pada)->toDateString() ?? now()->toDateString(),
+            'nomor_bukti' => $reversal->kode_reversal,
+            'keterangan' => 'Pengembalian dana vendor untuk ' . $payment->sewa->kode_sewa,
+            'referensi_tipe' => ReversalTransaksi::class,
+            'referensi_id' => $reversal->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($payment->dompet->akun, 'debit', $payment->jumlah),
+            $this->akunResolver->line($this->akunResolver->posting($posting), 'kredit', $payment->jumlah),
+        ]);
+    }
+
+    public function recordInvoiceB2bRefund(PengembalianInvoicePenagihan $refund, ?int $userId = null): JurnalUmum
+    {
+        $existing = JurnalUmum::query()->where('idempotency_key', 'invoice-b2b:pengembalian:jurnal:' . $refund->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $refund->loadMissing(['detail.referensi', 'detail.invoice', 'dompet.akun']);
+        $this->assertCashAccount($refund->dompet->akun, 'pengembalian dana perusahaan');
+        $reference = $refund->detail->referensi;
+        $total = max(1.0, (float) $refund->detail->nominal);
+        $ratio = min(1, (float) $refund->jumlah / $total);
+        $vendor = $reference instanceof SewaMobil ? (float) $reference->total_harga_vendor : (float) $reference->total_harga_vendor;
+        $margin = $reference instanceof SewaMobil ? (float) $reference->total_markup : (float) $reference->total_margin;
+        $vendorRefund = round($vendor * $ratio, 2);
+        $marginRefund = round((float) $refund->jumlah - $vendorRefund, 2);
+        $prefix = $reference instanceof SewaMobil ? 'sewa_mobil' : 'sewa_hardware';
+
+        return $this->record([
+            'idempotency_key' => 'invoice-b2b:pengembalian:jurnal:' . $refund->id,
+            'tanggal' => $refund->tanggal_pengembalian->toDateString(),
+            'nomor_bukti' => $refund->detail->invoice->nomor_invoice,
+            'keterangan' => 'Pengembalian dana perusahaan atas ' . $reference->kode_sewa,
+            'referensi_tipe' => PengembalianInvoicePenagihan::class,
+            'referensi_id' => $refund->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($this->akunResolver->posting($prefix . '.utang_vendor'), 'debit', $vendorRefund),
+            $this->akunResolver->line($this->akunResolver->posting($prefix . '.pendapatan_diterima_dimuka_margin'), 'debit', $marginRefund),
+            $this->akunResolver->line($refund->dompet->akun, 'kredit', $refund->jumlah),
+        ]);
+    }
+
+    private function assertCashAccount(?Akun $akun, string $context): void
+    {
+        if (! $akun || ! $akun->is_aktif || $akun->kategori !== 'aset' || $akun->posisi_saldo !== 'debit') {
+            throw new RuntimeException('Akun Dompet untuk ' . $context . ' harus aktif, kategori Aset, dan saldo normal Debit.');
+        }
+    }
+
+    public function recordShuApproval(ShuKoperasi $shu, ?int $userId = null): ?JurnalUmum
+    {
+        $existing=JurnalUmum::query()->where('idempotency_key','shu:persetujuan:jurnal:'.$shu->id)->first();if($existing)return $existing;
+        if((float)$shu->shu_total<=0)return null;
+        $personal=(float)$shu->nominal_shu_anggota+(float)$shu->nominal_pengurus+(float)$shu->nominal_pengawas+(float)$shu->nominal_pembina;
+        $lines=[$this->akunResolver->line($this->akunResolver->posting('shu.belum_dibagi'),'debit',$shu->shu_total)];
+        foreach([['shu.dana_cadangan',$shu->nominal_dana_cadangan],['shu.utang_penerima',$personal],['shu.dana_sosial',$shu->nominal_dana_sosial],['shu.dana_pendidikan',$shu->nominal_dana_pendidikan]] as [$posting,$amount])if((float)$amount>0)$lines[]=$this->akunResolver->line($this->akunResolver->posting($posting),'kredit',$amount);
+        return $this->record(['idempotency_key'=>'shu:persetujuan:jurnal:'.$shu->id,'tanggal'=>$shu->approved_at->toDateString(),'nomor_bukti'=>'SHU-'.$shu->id,'keterangan'=>'Persetujuan pembagian '.$shu->judul,'referensi_tipe'=>ShuKoperasi::class,'referensi_id'=>$shu->id,'created_by'=>$userId??auth()->id()],$lines);
+    }
+
+    public function recordShuPayment(PembayaranShu $payment, ?int $userId = null): JurnalUmum
+    {
+        $existing=JurnalUmum::query()->where('idempotency_key','shu:pembayaran:jurnal:'.$payment->id)->first();if($existing)return $existing;$payment->loadMissing(['penerima','dompet.akun']);$this->assertCashAccount($payment->dompet->akun,'pembayaran SHU');
+        return $this->record(['idempotency_key'=>'shu:pembayaran:jurnal:'.$payment->id,'tanggal'=>$payment->tanggal_bayar->toDateString(),'nomor_bukti'=>'BYR-SHU-'.$payment->id,'keterangan'=>'Pembayaran SHU '.$payment->penerima->nama_snapshot,'referensi_tipe'=>PembayaranShu::class,'referensi_id'=>$payment->id,'created_by'=>$userId??auth()->id()],[
+            $this->akunResolver->line($this->akunResolver->posting('shu.utang_penerima'),'debit',$payment->jumlah),$this->akunResolver->line($payment->dompet->akun,'kredit',$payment->jumlah),
+        ]);
+    }
+
+    public function recordSocialDonation(DanaSosialSumber $source, ?int $userId = null): JurnalUmum
+    {
+        $existing=JurnalUmum::query()->where('idempotency_key','dana-sosial:donasi:jurnal:'.$source->id)->first();if($existing)return $existing;$source->loadMissing('dompet.akun');$this->assertCashAccount($source->dompet->akun,'donasi resmi');
+        return $this->record(['idempotency_key'=>'dana-sosial:donasi:jurnal:'.$source->id,'tanggal'=>$source->tanggal->toDateString(),'nomor_bukti'=>$source->kode_sumber,'keterangan'=>'Donasi resmi Dana Sosial','referensi_tipe'=>DanaSosialSumber::class,'referensi_id'=>$source->id,'created_by'=>$userId??auth()->id()],[
+            $this->akunResolver->line($source->dompet->akun,'debit',$source->jumlah),$this->akunResolver->line($this->akunResolver->posting('shu.dana_sosial'),'kredit',$source->jumlah),
+        ]);
+    }
+
+    public function recordSocialClaim(KlaimDanaSosial $claim, ?int $userId = null): JurnalUmum
+    {
+        $existing=JurnalUmum::query()->where('idempotency_key','dana-sosial:klaim:jurnal:'.$claim->id)->first();if($existing)return $existing;$claim->loadMissing('dompet.akun');$this->assertCashAccount($claim->dompet->akun,'pembayaran klaim Dana Sosial');
+        return $this->record(['idempotency_key'=>'dana-sosial:klaim:jurnal:'.$claim->id,'tanggal'=>$claim->tanggal_bayar->toDateString(),'nomor_bukti'=>$claim->kode_klaim,'keterangan'=>'Pembayaran klaim Dana Sosial '.$claim->penerima_manfaat,'referensi_tipe'=>KlaimDanaSosial::class,'referensi_id'=>$claim->id,'created_by'=>$userId??auth()->id()],[
+            $this->akunResolver->line($this->akunResolver->posting('shu.dana_sosial'),'debit',$claim->nominal_diajukan),$this->akunResolver->line($claim->dompet->akun,'kredit',$claim->nominal_diajukan),
+        ]);
     }
 
     public function recordCorrection(PeriodeAkuntansi $closedPeriod, array $header, array $lines, string $reason): JurnalUmum
