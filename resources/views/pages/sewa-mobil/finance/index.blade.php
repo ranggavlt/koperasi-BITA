@@ -118,6 +118,7 @@
         </thead>
         <tbody>
           @forelse($sewaMobil as $item)
+            @php $action = $eligibility[$item->id]; @endphp
             <tr>
               <td class="kbsm-business-code">{{ $item->kode_sewa ?: 'Draft' }}</td>
               <td>
@@ -152,7 +153,9 @@
               </td>
               <td>
                 <span class="{{ $badge($item->status) }}">{{ $item->status_label }}</span>
-                <div class="kbsm-business-muted">Pembayaran: {{ $paymentLabel($item->status_pembayaran) }}</div>
+                @if($action['is_overdue'])<span class="kbsm-status kbsm-status--gold">Lewat Jadwal</span>@endif
+                <div class="rental-payment-state"><span>Vendor</span>{{ $action['vendor_status_label'] }}</div>
+                <div class="rental-payment-state"><span>Perusahaan</span>{{ $action['company_status_label'] }}</div>
               </td>
               <td class="kbsm-business-muted">
                 {{ $item->nama_pengurus_snapshot ?: '-' }}<br>
@@ -173,11 +176,6 @@
                       <a href="{{ route('sewa-mobil.finance.edit', $item) }}" class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Edit Draft</a>
                       <form method="POST" action="{{ route('sewa-mobil.finance.submit', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Ajukan</button></form>
                     </div>
-                    <form method="POST" action="{{ route('sewa-mobil.finance.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Batalkan draft Sewa Mobil ini?')">
-                      @csrf
-                      <input name="alasan" required placeholder="Alasan pembatalan" class="kbsm-business-control">
-                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batalkan</button>
-                    </form>
                   @endif
 
                   @if($item->status === 'diajukan')
@@ -198,46 +196,39 @@
                     </form>
                   @endif
 
-                  @if($item->status === 'disetujui' && $item->status_pembayaran === 'belum_bayar')
-                    <form method="POST" action="{{ route('sewa-mobil.finance.pay', $item) }}" class="kbsm-business-inline-row">
-                      @csrf
-                      <select name="metode_penerimaan" required class="kbsm-business-control">
-                        <option value="tunai">Terima Tunai</option>
-                        <option value="transfer_bank">Terima Transfer Bank</option>
-                      </select>
-                      <select name="dompet_penerimaan_id" required class="kbsm-business-control">
-                        <option value="">Dompet penerimaan</option>
-                        @foreach($dompetOptions as $dompet)
-                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} ({{ $dompet->jenis_dompet }})</option>
-                        @endforeach
-                      </select>
-                      <select name="metode_pembayaran_vendor" required class="kbsm-business-control">
-                        <option value="tunai">Bayar Vendor Tunai</option>
-                        <option value="transfer_bank">Bayar Vendor Transfer Bank</option>
-                      </select>
-                      <select name="dompet_vendor_id" required class="kbsm-business-control">
-                        <option value="">Dompet vendor</option>
-                        @foreach($dompetOptions as $dompet)
-                          <option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} ({{ $dompet->jenis_dompet }})</option>
-                        @endforeach
-                      </select>
-                      <input type="number" name="jumlah_diterima" readonly value="{{ (int) $item->total_tagihan_perusahaan }}" class="kbsm-business-control">
-                      <input type="number" name="jumlah_bayar_vendor" readonly value="{{ (int) $item->total_harga_vendor }}" class="kbsm-business-control">
-                      <button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Lunas</button>
-                    </form>
+                  @if($action['needs_invoice_before_vendor'])
+                    <a href="{{ route('invoice-penagihan.create', ['perusahaan_id' => $item->karyawan->perusahaan_id]) }}" class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Buat Invoice</a>
                   @endif
 
-                  @if($item->status === 'disetujui' && $item->status_pembayaran === 'paid')
+                  @if($action['can_pay_vendor'])
+                    <details class="rental-action"><summary class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Bayar Vendor</summary><form method="POST" action="{{ route('sewa-mobil.vendor.pay',$item) }}">@csrf<input type="hidden" name="jumlah" value="{{ (int)$item->total_harga_vendor }}"><select name="metode" class="kbsm-business-control" required><option value="tunai">Tunai</option><option value="transfer_bank">Bank</option></select><select name="dompet_id" class="kbsm-business-control" required><option value="">Dompet sumber</option>@foreach($dompetOptions as $dompet)<option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }} ({{ $dompet->jenis_dompet }})</option>@endforeach</select><input type="date" name="tanggal_bayar" value="{{ today()->toDateString() }}" class="kbsm-business-control" required><input name="nomor_referensi" placeholder="Referensi (opsional)" class="kbsm-business-control"><button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Simpan Pembayaran Vendor</button></form></details>
+                  @endif
+
+                  @if($action['can_start'])
                     <form method="POST" action="{{ route('sewa-mobil.finance.start', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--amber kbsm-btn--sm">Mulai</button></form>
-                    <form method="POST" action="{{ route('sewa-mobil.finance.cancel', $item) }}" class="kbsm-business-inline-row" onsubmit="return confirm('Refund penuh Sewa Mobil paid sebelum berjalan?')">
-                      @csrf
-                      <input name="alasan" required placeholder="Alasan refund" class="kbsm-business-control">
-                      <button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Refund Penuh</button>
-                    </form>
                   @endif
 
-                  @if($item->status === 'berjalan')
-                    <form method="POST" action="{{ route('sewa-mobil.finance.complete', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Selesai</button></form>
+                  @if($action['can_cancel'])
+                    <details class="rental-action"><summary class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Batalkan Sewa</summary><form method="POST" action="{{ route('sewa-mobil.finance.cancel',$item) }}">@csrf<p>Belum ada pembayaran vendor. Pembatalan tidak mengubah transaksi kas.</p><textarea name="alasan" class="kbsm-business-control" placeholder="Alasan pembatalan" required></textarea><button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Konfirmasi Pembatalan</button></form></details>
+                  @endif
+                  @if($action['can_request_vendor_refund'])
+                    <details class="rental-action"><summary class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Proses Pengembalian Dana Vendor</summary><form method="POST" action="{{ route('sewa-mobil.vendor.refund-request',$item) }}">@csrf<p>Sewa belum berjalan. Sistem akan menunggu konfirmasi dana vendor benar-benar kembali.</p><textarea name="alasan" class="kbsm-business-control" required placeholder="Alasan pengembalian"></textarea><button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Minta Pengembalian</button></form></details>
+                  @endif
+                  @if($action['waiting_vendor_refund'])
+                    <span class="kbsm-status kbsm-status--gold">Menunggu Pengembalian Vendor</span>
+                    <details class="rental-action"><summary class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Konfirmasi Dana Kembali</summary><form method="POST" action="{{ route('sewa-mobil.vendor.refund-confirm',$item) }}">@csrf<input type="date" name="tanggal_pengembalian" value="{{ today()->toDateString() }}" class="kbsm-business-control" required><input name="nomor_referensi" class="kbsm-business-control" placeholder="Referensi (opsional)"><button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Dana Sudah Diterima</button></form></details>
+                  @endif
+                  @if($action['can_legacy_full_refund'])
+                    <details class="rental-action"><summary class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Proses Refund Transaksi Lama</summary><form method="POST" action="{{ route('sewa-mobil.finance.cancel',$item) }}">@csrf<p>Pembayaran lama mencatat arus vendor dan perusahaan sekaligus. Keduanya akan dibalik penuh.</p><textarea name="alasan" class="kbsm-business-control" required></textarea><button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Proses Refund Penuh</button></form></details>
+                  @endif
+                  @if($action['can_refund_company'])
+                    <details class="rental-action"><summary class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Kembalikan Dana Perusahaan</summary><form method="POST" action="{{ route('sewa-mobil.company.refund',$item) }}">@csrf<select name="metode" class="kbsm-business-control"><option value="tunai">Tunai</option><option value="transfer_bank">Bank</option></select><select name="dompet_id" class="kbsm-business-control" required><option value="">Dompet sumber</option>@foreach($dompetOptions as $dompet)<option value="{{ $dompet->id }}">{{ $dompet->nama_dompet }}</option>@endforeach</select><input type="date" name="tanggal_pengembalian" value="{{ today()->toDateString() }}" class="kbsm-business-control" required><input name="nomor_referensi" class="kbsm-business-control" placeholder="Referensi (opsional)"><textarea name="alasan" class="kbsm-business-control" required placeholder="Alasan pengembalian"></textarea><button class="kbsm-btn kbsm-btn--outline-red kbsm-btn--sm">Simpan Pengembalian</button></form></details>
+                  @endif
+                  @if($action['can_complete'])
+                    <form method="POST" action="{{ route('sewa-mobil.finance.complete', $item) }}">@csrf<button class="kbsm-btn kbsm-btn--green kbsm-btn--sm">Selesaikan Sewa</button></form>
+                  @endif
+                  @if($action['is_final'])
+                    <details class="rental-action rental-action--readonly"><summary class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Lihat Detail</summary><p>{{ $item->status_label }} pada {{ optional($item->completed_at ?? $item->cancelled_at ?? $item->refunded_at)->format('d/m/Y H:i') ?: '–' }}.</p></details>
                   @endif
                 </div>
               </td>

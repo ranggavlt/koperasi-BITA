@@ -12,13 +12,17 @@ use App\Models\Karyawan;
 use App\Models\PengurusKoperasi;
 use App\Models\SewaMobil;
 use App\Services\SewaMobilService;
+use App\Services\RentalEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class FinanceSewaMobilController extends Controller
 {
-    public function __construct(private readonly SewaMobilService $service)
+    public function __construct(
+        private readonly SewaMobilService $service,
+        private readonly RentalEligibilityService $eligibility,
+    )
     {
     }
 
@@ -54,6 +58,10 @@ class FinanceSewaMobilController extends Controller
                 'pembayaran.jurnal.details',
                 'jurnal.details',
                 'reversal',
+                'pembayaranVendorBaru.dompet.akun',
+                'invoiceDetail.invoice',
+                'invoiceDetail.allocations',
+                'invoiceDetail.pengembalian',
             ]);
 
         if (! empty($filters['karyawan_id'])) {
@@ -89,12 +97,16 @@ class FinanceSewaMobilController extends Controller
             ->orderBy('jabatan')
             ->get();
         $dompetOptions = DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get();
+        $eligibility = $sewaMobil->getCollection()->mapWithKeys(
+            fn (SewaMobil $item): array => [$item->id => $this->eligibility->mobil($item)]
+        );
 
         return view('pages.sewa-mobil.finance.index', compact(
             'sewaMobil',
             'karyawanOptions',
             'pengurusOptions',
-            'dompetOptions'
+            'dompetOptions',
+            'eligibility'
         ));
     }
 

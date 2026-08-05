@@ -34,6 +34,13 @@ return [
             'posisi_saldo' => 'debit',
             'keterangan' => 'Tagihan penjualan kepada anggota yang dibayar melalui potong gaji.',
         ],
+        'piutang_perusahaan' => [
+            'kode_akun' => '104',
+            'nama_akun' => 'Piutang Perusahaan',
+            'kategori' => 'aset',
+            'posisi_saldo' => 'debit',
+            'keterangan' => 'Tagihan B2B kepada perusahaan BEE, BBS, dan BKM yang belum diterima koperasi.',
+        ],
         'piutang_pinjaman' => [
             'kode_akun' => '105',
             'nama_akun' => 'Piutang Pinjaman Anggota',
@@ -110,6 +117,27 @@ return [
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Kewajiban kepada vendor eksternal atas biaya dasar sewa mobil vendor-based.',
+        ],
+        'dana_sosial' => [
+            'kode_akun' => '210',
+            'nama_akun' => 'Dana Sosial',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Dana sosial yang berasal dari alokasi SHU atau donasi resmi dan belum disalurkan.',
+        ],
+        'utang_shu_penerima' => [
+            'kode_akun' => '211',
+            'nama_akun' => 'Utang Pembayaran SHU',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Hak SHU personal yang sudah disetujui dan belum dibayarkan.',
+        ],
+        'dana_pendidikan' => [
+            'kode_akun' => '212',
+            'nama_akun' => 'Dana Pendidikan',
+            'kategori' => 'kewajiban',
+            'posisi_saldo' => 'kredit',
+            'keterangan' => 'Alokasi SHU untuk kegiatan pendidikan koperasi.',
         ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',
@@ -331,6 +359,16 @@ return [
             'pendapatan_diterima_dimuka' => 'pendapatan_diterima_dimuka_sewa_hardware',
             'pendapatan_dasar' => 'pendapatan_sewa_hardware_dasar',
             'pendapatan_margin' => 'pendapatan_margin_sewa_hardware',
+        ],
+        'invoice_b2b' => [
+            'piutang' => 'piutang_perusahaan',
+        ],
+        'shu' => [
+            'belum_dibagi' => 'shu_belum_dibagi',
+            'dana_cadangan' => 'dana_cadangan',
+            'dana_sosial' => 'dana_sosial',
+            'utang_penerima' => 'utang_shu_penerima',
+            'dana_pendidikan' => 'dana_pendidikan',
         ],
         'keanggotaan' => [
             'simpanan_pokok' => 'simpanan_pokok',

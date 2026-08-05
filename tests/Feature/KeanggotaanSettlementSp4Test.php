@@ -325,7 +325,7 @@ class KeanggotaanSettlementSp4Test extends TestCase
             'mutasi' => MutasiKas::query()->count(),
         ];
 
-        $this->actingAs($admin)->get(route('penyelesaian-keanggotaan.index'))->assertOk()->assertSee('Penyelesaian Keanggotaan');
+        $this->actingAs($admin)->get(route('penyelesaian-keanggotaan.index'))->assertOk()->assertSee('Penyelesaian Anggota Keluar');
         $this->actingAs($admin)->get(route('penyelesaian-keanggotaan.show', $penyelesaian))->assertOk()->assertSee('Hak Anggota');
         $this->actingAs($kasir)->get(route('penyelesaian-keanggotaan.index'))->assertForbidden();
         $this->actingAs($karyawanUser)->post(route('penyelesaian-keanggotaan.process-offset', $penyelesaian))->assertForbidden();

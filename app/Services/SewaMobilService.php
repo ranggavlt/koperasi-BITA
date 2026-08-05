@@ -18,7 +18,8 @@ use Illuminate\Validation\ValidationException;
 class SewaMobilService
 {
     public function __construct(
-        private readonly AkuntansiService $akuntansiService
+        private readonly AkuntansiService $akuntansiService,
+        private readonly RentalEligibilityService $eligibility,
     ) {
     }
 
@@ -307,16 +308,16 @@ class SewaMobilService
     {
         return DB::transaction(function () use ($sewaMobil, $financeUserId): SewaMobil {
             $locked = SewaMobil::query()
-                ->with(['karyawan', 'pembayaran'])
+                ->with(['karyawan', 'pembayaran', 'pembayaranVendorBaru', 'invoiceDetail.allocations', 'invoiceDetail.pengembalian'])
                 ->lockForUpdate()
                 ->findOrFail($sewaMobil->id);
 
             $this->assertStatus($locked, [SewaMobil::STATUS_DISETUJUI], 'Hanya sewa disetujui yang dapat dimulai.');
             $this->assertActiveKaryawan($locked->karyawan);
 
-            if ($locked->status_pembayaran !== SewaMobil::PEMBAYARAN_PAID || ! $locked->pembayaran) {
+            if (! $this->eligibility->mobil($locked)['can_start']) {
                 throw ValidationException::withMessages([
-                    'pembayaran' => 'Sewa wajib dibayar penuh sebelum kegiatan dimulai.',
+                    'pembayaran' => 'Sewa dapat dimulai setelah vendor dibayar dan tidak sedang menunggu pengembalian dana.',
                 ]);
             }
 

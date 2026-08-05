@@ -1,98 +1,63 @@
 @extends('layout.main')
 
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
-  @if (session('success'))
-    <div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('success') }}</div>
-  @endif
-  @if ($errors->any())
-    <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      <ul class="mb-0 list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-    </div>
-  @endif
+@php
+  $money = fn($value) => (float) $value > 0 ? 'Rp ' . number_format((float) $value, 0, ',', '.') : '–';
+@endphp
+<div class="kbsm-business-page invoice-page">
+  @if(session('success'))<div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>@endif
+  @if($errors->any())<div class="kbsm-business-alert kbsm-business-alert--danger"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <header class="kbsm-business-header">
     <div>
-      <p class="mb-1 text-xs font-bold uppercase tracking-widest text-blue-600">Keuangan B2B</p>
-      <h1 class="text-lg font-bold text-slate-700 m-0">Invoice Penagihan Sewa</h1>
-      <p class="mt-1 text-sm text-slate-400">Generate tagihan bulanan untuk perusahaan.</p>
+      <p class="kbsm-business-eyebrow">Usaha Koperasi</p>
+      <h1 class="kbsm-business-title">Invoice Perusahaan B2B</h1>
+      <p class="kbsm-business-subtitle">Pantau tagihan dan cicilan pembayaran perusahaan BEE, BBS, dan BKM.</p>
     </div>
-  </div>
+    <a href="{{ route('invoice-penagihan.create') }}" class="kbsm-business-add-button">+ Buat Invoice Perusahaan</a>
+  </header>
 
-  <section class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft-xl">
-    <h2 class="text-base font-bold text-slate-700 m-0">Generate Invoice Baru</h2>
-    <form method="POST" action="{{ route('invoice-penagihan.store') }}">
-      @csrf
-      <div class="grid gap-4 md:grid-cols-4 mt-4">
-        <div>
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Perusahaan</label>
-          <select name="perusahaan_id" required class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
-            <option value="">- Pilih Perusahaan -</option>
-            @foreach($perusahaan as $p)
-                <option value="{{ $p->id }}">{{ $p->nama }} ({{ $p->kode }})</option>
-            @endforeach
-          </select>
-        </div>
-        <div>
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Bulan</label>
-          <select name="bulan" required class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
-            @for($i=1; $i<=12; $i++)
-                <option value="{{ $i }}" {{ date('n') == $i ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $i, 1)) }}</option>
-            @endfor
-          </select>
-        </div>
-        <div>
-          <label class="mb-2 block text-xs font-bold uppercase text-slate-600">Tahun</label>
-          <input type="number" name="tahun" required value="{{ date('Y') }}" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
-        </div>
-        <div class="flex items-end">
-            <button type="submit" class="kbsm-btn kbsm-btn--navy w-full">Generate Invoice</button>
-        </div>
-      </div>
+  <section class="invoice-summary-grid" aria-label="Ringkasan perusahaan">
+    @foreach($summary as $item)
+      @php $progress = $item['total'] > 0 ? min(100, round($item['paid'] / $item['total'] * 100)) : 0; @endphp
+      <article class="invoice-company-card">
+        <div class="invoice-company-card__heading"><span>{{ $item['company']->kode }}</span><small>{{ $item['count'] }} invoice</small></div>
+        <p>{{ $item['company']->nama }}</p>
+        <dl class="invoice-company-stats">
+          <div><dt>Total tagihan</dt><dd>{{ $money($item['total']) }}</dd></div>
+          <div><dt>Sudah dibayar</dt><dd>{{ $money($item['paid']) }}</dd></div>
+          <div class="is-remaining"><dt>Sisa utang</dt><dd>{{ $money($item['remaining']) }}</dd></div>
+        </dl>
+        <div class="invoice-progress"><span style="width: {{ $progress }}%"></span></div>
+        <small>{{ $progress }}% pembayaran diterima</small>
+      </article>
+    @endforeach
+  </section>
+
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Filter Invoice</h2></div>
+    <form method="GET" class="kbsm-business-filter invoice-filter">
+      <div class="kbsm-business-field"><label class="kbsm-business-label">Cari Invoice</label><input class="kbsm-business-control" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Nomor invoice"></div>
+      <div class="kbsm-business-field"><label class="kbsm-business-label">Perusahaan</label><select class="kbsm-business-control" name="perusahaan_id"><option value="">Semua perusahaan</option>@foreach($companies as $company)<option value="{{ $company->id }}" @selected(($filters['perusahaan_id'] ?? null) == $company->id)>{{ $company->kode }} — {{ $company->nama }}</option>@endforeach</select></div>
+      <div class="kbsm-business-field"><label class="kbsm-business-label">Status</label><select class="kbsm-business-control" name="status"><option value="">Semua status</option><option value="unpaid" @selected(($filters['status'] ?? '')==='unpaid')>Belum Dibayar</option><option value="partial" @selected(($filters['status'] ?? '')==='partial')>Dibayar Sebagian</option><option value="paid" @selected(($filters['status'] ?? '')==='paid')>Lunas</option><option value="overdue" @selected(($filters['status'] ?? '')==='overdue')>Jatuh Tempo</option></select></div>
+      <div class="kbsm-business-filter__actions kbsm-business-filter__actions--split"><button class="kbsm-btn kbsm-btn--navy">Tampilkan</button><a href="{{ route('invoice-penagihan.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a></div>
     </form>
   </section>
 
-  <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-xl">
-    <div class="border-b border-slate-100 p-6">
-      <h2 class="text-base font-bold text-slate-700 m-0">Daftar Invoice</h2>
-    </div>
-
-    <div style="overflow-x: auto;" class="">
-      <table class="w-full min-w-[800px] text-left text-sm">
-        <thead class="bg-slate-50">
-          <tr>
-            <th class="px-6 py-4 font-bold text-slate-500">Nomor Invoice</th>
-            <th class="px-6 py-4 font-bold text-slate-500">Perusahaan</th>
-            <th class="px-6 py-4 font-bold text-slate-500">Tanggal</th>
-            <th class="px-6 py-4 font-bold text-slate-500">Total Tagihan</th>
-            <th class="px-6 py-4 font-bold text-slate-500">Status</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          @forelse($invoices as $invoice)
-            <tr class="hover:bg-slate-50">
-              <td class="px-6 py-4 font-bold text-blue-600">{{ $invoice->nomor_invoice }}</td>
-              <td class="px-6 py-4 font-semibold text-slate-700">{{ $invoice->perusahaan->nama }}</td>
-              <td class="px-6 py-4 text-slate-600">
-                <div>Dibuat: {{ \Carbon\Carbon::parse($invoice->tanggal_invoice)->format('d M Y') }}</div>
-                <div class="text-xs text-red-500">Jatuh Tempo: {{ \Carbon\Carbon::parse($invoice->jatuh_tempo)->format('d M Y') }}</div>
-              </td>
-              <td class="px-6 py-4 font-bold text-slate-700">Rp {{ number_format($invoice->total_tagihan, 0, ',', '.') }}</td>
-              <td class="px-6 py-4">
-                @if($invoice->status === 'paid')
-                  <span class="rounded-lg bg-green-100 px-2 py-1 text-xs font-bold text-green-700">LUNAS</span>
-                @else
-                  <span class="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700">BELUM DIBAYAR</span>
-                @endif
-              </td>
-            </tr>
-          @empty
-            <tr><td colspan="5" class="px-6 py-10 text-center text-slate-400">Belum ada invoice.</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
-    <div class="border-t border-slate-100 p-4">{{ $invoices->links() }}</div>
+  <section class="kbsm-business-panel">
+    <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Daftar Invoice</h2><p class="kbsm-business-panel__copy">Pembayaran dicatat dari halaman detail agar histori cicilan tetap jelas.</p></div>
+    <div class="kbsm-business-table-wrap"><table class="kbsm-business-table invoice-table">
+      <thead><tr><th>Invoice</th><th>Perusahaan</th><th>Tanggal & Jatuh Tempo</th><th class="kbsm-business-table__right">Total</th><th class="kbsm-business-table__right">Dibayar</th><th class="kbsm-business-table__right">Sisa</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>@forelse($invoices as $invoice)<tr>
+        <td><span class="kbsm-business-code">{{ $invoice->nomor_invoice }}</span></td>
+        <td>{{ $invoice->perusahaan->kode }}<div class="kbsm-business-muted">{{ $invoice->perusahaan->nama }}</div></td>
+        <td>{{ $invoice->tanggal_invoice->format('d/m/Y') }}<div class="kbsm-business-muted">Jatuh tempo {{ $invoice->jatuh_tempo->format('d/m/Y') }}</div></td>
+        <td class="kbsm-business-amount">{{ $money($invoice->total_tagihan) }}</td><td class="kbsm-business-amount">{{ $money($invoice->total_dibayar) }}</td><td class="kbsm-business-amount">{{ $money($invoice->sisa_tagihan) }}</td>
+        <td><span class="kbsm-status {{ $invoice->status_label === 'Lunas' ? 'kbsm-status--green' : ($invoice->status_label === 'Jatuh Tempo' ? 'kbsm-status--red' : 'kbsm-status--gold') }}">{{ $invoice->status_label }}</span></td>
+        <td><a class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm" href="{{ route('invoice-penagihan.show', $invoice) }}">{{ $invoice->status === 'paid' ? 'Lihat Detail' : 'Catat Pembayaran' }}</a></td>
+      </tr>@empty<tr><td colspan="8" class="kbsm-business-empty">Belum ada invoice. Buat invoice dari kontrak yang siap ditagihkan.</td></tr>@endforelse</tbody>
+    </table></div>
+    <div class="kbsm-business-pagination">{{ $invoices->links() }}</div>
   </section>
 </div>
 @endsection

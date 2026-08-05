@@ -2,209 +2,126 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PengurusKoperasi;
+use App\Models\DompetKoperasi;
+use App\Models\PeriodeAkuntansi;
 use App\Models\ShuKoperasi;
-use App\Models\ShuTransaksi;
-use App\Services\ShuKoperasiService;
+use App\Models\ShuPenerima;
+use App\Services\AnnualShuService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ShuKoperasiController extends Controller
 {
+    public function __construct(private readonly AnnualShuService $service) {}
+
     public function index()
     {
-        $data = ShuKoperasi::query()
-            ->withCount('transaksi')
-            ->latest()
-            ->paginate(10);
+        $availablePeriods = PeriodeAkuntansi::query()
+            ->where('status', PeriodeAkuntansi::STATUS_CLOSED)
+            ->whereDoesntHave('shu')
+            ->orderByDesc('tanggal_mulai')
+            ->get();
+        $processes = ShuKoperasi::query()
+            ->with('periode')
+            ->latest('tanggal_mulai')
+            ->paginate(15);
 
-        return view('pages.shu-koperasi.index', compact('data'));
+        return view('pages.shu-koperasi.index', compact('availablePeriods', 'processes'));
     }
 
-    public function store(Request $request, ShuKoperasiService $shuKoperasiService)
+    public function store(Request $request)
     {
-        $validated = $this->validateShuKoperasi($request);
+        $data = $request->validate(['periode_id' => 'required|exists:periode_akuntansi,id']);
+        $shu = $this->service->applyPeriod(
+            PeriodeAkuntansi::query()->findOrFail($data['periode_id']),
+            (int) $request->user()->id
+        );
 
-        $shuKoperasiService->create($validated);
-
-        return redirect()
-            ->route('shu-koperasi.index')
-            ->with('success', 'Periode SHU koperasi berhasil dibuat.');
+        return redirect()->route('shu-koperasi.show', $shu)
+            ->with('success', 'Periode diterapkan. Laba, konfigurasi, penerima, dan rancangan pembagian telah dimuat.');
     }
 
     public function show(ShuKoperasi $shuKoperasi)
     {
         $shuKoperasi->load([
-            'transaksi' => fn ($query) => $query->latest('tanggal')->latest('id'),
-            'anggotaPembagian' => fn ($query) => $query
-                ->with('karyawan')
-                ->orderByDesc('nominal_shu')
-                ->orderBy('karyawan_id'),
+            'periode', 'config', 'creator', 'calculator', 'submitter', 'approver',
+            'recipients' => fn ($query) => $query->with(['anggota.karyawan', 'pengurus', 'pembayaran.dompet', 'pembayaran.creator'])
+                ->orderBy('jenis_penerima')->orderByDesc('nominal_hak'),
+            'socialFund',
         ]);
 
-        $jumlahPengurus = PengurusKoperasi::query()->aktif()->count();
-        $estimasiPengurus = $jumlahPengurus > 0
-            ? round((float) $shuKoperasi->nominal_pengurus / $jumlahPengurus, 2)
-            : 0;
-
-        return view('pages.shu-koperasi.show', compact(
-            'shuKoperasi',
-            'jumlahPengurus',
-            'estimasiPengurus'
-        ));
-    }
-
-    public function update(Request $request, ShuKoperasi $shuKoperasi, ShuKoperasiService $shuKoperasiService)
-    {
-        $validated = $this->validateShuKoperasi($request);
-
-        $shuKoperasiService->update($shuKoperasi, $validated);
-
-        return redirect()
-            ->route('shu-koperasi.show', $shuKoperasi)
-            ->with('success', 'Konfigurasi SHU koperasi berhasil diperbarui.');
-    }
-
-    public function destroy(ShuKoperasi $shuKoperasi)
-    {
-        $shuKoperasi->delete();
-
-        return redirect()
-            ->route('shu-koperasi.index')
-            ->with('success', 'Periode SHU koperasi berhasil dihapus.');
-    }
-
-    public function refresh(ShuKoperasi $shuKoperasi, ShuKoperasiService $shuKoperasiService)
-    {
-        $shuKoperasiService->refresh($shuKoperasi);
-
-        return redirect()
-            ->route('shu-koperasi.show', $shuKoperasi)
-            ->with('success', 'Perhitungan SHU berhasil diperbarui dari data terbaru.');
-    }
-
-    public function storeTransaksi(Request $request, ShuKoperasi $shuKoperasi, ShuKoperasiService $shuKoperasiService)
-    {
-        $validated = $this->validateShuTransaksi($request, $shuKoperasi);
-
-        $shuKoperasiService->addTransaksi($shuKoperasi, $validated);
-
-        return redirect()
-            ->route('shu-koperasi.show', $shuKoperasi)
-            ->with('success', 'Transaksi SHU berhasil ditambahkan.');
-    }
-
-    public function destroyTransaksi(
-        ShuKoperasi $shuKoperasi,
-        ShuTransaksi $shuTransaksi,
-        ShuKoperasiService $shuKoperasiService
-    ) {
-        abort_unless($shuTransaksi->shu_koperasi_id === $shuKoperasi->id, 404);
-
-        $shuKoperasiService->deleteTransaksi($shuTransaksi);
-
-        return redirect()
-            ->route('shu-koperasi.show', $shuKoperasi)
-            ->with('success', 'Transaksi SHU berhasil dihapus.');
-    }
-
-    protected function validateShuKoperasi(Request $request): array
-    {
-        $validator = Validator::make($request->all(), [
-            'judul' => 'required|string|max:255',
-            'tanggal_mulai' => 'required|date',
-            'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-            'persen_dana_cadangan' => 'required|numeric|min:0|max:100',
-            'persen_shu_anggota' => 'required|numeric|min:0|max:100',
-            'persen_pengawas' => 'required|numeric|min:0|max:100',
-            'persen_pembina' => 'required|numeric|min:0|max:100',
-            'persen_pengurus' => 'required|numeric|min:0|max:100',
-            'persen_dana_sosial' => 'required|numeric|min:0|max:100',
-            'persen_dana_pendidikan' => 'required|numeric|min:0|max:100',
-            'persen_jasa_modal' => 'required|numeric|min:0|max:100',
-            'persen_jasa_usaha' => 'required|numeric|min:0|max:100',
-            'keterangan' => 'nullable|string',
+        return view('pages.shu-koperasi.show', [
+            'shu' => $shuKoperasi,
+            'wallets' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
+            'alternativePeriods' => PeriodeAkuntansi::query()
+                ->where('status', PeriodeAkuntansi::STATUS_CLOSED)
+                ->where(fn ($query) => $query->whereDoesntHave('shu')->orWhere('id', $shuKoperasi->periode_akuntansi_id))
+                ->orderByDesc('tanggal_mulai')
+                ->get(),
         ]);
-
-        $validator->after(function ($validator) use ($request) {
-            $totalPembagian = round(
-                (float) $request->input('persen_dana_cadangan', 0)
-                + (float) $request->input('persen_shu_anggota', 0)
-                + (float) $request->input('persen_pengawas', 0)
-                + (float) $request->input('persen_pembina', 0)
-                + (float) $request->input('persen_pengurus', 0)
-                + (float) $request->input('persen_dana_sosial', 0)
-                + (float) $request->input('persen_dana_pendidikan', 0),
-                2
-            );
-
-            if (abs($totalPembagian - 100) > 0.01) {
-                $validator->errors()->add('persen_dana_cadangan', 'Total persentase pembagian SHU harus tepat 100%.');
-            }
-
-            $totalJasaAnggota = round(
-                (float) $request->input('persen_jasa_modal', 0)
-                + (float) $request->input('persen_jasa_usaha', 0),
-                2
-            );
-
-            if (abs($totalJasaAnggota - 100) > 0.01) {
-                $validator->errors()->add('persen_jasa_modal', 'Total persentase Jasa Modal dan Jasa Usaha harus tepat 100%.');
-            }
-        });
-
-        return $validator->validate();
     }
 
-    protected function validateShuTransaksi(Request $request, ShuKoperasi $shuKoperasi): array
+    public function changePeriod(Request $request, ShuKoperasi $shuKoperasi)
     {
-        $validator = Validator::make($request->all(), [
-            'jenis' => 'required|in:pendapatan,biaya',
-            'tanggal' => 'required|date',
-            'jumlah' => 'required|numeric|min:0.01',
-            'keterangan' => 'nullable|string',
-        ]);
+        $data = $request->validate(['periode_id' => 'required|exists:periode_akuntansi,id']);
+        $this->service->changePeriod(
+            $shuKoperasi,
+            PeriodeAkuntansi::query()->findOrFail($data['periode_id']),
+            (int) $request->user()->id
+        );
 
-        $validator->after(function ($validator) use ($request, $shuKoperasi) {
-            $tanggal = $request->input('tanggal');
-
-            if (! $tanggal) {
-                return;
-            }
-
-            if ($tanggal < $shuKoperasi->tanggal_mulai->toDateString() || $tanggal > $shuKoperasi->tanggal_selesai->toDateString()) {
-                $validator->errors()->add('tanggal', 'Tanggal transaksi SHU harus berada di dalam periode SHU yang dipilih.');
-            }
-        });
-
-        return $validator->validate();
+        return back()->with('success', 'Periode diganti dan seluruh preview pembagian sudah dihitung ulang.');
     }
 
-    public function cairkan(\Illuminate\Http\Request $request, \App\Models\ShuAnggota $shuAnggota)
+    public function calculate(ShuKoperasi $shuKoperasi)
     {
-        $request->validate([
-            'metode' => 'required|in:tunai,transfer',
+        $this->service->calculate($shuKoperasi, (int) auth()->id());
+
+        return back()->with('success', 'Rancangan pembagian berhasil diterapkan ulang dari data periode.');
+    }
+
+    public function weights(Request $request, ShuKoperasi $shuKoperasi)
+    {
+        $data = $request->validate([
+            'bobot' => ['required', 'array'],
+            'bobot.*' => ['required', 'numeric', 'gt:0', 'max:99999'],
         ]);
+        $this->service->applyWeights($shuKoperasi, $data['bobot'], (int) $request->user()->id);
 
-        $shuAnggota->update([
-            'is_dicairkan' => true,
-            'metode_pencairan' => $request->metode,
-            'tanggal_pencairan' => now(),
+        return back()->with('success', 'Bobot RAT diterapkan dan preview nominal setiap penerima sudah diperbarui.');
+    }
+
+    public function resetWeights(ShuKoperasi $shuKoperasi)
+    {
+        $this->service->resetWeights($shuKoperasi, (int) auth()->id());
+
+        return back()->with('success', 'Semua bobot jabatan dikembalikan ke 1 dan pool dibagi sama rata.');
+    }
+
+    public function submit(ShuKoperasi $shuKoperasi)
+    {
+        $this->service->submit($shuKoperasi, (int) auth()->id());
+
+        return back()->with('success', 'SHU diajukan untuk persetujuan Admin lain.');
+    }
+
+    public function approve(ShuKoperasi $shuKoperasi)
+    {
+        $this->service->approve($shuKoperasi, (int) auth()->id());
+
+        return back()->with('success', 'SHU disetujui dan nominal historis dikunci.');
+    }
+
+    public function pay(Request $request, ShuPenerima $penerima)
+    {
+        $data = $request->validate([
+            'metode' => ['required', Rule::in(['tunai', 'transfer_bank'])],
+            'dompet_id' => 'required|exists:dompet_koperasi,id',
+            'tanggal_bayar' => 'required|date',
+            'nomor_referensi' => 'nullable|string|max:120',
         ]);
+        $this->service->pay($penerima, $data, (int) $request->user()->id);
 
-        // Jurnal untuk pencairan SHU
-        $akunKas = \App\Models\AkunAkuntansi::where('kode', config('account_map.kas'))->first();
-        if ($akunKas) {
-            $this->akuntansiService->createJurnal(
-                $shuAnggota->shu_koperasi_id,
-                'App\Models\ShuKoperasi',
-                "Pencairan SHU {$shuAnggota->karyawan->nama} ({$request->metode})",
-                [
-                    ['akun_id' => $akunKas->id, 'debit' => 0, 'kredit' => $shuAnggota->nominal_shu], // Kas Keluar
-                ]
-            );
-        }
-
-        return back()->with('success', "SHU Anggota {$shuAnggota->karyawan->nama} berhasil dicairkan.");
+        return back()->with('success', 'Pembayaran SHU penerima berhasil dicatat.');
     }
 }

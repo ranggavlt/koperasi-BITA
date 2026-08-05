@@ -38,7 +38,7 @@
 
   <div class="kbsm-business-header kbsm-business-form-header">
     <div>
-      <p class="kbsm-business-eyebrow">Penyelesaian Keanggotaan</p>
+      <p class="kbsm-business-eyebrow">Anggota Keluar</p>
       <h1 class="kbsm-business-title">{{ $penyelesaian->kode_penyelesaian }}</h1>
       <p class="kbsm-business-subtitle">{{ $penyelesaian->anggota?->nomor_anggota }} - {{ $penyelesaian->anggota?->karyawan?->nama }} &bull; Siklus #{{ $penyelesaian->siklus?->siklus_ke }}</p>
     </div>
@@ -85,7 +85,7 @@
       @elseif($penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED && $penyelesaian->status !== \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED)
         <div class="kbsm-business-readonly kbsm-business-field--full">
           <strong>Batalkan Penonaktifan tidak tersedia.</strong>
-          <div class="kbsm-business-muted">{{ implode(' ', $cancelEligibility['reasons'] ?: ['Settlement tidak memenuhi syarat pembatalan penonaktifan.']) }}</div>
+          <div class="kbsm-business-muted">{{ implode(' ', $cancelEligibility['reasons'] ?: ['Proses keluar belum memenuhi syarat untuk dibatalkan.']) }}</div>
         </div>
       @endif
 
@@ -137,14 +137,14 @@
       @elseif($penyelesaian->status === \App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED)
         <div class="kbsm-business-readonly kbsm-business-field--full">
           <strong>Daftarkan Kembali tidak tersedia.</strong>
-          <div class="kbsm-business-muted">{{ implode(' ', $reRegisterEligibility['reasons'] ?: ['Settlement belum memenuhi syarat pendaftaran kembali.']) }}</div>
+          <div class="kbsm-business-muted">{{ implode(' ', $reRegisterEligibility['reasons'] ?: ['Proses anggota keluar belum memenuhi syarat pendaftaran kembali.']) }}</div>
         </div>
       @endif
 
       @if(!in_array($penyelesaian->status, [\App\Models\PenyelesaianKeanggotaan::STATUS_COMPLETED, \App\Models\PenyelesaianKeanggotaan::STATUS_DEACTIVATION_CANCELLED], true))
         <form method="POST" action="{{ route('penyelesaian-keanggotaan.refresh', $penyelesaian) }}">
           @csrf
-          <button class="kbsm-btn kbsm-btn--outline-slate">Refresh Snapshot</button>
+          <button class="kbsm-btn kbsm-btn--outline-slate">Perbarui Perhitungan</button>
         </form>
       @endif
       @if(in_array($penyelesaian->status, [\App\Models\PenyelesaianKeanggotaan::STATUS_PENDING_REVIEW, \App\Models\PenyelesaianKeanggotaan::STATUS_WAITING_SETTLEMENT], true) && $rupiahInt($penyelesaian->total_offset) <= 0)

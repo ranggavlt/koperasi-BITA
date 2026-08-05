@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\JenisSimpanan;
 use App\Models\PembayaranSewaMobil;
 use App\Models\PembayaranSewaHardware;
+use App\Models\PeriodeAkuntansi;
 use App\Models\ReversalTransaksi;
 use App\Models\SewaMobil;
 use App\Models\SewaHardware;
@@ -1829,6 +1830,7 @@ class PreflightPotongGajiCommand extends Command
             SewaHardware::class,
             ReversalTransaksi::class,
             Simpanan::class,
+            PeriodeAkuntansi::class,
         ];
     }
 

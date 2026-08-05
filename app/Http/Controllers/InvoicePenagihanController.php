@@ -2,94 +2,130 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
+use App\Models\DompetKoperasi;
 use App\Models\InvoicePenagihan;
-use App\Models\InvoicePenagihanDetail;
 use App\Models\Perusahaan;
+use App\Models\SewaHardware;
 use App\Models\SewaMobil;
-
-use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use App\Services\InvoicePenagihanService;
+use App\Services\RentalEligibilityService;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class InvoicePenagihanController extends Controller
 {
-    public function index()
+    public function __construct(
+        private readonly InvoicePenagihanService $service,
+        private readonly RentalEligibilityService $eligibility,
+    ) {
+    }
+
+    public function index(Request $request)
     {
-        $invoices = InvoicePenagihan::with('perusahaan')->latest()->paginate(10);
-        $perusahaan = Perusahaan::all();
-        
-        return view('pages.invoice-penagihan.index', compact('invoices', 'perusahaan'));
+        $filters = $request->validate([
+            'perusahaan_id' => ['nullable', 'integer', 'exists:perusahaan,id'],
+            'status' => ['nullable', Rule::in(['unpaid', 'partial', 'paid', 'overdue'])],
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $query = InvoicePenagihan::query()->with('perusahaan')->latest('tanggal_invoice')->latest('id');
+        $query->when($filters['perusahaan_id'] ?? null, fn ($q, $id) => $q->where('perusahaan_id', $id));
+        $query->when($filters['search'] ?? null, fn ($q, $search) => $q->where('nomor_invoice', 'like', '%' . trim($search) . '%'));
+        $query->when($filters['status'] ?? null, function ($q, $status): void {
+            if ($status === 'overdue') {
+                $q->where('status', '!=', InvoicePenagihan::STATUS_PAID)->whereDate('jatuh_tempo', '<', today());
+            } else {
+                $q->where('status', $status);
+            }
+        });
+
+        $companies = Perusahaan::query()->orderBy('kode')->get();
+        $summary = $companies->map(function (Perusahaan $company): array {
+            $base = InvoicePenagihan::query()->where('perusahaan_id', $company->id);
+            return [
+                'company' => $company,
+                'count' => (clone $base)->count(),
+                'total' => (float) (clone $base)->sum('total_tagihan'),
+                'paid' => (float) (clone $base)->sum('total_dibayar'),
+                'remaining' => (float) (clone $base)->sum('sisa_tagihan'),
+            ];
+        });
+
+        return view('pages.invoice-penagihan.index', [
+            'invoices' => $query->paginate(15)->withQueryString(),
+            'companies' => $companies,
+            'summary' => $summary,
+            'filters' => $filters,
+        ]);
+    }
+
+    public function create(Request $request)
+    {
+        $companyId = $request->integer('perusahaan_id') ?: null;
+        $companies = Perusahaan::query()->orderBy('kode')->get();
+        $mobil = collect();
+        $hardware = collect();
+
+        if ($companyId) {
+            $mobil = SewaMobil::query()
+                ->with(['karyawan', 'invoiceDetail', 'pembayaran', 'pembayaranVendorBaru'])
+                ->whereHas('karyawan', fn ($q) => $q->where('perusahaan_id', $companyId))
+                ->whereIn('status', [SewaMobil::STATUS_DISETUJUI, SewaMobil::STATUS_BERJALAN, SewaMobil::STATUS_SELESAI])
+                ->whereDoesntHave('invoiceDetail')->orderBy('tanggal_mulai')->get()
+                ->filter(fn (SewaMobil $item) => $this->eligibility->mobil($item)['can_invoice']);
+            $hardware = SewaHardware::query()
+                ->with(['karyawan', 'invoiceDetail', 'pembayaran', 'pembayaranVendorBaru'])
+                ->whereHas('karyawan', fn ($q) => $q->where('perusahaan_id', $companyId))
+                ->whereIn('status', [SewaHardware::STATUS_DIKONFIRMASI, SewaHardware::STATUS_BERJALAN, SewaHardware::STATUS_SELESAI])
+                ->whereDoesntHave('invoiceDetail')->orderBy('mulai_tanggal')->get()
+                ->filter(fn (SewaHardware $item) => $this->eligibility->hardware($item)['can_invoice']);
+        }
+
+        return view('pages.invoice-penagihan.create', compact('companies', 'companyId', 'mobil', 'hardware'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'perusahaan_id' => 'required|exists:perusahaan,id',
-            'bulan' => 'required|integer|min:1|max:12',
-            'tahun' => 'required|integer|min:2020',
+        $validated = $request->validate([
+            'perusahaan_id' => ['required', 'integer', 'exists:perusahaan,id'],
+            'tanggal_invoice' => ['required', 'date'],
+            'jatuh_tempo' => ['required', 'date', 'after_or_equal:tanggal_invoice'],
+            'sewa_mobil_ids' => ['nullable', 'array'],
+            'sewa_mobil_ids.*' => ['integer', 'distinct', 'exists:sewa_mobil,id'],
+            'sewa_hardware_ids' => ['nullable', 'array'],
+            'sewa_hardware_ids.*' => ['integer', 'distinct', 'exists:sewa_hardware,id'],
         ]);
 
-        $perusahaan = Perusahaan::findOrFail($request->perusahaan_id);
-        
-        // Find sewa mobil that finished in this month
-        $sewaMobil = SewaMobil::whereHas('karyawan', function($q) use ($perusahaan) {
-                $q->where('perusahaan_id', $perusahaan->id);
-            })
-            ->whereIn('status', [SewaMobil::STATUS_DISETUJUI, SewaMobil::STATUS_BERJALAN, SewaMobil::STATUS_SELESAI])
-            ->whereMonth('created_at', $request->bulan)
-            ->whereYear('created_at', $request->tahun)
-            ->get();
-            
-        // Find sewa hardware that finished in this month
-        $sewaHardware = \App\Models\SewaHardware::whereHas('karyawan', function($q) use ($perusahaan) {
-                $q->where('perusahaan_id', $perusahaan->id);
-            })
-            ->whereIn('status', [\App\Models\SewaHardware::STATUS_DIKONFIRMASI, \App\Models\SewaHardware::STATUS_BERJALAN, \App\Models\SewaHardware::STATUS_SELESAI])
-            ->whereMonth('created_at', $request->bulan)
-            ->whereYear('created_at', $request->tahun)
-            ->get();
+        $invoice = $this->service->create($validated, (int) $request->user()->id);
 
-        if ($sewaMobil->isEmpty() && $sewaHardware->isEmpty()) {
-            return back()->withErrors(['message' => 'Tidak ada transaksi sewa untuk perusahaan ini pada periode tersebut.']);
-        }
+        return redirect()->route('invoice-penagihan.show', $invoice)
+            ->with('success', 'Invoice perusahaan berhasil dibuat.');
+    }
 
-        DB::transaction(function() use ($perusahaan, $sewaMobil, $sewaHardware, $request) {
-            $nomor = 'INV-' . $perusahaan->kode . '-' . $request->tahun . str_pad($request->bulan, 2, '0', STR_PAD_LEFT) . '-' . rand(100,999);
-            
-            $totalSewaMobil = $sewaMobil->sum('total_sewa');
-            $totalSewaHardware = $sewaHardware->sum('total_tagihan_perusahaan');
-            
-            $invoice = InvoicePenagihan::create([
-                'nomor_invoice' => $nomor,
-                'perusahaan_id' => $perusahaan->id,
-                'tanggal_invoice' => Carbon::now(),
-                'jatuh_tempo' => Carbon::now()->addDays(14),
-                'total_tagihan' => $totalSewaMobil + $totalSewaHardware,
-                'status' => 'unpaid',
-            ]);
+    public function show(InvoicePenagihan $invoicePenagihan)
+    {
+        $invoicePenagihan->load([
+            'perusahaan', 'creator', 'detail.referensi', 'detail.allocations',
+            'detail.pengembalian', 'pembayaran.dompet', 'pembayaran.creator',
+        ]);
 
-            foreach ($sewaMobil as $sewa) {
-                InvoicePenagihanDetail::create([
-                    'invoice_penagihan_id' => $invoice->id,
-                    'deskripsi' => 'Sewa Mobil ' . ($sewa->aset->kode_aset ?? '') . ' (' . $sewa->jumlah_hari . ' hari)',
-                    'nominal' => $sewa->total_sewa,
-                    'referensi_type' => SewaMobil::class,
-                    'referensi_id' => $sewa->id,
-                ]);
-            }
-            
-            foreach ($sewaHardware as $sewa) {
-                InvoicePenagihanDetail::create([
-                    'invoice_penagihan_id' => $invoice->id,
-                    'deskripsi' => 'Sewa Hardware (' . $sewa->kode_sewa . ')',
-                    'nominal' => $sewa->total_tagihan_perusahaan,
-                    'referensi_type' => \App\Models\SewaHardware::class,
-                    'referensi_id' => $sewa->id,
-                ]);
-            }
-        });
+        return view('pages.invoice-penagihan.show', [
+            'invoice' => $invoicePenagihan,
+            'wallets' => DompetKoperasi::query()->with('akun')->orderBy('nama_dompet')->get(),
+        ]);
+    }
 
-        return back()->with('success', 'Invoice penagihan berhasil digenerate.');
+    public function storePayment(Request $request, InvoicePenagihan $invoicePenagihan)
+    {
+        $validated = $request->validate([
+            'jumlah' => ['required', 'integer', 'min:1'],
+            'metode' => ['required', Rule::in(['tunai', 'transfer_bank'])],
+            'dompet_id' => ['required', 'integer', 'exists:dompet_koperasi,id'],
+            'tanggal_bayar' => ['required', 'date'],
+            'nomor_referensi' => ['nullable', 'string', 'max:120'],
+        ]);
+        $this->service->recordPayment($invoicePenagihan, $validated, (int) $request->user()->id);
+
+        return back()->with('success', 'Pembayaran invoice berhasil dicatat.');
     }
 }

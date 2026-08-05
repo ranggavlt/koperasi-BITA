@@ -212,7 +212,7 @@ class MutasiKasBankReportTest extends TestCase
                 'Jurnal Umum Periodik',
                 'Buku Besar',
                 'Keanggotaan & Koreksi',
-                'Penyelesaian Keanggotaan',
+                'Penyelesaian Anggota Keluar',
                 'Riwayat Koreksi Transaksi',
             ], false)
             ->assertDontSee('Mobil Koperasi')

@@ -19,7 +19,7 @@ class AkunTest extends TestCase
         $this->actingAs($user)
             ->get(route('akun.index'))
             ->assertOk()
-            ->assertSee('Chart of Accounts')
+            ->assertSee('Daftar Akun / COA')
             ->assertSee('101')
             ->assertSee('Kas');
     }
@@ -46,12 +46,12 @@ class AkunTest extends TestCase
         ]);
     }
 
-    public function test_coa_tidak_menyediakan_route_edit_dan_hapus(): void
+    public function test_coa_menyediakan_edit_tanpa_hard_delete(): void
     {
         $this->assertTrue(Route::has('akun.index'));
         $this->assertTrue(Route::has('akun.store'));
-        $this->assertFalse(Route::has('akun.edit'));
-        $this->assertFalse(Route::has('akun.update'));
+        $this->assertTrue(Route::has('akun.edit'));
+        $this->assertTrue(Route::has('akun.update'));
         $this->assertFalse(Route::has('akun.destroy'));
     }
 

@@ -1,44 +1,5 @@
-﻿@extends('layout.main')
-
+@extends('layout.main')
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
-  <div class="mb-6 rounded-2xl bg-white p-6 shadow-soft-xl">
-    <h6 class="text-slate-700">Audit Trail Reversal & Koreksi</h6>
-    <p class="text-sm text-slate-400">Transaksi asli tetap immutable; koreksi dicatat sebagai reversal penuh yang traceable.</p>
-  </div>
-
-  <div class="rounded-2xl bg-white shadow-soft-xl">
-    <div style="overflow-x: auto;" class="p-0">
-      <table class="mb-0 w-full text-sm text-slate-600">
-        <thead>
-          <tr class="text-left text-xxs uppercase text-slate-400">
-            <th class="px-6 py-3">Kode</th>
-            <th class="px-6 py-3">Jenis</th>
-            <th class="px-6 py-3">Sumber</th>
-            <th class="px-6 py-3">Nominal</th>
-            <th class="px-6 py-3">Status</th>
-            <th class="px-6 py-3">Alasan</th>
-            <th class="px-6 py-3">Diproses</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($reversals as $reversal)
-            <tr>
-              <td class="border-b px-6 py-3 font-semibold">{{ $reversal->kode_reversal }}</td>
-              <td class="border-b px-6 py-3">{{ $reversal->jenis_reversal }}</td>
-              <td class="border-b px-6 py-3">{{ class_basename($reversal->source_type) }} #{{ $reversal->source_id }}</td>
-              <td class="border-b px-6 py-3">Rp {{ number_format($reversal->nominal, 0, ',', '.') }}</td>
-              <td class="border-b px-6 py-3">{{ $reversal->status }}</td>
-              <td class="border-b px-6 py-3">{{ $reversal->alasan }}</td>
-              <td class="border-b px-6 py-3">{{ optional($reversal->processed_at)->format('d/m/Y H:i') }}</td>
-            </tr>
-          @empty
-            <tr><td colspan="7" class="p-6 text-center text-slate-400">Belum ada reversal.</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
-    <div class="p-4">{{ $reversals->links() }}</div>
-  </div>
-</div>
+@php $money=fn($v)=>(float)$v>0?'Rp '.number_format((float)$v,0,',','.'):'–'; @endphp
+<div class="kbsm-business-page"><header class="kbsm-business-header"><div><p class="kbsm-business-eyebrow">Keanggotaan & Koreksi</p><h1 class="kbsm-business-title">Riwayat Koreksi Transaksi</h1><p class="kbsm-business-subtitle">Histori koreksi yang diproses dari modul asal. Transaksi final tetap tersimpan sebagai audit.</p></div></header><section class="kbsm-business-panel"><form method="GET" class="correction-filter"><div class="kbsm-business-field"><label class="kbsm-business-label">Cari</label><input class="kbsm-business-control" name="search" value="{{ $filters['search']??'' }}" placeholder="Kode atau alasan"></div><div class="kbsm-business-field"><label class="kbsm-business-label">Status</label><select class="kbsm-business-control" name="status"><option value="">Semua status</option><option value="processed" @selected(($filters['status']??'')==='processed')>Selesai Diproses</option><option value="cancelled" @selected(($filters['status']??'')==='cancelled')>Dibatalkan</option></select></div><div class="kbsm-business-filter__actions"><button class="kbsm-btn kbsm-btn--navy">Tampilkan</button><a href="{{ route('reversal-transaksi.index') }}" class="kbsm-btn kbsm-btn--outline-slate">Reset</a></div></form></section><section class="kbsm-business-panel"><div class="kbsm-business-table-wrap"><table class="kbsm-business-table"><thead><tr><th>Kode</th><th>Jenis Koreksi</th><th>Transaksi Asli</th><th class="kbsm-business-table__right">Nominal</th><th>Alasan</th><th>Status</th><th>Diproses</th><th>Aksi</th></tr></thead><tbody>@forelse($reversals as $reversal)<tr><td class="kbsm-business-code">{{ $reversal->kode_reversal }}</td><td>{{ $reversal->jenis_label }}</td><td>{{ $reversal->source_label }}<div class="kbsm-business-muted">Referensi #{{ $reversal->source_id }}</div></td><td class="kbsm-business-amount">{{ $money($reversal->nominal) }}</td><td>{{ $reversal->alasan }}</td><td><span class="kbsm-status {{ $reversal->status==='processed'?'kbsm-status--green':'kbsm-status--slate' }}">{{ $reversal->status_label }}</span></td><td>{{ $reversal->processed_at?->format('d/m/Y H:i')??'–' }}<div class="kbsm-business-muted">{{ $reversal->processor->name??'Sistem' }}</div></td><td><a href="{{ route('reversal-transaksi.show',$reversal) }}" class="kbsm-btn kbsm-btn--outline-slate kbsm-btn--sm">Detail</a></td></tr>@empty<tr><td colspan="8" class="kbsm-business-empty">Belum ada koreksi transaksi.</td></tr>@endforelse</tbody></table></div><div class="kbsm-business-pagination">{{ $reversals->links() }}</div></section></div>
 @endsection

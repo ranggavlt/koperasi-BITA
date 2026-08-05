@@ -12,13 +12,17 @@ use App\Models\Karyawan;
 use App\Models\SewaHardware;
 use App\Models\SewaHardwareDetail;
 use App\Services\SewaHardwareService;
+use App\Services\RentalEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class FinanceSewaHardwareController extends Controller
 {
-    public function __construct(private readonly SewaHardwareService $service)
+    public function __construct(
+        private readonly SewaHardwareService $service,
+        private readonly RentalEligibilityService $eligibility,
+    )
     {
     }
 
@@ -69,6 +73,10 @@ class FinanceSewaHardwareController extends Controller
 
         $sewaHardware = $query->latest()->paginate(10)->withQueryString();
 
+        $eligibility = $sewaHardware->getCollection()->mapWithKeys(
+            fn (SewaHardware $item): array => [$item->id => $this->eligibility->hardware($item)]
+        );
+
         return view('pages.sewa-hardware.index', [
             'sewaHardware' => $sewaHardware,
             'karyawanOptions' => Karyawan::query()->aktif()->orderBy('nama')->get(),
@@ -76,6 +84,7 @@ class FinanceSewaHardwareController extends Controller
             'statuses' => SewaHardware::statusLabels(),
             'paymentStatuses' => SewaHardware::paymentStatuses(),
             'jenisHardwareOptions' => SewaHardwareDetail::jenisOptions(),
+            'eligibility' => $eligibility,
         ]);
     }
 

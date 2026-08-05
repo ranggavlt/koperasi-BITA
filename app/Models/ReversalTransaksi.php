@@ -105,4 +105,43 @@ class ReversalTransaksi extends Model
     {
         return $this->hasOne(KreditPotongGajiAnggota::class, 'reversal_transaksi_id');
     }
+
+    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
+    public function processor() { return $this->belongsTo(User::class, 'processed_by'); }
+
+    public function getJenisLabelAttribute(): string
+    {
+        return match ($this->jenis_reversal) {
+            self::JENIS_SIMPANAN_WAJIB_EXIT_CANCEL => 'Pembatalan Simpanan Wajib karena Anggota Keluar',
+            self::JENIS_BEBAN_OPERASIONAL_REVERSAL => 'Koreksi Beban Operasional',
+            self::JENIS_CICILAN_PAYROLL_REVERSAL => 'Koreksi Cicilan Potong Gaji',
+            self::JENIS_CICILAN_CASH_REVERSAL => 'Koreksi Cicilan Tunai',
+            self::JENIS_POS_NON_PAYROLL_REFUND => 'Refund Penjualan Tunai',
+            self::JENIS_POS_PAYROLL_CANCEL => 'Pembatalan Penjualan Potong Gaji',
+            self::JENIS_POS_PAYROLL_REFUND_CREDIT, self::JENIS_POS_PAYROLL_REFUND_CASH => 'Refund Penjualan Potong Gaji',
+            self::JENIS_SIMPANAN_MANASUKA_CORRECTION => 'Koreksi Simpanan Manasuka',
+            self::JENIS_SIMPANAN_POKOK_CORRECTION => 'Koreksi Simpanan Pokok',
+            self::JENIS_SIMPANAN_POKOK_EXIT_CANCEL => 'Pembatalan Simpanan Pokok karena Anggota Keluar',
+            self::JENIS_SEWA_MOBIL_REFUND => 'Refund Sewa Mobil',
+            self::JENIS_SEWA_HARDWARE_REFUND => 'Refund Sewa Hardware',
+            'pengembalian_dana_vendor_sewa' => 'Pengembalian Dana Vendor Sewa',
+            default => 'Koreksi Transaksi',
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return $this->status === self::STATUS_PROCESSED ? 'Selesai Diproses' : 'Dibatalkan';
+    }
+
+    public function getSourceLabelAttribute(): string
+    {
+        return match ($this->source_type) {
+            Penjualan::class => 'Penjualan', Simpanan::class => 'Simpanan',
+            CicilanPinjaman::class => 'Cicilan Pinjaman', BebanOperasional::class => 'Beban Operasional',
+            SewaMobil::class => 'Sewa Mobil', SewaHardware::class => 'Sewa Hardware',
+            PembayaranVendorSewa::class => 'Pembayaran Vendor Sewa',
+            default => 'Transaksi',
+        };
+    }
 }

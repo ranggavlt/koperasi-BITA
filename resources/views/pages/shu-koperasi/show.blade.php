@@ -1,507 +1,162 @@
 @extends('layout.main')
 
 @section('content')
-<div class="w-full px-6 py-6 mx-auto">
+@php
+    $money = fn ($value, $dash = true) => $dash && (float) $value === 0.0 ? '–' : 'Rp ' . number_format((float) $value, 0, ',', '.');
+    $mainAlloc = [
+        'Dana Cadangan' => ['persen_dana_cadangan', $shu->nominal_dana_cadangan],
+        'SHU Anggota' => ['persen_shu_anggota', $shu->nominal_shu_anggota],
+        'Pengurus' => ['persen_pengurus', $shu->nominal_pengurus],
+        'Pengawas' => ['persen_pengawas', $shu->nominal_pengawas],
+        'Pembina' => ['persen_pembina', $shu->nominal_pembina],
+        'Dana Sosial' => ['persen_dana_sosial', $shu->nominal_dana_sosial],
+        'Dana Pendidikan' => ['persen_dana_pendidikan', $shu->nominal_dana_pendidikan],
+    ];
+    $recipients = $shu->recipients->groupBy('jenis_penerima');
+    $editable = in_array($shu->status, ['draft', 'calculated'], true);
+    $typeLabels = ['anggota' => 'Anggota', 'pengurus' => 'Pengurus', 'pengawas' => 'Pengawas', 'pembina' => 'Pembina'];
+@endphp
+<div class="kbsm-business-page">
+    @if(session('success'))<div class="kbsm-business-alert kbsm-business-alert--success">{{ session('success') }}</div>@endif
+    @if($errors->any())<div class="kbsm-business-alert kbsm-business-alert--danger">{{ $errors->first() }}</div>@endif
 
-  @if (session('success'))
-    <div class="mb-4 rounded-lg bg-green-100 px-4 py-3 text-sm text-green-700">
-      {{ session('success') }}
+    <header class="kbsm-business-header">
+        <div>
+            <a href="{{ route('shu-koperasi.index') }}" class="kbsm-business-back">← Pembagian SHU Tahunan</a>
+            <p class="kbsm-business-eyebrow">{{ $shu->periode?->kode }}</p>
+            <h1 class="kbsm-business-title">{{ $shu->periode?->nama ?? $shu->judul }}</h1>
+            <p class="kbsm-business-subtitle">{{ $shu->tanggal_mulai->translatedFormat('j F Y') }} – {{ $shu->tanggal_selesai->translatedFormat('j F Y') }} · Pengaturan v{{ $shu->config_snapshot['versi'] ?? $shu->config?->versi }}</p>
+        </div>
+        <span class="kbsm-status {{ $shu->status === 'completed' ? 'kbsm-status--green' : 'kbsm-status--gold' }}">{{ $shu->status_label }}</span>
+    </header>
+
+    @if(str_contains((string) ($shu->config_snapshot['dasar_keputusan'] ?? ''), 'Data demonstrasi'))
+        <div class="kbsm-business-alert kbsm-business-alert--warning">Pengaturan yang dipakai merupakan data contoh presentasi dan dapat diganti dengan versi baru sesuai keputusan RAT resmi.</div>
+    @endif
+
+    <div class="kbsm-business-metrics shu-summary-metrics">
+        <article><span>Pendapatan</span><strong>{{ $money($shu->total_pendapatan) }}</strong></article>
+        <article><span>Beban</span><strong>{{ $money($shu->total_biaya) }}</strong></article>
+        <article><span>Laba Bersih</span><strong>{{ $money($shu->shu_total) }}</strong></article>
+        <article><span>Sudah Dibayar</span><strong>{{ $money($shu->total_dibayar) }}</strong></article>
+        <article><span>Belum Dibayar</span><strong>{{ $money($shu->total_belum_dibayar) }}</strong></article>
     </div>
-  @endif
 
-  @if ($errors->any())
-    <div class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
-      <ul class="mb-0 list-disc pl-5">
-        @foreach ($errors->all() as $error)
-          <li>{{ $error }}</li>
+    <section class="kbsm-business-panel">
+        <div class="kbsm-business-panel__header">
+            <h2 class="kbsm-business-panel__title">Tahap Proses</h2>
+            <p class="kbsm-business-panel__copy">Terapkan hanya memperbarui rancangan. Approval mengunci periode, konfigurasi, penerima, jabatan, bobot, basis, dan nominal.</p>
+        </div>
+        <div class="kbsm-business-actions">
+            @if($editable)
+                <form method="POST" action="{{ route('shu-koperasi.period', $shu) }}" class="shu-period-change">@csrf<select name="periode_id" aria-label="Ganti periode SHU" required>@foreach($alternativePeriods as $period)<option value="{{ $period->id }}" {{ $period->id === $shu->periode_akuntansi_id ? 'selected' : '' }}>{{ $period->nama }} · {{ $period->tanggal_mulai->format('d/m/Y') }} – {{ $period->tanggal_selesai->format('d/m/Y') }}</option>@endforeach</select><button class="kbsm-btn kbsm-btn--outline-slate">Ganti & Terapkan Periode</button></form>
+                <form method="POST" action="{{ route('shu-koperasi.calculate', $shu) }}">@csrf<button class="kbsm-btn kbsm-btn--outline-slate">Terapkan Ulang Data Periode</button></form>
+                <form method="POST" action="{{ route('shu-koperasi.weights.reset', $shu) }}">@csrf<button class="kbsm-btn kbsm-btn--outline-slate">Kembalikan ke Bobot Sama Rata</button></form>
+            @endif
+            @if($shu->status === 'calculated')
+                <form method="POST" action="{{ route('shu-koperasi.submit', $shu) }}" onsubmit="return confirm('Ajukan rancangan ini untuk disetujui Admin lain?')">@csrf<button class="kbsm-btn kbsm-btn--navy">Ajukan Persetujuan</button></form>
+            @endif
+            @if($shu->status === 'submitted')
+                <form method="POST" action="{{ route('shu-koperasi.approve', $shu) }}" onsubmit="return confirm('Setujui dan kunci pembagian SHU ini?')">@csrf<button class="kbsm-btn kbsm-btn--navy">Setujui & Kunci Pembagian</button></form>
+            @endif
+            @if(in_array($shu->status, ['ready_to_pay', 'completed']))
+                <span class="kbsm-business-muted">Disetujui {{ $shu->approved_at?->format('d/m/Y H:i') }} oleh {{ $shu->approver?->name ?? 'Admin' }}</span>
+            @endif
+        </div>
+    </section>
+
+    <section class="kbsm-business-panel">
+        <div class="kbsm-business-panel__header">
+            <h2 class="kbsm-business-panel__title">Alokasi Berdasarkan Pengaturan</h2>
+            <p class="kbsm-business-panel__copy">{{ $shu->config_snapshot['dasar_keputusan'] ?? $shu->config?->dasar_keputusan }}</p>
+        </div>
+        <div class="kbsm-business-table-wrap">
+            <table class="kbsm-business-table">
+                <thead><tr><th>Kategori</th><th class="kbsm-business-table__right">Persentase</th><th class="kbsm-business-table__right">Nominal</th></tr></thead>
+                <tbody>@foreach($mainAlloc as $label => [$field, $amount])<tr><td>{{ $label }}</td><td class="kbsm-business-amount">{{ number_format((float) $shu->{$field}, 2, ',', '.') }}%</td><td class="kbsm-business-amount">{{ $money($amount) }}</td></tr>@endforeach</tbody>
+            </table>
+        </div>
+    </section>
+
+    <nav class="shu-tabs" aria-label="Bagian detail SHU">
+        @foreach(['anggota' => 'Anggota', 'pengurus' => 'Pengurus', 'pengawas' => 'Pengawas', 'pembina' => 'Pembina', 'nonpersonal' => 'Dana Non-Personal', 'approval' => 'Riwayat Approval', 'pembayaran' => 'Pembayaran'] as $key => $label)
+            <button type="button" class="shu-tab {{ $loop->first ? 'is-active' : '' }}" data-shu-tab="{{ $key }}">{{ $label }}</button>
         @endforeach
-      </ul>
-    </div>
-  @endif
+    </nav>
 
-  <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-    <div>
-      <a href="{{ route('shu-koperasi.index') }}" class="text-sm font-semibold text-slate-500 hover:text-slate-700">
-        Kembali ke daftar SHU
-      </a>
-      <h2 class="mt-2 text-xl font-bold text-slate-700">{{ $shuKoperasi->judul }}</h2>
-      <p class="text-sm text-slate-400">
-        Periode {{ $shuKoperasi->tanggal_mulai->format('d/m/Y') }} - {{ $shuKoperasi->tanggal_selesai->format('d/m/Y') }}
-      </p>
-      <p class="text-xs text-slate-400">
-        Snapshot terakhir:
-        {{ $shuKoperasi->dihitung_pada ? $shuKoperasi->dihitung_pada->format('d/m/Y H:i') : 'Belum dihitung' }}
-      </p>
-    </div>
+    <section class="kbsm-business-panel shu-tab-panel" data-shu-panel="anggota">
+        <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Pembagian Anggota</h2><p class="kbsm-business-panel__copy">Jasa Modal {{ $shu->persen_jasa_modal }}% berdasarkan Simpanan; Jasa Usaha {{ $shu->persen_jasa_usaha }}% berdasarkan pembelian Waserba.</p></div>
+        <div class="kbsm-business-toolbar"><input class="shu-table-search" data-target="shu-member-table" type="search" placeholder="Cari nama anggota…"></div>
+        <div class="kbsm-business-table-wrap"><table class="kbsm-business-table" id="shu-member-table"><thead><tr><th>Anggota</th><th class="kbsm-business-table__right">Basis Simpanan</th><th class="kbsm-business-table__right">Basis Waserba</th><th class="kbsm-business-table__right">Jasa Modal</th><th class="kbsm-business-table__right">Jasa Usaha</th><th class="kbsm-business-table__right">Total SHU</th><th>Status</th></tr></thead><tbody>
+            @forelse($recipients->get('anggota', collect()) as $recipient)
+                <tr><td>{{ $recipient->nama_snapshot }}<div class="kbsm-business-muted">{{ $recipient->anggota?->nomor_anggota ?? '–' }}</div></td><td class="kbsm-business-amount">{{ $money($recipient->basis_jasa_modal) }}</td><td class="kbsm-business-amount">{{ $money($recipient->basis_jasa_usaha) }}</td><td class="kbsm-business-amount">{{ $money($recipient->nominal_jasa_modal) }}</td><td class="kbsm-business-amount">{{ $money($recipient->nominal_jasa_usaha) }}</td><td class="kbsm-business-amount">{{ $money($recipient->nominal_hak) }}</td><td><span class="kbsm-status {{ $recipient->status_pembayaran === 'dibayar' ? 'kbsm-status--green' : 'kbsm-status--gold' }}">{{ $recipient->status_label }}</span></td></tr>
+            @empty<tr><td colspan="7" class="kbsm-business-empty">Tidak ada Anggota dengan basis Simpanan atau pembelian Waserba pada periode ini.</td></tr>@endforelse
+        </tbody></table></div>
+    </section>
 
-    <form action="{{ route('shu-koperasi.refresh', $shuKoperasi) }}" method="POST">
-      @csrf
-      <button type="submit"
-        class="inline-block rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 px-5 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-        Hitung Ulang
-      </button>
-    </form>
-  </div>
+    @foreach(['pengurus' => 'Pengurus', 'pengawas' => 'Pengawas', 'pembina' => 'Pembina'] as $group => $label)
+        <section class="kbsm-business-panel shu-tab-panel" data-shu-panel="{{ $group }}" hidden>
+            <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Pembagian {{ $label }}</h2><p class="kbsm-business-panel__copy">Nominal = bobot penerima ÷ total bobot kelompok × pool {{ $label }}. Bobot awal setiap orang adalah 1.</p></div>
+            <form method="POST" action="{{ route('shu-koperasi.weights', $shu) }}">@csrf
+                <div class="kbsm-business-table-wrap"><table class="kbsm-business-table"><thead><tr><th>Nama</th><th>Jabatan</th><th class="kbsm-business-table__right">Bobot RAT</th><th>Dasar Hitung</th><th class="kbsm-business-table__right">Nominal</th><th>Status</th></tr></thead><tbody>
+                    @forelse($recipients->get($group, collect()) as $recipient)
+                        <tr><td>{{ $recipient->nama_snapshot }}</td><td>{{ $recipient->jabatan_snapshot }}</td><td class="kbsm-business-amount">@if($editable)<input class="shu-weight-input" type="number" name="bobot[{{ $recipient->id }}]" value="{{ rtrim(rtrim(number_format((float) $recipient->bobot, 3, '.', ''), '0'), '.') }}" min="0.001" max="99999" step="0.001" required>@else{{ number_format((float) $recipient->bobot, 3, ',', '.') }}@endif</td><td class="kbsm-business-muted">{{ number_format((float) $recipient->bobot, 3, ',', '.') }} dari {{ number_format((float) data_get($recipient->formula_snapshot, 'total_bobot_kelompok', 0), 3, ',', '.') }}</td><td class="kbsm-business-amount">{{ $money($recipient->nominal_hak) }}</td><td><span class="kbsm-status {{ $recipient->status_pembayaran === 'dibayar' ? 'kbsm-status--green' : 'kbsm-status--gold' }}">{{ $recipient->status_label }}</span></td></tr>
+                    @empty<tr><td colspan="6" class="kbsm-business-empty">Belum ada penerima aktif untuk kelompok {{ $label }}.</td></tr>@endforelse
+                </tbody></table></div>
+                @if($editable && $recipients->get($group, collect())->isNotEmpty())<div class="kbsm-business-actions"><button class="kbsm-btn kbsm-btn--navy">Terapkan Bobot {{ $label }}</button><span class="kbsm-business-muted">Terapkan hanya menyimpan rancangan dan memperbarui preview nominal; belum menyetujui atau membayar.</span></div>@endif
+            </form>
+        </section>
+    @endforeach
 
-  <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-    <div class="rounded-2xl bg-white p-5 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Total Pendapatan</p>
-      <h4 class="mt-2 text-lg font-bold text-green-600">Rp {{ number_format((float) $shuKoperasi->total_pendapatan, 0, ',', '.') }}</h4>
-    </div>
+    <section class="kbsm-business-panel shu-tab-panel" data-shu-panel="nonpersonal" hidden>
+        <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Dana Non-Personal</h2><p class="kbsm-business-panel__copy">Alokasi berikut tidak dibayarkan sebagai hak pribadi penerima.</p></div>
+        <div class="shu-recipient-groups"><article><span>Dana Cadangan</span><strong>{{ $money($shu->nominal_dana_cadangan) }}</strong><small>Penguatan modal koperasi</small></article><article><span>Dana Sosial</span><strong>{{ $money($shu->nominal_dana_sosial) }}</strong><small>{{ $shu->socialFund ? 'Sumber Dana Sosial sudah tercatat' : 'Dibentuk satu kali saat approval' }}</small></article><article><span>Dana Pendidikan</span><strong>{{ $money($shu->nominal_dana_pendidikan) }}</strong><small>Program pendidikan koperasi</small></article></div>
+    </section>
 
-    <div class="rounded-2xl bg-white p-5 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Total Biaya</p>
-      <h4 class="mt-2 text-lg font-bold text-rose-500">Rp {{ number_format((float) $shuKoperasi->total_biaya, 0, ',', '.') }}</h4>
-    </div>
+    <section class="kbsm-business-panel shu-tab-panel" data-shu-panel="approval" hidden>
+        <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Riwayat Approval</h2><p class="kbsm-business-panel__copy">Pemisahan tugas dapat ditelusuri dari pembuat sampai penyetuju.</p></div>
+        <div class="kbsm-business-table-wrap"><table class="kbsm-business-table"><thead><tr><th>Tahap</th><th>Diproses Oleh</th><th>Waktu</th><th>Hasil</th></tr></thead><tbody>
+            <tr><td>Periode diterapkan</td><td>{{ $shu->creator?->name ?? '–' }}</td><td>{{ $shu->created_at?->format('d/m/Y H:i') ?? '–' }}</td><td>Rancangan dibuat</td></tr>
+            <tr><td>Pembagian diterapkan</td><td>{{ $shu->calculator?->name ?? '–' }}</td><td>{{ $shu->dihitung_pada?->format('d/m/Y H:i') ?? '–' }}</td><td>{{ $shu->calculated_by ? 'Preview tersimpan' : 'Belum diproses' }}</td></tr>
+            <tr><td>Diajukan</td><td>{{ $shu->submitter?->name ?? '–' }}</td><td>{{ $shu->submitted_at?->format('d/m/Y H:i') ?? '–' }}</td><td>{{ $shu->submitted_by ? 'Menunggu/selesai diperiksa' : 'Belum diajukan' }}</td></tr>
+            <tr><td>Disetujui</td><td>{{ $shu->approver?->name ?? '–' }}</td><td>{{ $shu->approved_at?->format('d/m/Y H:i') ?? '–' }}</td><td>{{ $shu->approved_by ? 'Nominal dikunci' : 'Belum disetujui' }}</td></tr>
+        </tbody></table></div>
+    </section>
 
-    <div class="rounded-2xl bg-white p-5 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">SHU Total</p>
-      <h4 class="mt-2 text-lg font-bold {{ (float) $shuKoperasi->shu_total >= 0 ? 'text-slate-700' : 'text-red-600' }}">
-        Rp {{ number_format((float) $shuKoperasi->shu_total, 0, ',', '.') }}
-      </h4>
-      <p class="mt-1 text-xs text-slate-400">
-        @if ((float) $shuKoperasi->shu_total < 0)
-          SHU negatif tidak dibagikan ke pos pembagian.
-        @else
-          SHU positif siap dibagi sesuai persentase.
-        @endif
-      </p>
-    </div>
-
-    <div class="rounded-2xl bg-white p-5 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">SHU Anggota</p>
-      <h4 class="mt-2 text-lg font-bold text-slate-700">Rp {{ number_format((float) $shuKoperasi->nominal_shu_anggota, 0, ',', '.') }}</h4>
-      <p class="mt-1 text-xs text-slate-400">
-        Jasa Modal {{ number_format((float) $shuKoperasi->persen_jasa_modal, 2, ',', '.') }}% |
-        Jasa Usaha {{ number_format((float) $shuKoperasi->persen_jasa_usaha, 2, ',', '.') }}%
-      </p>
-    </div>
-  </div>
-
-  <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-    <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Dana Cadangan</p>
-      <h5 class="mt-2 font-bold text-slate-700">Rp {{ number_format((float) $shuKoperasi->nominal_dana_cadangan, 0, ',', '.') }}</h5>
-      <p class="text-xs text-slate-400">{{ number_format((float) $shuKoperasi->persen_dana_cadangan, 2, ',', '.') }}%</p>
-    </div>
-
-    <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Pengurus</p>
-      <h5 class="mt-2 font-bold text-slate-700">Rp {{ number_format((float) $shuKoperasi->nominal_pengurus, 0, ',', '.') }}</h5>
-      <p class="text-xs text-slate-400">
-        {{ number_format((float) $shuKoperasi->persen_pengurus, 2, ',', '.') }}%
-        @if ($jumlahPengurus > 0)
-          | estimasi merata Rp {{ number_format($estimasiPengurus, 0, ',', '.') }}/pengurus
-        @endif
-      </p>
-    </div>
-
-    <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Dana Sosial</p>
-      <h5 class="mt-2 font-bold text-slate-700">Rp {{ number_format((float) $shuKoperasi->nominal_dana_sosial, 0, ',', '.') }}</h5>
-      <p class="text-xs text-slate-400">{{ number_format((float) $shuKoperasi->persen_dana_sosial, 2, ',', '.') }}%</p>
-    </div>
-
-    <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Dana Pendidikan</p>
-      <h5 class="mt-2 font-bold text-slate-700">Rp {{ number_format((float) $shuKoperasi->nominal_dana_pendidikan, 0, ',', '.') }}</h5>
-      <p class="text-xs text-slate-400">{{ number_format((float) $shuKoperasi->persen_dana_pendidikan, 2, ',', '.') }}%</p>
-    </div>
-
-    <div class="rounded-2xl bg-white p-4 shadow-soft-xl">
-      <p class="text-xs font-bold uppercase text-slate-400">Basis Anggota</p>
-      <h5 class="mt-2 font-bold text-slate-700">
-        Modal Rp {{ number_format((float) $shuKoperasi->total_bobot_modal, 0, ',', '.') }}
-      </h5>
-      <p class="text-xs text-slate-400">
-        Usaha Rp {{ number_format((float) $shuKoperasi->total_bobot_usaha, 0, ',', '.') }}
-      </p>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-    <div class="relative flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">
-      <div class="mb-0 flex items-center justify-between rounded-t-2xl bg-white p-6 pb-0">
-        <div>
-          <h6>Konfigurasi Periode SHU</h6>
-          <p class="text-sm text-slate-400">Update judul, periode, dan komposisi pembagian SHU.</p>
-        </div>
-
-        <button type="button" onclick="toggleSection('shu-config-form', 'btn-toggle-shu-config')"
-          id="btn-toggle-shu-config"
-          class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-          {{ $errors->any() ? 'Tutup Form' : 'Ubah Data' }}
-        </button>
-      </div>
-
-      <div id="shu-config-form" class="flex-auto p-6 transition-all duration-300 {{ $errors->any() ? 'block' : 'hidden' }}">
-        <form action="{{ route('shu-koperasi.update', $shuKoperasi) }}" method="POST">
-          @csrf
-          @method('PUT')
-
-          <div class="flex flex-wrap -mx-3">
-            <div class="w-full max-w-full px-3 md:w-6/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Judul SHU</label>
-              <input type="text" name="judul" value="{{ old('judul', $shuKoperasi->judul) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:mt-0 md:w-3/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tanggal Mulai</label>
-              <input type="date" name="tanggal_mulai" value="{{ old('tanggal_mulai', $shuKoperasi->tanggal_mulai->format('Y-m-d')) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:mt-0 md:w-3/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tanggal Selesai</label>
-              <input type="date" name="tanggal_selesai" value="{{ old('tanggal_selesai', $shuKoperasi->tanggal_selesai->format('Y-m-d')) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dana Cadangan (%)</label>
-              <input type="number" name="persen_dana_cadangan" min="0" max="100" step="0.01" value="{{ old('persen_dana_cadangan', $shuKoperasi->persen_dana_cadangan) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">SHU Anggota (%)</label>
-              <input type="number" name="persen_shu_anggota" min="0" max="100" step="0.01" value="{{ old('persen_shu_anggota', $shuKoperasi->persen_shu_anggota) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-3/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pengurus (%)</label>
-              <input type="number" name="persen_pengurus" min="0" max="100" step="0.01" value="{{ old('persen_pengurus', $shuKoperasi->persen_pengurus) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-3/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pengawas (%)</label>
-              <input type="number" name="persen_pengawas" min="0" max="100" step="0.01" value="{{ old('persen_pengawas', $shuKoperasi->persen_pengawas) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-3/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Pembina (%)</label>
-              <input type="number" name="persen_pembina" min="0" max="100" step="0.01" value="{{ old('persen_pembina', $shuKoperasi->persen_pembina) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dana Sosial (%)</label>
-              <input type="number" name="persen_dana_sosial" min="0" max="100" step="0.01" value="{{ old('persen_dana_sosial', $shuKoperasi->persen_dana_sosial) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Dana Pendidikan (%)</label>
-              <input type="number" name="persen_dana_pendidikan" min="0" max="100" step="0.01" value="{{ old('persen_dana_pendidikan', $shuKoperasi->persen_dana_pendidikan) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-6/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jasa Modal dari SHU Anggota (%)</label>
-              <input type="number" name="persen_jasa_modal" min="0" max="100" step="0.01" value="{{ old('persen_jasa_modal', $shuKoperasi->persen_jasa_modal) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:w-6/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jasa Usaha dari SHU Anggota (%)</label>
-              <input type="number" name="persen_jasa_usaha" min="0" max="100" step="0.01" value="{{ old('persen_jasa_usaha', $shuKoperasi->persen_jasa_usaha) }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Keterangan</label>
-              <textarea name="keterangan" rows="3"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">{{ old('keterangan', $shuKoperasi->keterangan) }}</textarea>
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <button type="submit"
-              class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-              Simpan Konfigurasi
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div class="relative flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">
-      <div class="mb-0 flex items-center justify-between rounded-t-2xl bg-white p-6 pb-0">
-        <div>
-          <h6>Tambah Transaksi SHU</h6>
-          <p class="text-sm text-slate-400">Input pendapatan dan biaya SHU untuk periode ini.</p>
-        </div>
-
-        <button type="button" onclick="toggleSection('shu-transaction-form', 'btn-toggle-shu-transaction')"
-          id="btn-toggle-shu-transaction"
-          class="inline-block rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-          {{ $errors->any() ? 'Tutup Form' : '+ Tambah Data' }}
-        </button>
-      </div>
-
-      <div id="shu-transaction-form" class="flex-auto p-6 transition-all duration-300 {{ $errors->any() ? 'block' : 'hidden' }}">
-        <form action="{{ route('shu-koperasi.transaksi.store', $shuKoperasi) }}" method="POST">
-          @csrf
-
-          <div class="flex flex-wrap -mx-3">
-            <div class="w-full max-w-full px-3 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jenis</label>
-              <select name="jenis"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-                <option value="pendapatan" {{ old('jenis') === 'pendapatan' ? 'selected' : '' }}>Pendapatan</option>
-                <option value="biaya" {{ old('jenis') === 'biaya' ? 'selected' : '' }}>Biaya</option>
-              </select>
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:mt-0 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Tanggal</label>
-              <input type="date" name="tanggal"
-                value="{{ old('tanggal', $shuKoperasi->tanggal_selesai->format('Y-m-d')) }}"
-                min="{{ $shuKoperasi->tanggal_mulai->format('Y-m-d') }}"
-                max="{{ $shuKoperasi->tanggal_selesai->format('Y-m-d') }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3 md:mt-0 md:w-4/12">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Jumlah</label>
-              <input type="number" name="jumlah" min="0" step="0.01" value="{{ old('jumlah') }}"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-fuchsia-300 focus:outline-none"
-                placeholder="0">
-            </div>
-
-            <div class="mt-4 w-full max-w-full px-3">
-              <label class="mb-2 ml-1 block text-xs font-bold uppercase text-slate-700">Keterangan</label>
-              <textarea name="keterangan" rows="3"
-                class="focus:shadow-soft-primary-outline block w-full rounded-lg border border-solid border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none"
-                placeholder="Contoh: Pendapatan bunga pinjaman / biaya operasional koperasi">{{ old('keterangan') }}</textarea>
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <button type="submit"
-              class="inline-block rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 px-6 py-3 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-              Simpan Transaksi SHU
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative mb-6 flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">
-        <div class="mb-0 rounded-t-2xl bg-white p-6 pb-0">
-          <h6>Data Transaksi SHU</h6>
-          <p class="text-sm text-slate-400">Daftar transaksi pendapatan dan biaya SHU dalam periode ini.</p>
-        </div>
-
-        <div class="flex-auto px-0 pt-0 pb-2">
-          <div style="overflow-x: auto;" class="p-0">
-            <table class="items-center mb-0 w-full align-top border-gray-200 text-slate-500">
-              <thead class="align-bottom">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Transaksi</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jenis</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jumlah</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                @forelse($shuKoperasi->transaksi as $transaksi)
-                  <tr>
-                    <td class="border-b bg-transparent p-2 align-middle whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center px-4 py-2">
-                        <div class="mr-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tl {{ $transaksi->jenis === 'pendapatan' ? 'from-green-600 to-lime-400' : 'from-red-600 to-rose-400' }} text-xs font-bold text-white">
-                          {{ $loop->iteration }}
-                        </div>
-
-                        <div class="flex flex-col justify-center">
-                          <h6 class="mb-0 text-sm leading-normal">{{ $transaksi->keterangan ?: 'Tanpa keterangan' }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">
-                            Tanggal: {{ $transaksi->tanggal->format('d/m/Y') }}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 {{ $transaksi->jenis === 'pendapatan' ? 'bg-gradient-to-tl from-green-600 to-lime-400' : 'bg-gradient-to-tl from-red-600 to-rose-400' }} px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        {{ $transaksi->jenis }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">
-                        Rp {{ number_format((float) $transaksi->jumlah, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center justify-center gap-2 px-4">
-                        <form action="{{ route('shu-koperasi.transaksi.destroy', [$shuKoperasi, $transaksi]) }}" method="POST"
-                          onsubmit="return confirm('Yakin ingin menghapus transaksi SHU ini?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit"
-                            class="inline-block rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 px-4 py-2 text-xs font-bold uppercase text-white shadow-soft-md transition-all hover:scale-105">
-                            Hapus
-                          </button>
-                        </form>
-                      </div>
-                    </td>
-                  </tr>
-                @empty
-                  <tr>
-                    <td colspan="4" class="p-4 text-center text-sm text-slate-400">
-                      Belum ada transaksi SHU pada periode ini.
-                    </td>
-                  </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="flex flex-wrap -mx-3">
-    <div class="flex-none w-full max-w-full px-3">
-      <div class="relative flex min-w-0 flex-col break-words rounded-2xl border-0 bg-white bg-clip-border shadow-soft-xl">
-        <div class="mb-0 rounded-t-2xl bg-white p-6 pb-0">
-          <h6>Pembagian SHU untuk Anggota</h6>
-          <p class="text-sm text-slate-400">Jasa Modal diambil dari total simpanan anggota, Jasa Usaha diambil dari total transaksi penjualan anggota pada periode yang sama.</p>
-        </div>
-
-        <div class="flex-auto px-0 pt-0 pb-2">
-          <div style="overflow-x: auto;" class="p-0">
-            <table class="items-center mb-0 w-full align-top border-gray-200 text-slate-500">
-              <thead class="align-bottom">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xxs font-bold uppercase text-slate-400 opacity-70">Anggota</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Total Simpanan</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Total Usaha</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jasa Modal</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Jasa Usaha</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Total SHU</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Status</th>
-                  <th class="px-6 py-3 text-center text-xxs font-bold uppercase text-slate-400 opacity-70">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                @forelse($shuKoperasi->anggotaPembagian as $item)
-                  <tr>
-                    <td class="border-b bg-transparent p-2 align-middle whitespace-nowrap shadow-transparent">
-                      <div class="flex items-center px-4 py-2">
-                        <div class="mr-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-xs font-bold text-white">
-                          {{ $loop->iteration }}
-                        </div>
-
-                        <div class="flex flex-col justify-center">
-                          <h6 class="mb-0 text-sm leading-normal">{{ $item->karyawan->nama ?? 'Anggota tidak ditemukan' }}</h6>
-                          <p class="mb-0 text-xs leading-tight text-slate-400">
-                            {{ $item->karyawan->jabatan ?? 'Anggota koperasi' }}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">
-                        Rp {{ number_format((float) $item->total_simpanan, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="text-xs font-semibold leading-tight text-slate-400">
-                        Rp {{ number_format((float) $item->total_transaksi_usaha, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 bg-gradient-to-tl from-blue-600 to-cyan-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        Rp {{ number_format((float) $item->nominal_jasa_modal, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 bg-gradient-to-tl from-indigo-600 to-sky-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        Rp {{ number_format((float) $item->nominal_jasa_usaha, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      <span class="inline-block rounded-1.8 bg-gradient-to-tl from-slate-700 to-slate-500 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                        Rp {{ number_format((float) $item->nominal_shu, 0, ',', '.') }}
-                      </span>
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      @if($item->is_dicairkan)
-                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-emerald-500 to-teal-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                          Cair ({{ $item->metode_pencairan }})
-                        </span>
-                      @else
-                        <span class="inline-block rounded-1.8 bg-gradient-to-tl from-amber-400 to-orange-400 px-2.5 py-1.4 text-xs font-bold uppercase text-white">
-                          Belum Cair
-                        </span>
-                      @endif
-                    </td>
-
-                    <td class="border-b bg-transparent p-2 text-center align-middle whitespace-nowrap shadow-transparent">
-                      @if(!$item->is_dicairkan)
-                        <form action="{{ route('shu-koperasi.cairkan', $item->id) }}" method="POST" class="inline-flex gap-2">
-                          @csrf
-                          <select name="metode" class="rounded-md border border-gray-300 px-2 py-1 text-xs outline-none">
-                            <option value="tunai">Tunai</option>
-                            <option value="transfer">Transfer</option>
-                          </select>
-                          <button type="submit" class="rounded-md bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-emerald-600">
-                            Cairkan
-                          </button>
-                        </form>
-                      @endif
-                    </td>
-                  </tr>
-                @empty
-                  <tr>
-                    <td colspan="8" class="p-4 text-center text-sm text-slate-400">
-                      Belum ada snapshot pembagian SHU anggota.
-                    </td>
-                  </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    <section class="kbsm-business-panel shu-tab-panel" data-shu-panel="pembayaran" hidden>
+        <div class="kbsm-business-panel__header"><h2 class="kbsm-business-panel__title">Pembayaran per Penerima</h2><p class="kbsm-business-panel__copy">Nominal berasal dari hasil approval dan tidak dapat diedit saat pembayaran.</p></div>
+        <div class="kbsm-business-toolbar shu-payment-filter"><input id="shu-payment-search" type="search" placeholder="Cari nama penerima…"><select id="shu-payment-status"><option value="">Semua status</option><option value="belum_dibayar">Belum Dibayar</option><option value="dibayar">Sudah Dibayar</option></select></div>
+        <div class="kbsm-business-table-wrap"><table class="kbsm-business-table" id="shu-payment-table"><thead><tr><th>Penerima</th><th>Jenis</th><th>Jabatan</th><th class="kbsm-business-table__right">Nominal Hak</th><th>Status</th><th>Pembayaran</th></tr></thead><tbody>
+            @forelse($shu->recipients->where('nominal_hak', '>', 0) as $recipient)
+                <tr data-status="{{ $recipient->status_pembayaran }}"><td>{{ $recipient->nama_snapshot }}</td><td>{{ $typeLabels[$recipient->jenis_penerima] ?? ucfirst($recipient->jenis_penerima) }}</td><td>{{ $recipient->jabatan_snapshot ?? '–' }}</td><td class="kbsm-business-amount">{{ $money($recipient->nominal_hak) }}</td><td><span class="kbsm-status {{ $recipient->status_pembayaran === 'dibayar' ? 'kbsm-status--green' : 'kbsm-status--gold' }}">{{ $recipient->status_label }}</span></td><td>
+                    @if(in_array($shu->status, ['ready_to_pay', 'approved']) && $recipient->status_pembayaran !== 'dibayar')
+                        <details class="rental-action"><summary class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Catat Pembayaran</summary><form method="POST" action="{{ route('shu-koperasi.pay', $recipient) }}" class="kbsm-inline-form">@csrf<select name="metode" required><option value="tunai">Tunai</option><option value="transfer_bank">Transfer Bank</option></select><select name="dompet_id" required><option value="">Pilih Kas/Bank</option>@foreach($wallets as $wallet)<option value="{{ $wallet->id }}">{{ $wallet->nama_dompet }} · {{ $money($wallet->saldo, false) }}</option>@endforeach</select><input type="date" name="tanggal_bayar" value="{{ now()->format('Y-m-d') }}" required><input name="nomor_referensi" placeholder="Nomor referensi (opsional)"><button class="kbsm-btn kbsm-btn--navy kbsm-btn--sm">Simpan Pembayaran</button></form></details>
+                    @elseif($recipient->pembayaran)
+                        <span class="kbsm-business-muted">{{ $recipient->pembayaran->tanggal_bayar?->format('d/m/Y') }} · {{ $recipient->pembayaran->dompet?->nama_dompet }} · {{ $recipient->pembayaran->creator?->name }}</span>
+                    @else<span class="kbsm-business-muted">Belum siap dibayar</span>@endif
+                </td></tr>
+            @empty<tr><td colspan="6" class="kbsm-business-empty">Belum ada hak personal yang perlu dibayar.</td></tr>@endforelse
+        </tbody></table></div>
+    </section>
 </div>
 
 <script>
-  function toggleSection(sectionId, buttonId) {
-    const section = document.getElementById(sectionId);
-    const button = document.getElementById(buttonId);
-
-    if (!section || !button) {
-      return;
-    }
-
-    if (section.classList.contains('hidden')) {
-      section.classList.remove('hidden');
-      section.classList.add('block');
-      button.innerHTML = 'Tutup Form';
-    } else {
-      section.classList.add('hidden');
-      section.classList.remove('block');
-      button.innerHTML = '+ Tambah Data';
-    }
-  }
+document.addEventListener('DOMContentLoaded', () => {
+    const activate = key => {
+        document.querySelectorAll('[data-shu-tab]').forEach(button => button.classList.toggle('is-active', button.dataset.shuTab === key));
+        document.querySelectorAll('[data-shu-panel]').forEach(panel => panel.hidden = panel.dataset.shuPanel !== key);
+    };
+    document.querySelectorAll('[data-shu-tab]').forEach(button => button.addEventListener('click', () => activate(button.dataset.shuTab)));
+    document.querySelectorAll('.shu-table-search').forEach(input => input.addEventListener('input', () => {
+        document.querySelectorAll(`#${input.dataset.target} tbody tr`).forEach(row => row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()));
+    }));
+    const paymentSearch = document.getElementById('shu-payment-search');
+    const paymentStatus = document.getElementById('shu-payment-status');
+    const filterPayments = () => document.querySelectorAll('#shu-payment-table tbody tr[data-status]').forEach(row => {
+        row.hidden = !row.textContent.toLowerCase().includes(paymentSearch.value.toLowerCase()) || (paymentStatus.value && row.dataset.status !== paymentStatus.value);
+    });
+    paymentSearch?.addEventListener('input', filterPayments);
+    paymentStatus?.addEventListener('change', filterPayments);
+});
 </script>
 @endsection

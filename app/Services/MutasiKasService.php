@@ -9,6 +9,7 @@ use App\Models\Penjualan;
 use App\Models\Pinjaman;
 use App\Models\Simpanan;
 use RuntimeException;
+use Illuminate\Support\Facades\Schema;
 
 class MutasiKasService
 {
@@ -19,6 +20,9 @@ class MutasiKasService
 
     public function record(array $data): MutasiKas
     {
+        if (Schema::hasTable('periode_akuntansi') && ! empty($data['tanggal'])) {
+            AccountingPeriodService::assertDateUnlocked((string) $data['tanggal']);
+        }
         $idempotencyKey = $data['idempotency_key'] ?? null;
 
         if (is_string($idempotencyKey) && trim($idempotencyKey) !== '') {

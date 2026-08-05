@@ -204,6 +204,16 @@ class SewaMobil extends Model
         return $this->hasOne(PembayaranSewaMobil::class, 'sewa_mobil_id');
     }
 
+    public function pembayaranVendorBaru()
+    {
+        return $this->morphOne(PembayaranVendorSewa::class, 'sewa', 'sewa_type', 'sewa_id');
+    }
+
+    public function invoiceDetail()
+    {
+        return $this->morphOne(InvoicePenagihanDetail::class, 'referensi');
+    }
+
     public function mutasiKas()
     {
         return $this->morphMany(MutasiKas::class, 'referensi', 'referensi_tipe', 'referensi_id');

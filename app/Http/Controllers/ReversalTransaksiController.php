@@ -20,14 +20,22 @@ class ReversalTransaksiController extends Controller
     ) {
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', Rule::in([ReversalTransaksi::STATUS_PROCESSED, ReversalTransaksi::STATUS_CANCELLED])]]);
         $reversals = ReversalTransaksi::query()
-            ->with(['dompetRefund', 'kreditPayroll.anggota.karyawan'])
+            ->with(['dompetRefund', 'kreditPayroll.anggota.karyawan', 'creator', 'processor'])
+            ->when($filters['search'] ?? null, fn ($q, $search) => $q->where(fn ($nested) => $nested->where('kode_reversal', 'like', '%'.trim($search).'%')->orWhere('alasan', 'like', '%'.trim($search).'%')))
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->latest('id')
-            ->paginate(20);
+            ->paginate(20)->withQueryString();
 
-        return view('pages.reversal-transaksi.index', compact('reversals'));
+        return view('pages.reversal-transaksi.index', compact('reversals', 'filters'));
+    }
+
+    public function show(ReversalTransaksi $reversal)
+    {
+        return view('pages.reversal-transaksi.show', ['reversal' => $reversal->load(['source', 'originalJurnal.details', 'originalMutasi', 'dompetRefund', 'creator', 'processor'])]);
     }
 
     public function refundPos(Request $request, Penjualan $penjualan)

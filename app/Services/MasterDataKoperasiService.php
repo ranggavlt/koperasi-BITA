@@ -275,6 +275,7 @@ class MasterDataKoperasiService
                 return PengurusKoperasi::query()->create([
                     'anggota_id' => $anggota->id,
                     'jabatan' => $data['jabatan'],
+                    'kelompok' => PengurusKoperasi::kelompokUntukJabatan($data['jabatan']),
                     'status' => PengurusKoperasi::STATUS_AKTIF,
                 ]);
             });
@@ -300,7 +301,9 @@ class MasterDataKoperasiService
                     $this->assertNoActivePengurusConflict($anggota->id, $data['jabatan'], $locked->id);
                 }
 
-                $locked->update($data);
+                $locked->update($data + [
+                    'kelompok' => PengurusKoperasi::kelompokUntukJabatan($data['jabatan']),
+                ]);
 
                 return $locked->fresh('anggota.karyawan');
             });
