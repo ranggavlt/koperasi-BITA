@@ -48,9 +48,9 @@ class AccessMatrixTest extends TestCase
         $this->actingAs($finance)->get(route('waserba.index'))->assertForbidden();
         $this->actingAs($finance)->get(route('pembayaran-konsinyasi.index'))->assertForbidden();
         $this->actingAs($finance)->get(route('konsinyasi.report'))->assertOk();
-        $this->actingAs($finance)->get(route('shu-config.index'))->assertOk();
+        $this->actingAs($finance)->get(route('shu-config.index'))->assertNotFound();
         $this->actingAs($finance)->get(route('shu-koperasi.index'))->assertNotFound();
-        $this->actingAs($finance)->get(route('klaim-dana-sosial.index'))->assertNotFound();
+        $this->actingAs($finance)->get(route('dana-sosial.index'))->assertNotFound();
         $this->assertFalse(Route::has('users.destroy'));
 
         $this->actingAs($kasir)->get(route('waserba.index'))->assertOk();
@@ -83,7 +83,8 @@ class AccessMatrixTest extends TestCase
             ->assertSee('Tagihan Tunai')
             ->assertSee('Riwayat Koreksi Transaksi')
             ->assertSee('Daftar Akun / COA')
-            ->assertSee('Pengaturan SHU')
+            ->assertDontSee('Pengaturan SHU')
+            ->assertDontSee('SHU &amp; Dana Sosial', false)
             ->assertDontSee('POS / Kasir')
             ->assertDontSee('Penjualan / Kasir')
             ->assertDontSee('Pembayaran Konsinyasi')

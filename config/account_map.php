@@ -130,7 +130,7 @@ return [
             'nama_akun' => 'Dana Sosial Tersedia',
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
-            'keterangan' => 'Dana sosial yang berasal dari alokasi SHU atau donasi resmi dan belum disalurkan.',
+            'keterangan' => 'Dana sosial yang berasal dari alokasi SHU yang disetujui dan belum disalurkan.',
         ],
         'utang_shu_penerima' => [
             'kode_akun' => '216',
@@ -138,13 +138,6 @@ return [
             'kategori' => 'kewajiban',
             'posisi_saldo' => 'kredit',
             'keterangan' => 'Hak SHU personal yang sudah disetujui dan belum dibayarkan.',
-        ],
-        'dana_pendidikan' => [
-            'kode_akun' => '212',
-            'nama_akun' => 'Dana Pendidikan',
-            'kategori' => 'kewajiban',
-            'posisi_saldo' => 'kredit',
-            'keterangan' => 'Alokasi SHU untuk kegiatan pendidikan koperasi.',
         ],
         'simpanan_belum_terklasifikasi' => [
             'kode_akun' => '299',

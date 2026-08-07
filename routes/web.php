@@ -36,6 +36,7 @@ use App\Http\Controllers\RekonsiliasiPotongGajiController;
 use App\Http\Controllers\ResellerController;
 use App\Http\Controllers\ReversalTransaksiController;
 use App\Http\Controllers\ShuKoperasiController;
+use App\Http\Controllers\StrukturKoperasiController;
 use App\Http\Controllers\SimpananController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
@@ -191,17 +192,10 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         ->name('anggota.deactivate');
     Route::patch('/anggota/{anggota}/aktifkan', [AnggotaController::class, 'activate'])
         ->name('anggota.activate');
-    // Admin boleh menyiapkan konfigurasi persentase meskipun operasional SHU
-    // masih ditutup. Setiap simpan membuat versi audit baru.
-    Route::get('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'index'])->name('shu-config.index');
-    Route::post('/shu-config', [App\Http\Controllers\ShuConfigController::class, 'update'])->name('shu-config.update');
-
-    Route::get('/pengaturan-shu', [ShuConfigController::class, 'index'])->name('shu-config.index');
-    Route::post('/pengaturan-shu', [ShuConfigController::class, 'store'])->name('shu-config.store');
-
-    Route::get('/klaim-dana-sosial', [DanaSosialController::class, 'index'])
-        ->middleware(['feature:shu_enabled', 'feature:dana_sosial_enabled'])
-        ->name('klaim-dana-sosial.index');
+    // Konfigurasi dan operasional SHU memakai gerbang fitur yang sama.
+    // Setiap simpan konfigurasi membuat versi audit baru.
+    Route::get('/pengaturan-shu', [ShuConfigController::class, 'index'])->middleware('feature:shu_enabled')->name('shu-config.index');
+    Route::post('/pengaturan-shu', [ShuConfigController::class, 'store'])->middleware('feature:shu_enabled')->name('shu-config.store');
 
     // Operasional SHU tetap dapat dinonaktifkan melalui feature flag saat diperlukan.
     Route::middleware('feature:shu_enabled')->group(function (): void {
@@ -209,20 +203,24 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
         Route::post('/shu-koperasi', [ShuKoperasiController::class, 'store'])->name('shu-koperasi.store');
         Route::get('/shu-koperasi/{shuKoperasi}', [ShuKoperasiController::class, 'show'])->name('shu-koperasi.show');
         Route::post('/shu-koperasi/{shuKoperasi}/hitung', [ShuKoperasiController::class, 'calculate'])->name('shu-koperasi.calculate');
-        Route::post('/shu-koperasi/{shuKoperasi}/periode', [ShuKoperasiController::class, 'changePeriod'])->name('shu-koperasi.period');
-        Route::post('/shu-koperasi/{shuKoperasi}/bobot', [ShuKoperasiController::class, 'weights'])->name('shu-koperasi.weights');
-        Route::post('/shu-koperasi/{shuKoperasi}/bobot/sama-rata', [ShuKoperasiController::class, 'resetWeights'])->name('shu-koperasi.weights.reset');
         Route::post('/shu-koperasi/{shuKoperasi}/ajukan', [ShuKoperasiController::class, 'submit'])->name('shu-koperasi.submit');
         Route::post('/shu-koperasi/{shuKoperasi}/setujui', [ShuKoperasiController::class, 'approve'])->name('shu-koperasi.approve');
+        Route::patch('/shu-penerima/{penerima}/keikutsertaan', [ShuKoperasiController::class, 'eligibility'])->name('shu-koperasi.eligibility');
+        Route::patch('/shu-penerima/{penerima}/hak-final', [ShuKoperasiController::class, 'finalRight'])->name('shu-koperasi.final-right');
         Route::post('/shu-penerima/{penerima}/bayar', [ShuKoperasiController::class, 'pay'])->name('shu-koperasi.pay');
+        Route::post('/pembayaran-shu/{pembayaran}/reversal', [ShuKoperasiController::class, 'reversePayment'])->name('shu-koperasi.payment.reverse');
+        Route::get('/struktur-koperasi', [StrukturKoperasiController::class, 'index'])->name('struktur-koperasi.index');
+        Route::post('/struktur-koperasi', [StrukturKoperasiController::class, 'store'])->name('struktur-koperasi.store');
+    });
 
+    Route::middleware(['feature:shu_enabled', 'feature:dana_sosial_enabled'])->group(function (): void {
         Route::get('/dana-sosial', [DanaSosialController::class, 'index'])->name('dana-sosial.index');
-        Route::post('/dana-sosial/donasi', [DanaSosialController::class, 'donation'])->name('dana-sosial.donation');
-        Route::post('/dana-sosial/sumber/{sumber}/setujui', [DanaSosialController::class, 'approveDonation'])->name('dana-sosial.donation.approve');
-        Route::post('/dana-sosial/limit', [DanaSosialController::class, 'limit'])->name('dana-sosial.limit');
+        Route::post('/dana-sosial/kebijakan', [DanaSosialController::class, 'policy'])->name('dana-sosial.policy');
         Route::post('/dana-sosial/klaim', [DanaSosialController::class, 'claim'])->name('dana-sosial.claim');
         Route::post('/dana-sosial/klaim/{klaim}/setujui', [DanaSosialController::class, 'approveClaim'])->name('dana-sosial.claim.approve');
+        Route::post('/dana-sosial/klaim/{klaim}/tolak', [DanaSosialController::class, 'rejectClaim'])->name('dana-sosial.claim.reject');
         Route::post('/dana-sosial/klaim/{klaim}/bayar', [DanaSosialController::class, 'payClaim'])->name('dana-sosial.claim.pay');
+        Route::post('/dana-sosial/klaim/{klaim}/reversal', [DanaSosialController::class, 'reverseClaim'])->name('dana-sosial.claim.reverse');
     });
 
     Route::get('/laporan-potong-gaji', [LaporanPotongGajiController::class, 'index'])
@@ -358,6 +356,7 @@ Route::middleware(['auth', 'active_user', 'password_changed', 'role:admin'])->gr
     Route::get('/akuntansi/periode/create', [AccountingPeriodController::class, 'create'])->name('akuntansi.periode.create');
     Route::post('/akuntansi/periode', [AccountingPeriodController::class, 'store'])->name('akuntansi.periode.store');
     Route::get('/akuntansi/periode/{periode}', [AccountingPeriodController::class, 'show'])->name('akuntansi.periode.show');
+    Route::patch('/akuntansi/periode/{periode}', [AccountingPeriodController::class, 'update'])->name('akuntansi.periode.update');
     Route::post('/akuntansi/periode/{periode}/tutup', [AccountingPeriodController::class, 'close'])->name('akuntansi.periode.close');
 });
 

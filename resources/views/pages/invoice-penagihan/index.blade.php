@@ -25,7 +25,7 @@
         <p>{{ $item['company']->nama }}</p>
         <dl class="invoice-company-stats">
           <div><dt>Total tagihan</dt><dd>{{ $money($item['total']) }}</dd></div>
-          <div><dt>Sudah dibayar</dt><dd>{{ $money($item['paid']) }}</dd></div>
+          <div><dt>Total terbayar</dt><dd>{{ $money($item['paid']) }}</dd></div>
           <div class="is-remaining"><dt>Sisa utang</dt><dd>{{ $money($item['remaining']) }}</dd></div>
         </dl>
         <div class="invoice-progress"><span style="width: {{ $progress }}%"></span></div>

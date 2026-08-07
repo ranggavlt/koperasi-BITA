@@ -21,7 +21,7 @@ class PreflightAccessCommand extends Command
             $this->check('route_finance_tanpa_role', 'Route Finance tanpa role:admin', $this->financeRoutesWithoutRole()),
             $this->check('route_karyawan_tanpa_ownership', 'Route Karyawan tanpa proteksi ownership', $this->employeeRoutesWithoutOwnership()),
             $this->check('shu_route_aktif_disabled', 'Route SHU aktif saat feature disabled', $this->shuRoutesActiveWhileDisabled()),
-            $this->check('dana_sosial_route_aktif_disabled', 'Route Dana Sosial aktif saat feature disabled', $this->featureRoutesActiveWhileDisabled('klaim-dana-sosial.', 'dana_sosial_enabled')),
+            $this->check('dana_sosial_route_aktif_disabled', 'Route Dana Sosial aktif saat feature disabled', $this->featureRoutesActiveWhileDisabled('dana-sosial.', 'dana_sosial_enabled')),
             $this->check('master_printer_route_aktif_disabled', 'Route Master Printer aktif saat feature disabled', $this->featureRoutesActiveWhileDisabled('aset-printer.', 'master_printer_enabled')),
             $this->check('menu_disabled_visible', 'Menu/module disabled masih terlihat', $this->disabledFeatureVisibleInNavigation()),
             $this->check('route_hard_delete_final', 'Route hard delete/edit transaksi final masih tersedia', $this->hardDeleteFinalRoutes()),
@@ -89,7 +89,9 @@ class PreflightAccessCommand extends Command
 
     private function shuRoutesActiveWhileDisabled(): int
     {
-        return $this->featureRoutesActiveWhileDisabled('shu-koperasi.', 'shu_enabled')
+        return $this->featureRoutesActiveWhileDisabled('shu-config.', 'shu_enabled')
+            + $this->featureRoutesActiveWhileDisabled('shu-koperasi.', 'shu_enabled')
+            + $this->featureRoutesActiveWhileDisabled('struktur-koperasi.', 'shu_enabled')
             + $this->featureRoutesActiveWhileDisabled('dana-sosial.', 'shu_enabled');
     }
 
@@ -111,13 +113,12 @@ class PreflightAccessCommand extends Command
 
         if (! (bool) config('features.shu_enabled', false)) {
             $shuModulesWithoutFlag = collect(config('navigation.modules', []))
-                ->reject(fn (array $module): bool => ($module['route'] ?? null) === 'shu-config.index')
                 ->filter(fn (array $module): bool => str_contains(strtolower(implode(' ', [
                     $module['section'] ?? '',
                     $module['label'] ?? '',
                     implode(' ', $module['keywords'] ?? []),
                 ])), 'shu'))
-                ->filter(fn (array $module): bool => ($module['feature'] ?? null) !== 'shu_enabled')
+                ->filter(fn (array $module): bool => ! $this->moduleHasFeature($module, 'shu_enabled'))
                 ->count();
 
             $issues += $shuModulesWithoutFlag;
@@ -128,8 +129,8 @@ class PreflightAccessCommand extends Command
 
         if (! (bool) config('features.dana_sosial_enabled', false)) {
             $danaSosialModulesWithoutFlag = collect(config('navigation.modules', []))
-                ->filter(fn (array $module): bool => ($module['key'] ?? null) === 'klaim_dana_sosial')
-                ->filter(fn (array $module): bool => ($module['feature'] ?? null) !== 'dana_sosial_enabled')
+                ->filter(fn (array $module): bool => ($module['key'] ?? null) === 'dana_sosial')
+                ->filter(fn (array $module): bool => ! $this->moduleHasFeature($module, 'dana_sosial_enabled'))
                 ->count();
 
             $issues += $danaSosialModulesWithoutFlag;
@@ -326,6 +327,7 @@ class PreflightAccessCommand extends Command
             'karyawan',
             'anggota',
             'shu-koperasi',
+            'struktur-koperasi',
             'pengaturan-shu',
             'dana-sosial',
             'laporan-potong-gaji',
@@ -351,6 +353,13 @@ class PreflightAccessCommand extends Command
         $contents = (string) file_get_contents($path);
 
         return str_contains($contents, $needle) && ! str_contains($contents, "config('{$configKey}'") ? 1 : 0;
+    }
+
+    private function moduleHasFeature(array $module, string $feature): bool
+    {
+        $configured = $module['feature'] ?? [];
+
+        return in_array($feature, is_array($configured) ? $configured : [$configured], true);
     }
 
     private function plainTextInFile(string $path, string $needle): int

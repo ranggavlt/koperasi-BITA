@@ -164,7 +164,8 @@ class NavigationMenu
         }
 
         $feature = $module['feature'] ?? null;
-        if ($feature && ! config("features.{$feature}", false)) {
+        $features = is_array($feature) ? $feature : array_filter([$feature]);
+        if (collect($features)->contains(fn (string $name): bool => ! config("features.{$name}", false))) {
             return false;
         }
 

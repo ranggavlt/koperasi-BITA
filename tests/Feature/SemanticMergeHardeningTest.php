@@ -108,7 +108,7 @@ class SemanticMergeHardeningTest extends TestCase
 
     public function test_modul_incoming_tetap_memiliki_route_admin(): void
     {
-        $this->assertFalse(Route::has('vendor.index'));
+        $this->assertTrue(Route::has('vendor.index'));
         $this->assertTrue(Route::has('invoice-penagihan.index'));
         $this->assertTrue(Route::has('dana-sosial.index'));
     }

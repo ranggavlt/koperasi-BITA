@@ -22,7 +22,7 @@ return new class extends Migration
                 throw new RuntimeException('Migration CORE-1 berhenti: kode akun 209 dipakai akun lain dan tidak boleh ditimpa otomatis.');
             }
 
-            if ($account210 && $account210->nama_akun !== 'Dana Sosial Tersedia') {
+            if ($account210 && ! in_array($account210->nama_akun, ['Dana Sosial Tersedia', 'Dana Sosial'], true)) {
                 throw new RuntimeException('Migration CORE-1 berhenti: kode akun 210 sudah dipakai akun lain dan tidak boleh ditimpa otomatis.');
             }
 

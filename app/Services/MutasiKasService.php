@@ -10,6 +10,8 @@ use App\Models\Pinjaman;
 use App\Models\Simpanan;
 use RuntimeException;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class MutasiKasService
 {
@@ -35,23 +37,26 @@ class MutasiKasService
             }
         }
 
-        $dompet = $this->resolveDompet($data['dompet_id'] ?? null);
-        $jumlah = $this->rupiahDecimal($data['jumlah']);
+        return DB::transaction(function () use ($data, $idempotencyKey): MutasiKas {
+            if (is_string($idempotencyKey) && trim($idempotencyKey) !== '') {
+                $existing = MutasiKas::query()->where('idempotency_key', trim($idempotencyKey))->lockForUpdate()->first();
+                if ($existing) return $existing;
+            }
+            $dompet = $this->resolveDompet($data['dompet_id'] ?? null);
+            $jumlah = $this->rupiahDecimal($data['jumlah']);
+            $this->applySaldo($dompet, $data['tipe'], $jumlah);
 
-        $mutasi = MutasiKas::create([
-            'idempotency_key' => is_string($idempotencyKey) && trim($idempotencyKey) !== '' ? trim($idempotencyKey) : null,
-            'dompet_id' => $dompet->id,
-            'tipe' => $data['tipe'],
-            'jumlah' => $jumlah,
-            'keterangan' => $data['keterangan'] ?? null,
-            'referensi_tipe' => $data['referensi_tipe'] ?? null,
-            'referensi_id' => $data['referensi_id'] ?? null,
-            'tanggal' => $data['tanggal'],
-        ]);
-
-        $this->applySaldo($dompet, $data['tipe'], $jumlah);
-
-        return $mutasi;
+            return MutasiKas::create([
+                'idempotency_key' => is_string($idempotencyKey) && trim($idempotencyKey) !== '' ? trim($idempotencyKey) : null,
+                'dompet_id' => $dompet->id,
+                'tipe' => $data['tipe'],
+                'jumlah' => $jumlah,
+                'keterangan' => $data['keterangan'] ?? null,
+                'referensi_tipe' => $data['referensi_tipe'] ?? null,
+                'referensi_id' => $data['referensi_id'] ?? null,
+                'tanggal' => $data['tanggal'],
+            ]);
+        });
     }
 
     public function backfillHistoricalTransactions(): void
@@ -83,6 +88,10 @@ class MutasiKasService
         $saldoBaru = $tipe === 'masuk'
             ? $saldoInt + $jumlahInt
             : $saldoInt - $jumlahInt;
+
+        if ($saldoBaru < 0) {
+            throw ValidationException::withMessages(['dompet_id' => 'Saldo Dompet tidak mencukupi.']);
+        }
 
         $dompet->update([
             'saldo' => $this->rupiahDecimal($saldoBaru),

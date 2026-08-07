@@ -13,6 +13,7 @@ class MutasiDanaSosial extends Model
 
     protected static function booted(): void
     {
+        static::updating(fn () => throw new RuntimeException('Mutasi Dana Sosial tidak boleh diubah.'));
         static::deleting(fn () => throw new RuntimeException('Mutasi Dana Sosial tidak boleh dihapus.'));
     }
 

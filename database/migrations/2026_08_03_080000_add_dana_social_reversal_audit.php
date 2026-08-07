@@ -20,7 +20,7 @@ return new class extends Migration
                 $table->timestamp('reversed_at')->nullable()->after('paid_at');
             }
             if (! Schema::hasColumn('klaim_dana_sosial', 'reversal_reason')) {
-                $table->text('reversal_reason')->nullable()->after('alasan_penolakan');
+                $table->text('reversal_reason')->nullable()->after('reversed_at');
             }
         });
     }

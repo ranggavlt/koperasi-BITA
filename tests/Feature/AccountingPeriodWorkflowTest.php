@@ -10,7 +10,7 @@ use App\Services\AccountingPeriodService;
 use App\Services\AkuntansiService;
 use App\Services\AkunResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use RuntimeException;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class AccountingPeriodWorkflowTest extends TestCase
@@ -25,8 +25,8 @@ class AccountingPeriodWorkflowTest extends TestCase
         $this->actingAs($cashier)->get(route('akuntansi.periode.index'))->assertForbidden();
         $this->actingAs($admin)->get(route('akuntansi.periode.index'))
             ->assertOk()
-            ->assertSee('Periode Akuntansi')
-            ->assertSee('Buat Periode Open');
+            ->assertSee('Periode &amp; Tutup Buku', false)
+            ->assertSee('Buka Periode');
     }
 
     public function test_close_uses_only_posted_balanced_journals_creates_snapshot_and_locks_dates(): void
@@ -62,7 +62,7 @@ class AccountingPeriodWorkflowTest extends TestCase
         $this->assertEquals($closed->closingJournal->details->sum('debit'), $closed->closingJournal->details->sum('kredit'));
         $this->assertSame(2, JurnalUmum::query()->where('periode_akuntansi_id', $period->id)->where('id', '!=', $closed->closing_journal_id)->count());
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('sudah dikunci');
         $journal->record(['tanggal' => '2025-10-01', 'nomor_bukti' => 'LATE-001'], [
             $resolver->line($cash, 'debit', 100), $resolver->line($income, 'kredit', 100),

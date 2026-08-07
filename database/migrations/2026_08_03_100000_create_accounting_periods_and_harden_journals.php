@@ -9,7 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('periode_akuntansi', function (Blueprint $table): void {
+        if (! Schema::hasTable('periode_akuntansi')) {
+            Schema::create('periode_akuntansi', function (Blueprint $table): void {
             $table->id();
             $table->string('kode', 30)->unique();
             $table->string('nama', 150);
@@ -31,15 +32,24 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['tanggal_mulai', 'tanggal_selesai'], 'periode_akuntansi_range_unique');
-        });
+            });
+        } else {
+            Schema::table('periode_akuntansi', function (Blueprint $table): void {
+                if (! Schema::hasColumn('periode_akuntansi', 'jumlah_jurnal')) $table->unsignedInteger('jumlah_jurnal')->default(0);
+                if (! Schema::hasColumn('periode_akuntansi', 'checksum')) $table->string('checksum', 64)->nullable();
+                if (! Schema::hasColumn('periode_akuntansi', 'closing_snapshot')) $table->json('closing_snapshot')->nullable();
+                if (! Schema::hasColumn('periode_akuntansi', 'closing_reason')) $table->text('closing_reason')->nullable();
+                if (! Schema::hasColumn('periode_akuntansi', 'idempotency_key')) $table->string('idempotency_key', 191)->nullable()->unique();
+            });
+        }
 
         Schema::table('jurnal_umum', function (Blueprint $table): void {
-            $table->foreignId('periode_akuntansi_id')->nullable()->after('idempotency_key')->constrained('periode_akuntansi')->restrictOnDelete();
-            $table->string('status', 20)->default('posted')->after('periode_akuntansi_id')->index();
-            $table->timestamp('posted_at')->nullable()->after('status');
-            $table->boolean('is_adjustment')->default(false)->after('posted_at')->index();
-            $table->foreignId('correction_period_id')->nullable()->after('is_adjustment')->constrained('periode_akuntansi')->restrictOnDelete();
-            $table->text('correction_reason')->nullable()->after('correction_period_id');
+            if (! Schema::hasColumn('jurnal_umum', 'periode_akuntansi_id')) $table->foreignId('periode_akuntansi_id')->nullable()->after('idempotency_key')->constrained('periode_akuntansi')->restrictOnDelete();
+            if (! Schema::hasColumn('jurnal_umum', 'status')) $table->string('status', 20)->default('posted')->after('periode_akuntansi_id')->index();
+            if (! Schema::hasColumn('jurnal_umum', 'posted_at')) $table->timestamp('posted_at')->nullable()->after('status');
+            if (! Schema::hasColumn('jurnal_umum', 'is_adjustment')) $table->boolean('is_adjustment')->default(false)->after('posted_at')->index();
+            if (! Schema::hasColumn('jurnal_umum', 'correction_period_id')) $table->foreignId('correction_period_id')->nullable()->after('is_adjustment')->constrained('periode_akuntansi')->restrictOnDelete();
+            if (! Schema::hasColumn('jurnal_umum', 'correction_reason')) $table->text('correction_reason')->nullable()->after('correction_period_id');
         });
 
         DB::table('jurnal_umum')->update([

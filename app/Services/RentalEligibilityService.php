@@ -49,6 +49,7 @@ class RentalEligibilityService
         $legacyPayment = $sewa->pembayaran;
         $legacyVendorPaid = $legacyPayment && (float) ($legacyPayment->jumlah_bayar_vendor ?? 0) > 0;
         $vendorPaid = $legacyVendorPaid || ($vendorPayment && in_array($vendorPayment->status, [
+            PembayaranVendorSewa::STATUS_PAID,
             PembayaranVendorSewa::STATUS_DIBAYAR,
             PembayaranVendorSewa::STATUS_MENUNGGU_PENGEMBALIAN,
             PembayaranVendorSewa::STATUS_DIKEMBALIKAN,

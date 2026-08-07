@@ -2,16 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\Akun;
-use App\Models\BatasKlaimDanaSosial;
 use App\Models\DanaSosialSumber;
 use App\Models\DompetKoperasi;
-use App\Models\Karyawan;
+use App\Models\JenisManfaatDanaSosial;
+use App\Models\KebijakanManfaatDanaSosial;
 use App\Models\KlaimDanaSosial;
 use App\Models\User;
-use App\Services\DanaSosialService;
+use App\Services\SocialFundService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -19,96 +17,93 @@ class DanaSosialFinalTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_donation_claim_limits_maker_checker_payout_and_reversal_are_complete(): void
+    public function test_claim_is_idempotent_maker_checker_paid_fifo_and_reversible(): void
     {
-        $maker = User::factory()->create(['role' => 'admin']);
-        $checker = User::factory()->create(['role' => 'admin']);
-        $employee = Karyawan::factory()->create(['nama' => 'Penerima Dana Sosial']);
-        $wallet = DompetKoperasi::query()->create(['nama_dompet' => 'Kas Dana Sosial', 'jenis_dompet' => 'kas', 'akun_id' => Akun::query()->where('kode_akun', '101')->value('id'), 'saldo' => 1000000]);
-        $service = app(DanaSosialService::class);
-        $service->createLimit(['kategori' => 'melahirkan', 'nominal_maksimal' => 300000, 'berlaku_mulai' => '2026-01-01', 'alasan' => 'Batas kelahiran hasil keputusan'], $maker->id);
+        $this->seed();
+        $maker = User::query()->where('email', 'keuangan@kbsm.test')->firstOrFail();
+        $checker = User::query()->where('email', 'persetujuan.shu@kbsm.test')->firstOrFail();
+        $benefit = JenisManfaatDanaSosial::query()->where('kode', 'MENINGGAL')->firstOrFail();
+        $member = \App\Models\Anggota::query()->with('karyawan')->firstOrFail();
+        $service = app(SocialFundService::class);
 
-        $source = $service->createSource(['nama_sumber' => 'Donasi Mitra Resmi', 'jenis_sumber' => DanaSosialSumber::JENIS_DONASI, 'dompet_id' => $wallet->id, 'metode_penerimaan' => 'tunai', 'tanggal_diterima' => '2026-08-02', 'nomor_referensi' => 'DON-001', 'bukti_penerimaan' => 'bukti/DON-001.pdf', 'nominal_awal' => 800000, 'keterangan' => 'Donasi diterima resmi'], $maker->id);
-        $this->assertSame(0, (int) $source->saldo_tersedia);
-        $this->assertSame(1000000, (int) $wallet->fresh()->saldo);
-        $this->assertDatabaseCount('jurnal_umum', 0);
-
-        try {
-            $service->approveSource($source, $maker->id, 'Menyetujui sendiri');
-            $this->fail('Self approval donasi harus ditolak.');
-        } catch (ValidationException) {
-            $this->assertSame(1000000, (int) $wallet->fresh()->saldo);
-        }
-
-        $source = $service->approveSource($source, $checker->id, 'Donasi dan bukti sudah diverifikasi');
-        $this->assertSame(1800000, (int) $wallet->fresh()->saldo);
-        $this->assertSame($maker->id, $source->created_by);
-        $this->assertSame($checker->id, $source->approved_by);
-        $donationJournal = DB::table('jurnal_umum')->where('idempotency_key', 'dana-donation:journal:'.$source->id)->first();
-        $this->assertNotNull($donationJournal);
-        $this->assertDatabaseHas('jurnal_umum_detail', ['jurnal_umum_id' => $donationJournal->id, 'akun_kode' => '101', 'debit' => 800000]);
-        $this->assertDatabaseHas('jurnal_umum_detail', ['jurnal_umum_id' => $donationJournal->id, 'akun_kode' => '210', 'kredit' => 800000]);
-        $this->assertDatabaseMissing('jurnal_umum_detail', ['jurnal_umum_id' => $donationJournal->id, 'akun_kode' => '209']);
+        $payload = [
+            'anggota_id' => $member->id,
+            'penerima_manfaat' => $member->karyawan->nama,
+            'hubungan_penerima' => 'Diri sendiri',
+            'jenis_manfaat_id' => $benefit->id,
+            'tanggal_kejadian' => '2026-08-06',
+            'nominal_diajukan' => 100000,
+            'catatan' => 'Klaim integrasi final',
+            'idempotency_key' => 'test:dana-sosial:klaim:final',
+        ];
+        $claim = $service->createClaim($payload, $maker->id);
+        $this->assertSame($claim->id, $service->createClaim($payload, $maker->id)->id);
+        $this->assertSame('500000.00', $claim->batas_nominal_snapshot);
 
         try {
-            $service->createClaim(['karyawan_id' => $employee->id, 'kategori' => 'melahirkan', 'nominal' => 300001, 'tanggal_pengajuan' => '2026-08-02', 'keterangan' => 'Melebihi batas'], $maker->id);
-            $this->fail('Klaim di atas batas harus ditolak.');
+            $service->approveClaim($claim, 100000, 'Dokumen lengkap.', $maker->id);
+            $this->fail('Maker tidak boleh menyetujui klaim sendiri.');
         } catch (ValidationException) {
-            $this->assertDatabaseCount('klaim_dana_sosial', 0);
+            $this->assertSame(KlaimDanaSosial::STATUS_SUBMITTED, $claim->fresh()->status);
         }
 
-        $claim = $service->createClaim(['karyawan_id' => $employee->id, 'kategori' => 'melahirkan', 'nominal' => 250000, 'tanggal_pengajuan' => '2026-08-02', 'keterangan' => 'Bantuan kelahiran'], $maker->id);
-        $this->assertSame('300000.00', $claim->batas_nominal_snapshot);
-        $service->submit($claim);
-        try {
-            $service->approve($claim->fresh(), $source->id, $maker->id, 'Approval sendiri');
-            $this->fail('Self approval klaim harus ditolak.');
-        } catch (ValidationException) {
-            $this->assertSame(KlaimDanaSosial::STATUS_DIAJUKAN, $claim->fresh()->status);
-        }
-        $service->approve($claim->fresh(), $source->id, $checker->id, 'Klaim dan dokumen sudah diverifikasi');
-        $service->pay($claim->fresh(), ['dompet_id' => $wallet->id, 'metode_pembayaran' => 'tunai', 'tanggal_bayar' => '2026-08-03'], $checker->id);
+        $service->approveClaim($claim->fresh(), 100000, 'Dokumen lengkap dan terverifikasi.', $checker->id);
+        $wallet = DompetKoperasi::query()->kas()->orderByDesc('saldo')->firstOrFail();
+        $walletBefore = (int) $wallet->saldo;
+        $sourceBefore = (int) DanaSosialSumber::query()->where('is_legacy', false)->sum('saldo_tersedia');
+        $paid = $service->payClaim($claim->fresh(), [
+            'dompet_id' => $wallet->id,
+            'metode_pembayaran' => 'tunai',
+            'tanggal_bayar' => '2026-08-06',
+            'nomor_referensi' => 'TEST-KLAIM-FINAL',
+        ], $checker->id);
+        $this->assertSame(KlaimDanaSosial::STATUS_PAID, $paid->status);
+        $this->assertSame(100000, (int) $paid->allocations()->sum('jumlah'));
+        $this->assertSame($sourceBefore - 100000, (int) DanaSosialSumber::query()->where('is_legacy', false)->sum('saldo_tersedia'));
+        $this->assertSame($walletBefore - 100000, (int) $wallet->fresh()->saldo);
 
-        $this->assertSame(550000, (int) $source->fresh()->saldo_tersedia);
-        $this->assertSame(1550000, (int) $wallet->fresh()->saldo);
-        $this->assertDatabaseHas('mutasi_kas', ['idempotency_key' => 'dana-claim:cash:'.$claim->id, 'tipe' => 'keluar']);
-        $service->reversePayment($claim->fresh(), 'Koreksi bukti pembayaran ganda.', $checker->id);
-        $service->reversePayment($claim->fresh(), 'Retry idempotent.', $checker->id);
-        $this->assertSame(800000, (int) $source->fresh()->saldo_tersedia);
-        $this->assertSame(1800000, (int) $wallet->fresh()->saldo);
-        $this->assertSame(1, DB::table('jurnal_umum')->where('idempotency_key', 'dana-claim:reversal:journal:'.$claim->id)->count());
-
-        $service->reverseSource($source->fresh(), 'Donasi dibatalkan oleh pemberi.', $checker->id);
-        $this->assertSame(DanaSosialSumber::STATUS_REVERSED, $source->fresh()->status);
-        $this->assertSame(1000000, (int) $wallet->fresh()->saldo);
+        $corrected = $service->reversePayment($paid, '2026-08-07', 'Koreksi pembayaran untuk pengujian final.', $checker->id);
+        $this->assertSame(KlaimDanaSosial::STATUS_CORRECTED, $corrected->status);
+        $this->assertSame($sourceBefore, (int) DanaSosialSumber::query()->where('is_legacy', false)->sum('saldo_tersedia'));
+        $this->assertSame($walletBefore, (int) $wallet->fresh()->saldo);
+        $this->assertNotNull($corrected->reversal_journal_id);
         $this->artisan('koperasi:preflight-dana-sosial')->assertExitCode(0);
     }
 
-    public function test_limit_versions_are_immutable_and_effective_by_claim_date(): void
+    public function test_five_versioned_benefits_and_all_operational_statuses_are_available(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
-        $service = app(DanaSosialService::class);
-        $old = $service->createLimit(['kategori' => 'khitan', 'nominal_maksimal' => 1000000, 'berlaku_mulai' => '2026-01-01', 'alasan' => 'Batas awal khitan'], $admin->id);
-        $service->createLimit(['kategori' => 'khitan', 'nominal_maksimal' => 1500000, 'berlaku_mulai' => '2026-07-01', 'alasan' => 'Penyesuaian batas khitan'], $admin->id);
-        $employee = Karyawan::factory()->create();
-        $claim = $service->createClaim(['karyawan_id' => $employee->id, 'kategori' => 'khitan', 'nominal' => 1200000, 'tanggal_pengajuan' => '2026-08-01', 'keterangan' => 'Klaim setelah batas baru'], $admin->id);
-        $this->assertSame('1500000.00', $claim->batas_nominal_snapshot);
+        $this->seed();
+
+        $this->assertEqualsCanonicalizing(JenisManfaatDanaSosial::KODE, JenisManfaatDanaSosial::query()->pluck('kode')->all());
+        $this->assertSame(5, KebijakanManfaatDanaSosial::query()->count());
+        $this->assertEqualsCanonicalizing([
+            KlaimDanaSosial::STATUS_SUBMITTED,
+            KlaimDanaSosial::STATUS_APPROVED,
+            KlaimDanaSosial::STATUS_PAID,
+            KlaimDanaSosial::STATUS_REJECTED,
+            KlaimDanaSosial::STATUS_WAITING_FUNDS,
+        ], KlaimDanaSosial::query()->pluck('status')->all());
+
+        $policy = KebijakanManfaatDanaSosial::query()->firstOrFail();
         $this->expectException(\RuntimeException::class);
-        $old->update(['nominal_maksimal' => 1]);
+        $policy->update(['batas_maksimal' => 1]);
     }
 
-    public function test_route_dana_sosial_default_404_and_admin_only_when_enabled(): void
+    public function test_social_fund_route_requires_both_feature_flags_and_admin_role(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true, 'must_change_password' => false]);
-        $kasir = User::factory()->create(['role' => 'kasir', 'is_active' => true, 'must_change_password' => false]);
-        config()->set('features.dana_sosial_enabled', false);
-        $this->get(route('klaim-dana-sosial.index'))->assertRedirect(route('login'));
-        $this->actingAs($kasir)->get(route('klaim-dana-sosial.index'))->assertForbidden();
-        $this->actingAs($admin)->get(route('klaim-dana-sosial.index'))->assertNotFound();
-        config()->set('features.dana_sosial_enabled', true); config()->set('features.shu_enabled', false);
-        $this->actingAs($admin)->get(route('klaim-dana-sosial.index'))->assertNotFound();
-        config()->set('features.shu_enabled', true);
-        $this->actingAs($admin)->get(route('klaim-dana-sosial.index'))->assertOk()->assertSee('Dana Sosial');
+        $cashier = User::factory()->create(['role' => 'kasir', 'is_active' => true, 'must_change_password' => false]);
+
+        config(['features.shu_enabled' => true, 'features.dana_sosial_enabled' => false]);
+        $this->get(route('dana-sosial.index'))->assertRedirect(route('login'));
+        $this->actingAs($cashier)->get(route('dana-sosial.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('dana-sosial.index'))->assertNotFound();
+
+        config(['features.dana_sosial_enabled' => true, 'features.shu_enabled' => false]);
+        $this->actingAs($admin)->get(route('dana-sosial.index'))->assertNotFound();
+
+        config(['features.shu_enabled' => true]);
+        $this->actingAs($admin)->get(route('dana-sosial.index'))->assertOk()->assertSee('Dana Sosial');
         $this->actingAs($admin)->get('/klaim-dana-khusus')->assertNotFound();
     }
 }

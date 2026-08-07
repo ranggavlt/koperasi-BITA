@@ -10,20 +10,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('shu_koperasi', function (Blueprint $table): void {
-            $table->foreignId('periode_akuntansi_id')->nullable()->after('id')->unique()->constrained('periode_akuntansi')->restrictOnDelete();
-            $table->foreignId('created_by')->nullable()->after('idempotency_key')->constrained('users')->restrictOnDelete();
-            $table->foreignId('calculated_by')->nullable()->after('created_by')->constrained('users')->restrictOnDelete();
-            $table->timestamp('calculated_at')->nullable()->after('calculated_by');
-            $table->foreignId('approved_by')->nullable()->after('calculated_at')->constrained('users')->restrictOnDelete();
-            $table->timestamp('approved_at')->nullable()->after('approved_by');
-            $table->text('approval_reason')->nullable()->after('approved_at');
-            $table->foreignId('allocation_journal_id')->nullable()->after('approval_reason')->constrained('jurnal_umum')->restrictOnDelete();
-            $table->foreignId('posted_by')->nullable()->after('allocation_journal_id')->constrained('users')->restrictOnDelete();
-            $table->timestamp('posted_at')->nullable()->after('posted_by');
-            $table->foreignId('reversal_journal_id')->nullable()->after('posted_at')->constrained('jurnal_umum')->restrictOnDelete();
-            $table->foreignId('reversed_by')->nullable()->after('reversal_journal_id')->constrained('users')->restrictOnDelete();
-            $table->timestamp('reversed_at')->nullable()->after('reversed_by');
-            $table->text('reversal_reason')->nullable()->after('reversed_at');
+            if (! Schema::hasColumn('shu_koperasi', 'periode_akuntansi_id')) $table->foreignId('periode_akuntansi_id')->nullable()->after('id')->unique()->constrained('periode_akuntansi')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'created_by')) $table->foreignId('created_by')->nullable()->after('idempotency_key')->constrained('users')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'calculated_by')) $table->foreignId('calculated_by')->nullable()->after('created_by')->constrained('users')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'calculated_at')) $table->timestamp('calculated_at')->nullable()->after('calculated_by');
+            if (! Schema::hasColumn('shu_koperasi', 'approved_by')) $table->foreignId('approved_by')->nullable()->after('calculated_at')->constrained('users')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'approved_at')) $table->timestamp('approved_at')->nullable()->after('approved_by');
+            if (! Schema::hasColumn('shu_koperasi', 'approval_reason')) $table->text('approval_reason')->nullable()->after('approved_at');
+            if (! Schema::hasColumn('shu_koperasi', 'allocation_journal_id')) $table->foreignId('allocation_journal_id')->nullable()->after('approval_reason')->constrained('jurnal_umum')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'posted_by')) $table->foreignId('posted_by')->nullable()->after('allocation_journal_id')->constrained('users')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'posted_at')) $table->timestamp('posted_at')->nullable()->after('posted_by');
+            if (! Schema::hasColumn('shu_koperasi', 'reversal_journal_id')) $table->foreignId('reversal_journal_id')->nullable()->after('posted_at')->constrained('jurnal_umum')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'reversed_by')) $table->foreignId('reversed_by')->nullable()->after('reversal_journal_id')->constrained('users')->restrictOnDelete();
+            if (! Schema::hasColumn('shu_koperasi', 'reversed_at')) $table->timestamp('reversed_at')->nullable()->after('reversed_by');
+            if (! Schema::hasColumn('shu_koperasi', 'reversal_reason')) $table->text('reversal_reason')->nullable()->after('reversed_at');
         });
 
         $now = now();

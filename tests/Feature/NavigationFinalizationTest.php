@@ -50,11 +50,11 @@ class NavigationFinalizationTest extends TestCase
         $this->assertSame('Daftar Akun / COA', $modules['coa']['label']);
         $this->assertTrue($modules['shu_config']['sidebar']);
         $this->assertTrue($modules['shu_config']['search']);
-        $this->assertArrayNotHasKey('feature', $modules['shu_config']);
+        $this->assertSame('shu_enabled', $modules['shu_config']['feature']);
         $this->assertTrue($modules['shu_koperasi']['sidebar']);
         $this->assertTrue($modules['shu_koperasi']['search']);
         $this->assertSame('shu_enabled', $modules['shu_koperasi']['feature']);
-        $this->assertSame('shu_enabled', $modules['dana_sosial']['feature']);
+        $this->assertSame(['shu_enabled', 'dana_sosial_enabled'], $modules['dana_sosial']['feature']);
         $this->assertSame('master_printer_enabled', $modules['printer_koperasi']['feature']);
 
         $this->actingAs($this->user('admin'));
@@ -114,8 +114,6 @@ class NavigationFinalizationTest extends TestCase
                 'Keanggotaan & Koreksi',
                 'Penyelesaian Anggota Keluar',
                 'Riwayat Koreksi Transaksi',
-                'SHU & Dana Sosial',
-                'Pengaturan SHU',
             ], false)
             ->assertDontSee('POS / Kasir')
             ->assertDontSee('Penjualan / Kasir')

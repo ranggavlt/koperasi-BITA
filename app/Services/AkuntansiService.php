@@ -43,7 +43,15 @@ class AkuntansiService
      */
     public function record(array $header, array $lines): JurnalUmum
     {
-        if (Schema::hasTable('periode_akuntansi') && ! empty($header['tanggal'])) {
+        $periodOperation = (bool) ($header['is_period_operation'] ?? false);
+        unset($header['is_period_operation']);
+        if (! empty($header['idempotency_key'])) {
+            $existing = JurnalUmum::query()->where('idempotency_key', $header['idempotency_key'])->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+        if (! $periodOperation && Schema::hasTable('periode_akuntansi') && ! empty($header['tanggal'])) {
             AccountingPeriodService::assertDateUnlocked((string) $header['tanggal']);
         }
         if (count($lines) < 2) {
@@ -62,8 +70,6 @@ class AkuntansiService
             throw new RuntimeException('Jurnal tidak balance (debit != kredit).');
         }
 
-        $periodOperation = (bool) ($header['is_period_operation'] ?? false);
-        unset($header['is_period_operation']);
         $header['status'] = JurnalUmum::STATUS_POSTED;
         $header['posted_at'] = $header['posted_at'] ?? now();
 
@@ -242,35 +248,108 @@ class AkuntansiService
 
     public function recordShuApproval(ShuKoperasi $shu, ?int $userId = null): ?JurnalUmum
     {
-        $existing=JurnalUmum::query()->where('idempotency_key','shu:persetujuan:jurnal:'.$shu->id)->first();if($existing)return $existing;
-        if((float)$shu->shu_total<=0)return null;
-        $personal=(float)$shu->nominal_shu_anggota+(float)$shu->nominal_pengurus+(float)$shu->nominal_pengawas+(float)$shu->nominal_pembina;
-        $lines=[$this->akunResolver->line($this->akunResolver->posting('shu.belum_dibagi'),'debit',$shu->shu_total)];
-        foreach([['shu.dana_cadangan',$shu->nominal_dana_cadangan],['shu.utang_penerima',$personal],['shu.dana_sosial',$shu->nominal_dana_sosial],['shu.dana_pendidikan',$shu->nominal_dana_pendidikan]] as [$posting,$amount])if((float)$amount>0)$lines[]=$this->akunResolver->line($this->akunResolver->posting($posting),'kredit',$amount);
-        return $this->record(['idempotency_key'=>'shu:persetujuan:jurnal:'.$shu->id,'tanggal'=>$shu->approved_at->toDateString(),'nomor_bukti'=>'SHU-'.$shu->id,'keterangan'=>'Persetujuan pembagian '.$shu->judul,'referensi_tipe'=>ShuKoperasi::class,'referensi_id'=>$shu->id,'created_by'=>$userId??auth()->id()],$lines);
+        $existing = JurnalUmum::query()->where('idempotency_key', 'shu:persetujuan:jurnal:' . $shu->id)->first();
+        if ($existing || (int) $shu->shu_total <= 0) {
+            return $existing;
+        }
+        $shu->loadMissing('recipients');
+        $personal = $shu->recipients->where('diikutkan', true)->groupBy('jenis_penerima')
+            ->map(fn ($rows) => $rows->sum(fn ($row) => $row->finalRight()));
+        $lines = [$this->akunResolver->line($this->akunResolver->posting('shu.belum_dibagi'), 'debit', $shu->shu_total)];
+        foreach ([
+            ['shu.dana_cadangan', (int) $shu->nominal_dana_cadangan],
+            ['shu.anggota', (int) ($personal['anggota'] ?? 0)],
+            ['shu.pengurus', (int) ($personal['pengurus'] ?? 0)],
+            ['shu.pengawas', (int) ($personal['pengawas'] ?? 0)],
+            ['shu.pembina', (int) ($personal['pembina'] ?? 0)],
+            ['shu.dana_sosial', (int) $shu->nominal_dana_sosial],
+        ] as [$posting, $amount]) {
+            if ($amount > 0) {
+                $lines[] = $this->akunResolver->line($this->akunResolver->posting($posting), 'kredit', $amount);
+            }
+        }
+
+        return $this->record([
+            'idempotency_key' => 'shu:persetujuan:jurnal:' . $shu->id,
+            'tanggal' => $shu->approved_at->toDateString(),
+            'nomor_bukti' => 'SHU-' . $shu->id,
+            'keterangan' => 'Persetujuan pembagian ' . $shu->judul,
+            'referensi_tipe' => ShuKoperasi::class,
+            'referensi_id' => $shu->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], $lines);
     }
 
     public function recordShuPayment(PembayaranShu $payment, ?int $userId = null): JurnalUmum
     {
-        $existing=JurnalUmum::query()->where('idempotency_key','shu:pembayaran:jurnal:'.$payment->id)->first();if($existing)return $existing;$payment->loadMissing(['penerima','dompet.akun']);$this->assertCashAccount($payment->dompet->akun,'pembayaran SHU');
-        return $this->record(['idempotency_key'=>'shu:pembayaran:jurnal:'.$payment->id,'tanggal'=>$payment->tanggal_bayar->toDateString(),'nomor_bukti'=>'BYR-SHU-'.$payment->id,'keterangan'=>'Pembayaran SHU '.$payment->penerima->nama_snapshot,'referensi_tipe'=>PembayaranShu::class,'referensi_id'=>$payment->id,'created_by'=>$userId??auth()->id()],[
-            $this->akunResolver->line($this->akunResolver->posting('shu.utang_penerima'),'debit',$payment->jumlah),$this->akunResolver->line($payment->dompet->akun,'kredit',$payment->jumlah),
+        $existing = JurnalUmum::query()->where('idempotency_key', 'shu:pembayaran:jurnal:' . $payment->id)->first();
+        if ($existing) return $existing;
+        $payment->loadMissing(['penerima', 'dompet.akun']);
+        $this->assertCashAccount($payment->dompet->akun, 'pembayaran SHU');
+        $posting = match ($payment->penerima->jenis_penerima) {
+            'anggota' => 'shu.anggota', 'pengurus' => 'shu.pengurus',
+            'pengawas' => 'shu.pengawas', 'pembina' => 'shu.pembina',
+            default => throw new RuntimeException('Jenis penerima SHU tidak dikenali.'),
+        };
+        return $this->record([
+            'idempotency_key' => 'shu:pembayaran:jurnal:' . $payment->id,
+            'tanggal' => $payment->tanggal_bayar->toDateString(),
+            'nomor_bukti' => 'BYR-SHU-' . $payment->id,
+            'keterangan' => 'Pembayaran SHU ' . $payment->penerima->nama_snapshot,
+            'referensi_tipe' => PembayaranShu::class,
+            'referensi_id' => $payment->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($this->akunResolver->posting($posting), 'debit', $payment->jumlah),
+            $this->akunResolver->line($payment->dompet->akun, 'kredit', $payment->jumlah),
         ]);
     }
 
     public function recordSocialDonation(DanaSosialSumber $source, ?int $userId = null): JurnalUmum
     {
-        $existing=JurnalUmum::query()->where('idempotency_key','dana-sosial:donasi:jurnal:'.$source->id)->first();if($existing)return $existing;$source->loadMissing('dompet.akun');$this->assertCashAccount($source->dompet->akun,'donasi resmi');
-        return $this->record(['idempotency_key'=>'dana-sosial:donasi:jurnal:'.$source->id,'tanggal'=>$source->tanggal->toDateString(),'nomor_bukti'=>$source->kode_sumber,'keterangan'=>'Donasi resmi Dana Sosial','referensi_tipe'=>DanaSosialSumber::class,'referensi_id'=>$source->id,'created_by'=>$userId??auth()->id()],[
-            $this->akunResolver->line($source->dompet->akun,'debit',$source->jumlah),$this->akunResolver->line($this->akunResolver->posting('shu.dana_sosial'),'kredit',$source->jumlah),
-        ]);
+        throw new RuntimeException('Donasi Dana Sosial dinonaktifkan. Sumber aktif hanya alokasi SHU yang disetujui.');
     }
 
     public function recordSocialClaim(KlaimDanaSosial $claim, ?int $userId = null): JurnalUmum
     {
         $existing=JurnalUmum::query()->where('idempotency_key','dana-sosial:klaim:jurnal:'.$claim->id)->first();if($existing)return $existing;$claim->loadMissing('dompet.akun');$this->assertCashAccount($claim->dompet->akun,'pembayaran klaim Dana Sosial');
         return $this->record(['idempotency_key'=>'dana-sosial:klaim:jurnal:'.$claim->id,'tanggal'=>$claim->tanggal_bayar->toDateString(),'nomor_bukti'=>$claim->kode_klaim,'keterangan'=>'Pembayaran klaim Dana Sosial '.$claim->penerima_manfaat,'referensi_tipe'=>KlaimDanaSosial::class,'referensi_id'=>$claim->id,'created_by'=>$userId??auth()->id()],[
-            $this->akunResolver->line($this->akunResolver->posting('shu.dana_sosial'),'debit',$claim->nominal_diajukan),$this->akunResolver->line($claim->dompet->akun,'kredit',$claim->nominal_diajukan),
+            $this->akunResolver->line($this->akunResolver->posting('shu.dana_sosial'),'debit',$claim->nominal_disetujui),$this->akunResolver->line($claim->dompet->akun,'kredit',$claim->nominal_disetujui),
+        ]);
+    }
+
+    public function recordShuPaymentReversal(PembayaranShu $payment, string $date, string $reason, ?int $userId = null): JurnalUmum
+    {
+        $payment->loadMissing(['penerima', 'dompet.akun']);
+        $posting = match ($payment->penerima->jenis_penerima) {
+            'anggota' => 'shu.anggota', 'pengurus' => 'shu.pengurus',
+            'pengawas' => 'shu.pengawas', 'pembina' => 'shu.pembina',
+            default => throw new RuntimeException('Jenis penerima SHU tidak dikenali.'),
+        };
+        return $this->record([
+            'idempotency_key' => 'shu:pembayaran:reversal:jurnal:' . $payment->id,
+            'tanggal' => $date, 'nomor_bukti' => 'REV-BYR-SHU-' . $payment->id,
+            'keterangan' => 'Reversal pembayaran SHU: ' . $reason,
+            'referensi_tipe' => PembayaranShu::class, 'referensi_id' => $payment->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($payment->dompet->akun, 'debit', $payment->jumlah),
+            $this->akunResolver->line($this->akunResolver->posting($posting), 'kredit', $payment->jumlah),
+        ]);
+    }
+
+    public function recordSocialClaimReversal(KlaimDanaSosial $claim, string $date, string $reason, ?int $userId = null): JurnalUmum
+    {
+        $claim->loadMissing('dompet.akun');
+        return $this->record([
+            'idempotency_key' => 'dana-sosial:klaim:reversal:jurnal:' . $claim->id,
+            'tanggal' => $date, 'nomor_bukti' => 'REV-' . $claim->kode_klaim,
+            'keterangan' => 'Reversal klaim Dana Sosial: ' . $reason,
+            'referensi_tipe' => KlaimDanaSosial::class, 'referensi_id' => $claim->id,
+            'created_by' => $userId ?? auth()->id(),
+        ], [
+            $this->akunResolver->line($claim->dompet->akun, 'debit', $claim->nominal_disetujui),
+            $this->akunResolver->line($this->akunResolver->posting('shu.dana_sosial'), 'kredit', $claim->nominal_disetujui),
         ]);
     }
 
